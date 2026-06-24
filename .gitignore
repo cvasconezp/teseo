@@ -1,0 +1,26 @@
+# Secretos — nunca subir
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Node (cuando agreguemos el frontend)
+node_modules/
+dist/
+build/
+.vercel/
