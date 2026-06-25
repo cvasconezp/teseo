@@ -76,4 +76,4 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 ## 🧪 Ideas para explorar
 - [ ] Más culturas de constelaciones (no solo la moderna/occidental)
 - [ ] Lluvias de meteoros, cometas, satélites (TLE)
-- [ ] Modo "tour guiado" narrado por IA
+- [x] Modo "tour guiado" narrado por IA — recorrido de objetos icónicos con narración Groq

@@ -12,6 +12,38 @@ const LAYERS = [
 ];
 const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", solar:"#ffe9a8" };
 
+const TOUR = [
+  { type: "con", ab: "Ori", title: { es: "Orión, el cazador", en: "Orion the Hunter" } },
+  { type: "star", name: "Betelgeuse", title: { es: "Betelgeuse", en: "Betelgeuse" } },
+  { type: "star", name: "Rigel", title: { es: "Rigel", en: "Rigel" } },
+  { type: "messier", m: 42, title: { es: "Nebulosa de Orión", en: "Orion Nebula" } },
+  { type: "star", name: "Sirius", title: { es: "Sirio, la estrella más brillante", en: "Sirius, the brightest star" } },
+  { type: "messier", m: 45, title: { es: "Las Pléyades", en: "The Pleiades" } },
+  { type: "bh", name: "Sgr A*", title: { es: "El centro de la Vía Láctea", en: "The Galactic Center" } },
+  { type: "messier", m: 31, title: { es: "Galaxia de Andrómeda", en: "Andromeda Galaxy" } },
+];
+function resolveStop(stop, ref, sky, datasets) {
+  if (!ref || !sky) return null;
+  if (stop.type === "con") {
+    const c = ref.conCentroid && ref.conCentroid[stop.ab]; if (!c || !c.idxs.length) return null;
+    let x = 0, y = 0, z = 0; for (const i of c.idxs) { x += ref.posFlat[i*3]; y += ref.posFlat[i*3+1]; z += ref.posFlat[i*3+2]; }
+    const L = Math.hypot(x, y, z) || 1;
+    return { dir: [x/L, y/L, z/L], dist: null, type: "con" };
+  }
+  if (stop.type === "star") {
+    const st = sky.stars.find(s => s[7] === stop.name); if (!st) return null;
+    return { dir: [st[1], st[2], st[3]], dist: st[6], type: "star" };
+  }
+  if (stop.type === "messier") {
+    const o = datasets.messier && datasets.messier.objects.find(o => o.m === stop.m); if (!o) return null;
+    return { dir: [o.nx, o.ny, o.nz], dist: o.dist_ly, type: "messier" };
+  }
+  if (stop.type === "bh") {
+    const o = datasets.blackholes && datasets.blackholes.objects.find(o => o.name === stop.name); if (!o) return null;
+    return { dir: [o.nx, o.ny, o.nz], dist: o.dist_ly, type: "bh" };
+  }
+  return null;
+}
 function gmstRad(date) {
   const JD = date.getTime() / 86400000 + 2440587.5;
   const T = JD - 2451545.0;
@@ -167,6 +199,11 @@ export default function Constellations({ lang = "es" }) {
   const bodies = useMemo(() => ephemeris(new Date(whenStr)), [whenStr]);
   const [query, setQuery] = useState("");
   const [labelDensity, setLabelDensity] = useState("normal");
+  const [tourActive, setTourActive] = useState(false);
+  const [tourIndex, setTourIndex] = useState(0);
+  const [tourAuto, setTourAuto] = useState(true);
+  const [tourTitle, setTourTitle] = useState("");
+  const [tourText, setTourText] = useState(null);
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2 || !sky) return [];
@@ -625,6 +662,28 @@ export default function Constellations({ lang = "es" }) {
     ref.camera.position.copy(v.clone().multiplyScalar(390));
     ref.controls.update();
   }, []);
+  const startTour = useCallback(() => { setSel(null); setSelObj(null); setTourAuto(true); setTourIndex(0); setTourActive(true); }, []);
+  useEffect(() => {
+    if (!tourActive) return;
+    const ref = sceneRef.current; const stop = TOUR[tourIndex];
+    const r = resolveStop(stop, ref, sky, datasets);
+    if (!r) return;
+    focusDir(r.dir[0], r.dir[1], r.dir[2]);
+    const title = stop.title ? (stop.title[lang] || stop.title.es) : "";
+    setTourTitle(title); setTourText(null);
+    const tw = r.type === "con" ? (lang === "es" ? "la constelación de" : "the constellation") : r.type === "star" ? (lang === "es" ? "la estrella" : "the star") : "";
+    const concept = `${tw} ${title}${r.dist ? `, ${lang === "es" ? "a" : "at"} ${fmtDist(r.dist, lang)} ${lang === "es" ? "de la Tierra" : "from Earth"}` : ""}`.trim();
+    let cancel = false;
+    fetch(`${API}/api/explain`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ concept, lang }) })
+      .then(r => r.json()).then(d => { if (!cancel) setTourText(d.explanation || ""); }).catch(() => { if (!cancel) setTourText(""); });
+    return () => { cancel = true; };
+  }, [tourActive, tourIndex, sky, datasets, lang, focusDir]);
+  useEffect(() => {
+    if (!tourActive || !tourAuto) return;
+    const id = setTimeout(() => setTourIndex(i => (i + 1) % TOUR.length), 15000);
+    return () => clearTimeout(id);
+  }, [tourActive, tourAuto, tourIndex]);
+
   const onResult = useCallback((res) => {
     setQuery("");
     if (res.type === "con") setSel(res.ab);
@@ -761,6 +820,16 @@ export default function Constellations({ lang = "es" }) {
               color: showSolar ? "#ffd23f" : "rgba(255,255,255,0.5)" }}>
             ☉ {lang === "es" ? "Sistema solar" : "Solar system"}
           </button>
+          <button
+            onClick={startTour}
+            disabled={!datasets.messier || !datasets.blackholes}
+            className="px-2.5 py-1 rounded-full transition-all"
+            style={{ fontFamily: "Inter,system-ui", fontSize: 10, cursor: (datasets.messier && datasets.blackholes) ? "pointer" : "default",
+              background: tourActive ? "rgba(167,139,250,0.2)" : "rgba(9,14,28,0.82)",
+              border: `1px solid ${tourActive ? "#A78BFA" : "rgba(255,255,255,0.12)"}`,
+              color: tourActive ? "#A78BFA" : "rgba(255,255,255,0.5)", opacity: (datasets.messier && datasets.blackholes) ? 1 : 0.4 }}>
+            🎬 {lang === "es" ? "Tour" : "Tour"}
+          </button>
           {LAYERS.map(cfg => {
             const on = !!enabled[cfg.key];
             const hex = "#" + cfg.color.toString(16).padStart(6, "0");
@@ -806,7 +875,7 @@ export default function Constellations({ lang = "es" }) {
         </div>
       )}
 
-      {sky && (
+      {sky && !tourActive && (
         <div className="absolute left-3 right-3 pointer-events-auto flex items-center gap-1 rounded-xl px-2 py-1.5"
           style={{ bottom: 12, background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.25)" }}>
           <button onClick={() => setLabelDensity(d => d === "pocas" ? "normal" : d === "normal" ? "muchas" : "pocas")} style={timeBtn} title="densidad de nombres">
@@ -841,6 +910,27 @@ export default function Constellations({ lang = "es" }) {
           <p style={{ fontFamily: "Inter,system-ui", fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
             {lang === "es" ? "Horizonte y brújula N-E-S-O según tu lugar y hora." : "Horizon & N-E-S-W compass for your place and time."}
           </p>
+        </div>
+      )}
+
+      {sky && tourActive && (
+        <div className="absolute left-3 right-3 pointer-events-auto rounded-xl px-4 py-3"
+          style={{ bottom: 12, background: "rgba(9,14,28,0.96)", border: "1px solid rgba(124,58,237,0.4)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)" }}>
+          <div className="flex items-center justify-between mb-1.5">
+            <span style={{ fontFamily: "Cormorant Garamond,Georgia,serif", color: "#fff", fontSize: 16 }}>{tourTitle}</span>
+            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{tourIndex + 1}/{TOUR.length}</span>
+          </div>
+          <p style={{ fontFamily: "Cormorant Garamond,Georgia,serif", fontStyle: "italic", color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.45, minHeight: 42, margin: 0 }}>
+            {tourText === null ? (lang === "es" ? "narrando…" : "narrating…") : (tourText ? `"${tourText}"` : "—")}
+          </p>
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex gap-1.5">
+              <button onClick={() => setTourIndex(i => (i - 1 + TOUR.length) % TOUR.length)} style={timeBtn}>‹ {lang === "es" ? "ant." : "prev"}</button>
+              <button onClick={() => setTourAuto(a => !a)} style={{ ...timeBtn, color: tourAuto ? "#A78BFA" : "rgba(255,255,255,0.6)", borderColor: tourAuto ? "#7C3AED" : "rgba(255,255,255,0.12)" }}>{tourAuto ? "⏸ auto" : "▶ auto"}</button>
+              <button onClick={() => setTourIndex(i => (i + 1) % TOUR.length)} style={timeBtn}>{lang === "es" ? "sig." : "next"} ›</button>
+            </div>
+            <button onClick={() => setTourActive(false)} style={{ ...timeBtn, color: "rgba(255,140,140,0.85)" }}>{lang === "es" ? "salir" : "exit"}</button>
+          </div>
         </div>
       )}
 
