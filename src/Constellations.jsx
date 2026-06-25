@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { ephemeris } from "./ephemeris.js";
 
 const API = import.meta.env.VITE_API_URL || "";
 const LAYERS = [
@@ -9,7 +10,7 @@ const LAYERS = [
   { key: "blackholes", file: "/blackholes.json", es: "Agujeros negros",  en: "Black holes",  color: 0xff7a3c, size: 11 },
   { key: "exoplanets", api: true,                es: "Exoplanetas",      en: "Exoplanets",   color: 0x4dd866, size: 6 },
 ];
-const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c" };
+const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", solar:"#ffe9a8" };
 
 function gmstRad(date) {
   const JD = date.getTime() / 86400000 + 2440587.5;
@@ -41,6 +42,8 @@ function makeTextSprite(text) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
   sp.scale.set(46, 46, 1); return sp;
 }
+const BODY_STYLE = { "Sol":["#ffd23f",24], "Luna":["#d8dde8",17], "Mercurio":["#b0a080",9], "Venus":["#ffe6b0",13], "Marte":["#ff6b4a",11], "Júpiter":["#e8c08a",16], "Saturno":["#e8d8a0",14], "Urano":["#a8e8e8",11], "Neptuno":["#6a8cff",11] };
+function fmtInput(d) { const z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; }
 function nowLocalInput() {
   const d = new Date(); const z = n => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
@@ -134,6 +137,9 @@ export default function Constellations({ lang = "es" }) {
   const [lat, setLat] = useState(null);
   const [lon, setLon] = useState(null);
   const [whenStr, setWhenStr] = useState(nowLocalInput());
+  const [playing, setPlaying] = useState(false);
+  const [showSolar, setShowSolar] = useState(true);
+  const bodies = useMemo(() => ephemeris(new Date(whenStr)), [whenStr]);
   const depthRef = useRef(0);
   const selRef = useRef(null);
 
@@ -292,9 +298,23 @@ export default function Constellations({ lang = "es" }) {
     });
     horizon.visible = false; scene.add(horizon);
 
+    // Sol, Luna y planetas (efemérides reales)
+    const solarGroup = new THREE.Group(); scene.add(solarGroup);
+    const solarSprites = {};
+    Object.keys(BODY_STYLE).forEach(nm => {
+      const [col, sz] = BODY_STYLE[nm];
+      const c = document.createElement("canvas"); c.width = c.height = 64; const cx2 = c.getContext("2d");
+      const g = cx2.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, "#ffffff"); g.addColorStop(0.3, col); g.addColorStop(0.75, col); g.addColorStop(1, "rgba(0,0,0,0)");
+      cx2.fillStyle = g; cx2.beginPath(); cx2.arc(32, 32, 30, 0, Math.PI * 2); cx2.fill();
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
+      sp.scale.set(sz * 2.2, sz * 2.2, 1);
+      solarGroup.add(sp); solarSprites[nm] = sp;
+    });
+
     sceneRef.current = { scene, camera, renderer, controls, points, lines,
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
-      markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth };
+      markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, bodies: [], showSolar: true };
     setReady(true);
 
     // resize
@@ -372,6 +392,7 @@ export default function Constellations({ lang = "es" }) {
           const cand = ref.namedStars.filter(s => s.mag <= magT).sort((a, b) => a.mag - b.mag).slice(0, 38);
           for (const s of cand) push(pa[s.i*3], pa[s.i*3+1], pa[s.i*3+2], s.name, "star");
         }
+        if (ref.showSolar) for (const b of (ref.bodies || [])) push(b.nx*860, b.ny*860, b.nz*860, b.name, "solar");
         if (camDist < 1050) {
           for (const o of (ref.layerObjs || [])) {
             if (!o.points.visible || o.key === "exoplanets") continue;
@@ -510,6 +531,7 @@ export default function Constellations({ lang = "es" }) {
     ref.points.quaternion.copy(q);
     ref.lines.quaternion.copy(q);
     (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));
+    if (ref.solarGroup) ref.solarGroup.quaternion.copy(q);
     if (ref.horizon) ref.horizon.visible = active;
     if (active) {
       ref.controls.autoRotate = false;
@@ -523,6 +545,23 @@ export default function Constellations({ lang = "es" }) {
       ref.controls.update();
     }
   }, [localMode, lat, lon, whenStr, ready, datasets, sel]);
+
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || !ref.solarSprites) return;
+    ref.bodies = bodies; ref.showSolar = showSolar;
+    ref.solarGroup.visible = showSolar;
+    bodies.forEach(b => { const sp = ref.solarSprites[b.name]; if (sp) sp.position.set(b.nx*860, b.ny*860, b.nz*860); });
+    ref.solarGroup.quaternion.copy(ref.localQuat || new THREE.Quaternion());
+  }, [bodies, showSolar, ready]);
+
+  // animar el tiempo (play)
+  useEffect(() => {
+    if (!playing) return;
+    const id = setInterval(() => setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + 10 * 60000))), 120);
+    return () => clearInterval(id);
+  }, [playing]);
+  const shiftMin = useCallback((m) => setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + m * 60000))), []);
 
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) return;
@@ -567,6 +606,8 @@ export default function Constellations({ lang = "es" }) {
 
   const selMeta = sky && sel ? sky.constellations.find(c => c.ab === sel) : null;
   const stats = selMeta ? constellationStats(selMeta, sky) : null;
+
+  const timeBtn = { fontFamily: "Inter,system-ui", fontSize: 10, padding: "3px 7px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)", cursor: "pointer", background: "transparent" };
 
   return (
     <div className="relative w-full" style={{ height: 460 }}>
@@ -629,6 +670,15 @@ export default function Constellations({ lang = "es" }) {
               color: localMode ? "#60A5FA" : "rgba(255,255,255,0.5)" }}>
             🌍 {lang === "es" ? "Mi cielo" : "My sky"}
           </button>
+          <button
+            onClick={() => setShowSolar(v => !v)}
+            className="px-2.5 py-1 rounded-full transition-all"
+            style={{ fontFamily: "Inter,system-ui", fontSize: 10, cursor: "pointer",
+              background: showSolar ? "rgba(255,210,63,0.16)" : "rgba(9,14,28,0.82)",
+              border: `1px solid ${showSolar ? "#ffd23f" : "rgba(255,255,255,0.12)"}`,
+              color: showSolar ? "#ffd23f" : "rgba(255,255,255,0.5)" }}>
+            ☉ {lang === "es" ? "Sistema solar" : "Solar system"}
+          </button>
           {LAYERS.map(cfg => {
             const on = !!enabled[cfg.key];
             const hex = "#" + cfg.color.toString(16).padStart(6, "0");
@@ -655,7 +705,7 @@ export default function Constellations({ lang = "es" }) {
 
       {/* depth slider */}
       {sky && sel && !localMode && (
-        <div className="absolute bottom-3 left-3 right-3 pointer-events-auto">
+        <div className="absolute left-3 right-3 pointer-events-auto" style={{ bottom: 56 }}>
           <div className="rounded-xl px-4 py-3" style={{ background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.3)" }}>
             <div className="flex items-center justify-between mb-1.5">
               <span style={{ color: depth < 0.5 ? "#60A5FA" : "rgba(255,255,255,0.4)", fontFamily: "Inter,system-ui", fontSize: 10 }}>{t.flat}</span>
@@ -674,9 +724,24 @@ export default function Constellations({ lang = "es" }) {
         </div>
       )}
 
+      {sky && (
+        <div className="absolute left-3 right-3 pointer-events-auto flex items-center gap-1 rounded-xl px-2 py-1.5"
+          style={{ bottom: 12, background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.25)" }}>
+          <button onClick={() => shiftMin(-1440)} style={timeBtn}>−1d</button>
+          <button onClick={() => shiftMin(-60)} style={timeBtn}>−1h</button>
+          <button onClick={() => setPlaying(pl => !pl)} style={{ ...timeBtn, color: playing ? "#A78BFA" : "rgba(255,255,255,0.6)", borderColor: playing ? "#7C3AED" : "rgba(255,255,255,0.12)" }}>{playing ? "⏸" : "▶"}</button>
+          <span style={{ flex: 1, textAlign: "center", fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "rgba(255,255,255,0.62)" }}>
+            {new Date(whenStr).toLocaleString(lang === "es" ? "es-EC" : "en-US", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+          </span>
+          <button onClick={() => shiftMin(60)} style={timeBtn}>+1h</button>
+          <button onClick={() => shiftMin(1440)} style={timeBtn}>+1d</button>
+          <button onClick={() => { setPlaying(false); setWhenStr(nowLocalInput()); }} style={timeBtn}>{lang === "es" ? "ahora" : "now"}</button>
+        </div>
+      )}
+
       {sky && localMode && (
-        <div className="absolute bottom-3 left-3 right-3 pointer-events-auto rounded-xl px-4 py-3"
-          style={{ background: "rgba(9,14,28,0.93)", border: "1px solid rgba(96,165,250,0.3)" }}>
+        <div className="absolute left-3 right-3 pointer-events-auto rounded-xl px-4 py-2.5"
+          style={{ bottom: 56, background: "rgba(9,14,28,0.93)", border: "1px solid rgba(96,165,250,0.3)" }}>
           <div className="flex items-center justify-between gap-2 mb-2">
             <span style={{ fontFamily: "Inter,system-ui", fontSize: 10, color: "#60A5FA" }}>
               {lat != null ? `${lat}°, ${lon}°` : (lang === "es" ? "sin ubicación" : "no location")}
@@ -688,15 +753,7 @@ export default function Constellations({ lang = "es" }) {
               {lang === "es" ? "Usar mi ubicación" : "Use my location"}
             </button>
           </div>
-          <div className="flex gap-1.5 items-center">
-            <input type="datetime-local" value={whenStr} onChange={e => setWhenStr(e.target.value)}
-              style={{ flex: 1, background: "rgba(255,255,255,0.05)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "5px 8px", fontFamily: "JetBrains Mono,monospace", fontSize: 11 }} />
-            <button onClick={() => setWhenStr(nowLocalInput())}
-              className="px-2 py-1 rounded-lg" style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer" }}>
-              {lang === "es" ? "ahora" : "now"}
-            </button>
-          </div>
-          <p style={{ fontFamily: "Inter,system-ui", fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 6 }}>
+          <p style={{ fontFamily: "Inter,system-ui", fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
             {lang === "es" ? "Horizonte y brújula N-E-S-O según tu lugar y hora." : "Horizon & N-E-S-W compass for your place and time."}
           </p>
         </div>
@@ -744,6 +801,13 @@ export default function Constellations({ lang = "es" }) {
               {lang === "es"
                 ? `Su luz tardó ${fmtYears(selObj.dist_ly, lang)} en llegar: lo ves como era entonces.`
                 : `Its light took ${fmtYears(selObj.dist_ly, lang)} to arrive: you see it as it was then.`}
+            </div>
+          )}
+          {selObj.dist_ly > 0 && (
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.4)", fontSize: 10, marginTop: 5 }}>
+              {lang === "es"
+                ? `En la Voyager 1 tardarías ${fmtYears(selObj.dist_ly * 17575, lang)}.`
+                : `In Voyager 1 you'd take ${fmtYears(selObj.dist_ly * 17575, lang)}.`}
             </div>
           )}
         </div>
