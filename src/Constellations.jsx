@@ -792,7 +792,7 @@ export default function Constellations({ lang = "es" }) {
               ))}
             </select>
           </div>
-          <div className="pointer-events-auto" style={{ width: 172 }}>
+          <div className="pointer-events-auto" style={{ width: 172, position: "relative", zIndex: 40 }}>
             <input value={query} onChange={e => setQuery(e.target.value)}
               placeholder={lang === "es" ? "Buscar objeto…" : "Search…"}
               style={{ width: "100%", background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.4)", borderRadius: 10, color: "#fff", padding: "6px 10px", fontFamily: "Inter,system-ui", fontSize: 11, outline: "none" }} />
