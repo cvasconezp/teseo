@@ -576,6 +576,7 @@ function LaunchWindows({ from, to, lang }) {
 
 export default function Teseo() {
   const [intro,    setIntro]    = useState(true);
+  const [showCredits, setShowCredits] = useState(false);
   const [lang,     setLang]     = useState("en");
   const [from,     setFrom]     = useState(PLANETS[2]); // Earth
   const [to,       setTo]       = useState(PLANETS[3]); // Mars
@@ -724,7 +725,49 @@ export default function Teseo() {
               style={{fontFamily:"Inter,system-ui",fontSize:9}}>
               desarrollado por Yachay Deep Labs
             </a>
+            <span className="text-white/15" style={{fontSize:9}}> · </span>
+            <button onClick={()=>setShowCredits(true)}
+              className="text-white/30 hover:text-white/60 transition-all tracking-widest uppercase"
+              style={{fontFamily:"Inter,system-ui",fontSize:9,background:"transparent",border:"none",cursor:"pointer"}}>
+              {lang==="es"?"créditos y datos":"credits & data"}
+            </button>
           </footer>
+      {showCredits && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:"rgba(2,4,9,0.8)"}}
+          onClick={()=>setShowCredits(false)}>
+          <div onClick={e=>e.stopPropagation()} className="rounded-2xl p-6 max-w-md w-full"
+            style={{background:"#090E1C",border:"1px solid rgba(124,58,237,0.3)",maxHeight:"82vh",overflowY:"auto"}}>
+            <div className="flex items-start justify-between mb-3">
+              <h2 style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:24,color:"#fff"}}>{lang==="es"?"Créditos y fuentes de datos":"Credits & data sources"}</h2>
+              <button onClick={()=>setShowCredits(false)} className="text-white/40 hover:text-white/80" style={{fontSize:18}}>✕</button>
+            </div>
+            <p style={{fontFamily:"Inter,system-ui",fontSize:11,color:"rgba(255,255,255,0.5)",marginBottom:12}}>
+              {lang==="es"?"Teseo usa datos reales de fuentes oficiales. Código MIT.":"Teseo uses real data from official sources. MIT code."}
+            </p>
+            {[
+              ["Estrellas y distancias","HYG Database v4.1 (Hipparcos) · CC BY-SA"],
+              ["Constelaciones","Stellarium modern skyculture · IAU"],
+              ["Cúmulos, nebulosas y galaxias","OpenNGC (Messier/NGC) · CC BY-SA"],
+              ["Púlsares","ATNF Pulsar Catalogue (CSIRO)"],
+              ["Agujeros negros","Valores publicados (selección)"],
+              ["Posición de planetas","NASA JPL Horizons + efemérides"],
+              ["Exoplanetas","NASA Exoplanet Archive"],
+              ["Fichas e imágenes","Wikipedia · CC BY-SA"],
+              ["Narrativa","Groq (modelos Llama)"],
+              ["Render 3D","Three.js · MIT"],
+            ].map(([k,v])=>(
+              <div key={k} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+                <span style={{fontFamily:"Inter,system-ui",fontSize:11,color:"rgba(255,255,255,0.8)"}}>{k}</span>
+                <span style={{fontFamily:"Inter,system-ui",fontSize:10,color:"rgba(255,255,255,0.4)",textAlign:"right"}}>{v}</span>
+              </div>
+            ))}
+            <p style={{fontFamily:"Inter,system-ui",fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:12,lineHeight:1.5}}>
+              {lang==="es"?"Las distancias de objetos lejanos y púlsares son valores publicados con incertidumbre; se muestran como aproximaciones.":"Distances to deep-sky objects and pulsars are published values with uncertainty; shown as approximations."}
+            </p>
+          </div>
+        </div>
+      )}
+
         </div>
       </div>
     </>
