@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
+const Constellations = lazy(() => import("./Constellations.jsx"));
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,7 @@ const T = {
     destination:    "Destination",
     route:          "Route",
     windows:        "Windows",
+    sky:            "Sky",
     vehicle:        "Vehicle",
     travelTime:     "Estimated travel time",
     hohmann:        "Hohmann transfer",
@@ -51,6 +53,7 @@ const T = {
     destination:    "Destino",
     route:          "Ruta",
     windows:        "Ventanas",
+    sky:            "Cielo",
     vehicle:        "Vehículo",
     travelTime:     "Tiempo de viaje estimado",
     hohmann:        "Transferencia de Hohmann",
@@ -111,6 +114,64 @@ function fmt(sec, lang) {
 }
 
 function pname(p, lang) { return lang === "es" ? p.es : p.en; }
+
+// ─── SPACE TRAVEL BACKGROUND ─────────────────────────────────────────────────
+
+function SpaceTravel() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas.getContext("2d");
+    let w, h, cx, cy, raf;
+    const COUNT = 320;
+    const stars = [];
+    const COLORS = ["#ffffff", "#cfe0ff", "#ffe9c7", "#e7d4ff", "#bcd4ff"];
+    function resize() {
+      w = canvas.width = canvas.offsetWidth;
+      h = canvas.height = canvas.offsetHeight;
+      cx = w / 2; cy = h / 2;
+    }
+    function reset(s, far) {
+      s.x = (Math.random() - 0.5) * w;
+      s.y = (Math.random() - 0.5) * h;
+      s.z = far ? Math.random() * w : w;
+      s.pz = s.z;
+      s.c = COLORS[(Math.random() * COLORS.length) | 0];
+    }
+    resize();
+    for (let i = 0; i < COUNT; i++) { const s = {}; reset(s, true); stars.push(s); }
+    const speed = 0.55; // "poco a poco"
+    function frame() {
+      raf = requestAnimationFrame(frame);
+      ctx.fillStyle = "rgba(4,8,15,0.35)";
+      ctx.fillRect(0, 0, w, h);
+      for (const s of stars) {
+        s.pz = s.z;
+        s.z -= speed * 2.2;
+        if (s.z < 1) { reset(s, false); continue; }
+        const k = 220;
+        const sx = cx + (s.x / s.z) * k;
+        const sy = cy + (s.y / s.z) * k;
+        const px = cx + (s.x / s.pz) * k;
+        const py = cy + (s.y / s.pz) * k;
+        if (sx < 0 || sx > w || sy < 0 || sy > h) { reset(s, false); continue; }
+        const r = Math.max(0.2, (1 - s.z / w) * 2.2);
+        const o = Math.min(1, (1 - s.z / w) * 1.3);
+        ctx.strokeStyle = s.c;
+        ctx.globalAlpha = o * 0.9;
+        ctx.lineWidth = r;
+        ctx.beginPath();
+        ctx.moveTo(px, py); ctx.lineTo(sx, sy);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    frame();
+    window.addEventListener("resize", resize);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, []);
+  return <canvas ref={ref} className="fixed inset-0 w-full h-full pointer-events-none z-0" style={{ display: "block" }} />;
+}
 
 // ─── STAR FIELD ──────────────────────────────────────────────────────────────
 
@@ -567,7 +628,7 @@ export default function Teseo() {
       {intro && <Intro lang={lang} onDone={onDone}/>}
 
       <div className="min-h-screen bg-[#04080F] text-white relative">
-        <StarField/>
+        <SpaceTravel/>
 
         <div className="relative z-10 px-5 pt-5 max-w-lg mx-auto">
 
@@ -598,6 +659,7 @@ export default function Teseo() {
             </div>
           </div>
 
+          {tab!=="sky" && (<>
           {/* Orbit map */}
           <div className="rounded-2xl overflow-hidden border border-white/6 mb-3"
             style={{height:215,background:"rgba(255,255,255,0.015)"}}>
@@ -612,9 +674,11 @@ export default function Teseo() {
               label={t.destination} accentColor="#A78BFA" lang={lang}/>
           </div>
 
+          </>)}
+
           {/* Tabs */}
           <div className="flex gap-1 mb-4 bg-white/4 rounded-xl p-1">
-            {[["route",t.route],["windows",t.windows]].map(([id,label])=>(
+            {[["route",t.route],["windows",t.windows],["sky",t.sky]].map(([id,label])=>(
               <button key={id} onClick={()=>setTab(id)}
                 className="flex-1 py-2 rounded-lg text-xs font-medium transition-all"
                 style={{
@@ -636,7 +700,20 @@ export default function Teseo() {
             <LaunchWindows from={from} to={to} lang={lang}/>
           )}
 
-          <div className="pb-12"/>
+          {tab==="sky"&&(
+            <Suspense fallback={<div className="text-center text-white/30 py-12" style={{fontFamily:"Inter,system-ui",fontSize:12}}>...</div>}>
+              <Constellations lang={lang}/>
+            </Suspense>
+          )}
+
+          {/* Footer */}
+          <footer className="mt-8 mb-10 text-center">
+            <a href="https://yachaydeep.com" target="_blank" rel="noopener noreferrer"
+              className="inline-block text-white/30 hover:text-white/60 transition-all tracking-widest uppercase"
+              style={{fontFamily:"Inter,system-ui",fontSize:9}}>
+              desarrollado por Yachay Deep Labs
+            </a>
+          </footer>
         </div>
       </div>
     </>
