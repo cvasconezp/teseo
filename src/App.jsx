@@ -123,7 +123,7 @@ function SpaceTravel() {
     const canvas = ref.current;
     const ctx = canvas.getContext("2d");
     let w, h, cx, cy, raf;
-    const COUNT = 320;
+    const COUNT = 70;          // pocas estrellas, como en el espacio real
     const stars = [];
     const COLORS = ["#ffffff", "#cfe0ff", "#ffe9c7", "#e7d4ff", "#bcd4ff"];
     function resize() {
@@ -131,35 +131,41 @@ function SpaceTravel() {
       h = canvas.height = canvas.offsetHeight;
       cx = w / 2; cy = h / 2;
     }
-    function reset(s, far) {
-      s.x = (Math.random() - 0.5) * w;
-      s.y = (Math.random() - 0.5) * h;
-      s.z = far ? Math.random() * w : w;
+    function reset(s, spread) {
+      s.x = (Math.random() - 0.5) * w * 1.6;
+      s.y = (Math.random() - 0.5) * h * 1.6;
+      // mantenerlas lejanas: nunca se acercan demasiado (sin estelas de "warp")
+      s.z = spread ? (0.35 + Math.random() * 0.65) * w : w;
       s.pz = s.z;
       s.c = COLORS[(Math.random() * COLORS.length) | 0];
+      s.tw = Math.random() * Math.PI * 2;
     }
     resize();
     for (let i = 0; i < COUNT; i++) { const s = {}; reset(s, true); stars.push(s); }
-    const speed = 0.55; // "poco a poco"
+    const SPEED = 0.32;        // muy lento: nos acercamos poco a poco
+    const NEAR = 0.34;         // se reinician estando aún lejos -> sin rayas largas
     function frame() {
       raf = requestAnimationFrame(frame);
-      ctx.fillStyle = "rgba(4,8,15,0.35)";
+      ctx.fillStyle = "rgba(4,8,15,0.5)";
       ctx.fillRect(0, 0, w, h);
       for (const s of stars) {
         s.pz = s.z;
-        s.z -= speed * 2.2;
-        if (s.z < 1) { reset(s, false); continue; }
-        const k = 220;
+        s.z -= SPEED;
+        if (s.z < NEAR * w) { reset(s, false); continue; }
+        const k = 200;
         const sx = cx + (s.x / s.z) * k;
         const sy = cy + (s.y / s.z) * k;
         const px = cx + (s.x / s.pz) * k;
         const py = cy + (s.y / s.pz) * k;
-        if (sx < 0 || sx > w || sy < 0 || sy > h) { reset(s, false); continue; }
-        const r = Math.max(0.2, (1 - s.z / w) * 2.2);
-        const o = Math.min(1, (1 - s.z / w) * 1.3);
+        if (sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) { reset(s, false); continue; }
+        const depth = 1 - s.z / w;           // 0 lejos -> ~0.66 cerca
+        s.tw += 0.05;
+        const r = Math.max(0.4, depth * 1.6);
+        const o = Math.min(0.7, depth * 1.1) * (0.7 + 0.3 * Math.sin(s.tw));
         ctx.strokeStyle = s.c;
-        ctx.globalAlpha = o * 0.9;
+        ctx.globalAlpha = o;
         ctx.lineWidth = r;
+        ctx.lineCap = "round";
         ctx.beginPath();
         ctx.moveTo(px, py); ctx.lineTo(sx, sy);
         ctx.stroke();
