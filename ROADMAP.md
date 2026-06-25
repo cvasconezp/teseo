@@ -65,7 +65,7 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 - [x] "La luz que ves salió hace X años"
 - [x] **Tiempo de viaje a objetos** (luz + Voyager 1) en la ficha
 - [ ] **"¿Cómo se vería el cielo desde allí?"** (cambiar el punto de observación)
-- [ ] Comparador de escalas / distancias (regla cósmica)
+- [x] Comparador de escalas / distancias (regla cósmica) — pestaña 'Escala'
 
 ## 🧱 Plataforma y calidad
 - [x] Página de **créditos y licencias** de datos in-app (ver CREDITS.md)
