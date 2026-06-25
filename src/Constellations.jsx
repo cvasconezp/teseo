@@ -40,8 +40,9 @@ const FLAT_R = 900;
 const BG_R = 1000;
 function depthRadius(d) {
   if (!d || d <= 0) return FLAT_R;
-  const r = 200 * Math.log10(d + 1);
-  return Math.max(100, Math.min(950, r));
+  const dd = Math.min(d, 4000);
+  const r = 50 + 13 * Math.sqrt(dd);   // raíz cuadrada: más cerca = más cerca, spread visible
+  return Math.max(60, Math.min(1000, r));
 }
 function hexToRgb(h) {
   const n = parseInt(h.slice(1), 16);
@@ -231,29 +232,57 @@ export default function Constellations({ lang = "es" }) {
     };
   }, [sky]);
 
-  // camera move on selection
+  // posiciona la cámara según la profundidad: 0 = vista desde la Tierra (plano),
+  // 1 = vista lateral que REVELA la profundidad real en distancia.
+  const positionCamera = useCallback((dpt) => {
+    const ref = sceneRef.current;
+    if (!ref || !ref.selCentroidDir) return;
+    const v = ref.selCentroidDir;
+    const targetR = FLAT_R + (ref.selAvgR - FLAT_R) * dpt;
+    const target = v.clone().multiplyScalar(targetR);
+    const up = Math.abs(v.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    const side = new THREE.Vector3().crossVectors(v, up).normalize();
+    const angle = dpt * Math.PI * 0.42;            // hasta ~75° de giro lateral
+    const dist = 520 + 200 * dpt;
+    const dir = v.clone().multiplyScalar(-Math.cos(angle))
+      .add(side.multiplyScalar(Math.sin(angle))).normalize();
+    ref.camera.position.copy(target.clone().add(dir.multiplyScalar(dist)));
+    ref.controls.target.copy(target);
+    ref.controls.update();
+  }, []);
+
+  // al cambiar de constelación
   useEffect(() => {
-    const ref = sceneRef.current; if (!ref || !sel) {
-      if (ref) { ref.controls.autoRotate = true; }
+    const ref = sceneRef.current;
+    if (!ref) return;
+    if (!sel) {
+      ref.selCentroidDir = null;
+      ref.controls.autoRotate = true;
+      ref.controls.target.set(0, 0, 0);
+      ref.camera.position.set(0, 0, 1700);
+      ref.controls.update();
       return;
     }
     const c = ref.conMeta[sel]; if (!c) return;
-    // centroid direction
-    let cx=0,cy=0,cz=0,n=0;
+    let cx=0,cy=0,cz=0,n=0,sumR=0,cnt=0;
     const seen=new Set();
-    c.lines.forEach(p=>p.forEach(h=>{ if(!seen.has(h)){seen.add(h); const s=ref.byHip.get(h); if(s){cx+=s[1];cy+=s[2];cz+=s[3];n++;}}}));
+    c.lines.forEach(p=>p.forEach(h=>{ if(!seen.has(h)){seen.add(h); const st=ref.byHip.get(h); if(st){cx+=st[1];cy+=st[2];cz+=st[3];n++; sumR+=depthRadius(st[6]); cnt++;}}}));
     if(n===0) return;
-    const v=new THREE.Vector3(cx/n,cy/n,cz/n).normalize();
+    ref.selCentroidDir = new THREE.Vector3(cx/n,cy/n,cz/n).normalize();
+    ref.selAvgR = cnt ? sumR/cnt : FLAT_R;
     ref.controls.autoRotate = false;
-    ref.controls.target.copy(v.clone().multiplyScalar(FLAT_R));
-    ref.camera.position.set(0,0,0.01); // Earth's eye → flat view
-    ref.controls.update();
-  }, [sel]);
+    positionCamera(depthRef.current);
+  }, [sel, positionCamera]);
+
+  // al mover el slider de profundidad, gira la cámara para revelarla
+  useEffect(() => {
+    if (sel) positionCamera(depth);
+  }, [depth, sel, positionCamera]);
 
   const onPick = useCallback((e) => {
     const v = e.target.value;
     setSel(v === "__all__" ? null : v);
-    if (v === "__all__") setDepth(0);
+    setDepth(0);   // siempre arranca en 'plano' y el usuario revela la profundidad
   }, []);
 
   const selMeta = sky && sel ? sky.constellations.find(c => c.ab === sel) : null;
