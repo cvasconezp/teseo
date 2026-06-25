@@ -9,6 +9,7 @@ const LAYERS = [
   { key: "blackholes", file: "/blackholes.json", es: "Agujeros negros",  en: "Black holes",  color: 0xff7a3c, size: 11 },
   { key: "exoplanets", api: true,                es: "Exoplanetas",      en: "Exoplanets",   color: 0x4dd866, size: 6 },
 ];
+const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c" };
 function fmtYears(y, lang) {
   const es = lang === "es";
   const u = es ? "años" : "yr";
@@ -162,6 +163,16 @@ export default function Constellations({ lang = "es" }) {
       colors[i*3]=r*bright; colors[i*3+1]=g*bright; colors[i*3+2]=b*bright;
       sizes[i] = isAster ? Math.max(3.0, 9.5 - mag * 0.8) : Math.max(0.8, 5.2 - mag * 0.62);
     });
+    // precálculo para etiquetas LOD
+    const namedStars = [];
+    sky.stars.forEach((st, i) => { if (st[7]) namedStars.push({ i, mag: st[4], name: st[7] }); });
+    const conCentroid = {};
+    sky.constellations.forEach(c => {
+      const idxs = []; const seen = new Set();
+      c.lines.forEach(pl => pl.forEach(h => { if (!seen.has(h)) { seen.add(h); const ii = hipIndex.get(h); if (ii != null) idxs.push(ii); } }));
+      conCentroid[c.ab] = { idxs, name: c.la };
+    });
+
     const sGeo = new THREE.BufferGeometry();
     const posAttr = new THREE.BufferAttribute(posFlat.slice(), 3);
     sGeo.setAttribute("position", posAttr);
@@ -226,7 +237,7 @@ export default function Constellations({ lang = "es" }) {
 
     sceneRef.current = { scene, camera, renderer, controls, points, lines,
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
-      markerTex: starTex, layerObjs: [] };
+      markerTex: starTex, layerObjs: [], namedStars, conCentroid };
     setReady(true);
 
     // resize
@@ -271,22 +282,47 @@ export default function Constellations({ lang = "es" }) {
       ref.lines.geometry.attributes.color.needsUpdate = true;
       ref.controls.update();
       ref.renderer.render(ref.scene, ref.camera);
-      // project labels for selected constellation
-      if (selAb && ref.conMeta[selAb]) {
-        const named = collectNamed(ref.conMeta[selAb], ref.byHip);
-        const w = mount.clientWidth, h = mount.clientHeight;
+      // ── etiquetas con nivel de detalle (LOD) ──
+      ref._lf = (ref._lf || 0) + 1;
+      if (ref._lf % 5 === 0) {
+        const W = mount.clientWidth, H = mount.clientHeight;
+        const camDist = ref.camera.position.length();
         const out = [];
-        named.forEach(st => {
-          const i = ref.hipIndex.get(st[0]);
-          tmp.set(pa[i*3], pa[i*3+1], pa[i*3+2]).project(ref.camera);
-          if (tmp.z < 1) out.push({
-            hip: st[0], name: st[7], dist: st[6],
-            x: (tmp.x*0.5+0.5)*w, y: (-tmp.y*0.5+0.5)*h,
+        const push = (x, y, z, name, cls, sub) => {
+          tmp.set(x, y, z).project(ref.camera);
+          if (tmp.z < 1 && tmp.x > -1.05 && tmp.x < 1.05 && tmp.y > -1.05 && tmp.y < 1.05)
+            out.push({ key: cls + ":" + name, name, cls, sub: sub == null ? null : sub,
+                       x: (tmp.x * 0.5 + 0.5) * W, y: (-tmp.y * 0.5 + 0.5) * H });
+        };
+        if (selAb && ref.conMeta[selAb]) {
+          collectNamed(ref.conMeta[selAb], ref.byHip).forEach(st => {
+            const i = ref.hipIndex.get(st[0]);
+            push(pa[i*3], pa[i*3+1], pa[i*3+2], st[7], "star", st[6]);
           });
-        });
-        setLabels(out);
-      } else if (labelsNonEmpty.current) { setLabels([]); labelsNonEmpty.current=false; }
-      if (selAb) labelsNonEmpty.current = true;
+        } else if (camDist > 820) {
+          for (const ab in ref.conCentroid) {
+            const c = ref.conCentroid[ab]; if (!c.idxs.length) continue;
+            let cx=0, cy=0, cz=0;
+            for (const i of c.idxs) { cx += pa[i*3]; cy += pa[i*3+1]; cz += pa[i*3+2]; }
+            const n = c.idxs.length; push(cx/n, cy/n, cz/n, c.name, "con");
+          }
+        } else {
+          const magT = 1.0 + (820 - camDist) / 770 * 5.2;
+          const cand = ref.namedStars.filter(s => s.mag <= magT).sort((a, b) => a.mag - b.mag).slice(0, 38);
+          for (const s of cand) push(pa[s.i*3], pa[s.i*3+1], pa[s.i*3+2], s.name, "star");
+        }
+        if (camDist < 1050) {
+          for (const o of (ref.layerObjs || [])) {
+            if (!o.points.visible || o.key === "exoplanets") continue;
+            const objs = o.points.userData.objs;
+            for (let q = 0; q < objs.length && q < 200; q++) {
+              const ob = objs[q];
+              push(ob.nx*870, ob.ny*870, ob.nz*870, ob.name, "obj_" + o.key);
+            }
+          }
+        }
+        setLabels(out.slice(0, 70));
+      }
     };
     const labelsNonEmpty = { current: false };
     animate();
@@ -448,12 +484,23 @@ export default function Constellations({ lang = "es" }) {
           style={{ fontFamily: "Inter,system-ui", fontSize: 13 }}>{t.loading}</div>
       )}
 
-      {/* labels */}
+      {/* labels LOD */}
       {labels.map(l => (
-        <div key={l.hip} className="absolute pointer-events-none"
-          style={{ left: l.x, top: l.y, transform: "translate(8px,-50%)" }}>
-          <div style={{ fontFamily: "Cormorant Garamond,Georgia,serif", color: "#fff", fontSize: 13, lineHeight: 1, textShadow: "0 1px 6px #000" }}>{l.name}</div>
-          <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 9, textShadow: "0 1px 6px #000" }}>{l.dist.toLocaleString()} {t.lightyears.split("-").join(" ")}</div>
+        <div key={l.key} className="absolute pointer-events-none"
+          style={{ left: l.x, top: l.y, transform: "translate(6px,-50%)", whiteSpace: "nowrap" }}>
+          <div style={{
+            fontFamily: "Cormorant Garamond,Georgia,serif",
+            color: LABEL_COLOR[l.cls] || "#fff",
+            fontSize: l.cls === "con" ? 15 : 12.5,
+            letterSpacing: l.cls === "con" ? "0.14em" : "0",
+            textTransform: l.cls === "con" ? "uppercase" : "none",
+            lineHeight: 1, textShadow: "0 1px 6px #000",
+          }}>{l.name}</div>
+          {l.sub != null && (
+            <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 9, textShadow: "0 1px 6px #000" }}>
+              {l.sub.toLocaleString()} {t.lightyears.split("-").join(" ")}
+            </div>
+          )}
         </div>
       ))}
 
