@@ -221,17 +221,28 @@ export default function Constellations({ lang = "es" }) {
   useEffect(() => { depthRef.current = depth; }, [depth]);
   useEffect(() => { selRef.current = sel; }, [sel]);
 
-  // Load data
+  const [loadingLayer, setLoadingLayer] = useState({});
+  // Carga inicial: solo la base + catálogos pequeños (Messier/púlsares/agujeros negros, ~20 KB)
   useEffect(() => {
     fetch("/sky.json").then(r => r.json()).then(setSky).catch(() => {});
-    LAYERS.forEach((cfg) => {
-      const url = cfg.api ? `${API}/api/exoplanets` : cfg.file;
-      if (cfg.api && !API) return;
-      fetch(url).then(r => r.json())
+    LAYERS.filter(c => !c.api).forEach((cfg) => {
+      fetch(cfg.file).then(r => r.json())
         .then(d => setDatasets(prev => ({ ...prev, [cfg.key]: d })))
         .catch(() => {});
     });
   }, []);
+  // Capas pesadas (exoplanetas, ~780 KB del backend): solo al activarlas
+  useEffect(() => {
+    LAYERS.filter(c => c.api).forEach((cfg) => {
+      if (enabled[cfg.key] && !datasets[cfg.key] && !loadingLayer[cfg.key] && API) {
+        setLoadingLayer(p => ({ ...p, [cfg.key]: true }));
+        fetch(`${API}/api/exoplanets`).then(r => r.json())
+          .then(d => setDatasets(prev => ({ ...prev, [cfg.key]: d })))
+          .catch(() => {})
+          .finally(() => setLoadingLayer(p => ({ ...p, [cfg.key]: false })));
+      }
+    });
+  }, [enabled, datasets, loadingLayer]);
 
   // Build scene once data is ready
   useEffect(() => {
@@ -833,7 +844,7 @@ export default function Constellations({ lang = "es" }) {
           {LAYERS.map(cfg => {
             const on = !!enabled[cfg.key];
             const hex = "#" + cfg.color.toString(16).padStart(6, "0");
-            const has = !!datasets[cfg.key];
+            const has = cfg.api ? true : !!datasets[cfg.key];
             return (
               <button key={cfg.key} disabled={!has}
                 onClick={() => setEnabled(e => ({ ...e, [cfg.key]: !e[cfg.key] }))}
@@ -846,8 +857,9 @@ export default function Constellations({ lang = "es" }) {
                   cursor: has ? "pointer" : "default", opacity: has ? 1 : 0.4,
                 }}>
                 ● {cfg[lang] || cfg.es}
-                {cfg.key === "exoplanets" && has && datasets.exoplanets
-                  ? ` (${datasets.exoplanets.count})` : ""}
+                {cfg.key === "exoplanets"
+                  ? (datasets.exoplanets ? ` (${datasets.exoplanets.count})` : loadingLayer.exoplanets ? " …" : "")
+                  : ""}
               </button>
             );
           })}
