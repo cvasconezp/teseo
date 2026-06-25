@@ -290,9 +290,10 @@ export default function Constellations({ lang = "es" }) {
         const out = [];
         const push = (x, y, z, name, cls, sub) => {
           tmp.set(x, y, z).project(ref.camera);
-          if (tmp.z < 1 && tmp.x > -1.05 && tmp.x < 1.05 && tmp.y > -1.05 && tmp.y < 1.05)
-            out.push({ key: cls + ":" + name, name, cls, sub: sub == null ? null : sub,
-                       x: (tmp.x * 0.5 + 0.5) * W, y: (-tmp.y * 0.5 + 0.5) * H });
+          if (tmp.z >= 1 || tmp.x < -1.05 || tmp.x > 1.05 || tmp.y < -1.05 || tmp.y > 1.05) return;
+          const sx = (tmp.x * 0.5 + 0.5) * W, sy = (-tmp.y * 0.5 + 0.5) * H;
+          for (const e of out) { if (Math.abs(e.x - sx) < 56 && Math.abs(e.y - sy) < 15) return; } // anti-solape
+          out.push({ key: cls + ":" + name, name, cls, sub: sub == null ? null : sub, x: sx, y: sy });
         };
         if (selAb && ref.conMeta[selAb]) {
           collectNamed(ref.conMeta[selAb], ref.byHip).forEach(st => {
