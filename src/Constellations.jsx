@@ -140,6 +140,18 @@ export default function Constellations({ lang = "es" }) {
   const [playing, setPlaying] = useState(false);
   const [showSolar, setShowSolar] = useState(true);
   const bodies = useMemo(() => ephemeris(new Date(whenStr)), [whenStr]);
+  const [query, setQuery] = useState("");
+  const [labelDensity, setLabelDensity] = useState("normal");
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2 || !sky) return [];
+    const r = [];
+    for (const c of sky.constellations) if ((c.la + " " + c.en).toLowerCase().includes(q)) r.push({ type: "con", ab: c.ab, label: `${c.la} · ${c.en}` });
+    for (const st of sky.stars) if (st[7] && st[7].toLowerCase().includes(q)) r.push({ type: "star", nx: st[1], ny: st[2], nz: st[3], label: st[7] });
+    const ds = datasets.messier;
+    if (ds) for (const o of ds.objects) if ((o.name + " " + (o.cn || "")).toLowerCase().includes(q)) r.push({ type: "messier", obj: o, label: `${o.name}${o.cn ? " · " + o.cn : ""}` });
+    return r.slice(0, 8);
+  }, [query, sky, datasets]);
   const depthRef = useRef(0);
   const selRef = useRef(null);
 
@@ -362,7 +374,7 @@ export default function Constellations({ lang = "es" }) {
       ref.renderer.render(ref.scene, ref.camera);
       // ── etiquetas con nivel de detalle (LOD) ──
       ref._lf = (ref._lf || 0) + 1;
-      if (ref._lf % 5 === 0) {
+      if (ref._lf < 4 || ref._lf % 5 === 0) {
         const W = mount.clientWidth, H = mount.clientHeight;
         const camDist = ref.camera.position.length();
         const out = [];
@@ -388,8 +400,10 @@ export default function Constellations({ lang = "es" }) {
             const n = c.idxs.length; push(cx/n, cy/n, cz/n, c.name, "con");
           }
         } else {
-          const magT = 1.0 + (820 - camDist) / 770 * 5.2;
-          const cand = ref.namedStars.filter(s => s.mag <= magT).sort((a, b) => a.mag - b.mag).slice(0, 38);
+          const dens = ref.labelDensity || "normal";
+          const magBoost = dens === "pocas" ? -1.2 : dens === "muchas" ? 1.3 : 0;
+          const magT = 1.0 + (820 - camDist) / 770 * 5.2 + magBoost;
+          const cand = ref.namedStars.filter(s => s.mag <= magT).sort((a, b) => a.mag - b.mag).slice(0, dens === "muchas" ? 70 : 38);
           for (const s of cand) push(pa[s.i*3], pa[s.i*3+1], pa[s.i*3+2], s.name, "star");
         }
         if (ref.showSolar) for (const b of (ref.bodies || [])) push(b.nx*860, b.ny*860, b.nz*860, b.name, "solar");
@@ -403,7 +417,8 @@ export default function Constellations({ lang = "es" }) {
             }
           }
         }
-        setLabels(out.slice(0, 70));
+        const dens2 = ref.labelDensity || "normal";
+        setLabels(out.slice(0, dens2 === "pocas" ? 26 : dens2 === "muchas" ? 110 : 64));
       }
     };
     const labelsNonEmpty = { current: false };
@@ -562,6 +577,23 @@ export default function Constellations({ lang = "es" }) {
     return () => clearInterval(id);
   }, [playing]);
   const shiftMin = useCallback((m) => setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + m * 60000))), []);
+  useEffect(() => { if (sceneRef.current) sceneRef.current.labelDensity = labelDensity; }, [labelDensity]);
+  const focusDir = useCallback((nx, ny, nz) => {
+    const ref = sceneRef.current; if (!ref) return;
+    const v = new THREE.Vector3(nx, ny, nz);
+    if (ref.localQuat) v.applyQuaternion(ref.localQuat);
+    v.normalize();
+    ref.controls.autoRotate = false;
+    ref.controls.target.copy(v.clone().multiplyScalar(870));
+    ref.camera.position.copy(v.clone().multiplyScalar(390));
+    ref.controls.update();
+  }, []);
+  const onResult = useCallback((res) => {
+    setQuery("");
+    if (res.type === "con") setSel(res.ab);
+    else if (res.type === "star") focusDir(res.nx, res.ny, res.nz);
+    else if (res.type === "messier") { setEnabled(e => ({ ...e, messier: true })); setSelObj({ ...res.obj, layer: "messier" }); }
+  }, [focusDir]);
 
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) return;
@@ -652,8 +684,20 @@ export default function Constellations({ lang = "es" }) {
               ))}
             </select>
           </div>
-          <div className="text-right text-white/30 pointer-events-none" style={{ fontFamily: "Inter,system-ui", fontSize: 9, maxWidth: 150 }}>
-            {t.dragHint}
+          <div className="pointer-events-auto" style={{ width: 172 }}>
+            <input value={query} onChange={e => setQuery(e.target.value)}
+              placeholder={lang === "es" ? "Buscar objeto…" : "Search…"}
+              style={{ width: "100%", background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.4)", borderRadius: 10, color: "#fff", padding: "6px 10px", fontFamily: "Inter,system-ui", fontSize: 11, outline: "none" }} />
+            {results.length > 0 && (
+              <div style={{ marginTop: 4, background: "#090e1c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden", boxShadow: "0 16px 40px rgba(0,0,0,0.7)" }}>
+                {results.map((r, i) => (
+                  <button key={i} onClick={() => onResult(r)}
+                    style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", color: "rgba(255,255,255,0.78)", fontFamily: "Inter,system-ui", fontSize: 11, borderBottom: "1px solid rgba(255,255,255,0.05)", background: "transparent", cursor: "pointer" }}>
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -727,6 +771,9 @@ export default function Constellations({ lang = "es" }) {
       {sky && (
         <div className="absolute left-3 right-3 pointer-events-auto flex items-center gap-1 rounded-xl px-2 py-1.5"
           style={{ bottom: 12, background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.25)" }}>
+          <button onClick={() => setLabelDensity(d => d === "pocas" ? "normal" : d === "normal" ? "muchas" : "pocas")} style={timeBtn} title="densidad de nombres">
+            {labelDensity === "pocas" ? "Aa·" : labelDensity === "muchas" ? "Aa···" : "Aa··"}
+          </button>
           <button onClick={() => shiftMin(-1440)} style={timeBtn}>−1d</button>
           <button onClick={() => shiftMin(-60)} style={timeBtn}>−1h</button>
           <button onClick={() => setPlaying(pl => !pl)} style={{ ...timeBtn, color: playing ? "#A78BFA" : "rgba(255,255,255,0.6)", borderColor: playing ? "#7C3AED" : "rgba(255,255,255,0.12)" }}>{playing ? "⏸" : "▶"}</button>
