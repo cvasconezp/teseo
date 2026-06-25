@@ -10,6 +10,41 @@ const LAYERS = [
   { key: "exoplanets", api: true,                es: "Exoplanetas",      en: "Exoplanets",   color: 0x4dd866, size: 6 },
 ];
 const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c" };
+
+function gmstRad(date) {
+  const JD = date.getTime() / 86400000 + 2440587.5;
+  const T = JD - 2451545.0;
+  let g = 280.46061837 + 360.98564736629 * T;
+  g = ((g % 360) + 360) % 360;
+  return g * Math.PI / 180;
+}
+// Cuaternión que mapea coordenadas ecuatoriales -> mundo local
+// (Y = cenit, -Z = Norte, +X = Este) para una latitud/longitud y momento dados.
+function localSkyQuat(latDeg, lonDeg, date) {
+  const phi = latDeg * Math.PI / 180;
+  const lst = gmstRad(date) + lonDeg * Math.PI / 180;
+  const up = new THREE.Vector3(Math.cos(phi) * Math.cos(lst), Math.cos(phi) * Math.sin(lst), Math.sin(phi)).normalize();
+  const ncp = new THREE.Vector3(0, 0, 1);
+  const north = ncp.clone().sub(up.clone().multiplyScalar(ncp.dot(up)));
+  if (north.lengthSq() < 1e-6) north.set(1, 0, 0); else north.normalize();
+  const east = new THREE.Vector3().crossVectors(up, north).normalize();
+  const B = new THREE.Matrix4().makeBasis(east, up, north.clone().multiplyScalar(-1));
+  B.transpose();
+  return new THREE.Quaternion().setFromRotationMatrix(B);
+}
+function makeTextSprite(text) {
+  const c = document.createElement("canvas"); c.width = c.height = 64;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "rgba(96,165,250,0.95)"; ctx.font = "bold 34px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, 32, 32);
+  const tex = new THREE.CanvasTexture(c);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  sp.scale.set(46, 46, 1); return sp;
+}
+function nowLocalInput() {
+  const d = new Date(); const z = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
+}
 function fmtYears(y, lang) {
   const es = lang === "es";
   const u = es ? "años" : "yr";
@@ -95,6 +130,10 @@ export default function Constellations({ lang = "es" }) {
   const [datasets, setDatasets] = useState({}); // key -> {objects}
   const [enabled, setEnabled] = useState({});   // key -> bool
   const [selObj, setSelObj] = useState(null);
+  const [localMode, setLocalMode] = useState(false);
+  const [lat, setLat] = useState(null);
+  const [lon, setLon] = useState(null);
+  const [whenStr, setWhenStr] = useState(nowLocalInput());
   const depthRef = useRef(0);
   const selRef = useRef(null);
 
@@ -228,16 +267,34 @@ export default function Constellations({ lang = "es" }) {
     const lines = new THREE.LineSegments(lGeo, lMat);
     scene.add(lines);
 
-    // earth marker
+    // Tierra real (NASA Blue Marble) en el centro = el observador
+    const earthTex = new THREE.TextureLoader().load("/earth.jpg");
+    earthTex.colorSpace = THREE.SRGBColorSpace;
     const earth = new THREE.Mesh(
-      new THREE.SphereGeometry(6, 16, 16),
-      new THREE.MeshBasicMaterial({ color: 0x60a5fa })
+      new THREE.SphereGeometry(7, 48, 48),
+      new THREE.MeshBasicMaterial({ map: earthTex })
     );
+    earth.rotation.z = 0.41;
     scene.add(earth);
+
+    // grupo de horizonte (modo cielo local)
+    const horizon = new THREE.Group();
+    const harr = [];
+    for (let i = 0; i <= 128; i++) { const a = i / 128 * Math.PI * 2; harr.push(Math.cos(a) * 905, 0, Math.sin(a) * 905); }
+    const ringGeo = new THREE.BufferGeometry();
+    ringGeo.setAttribute("position", new THREE.Float32BufferAttribute(harr, 3));
+    horizon.add(new THREE.Line(ringGeo, new THREE.LineBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.5 })));
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(905, 96),
+      new THREE.MeshBasicMaterial({ color: 0x05070e, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+    ground.rotation.x = -Math.PI / 2; ground.position.y = -1.5; horizon.add(ground);
+    [["N", 0, -905], ["E", 905, 0], ["S", 0, 905], ["O", -905, 0]].forEach(([tt, x, z]) => {
+      const sp = makeTextSprite(tt); sp.position.set(x, 20, z); horizon.add(sp);
+    });
+    horizon.visible = false; scene.add(horizon);
 
     sceneRef.current = { scene, camera, renderer, controls, points, lines,
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
-      markerTex: starTex, layerObjs: [], namedStars, conCentroid };
+      markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth };
     setReady(true);
 
     // resize
@@ -254,6 +311,7 @@ export default function Constellations({ lang = "es" }) {
     const animate = () => {
       raf = requestAnimationFrame(animate);
       const ref = sceneRef.current; if (!ref) return;
+      if (ref.earth) ref.earth.rotation.y += 0.0006;
       const dpt = depthRef.current;
       const selAb = selRef.current;
       // lerp star positions flat<->deep
@@ -289,7 +347,9 @@ export default function Constellations({ lang = "es" }) {
         const camDist = ref.camera.position.length();
         const out = [];
         const push = (x, y, z, name, cls, sub) => {
-          tmp.set(x, y, z).project(ref.camera);
+          tmp.set(x, y, z);
+          if (ref.localQuat) tmp.applyQuaternion(ref.localQuat);
+          tmp.project(ref.camera);
           if (tmp.z >= 1 || tmp.x < -1.05 || tmp.x > 1.05 || tmp.y < -1.05 || tmp.y > 1.05) return;
           const sx = (tmp.x * 0.5 + 0.5) * W, sy = (-tmp.y * 0.5 + 0.5) * H;
           for (const e of out) { if (Math.abs(e.x - sx) < 56 && Math.abs(e.y - sy) < 15) return; } // anti-solape
@@ -343,7 +403,7 @@ export default function Constellations({ lang = "es" }) {
   // 1 = vista lateral que REVELA la profundidad real en distancia.
   const positionCamera = useCallback((dpt) => {
     const ref = sceneRef.current;
-    if (!ref || !ref.selCentroidDir) return;
+    if (!ref || !ref.selCentroidDir || ref.localModeOn) return;
     const v = ref.selCentroidDir;
     const targetR = FLAT_R + (ref.selAvgR - FLAT_R) * dpt;
     const target = v.clone().multiplyScalar(targetR);
@@ -414,6 +474,7 @@ export default function Constellations({ lang = "es" }) {
         });
         const pts = new THREE.Points(g, m);
         pts.visible = !!enabled[cfg.key];
+        if (ref.localQuat) pts.quaternion.copy(ref.localQuat);
         pts.userData = { layer: cfg.key, objs: list };
         ref.scene.add(pts);
         ref.layerObjs.push({ key: cfg.key, points: pts });
@@ -438,6 +499,38 @@ export default function Constellations({ lang = "es" }) {
     ref.camera.position.copy(v.clone().multiplyScalar(560));
     ref.controls.update();
   }, [selObj]);
+
+  // modo cielo local: rota todo a coordenadas alt/azimut y muestra el horizonte
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || !ref.points) return;
+    const active = localMode && lat != null && lon != null;
+    const q = active ? localSkyQuat(lat, lon, new Date(whenStr)) : new THREE.Quaternion();
+    ref.localQuat = q; ref.localModeOn = active;
+    ref.points.quaternion.copy(q);
+    ref.lines.quaternion.copy(q);
+    (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));
+    if (ref.horizon) ref.horizon.visible = active;
+    if (active) {
+      ref.controls.autoRotate = false;
+      ref.controls.target.set(0, 120, 0);
+      ref.camera.position.set(0, 560, 1500);
+      ref.controls.update();
+    } else if (!sel) {
+      ref.controls.autoRotate = true;
+      ref.controls.target.set(0, 0, 0);
+      ref.camera.position.set(0, 0, 1700);
+      ref.controls.update();
+    }
+  }, [localMode, lat, lon, whenStr, ready, datasets, sel]);
+
+  const useMyLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLat(+pos.coords.latitude.toFixed(4)); setLon(+pos.coords.longitude.toFixed(4)); setLocalMode(true); },
+      () => {}, { enableHighAccuracy: false, timeout: 8000 }
+    );
+  }, []);
 
   // click para identificar un objeto (raycast)
   useEffect(() => {
@@ -492,8 +585,8 @@ export default function Constellations({ lang = "es" }) {
           <div style={{
             fontFamily: "Cormorant Garamond,Georgia,serif",
             color: LABEL_COLOR[l.cls] || "#fff",
-            fontSize: l.cls === "con" ? 15 : 12.5,
-            letterSpacing: l.cls === "con" ? "0.14em" : "0",
+            fontSize: l.cls === "con" ? 12 : 10.5,
+            letterSpacing: l.cls === "con" ? "0.1em" : "0",
             textTransform: l.cls === "con" ? "uppercase" : "none",
             lineHeight: 1, textShadow: "0 1px 6px #000",
           }}>{l.name}</div>
@@ -527,6 +620,15 @@ export default function Constellations({ lang = "es" }) {
       {/* toggles de capas de objetos */}
       {sky && (
         <div className="absolute left-3 right-3 flex flex-wrap gap-1.5" style={{ top: 56 }}>
+          <button
+            onClick={() => { setLocalMode(v => { const nv = !v; if (nv && lat == null) { setLat(-0.18); setLon(-78.47); } return nv; }); }}
+            className="px-2.5 py-1 rounded-full transition-all"
+            style={{ fontFamily: "Inter,system-ui", fontSize: 10, cursor: "pointer",
+              background: localMode ? "rgba(96,165,250,0.18)" : "rgba(9,14,28,0.82)",
+              border: `1px solid ${localMode ? "#60A5FA" : "rgba(255,255,255,0.12)"}`,
+              color: localMode ? "#60A5FA" : "rgba(255,255,255,0.5)" }}>
+            🌍 {lang === "es" ? "Mi cielo" : "My sky"}
+          </button>
           {LAYERS.map(cfg => {
             const on = !!enabled[cfg.key];
             const hex = "#" + cfg.color.toString(16).padStart(6, "0");
@@ -552,7 +654,7 @@ export default function Constellations({ lang = "es" }) {
       )}
 
       {/* depth slider */}
-      {sky && sel && (
+      {sky && sel && !localMode && (
         <div className="absolute bottom-3 left-3 right-3 pointer-events-auto">
           <div className="rounded-xl px-4 py-3" style={{ background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.3)" }}>
             <div className="flex items-center justify-between mb-1.5">
@@ -569,6 +671,34 @@ export default function Constellations({ lang = "es" }) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {sky && localMode && (
+        <div className="absolute bottom-3 left-3 right-3 pointer-events-auto rounded-xl px-4 py-3"
+          style={{ background: "rgba(9,14,28,0.93)", border: "1px solid rgba(96,165,250,0.3)" }}>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span style={{ fontFamily: "Inter,system-ui", fontSize: 10, color: "#60A5FA" }}>
+              {lat != null ? `${lat}°, ${lon}°` : (lang === "es" ? "sin ubicación" : "no location")}
+            </span>
+            <button onClick={useMyLocation}
+              className="px-2.5 py-1 rounded-full"
+              style={{ fontFamily: "Inter,system-ui", fontSize: 9, cursor: "pointer",
+                background: "rgba(96,165,250,0.15)", border: "1px solid rgba(96,165,250,0.4)", color: "#60A5FA" }}>
+              {lang === "es" ? "Usar mi ubicación" : "Use my location"}
+            </button>
+          </div>
+          <div className="flex gap-1.5 items-center">
+            <input type="datetime-local" value={whenStr} onChange={e => setWhenStr(e.target.value)}
+              style={{ flex: 1, background: "rgba(255,255,255,0.05)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "5px 8px", fontFamily: "JetBrains Mono,monospace", fontSize: 11 }} />
+            <button onClick={() => setWhenStr(nowLocalInput())}
+              className="px-2 py-1 rounded-lg" style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer" }}>
+              {lang === "es" ? "ahora" : "now"}
+            </button>
+          </div>
+          <p style={{ fontFamily: "Inter,system-ui", fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 6 }}>
+            {lang === "es" ? "Horizonte y brújula N-E-S-O según tu lugar y hora." : "Horizon & N-E-S-W compass for your place and time."}
+          </p>
         </div>
       )}
 
