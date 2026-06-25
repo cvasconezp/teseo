@@ -123,7 +123,7 @@ function SpaceTravel() {
     const canvas = ref.current;
     const ctx = canvas.getContext("2d");
     let w, h, cx, cy, raf;
-    const COUNT = 70;          // pocas estrellas, como en el espacio real
+    const COUNT = 150;         // densidad media: se nota pero sin "warp"
     const stars = [];
     const COLORS = ["#ffffff", "#cfe0ff", "#ffe9c7", "#e7d4ff", "#bcd4ff"];
     function resize() {
@@ -142,8 +142,8 @@ function SpaceTravel() {
     }
     resize();
     for (let i = 0; i < COUNT; i++) { const s = {}; reset(s, true); stars.push(s); }
-    const SPEED = 0.32;        // muy lento: nos acercamos poco a poco
-    const NEAR = 0.34;         // se reinician estando aún lejos -> sin rayas largas
+    const SPEED = 0.5;         // lento, perceptible
+    const NEAR = 0.16;         // dejan acercarse un poco más (más visibles)
     function frame() {
       raf = requestAnimationFrame(frame);
       ctx.fillStyle = "rgba(4,8,15,0.5)";
@@ -160,8 +160,8 @@ function SpaceTravel() {
         if (sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) { reset(s, false); continue; }
         const depth = 1 - s.z / w;           // 0 lejos -> ~0.66 cerca
         s.tw += 0.05;
-        const r = Math.max(0.4, depth * 1.6);
-        const o = Math.min(0.7, depth * 1.1) * (0.7 + 0.3 * Math.sin(s.tw));
+        const r = Math.max(0.4, depth * 2.0);
+        const o = Math.min(0.85, depth * 1.25) * (0.75 + 0.25 * Math.sin(s.tw));
         ctx.strokeStyle = s.c;
         ctx.globalAlpha = o;
         ctx.lineWidth = r;

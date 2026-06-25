@@ -116,18 +116,37 @@ export default function Constellations({ lang = "es" }) {
       let bright = Math.max(0.16, Math.min(1, 1.5 - mag * 0.16));
       if (isAster) bright = Math.max(bright, 0.85);
       colors[i*3]=r*bright; colors[i*3+1]=g*bright; colors[i*3+2]=b*bright;
-      sizes[i] = isAster ? 2.4 : 1.0;
+      sizes[i] = isAster ? Math.max(3.0, 9.5 - mag * 0.8) : Math.max(0.8, 5.2 - mag * 0.62);
     });
     const sGeo = new THREE.BufferGeometry();
     const posAttr = new THREE.BufferAttribute(posFlat.slice(), 3);
     sGeo.setAttribute("position", posAttr);
-    sGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    sGeo.setAttribute("scolor", new THREE.BufferAttribute(colors, 3));
     sGeo.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
     const starTex = makeStarTexture();
-    const sMat = new THREE.PointsMaterial({
-      size: 7, vertexColors: true, map: starTex, transparent: true,
-      alphaTest: 0.01, depthWrite: false, blending: THREE.AdditiveBlending,
-      sizeAttenuation: true,
+    const sMat = new THREE.ShaderMaterial({
+      uniforms: { map: { value: starTex } },
+      vertexShader: [
+        "attribute float size;",
+        "attribute vec3 scolor;",
+        "varying vec3 vColor;",
+        "void main(){",
+        "  vColor = scolor;",
+        "  vec4 mv = modelViewMatrix * vec4(position,1.0);",
+        "  gl_PointSize = clamp(size * (520.0 / -mv.z), 0.6, 16.0);",
+        "  gl_Position = projectionMatrix * mv;",
+        "}",
+      ].join("\n"),
+      fragmentShader: [
+        "uniform sampler2D map;",
+        "varying vec3 vColor;",
+        "void main(){",
+        "  vec4 t = texture2D(map, gl_PointCoord);",
+        "  if (t.a < 0.02) discard;",
+        "  gl_FragColor = vec4(vColor, 1.0) * t;",
+        "}",
+      ].join("\n"),
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     });
     const points = new THREE.Points(sGeo, sMat);
     scene.add(points);
@@ -189,12 +208,16 @@ export default function Constellations({ lang = "es" }) {
       for (let s = 0; s < ref.segHips.length; s++) {
         const [ha, hb, ab] = ref.segHips[s];
         const ia = ref.hipIndex.get(ha), ib = ref.hipIndex.get(hb);
-        ref.lPos[s*6+0]=pa[ia*3]; ref.lPos[s*6+1]=pa[ia*3+1]; ref.lPos[s*6+2]=pa[ia*3+2];
-        ref.lPos[s*6+3]=pa[ib*3]; ref.lPos[s*6+4]=pa[ib*3+1]; ref.lPos[s*6+5]=pa[ib*3+2];
-        let r,g,b,on;
-        if (!selSet) { r=0.42;g=0.45;b=0.78; on=0.5; }
-        else if (ab===selSet) { r=0.66;g=0.55;b=0.98; on=1; }
-        else { r=0.2;g=0.22;b=0.4; on=0.12; }
+        const hidden = selSet && ab !== selSet;
+        if (hidden) {
+          for (let q=0;q<6;q++) ref.lPos[s*6+q]=0;   // colapsar -> invisible
+        } else {
+          ref.lPos[s*6+0]=pa[ia*3]; ref.lPos[s*6+1]=pa[ia*3+1]; ref.lPos[s*6+2]=pa[ia*3+2];
+          ref.lPos[s*6+3]=pa[ib*3]; ref.lPos[s*6+4]=pa[ib*3+1]; ref.lPos[s*6+5]=pa[ib*3+2];
+        }
+        let r,g,b;
+        if (!selSet) { r=0.42;g=0.45;b=0.78; }
+        else { r=0.70;g=0.58;b=1.0; }
         ref.lCol[s*6+0]=r; ref.lCol[s*6+1]=g; ref.lCol[s*6+2]=b;
         ref.lCol[s*6+3]=r; ref.lCol[s*6+4]=g; ref.lCol[s*6+5]=b;
       }
