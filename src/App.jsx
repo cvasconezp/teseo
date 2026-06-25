@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 const Constellations = lazy(() => import("./Constellations.jsx"));
+import CosmicScale from "./CosmicScale.jsx";
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ const T = {
     route:          "Route",
     windows:        "Windows",
     sky:            "Sky",
+    scale:          "Scale",
     vehicle:        "Vehicle",
     travelTime:     "Estimated travel time",
     hohmann:        "Hohmann transfer",
@@ -54,6 +56,7 @@ const T = {
     route:          "Ruta",
     windows:        "Ventanas",
     sky:            "Cielo",
+    scale:          "Escala",
     vehicle:        "Vehículo",
     travelTime:     "Tiempo de viaje estimado",
     hohmann:        "Transferencia de Hohmann",
@@ -671,7 +674,7 @@ export default function Teseo() {
             </div>
           </div>
 
-          {tab!=="sky" && (<>
+          {tab!=="sky" && tab!=="scale" && (<>
           {/* Orbit map */}
           <div className="rounded-2xl overflow-hidden border border-white/6 mb-3"
             style={{height:215,background:"rgba(255,255,255,0.015)"}}>
@@ -690,7 +693,7 @@ export default function Teseo() {
 
           {/* Tabs */}
           <div className="flex gap-1 mb-4 bg-white/4 rounded-xl p-1">
-            {[["route",t.route],["windows",t.windows],["sky",t.sky]].map(([id,label])=>(
+            {[["route",t.route],["windows",t.windows],["sky",t.sky],["scale",t.scale]].map(([id,label])=>(
               <button key={id} onClick={()=>setTab(id)}
                 className="flex-1 py-2 rounded-lg text-xs font-medium transition-all"
                 style={{
@@ -716,6 +719,10 @@ export default function Teseo() {
             <Suspense fallback={<div className="text-center text-white/30 py-12" style={{fontFamily:"Inter,system-ui",fontSize:12}}>...</div>}>
               <Constellations lang={lang}/>
             </Suspense>
+          )}
+
+          {tab==="scale"&&(
+            <CosmicScale lang={lang}/>
           )}
 
           {/* Footer */}
