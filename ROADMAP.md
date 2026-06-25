@@ -55,8 +55,8 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 - [x] **Control de tiempo**: −1d/−1h/+1h/+1d, play (animar), ahora
 - [x] **Sol, Luna y planetas en el cielo** (posición real, efemérides + fase lunar)
 - [x] **Buscar** un objeto por nombre (estrellas/constelaciones/Messier) y centrar la vista
-- [ ] **Zoom a objeto con imagen real** (NASA/ESA/Wikimedia) + ficha ampliada
-      (tipo, magnitud, tamaño, constelación, historia)
+- [x] **Zoom a objeto con imagen real** (Wikipedia/Wikimedia, CC BY-SA) + ficha ampliada
+      con descripción; búsqueda de estrellas y cuerpos del sistema solar
 - [x] Nombres de estrellas/constelaciones con **densidad ajustable** (LOD)
 
 ## 🌌 El "plus" de Teseo (lo que Stellarium NO hace)
