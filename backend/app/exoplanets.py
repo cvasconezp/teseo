@@ -17,8 +17,7 @@ import httpx
 TAP_URL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
 QUERY = (
     "select pl_name,hostname,ra,dec,sy_dist,pl_rade,pl_insol,pl_eqt,disc_year "
-    "from pscomppars where default_flag=1 and ra is not null and dec is not null "
-    "and sy_dist is not null"
+    "from pscomppars where ra is not null and dec is not null and sy_dist is not null"
 )
 
 PC_TO_LY = 3.2615638
