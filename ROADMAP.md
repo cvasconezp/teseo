@@ -50,20 +50,20 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 
 ## 🔜 Siguiente — Paridad con Stellarium
 
-- [ ] **Cielo local**: ubicación (geolocalización) + fecha/hora → alt/azimut
-      (tiempo sidéreo local), horizonte y brújula N-E-S-O. "Qué se ve ahora desde aquí."
-- [ ] **Control de tiempo**: adelantar/atrasar, animar el cielo, "esta noche"
-- [ ] **Sol, Luna y planetas en el cielo** (posición real + fase lunar)
-- [ ] **Buscar** un objeto por nombre y centrar la vista
+- [x] **Cielo local**: ubicación (geolocalización/manual) + fecha/hora → alt/azimut
+      (tiempo sidéreo local), horizonte y brújula N-E-S-O.
+- [x] **Control de tiempo**: −1d/−1h/+1h/+1d, play (animar), ahora
+- [x] **Sol, Luna y planetas en el cielo** (posición real, efemérides + fase lunar)
+- [x] **Buscar** un objeto por nombre (estrellas/constelaciones/Messier) y centrar la vista
 - [ ] **Zoom a objeto con imagen real** (NASA/ESA/Wikimedia) + ficha ampliada
       (tipo, magnitud, tamaño, constelación, historia)
-- [ ] Nombres de estrellas y constelaciones siempre visibles (con densidad ajustable)
+- [x] Nombres de estrellas/constelaciones con **densidad ajustable** (LOD)
 
 ## 🌌 El "plus" de Teseo (lo que Stellarium NO hace)
 - [x] Rutas interplanetarias (Hohmann) y ventanas de lanzamiento
 - [x] Profundidad real de las constelaciones
 - [x] "La luz que ves salió hace X años"
-- [ ] **Tiempo de viaje a cualquier objeto** a distintas velocidades (luz, Voyager, etc.)
+- [x] **Tiempo de viaje a objetos** (luz + Voyager 1) en la ficha
 - [ ] **"¿Cómo se vería el cielo desde allí?"** (cambiar el punto de observación)
 - [ ] Comparador de escalas / distancias (regla cósmica)
 
