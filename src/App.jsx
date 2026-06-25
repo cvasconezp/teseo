@@ -645,7 +645,7 @@ export default function Teseo() {
       <div className="min-h-screen bg-[#04080F] text-white relative">
         <SpaceTravel/>
 
-        <div className="relative z-10 px-5 pt-5 max-w-lg mx-auto">
+        <div className="relative z-10 px-5 pt-5 max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto">
 
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
@@ -676,8 +676,8 @@ export default function Teseo() {
 
           {tab!=="sky" && tab!=="scale" && (<>
           {/* Orbit map */}
-          <div className="rounded-2xl overflow-hidden border border-white/6 mb-3"
-            style={{height:215,background:"rgba(255,255,255,0.015)"}}>
+          <div className="rounded-2xl overflow-hidden border border-white/6 mb-3 h-[215px] md:h-[300px]"
+            style={{background:"rgba(255,255,255,0.015)"}}>
             <OrbitMap from={from} to={to} realPositions={realPos} threadProgress={thread}/>
           </div>
 

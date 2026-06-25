@@ -750,7 +750,7 @@ export default function Constellations({ lang = "es" }) {
   const timeBtn = { fontFamily: "Inter,system-ui", fontSize: 10, padding: "3px 7px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)", cursor: "pointer", background: "transparent" };
 
   return (
-    <div className="relative w-full" style={{ height: 460 }}>
+    <div className="relative w-full h-[460px] md:h-[600px]">
       <div ref={mountRef} className="absolute inset-0 rounded-2xl overflow-hidden"
         style={{ background: "radial-gradient(ellipse at center, #0a1020 0%, #04080f 80%)", border: "1px solid rgba(124,58,237,0.18)" }} />
 
