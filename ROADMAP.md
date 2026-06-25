@@ -68,10 +68,10 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 - [ ] Comparador de escalas / distancias (regla cósmica)
 
 ## 🧱 Plataforma y calidad
-- [ ] Página de **créditos y licencias** de datos (ver CREDITS.md)
+- [x] Página de **créditos y licencias** de datos in-app (ver CREDITS.md)
 - [ ] Accesibilidad y gestos táctiles (móvil) pulidos
 - [ ] Rendimiento con muchas capas activas
-- [ ] Tests del backend (física + endpoints)
+- [x] Tests del backend (física + endpoints) — 12 pruebas, pytest
 
 ## 🧪 Ideas para explorar
 - [ ] Más culturas de constelaciones (no solo la moderna/occidental)
