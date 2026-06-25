@@ -423,6 +423,7 @@ function RouteResult({ from, to, lang, backendData, loading, realDist }) {
 
   const distKm = realDist ?? Math.abs(to.au-from.au)*AU_KM;
   const sec = distKm/vehicle.km_s;
+  const vehicleArrival = new Date(Date.now() + sec*1000);
 
   return (
     <div className="space-y-3">
@@ -441,6 +442,9 @@ function RouteResult({ from, to, lang, backendData, loading, realDist }) {
         <p className="text-white/35 mt-2" style={{fontFamily:"JetBrains Mono,monospace",fontSize:10}}>
           {(distKm/1e6).toFixed(2)}M km · {Math.abs(to.au-from.au).toFixed(3)} AU
           {realDist&&<span className="text-green-400/60 ml-2">· NASA ✓</span>}
+        </p>
+        <p className="text-white/30" style={{fontFamily:"Inter,system-ui",fontSize:10,marginTop:3}}>
+          {lang==="es"?"a esta velocidad llegarías el":"at this speed you'd arrive"} {vehicleArrival.toLocaleDateString(lang==="es"?"es-EC":"en-US",{year:"numeric",month:"short",day:"numeric"})}
         </p>
 
         {/* Hohmann data from backend */}
