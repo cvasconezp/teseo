@@ -456,6 +456,7 @@ function RouteResult({ from, to, lang, backendData, loading, realDist }) {
             <p style={{fontFamily:"Inter,system-ui",fontSize:11,color:"rgba(255,255,255,0.25)"}}>
               {t.arrives}: {new Date(backendData.arrival_date).toLocaleDateString(
                 lang==="es"?"es-EC":"en-US",{year:"numeric",month:"long",day:"numeric"})}
+              {" · "}{lang==="es"?"ruta real, no depende del vehículo":"real route, vehicle-independent"}
             </p>
           </div>
         )}
