@@ -14,6 +14,7 @@ Para correr localmente:
   uvicorn app.main:app --reload --port 8000
 """
 
+import os
 from datetime import datetime
 from typing import Optional
 
@@ -31,11 +32,17 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS abierto para desarrollo. En producción, restringir a tu dominio real
-# (teseo.space, yachaydeep.com) en lugar de "*".
+# CORS configurable por entorno. Por defecto "*" (cómodo en desarrollo).
+# En producción, define ALLOWED_ORIGINS como lista separada por comas, p. ej.:
+#   ALLOWED_ORIGINS=https://teseo.yachaydeep.com,https://teseo-seven.vercel.app
+_origins_env = os.environ.get("ALLOWED_ORIGINS", "*").strip()
+allow_origins = ["*"] if _origins_env in ("", "*") else [
+    o.strip() for o in _origins_env.split(",") if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allow_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

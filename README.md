@@ -46,19 +46,32 @@ exactitud científica de la app — porque los números nunca pasan por ella.
 
 ```
 teseo/
-├── backend/
+├── backend/                   → API FastAPI (se despliega en Railway)
 │   ├── app/
 │   │   ├── main.py            → endpoints FastAPI
 │   │   ├── orbital.py         → física orbital real (hapsira)
 │   │   ├── nasa_horizons.py   → cliente NASA Horizons API
 │   │   └── narrative.py       → narrativa con Groq
 │   ├── requirements.txt
+│   ├── Dockerfile
+│   ├── railway.json
+│   ├── .python-version       → fija Python 3.11 (astropy/numpy no traen wheels para 3.13)
 │   └── .env.example
+├── src/                       → frontend React + Vite (se despliega en Vercel)
+│   ├── App.jsx
+│   ├── main.jsx
+│   └── index.css
+├── public/favicon.svg
+├── index.html
+├── vite.config.js
+├── vercel.json
+├── package.json
 ├── .gitignore
 └── README.md
 ```
 
-(El frontend en React + Three.js se agrega en el siguiente sprint.)
+El frontend (React + Vite, visualización en SVG) ya está incluido. Consume el
+backend a través de la variable `VITE_API_URL`.
 
 ## Cómo correrlo localmente
 
@@ -126,6 +139,36 @@ Para propósitos educativos y de planificación, esta es la aproximación
 estándar usada en la industria aeroespacial para estimaciones iniciales.
 Esta nota se muestra también en la app misma — la precisión y la
 honestidad sobre sus límites son parte del producto, no un detalle legal.
+
+## Despliegue (producción)
+
+Teseo se despliega en dos servicios separados:
+
+| Capa | Plataforma | Qué se publica |
+|---|---|---|
+| Frontend (React/Vite) | Vercel | la raíz del repo → `dist/` |
+| Backend (FastAPI) | Railway | la carpeta `backend/` |
+
+**Vercel (frontend).** Usa `vercel.json` (framework Vite, SPA rewrites). Define
+la variable de entorno `VITE_API_URL` con la URL pública del backend en Railway,
+por ejemplo `https://teseo-production.up.railway.app`. Esta variable se hornea en
+el build, así que si la cambias hay que volver a desplegar.
+
+**Railway (backend).** ⚠️ Punto crítico: el servicio de Railway debe tener
+**Root Directory = `backend`** (Service → Settings → Root Directory). Si se deja
+en la raíz del repo, Railway detecta el `package.json` del frontend y publica la
+app de React en lugar de la API — y entonces todos los `/api/*` devuelven HTML y
+el frontend cae al modo "backend sin conexión". Con el root en `backend/`,
+Nixpacks detecta `requirements.txt`, fija Python 3.11 vía `.python-version` y
+arranca con el `startCommand` de `railway.json`:
+`uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+
+Variables de entorno del backend en Railway:
+
+- `GROQ_API_KEY` — para la narrativa con IA (opcional; sin ella la API sigue
+  devolviendo todos los números, solo sin texto narrado).
+- `ALLOWED_ORIGINS` — opcional, lista separada por comas con los dominios del
+  frontend (p. ej. `https://teseo.yachaydeep.com`). Por defecto es `*`.
 
 ## Licencia
 
