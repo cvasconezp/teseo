@@ -440,7 +440,7 @@ function RouteResult({ from, to, lang, backendData, loading, realDist }) {
           {fmt(sec,lang)}
         </p>
         <p className="text-white/35 mt-2" style={{fontFamily:"JetBrains Mono,monospace",fontSize:10}}>
-          {(distKm/1e6).toFixed(2)}M km · {Math.abs(to.au-from.au).toFixed(3)} AU
+          {(distKm/1e6).toFixed(2)}M km · {(distKm/AU_KM).toFixed(3)} AU
           {realDist&&<span className="text-green-400/60 ml-2">· NASA ✓</span>}
         </p>
         <p className="text-white/30" style={{fontFamily:"Inter,system-ui",fontSize:10,marginTop:3}}>
