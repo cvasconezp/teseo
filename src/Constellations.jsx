@@ -2,6 +2,39 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
+const API = import.meta.env.VITE_API_URL || "";
+const LAYERS = [
+  { key: "messier",    file: "/deepsky.json",    es: "Messier",          en: "Messier",      color: 0x67e8c8, size: 8 },
+  { key: "pulsars",    file: "/pulsars.json",    es: "Púlsares",         en: "Pulsars",      color: 0xff5dc8, size: 10 },
+  { key: "blackholes", file: "/blackholes.json", es: "Agujeros negros",  en: "Black holes",  color: 0xff7a3c, size: 11 },
+  { key: "exoplanets", api: true,                es: "Exoplanetas",      en: "Exoplanets",   color: 0x4dd866, size: 6 },
+];
+function fmtYears(y, lang) {
+  const es = lang === "es";
+  const u = es ? "años" : "yr";
+  if (!y || y <= 0) return "—";
+  if (y < 1000) return `${Math.round(y)} ${u}`;
+  if (y < 1e6) return `${(y / 1000).toFixed(1)} mil ${u}`;
+  if (y < 1e9) return `${(y / 1e6).toFixed(2)} M ${u}`;
+  return `${(y / 1e9).toFixed(2)} G ${u}`;
+}
+function fmtMass(m) {
+  if (m >= 1e9) return `${(m / 1e9).toFixed(1)} mil M`;
+  if (m >= 1e6) return `${(m / 1e6).toFixed(1)} M`;
+  if (m >= 1e3) return `${(m / 1e3).toFixed(0)} mil`;
+  return `${m}`;
+}
+const TYPE_ES = { galaxy:"Galaxia", globular:"Cúmulo globular", open:"Cúmulo abierto", nebula:"Nebulosa", snr:"Remanente de supernova", cluster:"Cúmulo/asociación", other:"Objeto" };
+function fmtDist(ly, lang) {
+  const es = lang === "es";
+  if (!ly || ly <= 0) return es ? "distancia n/d" : "distance n/a";
+  const u = es ? "años luz" : "ly";
+  if (ly < 1000) return `${Math.round(ly)} ${u}`;
+  if (ly < 1e6) return `${(ly / 1000).toFixed(1)} mil ${u}`;
+  if (ly < 1e9) return `${(ly / 1e6).toFixed(2)} M ${u}`;
+  return `${(ly / 1e9).toFixed(2)} G ${u}`;
+}
+
 // ─── i18n ──────────────────────────────────────────────────────────────
 const TC = {
   en: {
@@ -57,6 +90,10 @@ export default function Constellations({ lang = "es" }) {
   const [sel, setSel] = useState(null);      // abbr or null
   const [depth, setDepth] = useState(0);     // 0..1
   const [labels, setLabels] = useState([]);  // projected labels
+  const [ready, setReady] = useState(false);
+  const [datasets, setDatasets] = useState({}); // key -> {objects}
+  const [enabled, setEnabled] = useState({});   // key -> bool
+  const [selObj, setSelObj] = useState(null);
   const depthRef = useRef(0);
   const selRef = useRef(null);
 
@@ -66,6 +103,13 @@ export default function Constellations({ lang = "es" }) {
   // Load data
   useEffect(() => {
     fetch("/sky.json").then(r => r.json()).then(setSky).catch(() => {});
+    LAYERS.forEach((cfg) => {
+      const url = cfg.api ? `${API}/api/exoplanets` : cfg.file;
+      if (cfg.api && !API) return;
+      fetch(url).then(r => r.json())
+        .then(d => setDatasets(prev => ({ ...prev, [cfg.key]: d })))
+        .catch(() => {});
+    });
   }, []);
 
   // Build scene once data is ready
@@ -181,7 +225,9 @@ export default function Constellations({ lang = "es" }) {
     scene.add(earth);
 
     sceneRef.current = { scene, camera, renderer, controls, points, lines,
-      posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N };
+      posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
+      markerTex: starTex, layerObjs: [] };
+    setReady(true);
 
     // resize
     const onResize = () => {
@@ -251,6 +297,7 @@ export default function Constellations({ lang = "es" }) {
       controls.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
+      setReady(false);
       sceneRef.current = null;
     };
   }, [sky]);
@@ -302,6 +349,86 @@ export default function Constellations({ lang = "es" }) {
     if (sel) positionCamera(depth);
   }, [depth, sel, positionCamera]);
 
+  // construir los puntos de cada capa (marcadores en la esfera del cielo)
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || !ref.scene) return;
+    (ref.layerObjs || []).forEach(o => {
+      ref.scene.remove(o.points); o.points.geometry.dispose(); o.points.material.dispose();
+    });
+    ref.layerObjs = [];
+    const R = 870;
+    LAYERS.forEach(cfg => {
+      const data = datasets[cfg.key];
+      if (!data || !data.objects) return;
+      const groups = cfg.key === "exoplanets"
+        ? [["exoplanets", data.objects.filter(o => !o.hab), cfg.color, 5],
+           ["exoplanets", data.objects.filter(o => o.hab), 0xaaff7a, 12]]
+        : [[cfg.key, data.objects, cfg.color, cfg.size]];
+      groups.forEach(([gkey, list, color, size]) => {
+        if (!list.length) return;
+        const pos = new Float32Array(list.length * 3);
+        list.forEach((o, i) => { pos[i*3]=o.nx*R; pos[i*3+1]=o.ny*R; pos[i*3+2]=o.nz*R; });
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        const m = new THREE.PointsMaterial({
+          size, map: ref.markerTex, color, transparent: true, depthWrite: false,
+          blending: THREE.AdditiveBlending, sizeAttenuation: true,
+        });
+        const pts = new THREE.Points(g, m);
+        pts.visible = !!enabled[cfg.key];
+        pts.userData = { layer: cfg.key, objs: list };
+        ref.scene.add(pts);
+        ref.layerObjs.push({ key: cfg.key, points: pts });
+      });
+    });
+  }, [datasets, ready]);
+
+  // alternar visibilidad de capas
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || !ref.layerObjs) return;
+    ref.layerObjs.forEach(o => { o.points.visible = !!enabled[o.key]; });
+  }, [enabled]);
+
+  // acercar la cámara al objeto seleccionado (zoom)
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || !selObj) return;
+    const v = new THREE.Vector3(selObj.nx, selObj.ny, selObj.nz).normalize();
+    ref.controls.autoRotate = false;
+    ref.controls.target.copy(v.clone().multiplyScalar(870));
+    ref.camera.position.copy(v.clone().multiplyScalar(560));
+    ref.controls.update();
+  }, [selObj]);
+
+  // click para identificar un objeto (raycast)
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || !ref.renderer) return;
+    const el = ref.renderer.domElement;
+    const rc = new THREE.Raycaster(); rc.params.Points.threshold = 16;
+    const v = new THREE.Vector2();
+    let downX = 0, downY = 0;
+    const onDown = (e) => { downX = e.clientX; downY = e.clientY; };
+    const onUp = (e) => {
+      if (Math.abs(e.clientX - downX) > 5 || Math.abs(e.clientY - downY) > 5) return; // fue arrastre
+      const r = el.getBoundingClientRect();
+      v.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+      v.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+      rc.setFromCamera(v, ref.camera);
+      const targets = (ref.layerObjs || []).filter(o => o.points.visible).map(o => o.points);
+      const hits = targets.length ? rc.intersectObjects(targets, false) : [];
+      if (hits.length) {
+        const h = hits[0];
+        setSelObj({ ...h.object.userData.objs[h.index], layer: h.object.userData.layer });
+      } else setSelObj(null);
+    };
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointerup", onUp);
+    return () => { el.removeEventListener("pointerdown", onDown); el.removeEventListener("pointerup", onUp); };
+  }, [ready]);
+
   const onPick = useCallback((e) => {
     const v = e.target.value;
     setSel(v === "__all__" ? null : v);
@@ -349,6 +476,33 @@ export default function Constellations({ lang = "es" }) {
         </div>
       )}
 
+      {/* toggles de capas de objetos */}
+      {sky && (
+        <div className="absolute left-3 right-3 flex flex-wrap gap-1.5" style={{ top: 56 }}>
+          {LAYERS.map(cfg => {
+            const on = !!enabled[cfg.key];
+            const hex = "#" + cfg.color.toString(16).padStart(6, "0");
+            const has = !!datasets[cfg.key];
+            return (
+              <button key={cfg.key} disabled={!has}
+                onClick={() => setEnabled(e => ({ ...e, [cfg.key]: !e[cfg.key] }))}
+                className="px-2.5 py-1 rounded-full transition-all"
+                style={{
+                  fontFamily: "Inter,system-ui", fontSize: 10,
+                  background: on ? hex + "22" : "rgba(9,14,28,0.82)",
+                  border: `1px solid ${on ? hex : "rgba(255,255,255,0.12)"}`,
+                  color: on ? hex : "rgba(255,255,255,0.45)",
+                  cursor: has ? "pointer" : "default", opacity: has ? 1 : 0.4,
+                }}>
+                ● {cfg[lang] || cfg.es}
+                {cfg.key === "exoplanets" && has && datasets.exoplanets
+                  ? ` (${datasets.exoplanets.count})` : ""}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* depth slider */}
       {sky && sel && (
         <div className="absolute bottom-3 left-3 right-3 pointer-events-auto">
@@ -367,6 +521,53 @@ export default function Constellations({ lang = "es" }) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {selObj && (
+        <div className="absolute pointer-events-auto rounded-xl p-3.5"
+          style={{ top: 92, right: 12, width: 234, background: "rgba(9,14,28,0.95)", border: "1px solid rgba(124,58,237,0.4)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)" }}>
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <div style={{ fontFamily: "Cormorant Garamond,Georgia,serif", color: "#fff", fontSize: 18, lineHeight: 1.1 }}>{selObj.name}</div>
+            <button onClick={() => setSelObj(null)} className="text-white/35 hover:text-white/80 shrink-0" style={{ fontSize: 13 }}>✕</button>
+          </div>
+          <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 11 }}>{fmtDist(selObj.dist_ly, lang)}</div>
+
+          {selObj.layer === "messier" && (
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+              {TYPE_ES[selObj.type] || "Objeto"}{selObj.cn ? ` · ${selObj.cn}` : ""}{selObj.ngc ? ` · ${selObj.ngc}` : ""}
+            </div>
+          )}
+          {selObj.layer === "pulsars" && (
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+              {lang === "es" ? "Púlsar" : "Pulsar"} · {lang === "es" ? "período" : "period"} {selObj.period_ms} ms<br/>
+              <span style={{ color: "rgba(255,255,255,0.4)" }}>{selObj.note}</span>
+            </div>
+          )}
+          {selObj.layer === "blackholes" && (
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+              {lang === "es" ? "Agujero negro" : "Black hole"} {selObj.kind} · {fmtMass(selObj.mass_sun)} M☉<br/>
+              <span style={{ color: "rgba(255,255,255,0.4)" }}>{selObj.note}</span>
+            </div>
+          )}
+          {selObj.layer === "exoplanets" && (
+            <div style={{ fontFamily: "Inter,system-ui", fontSize: 11, marginTop: 6 }}>
+              <span style={{ color: selObj.hab ? "#aaff7a" : "rgba(255,255,255,0.5)" }}>
+                {selObj.hab ? (lang === "es" ? "● potencialmente habitable" : "● potentially habitable") : (lang === "es" ? "no habitable" : "not habitable")}
+              </span>
+              <div style={{ color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                {selObj.rade ? `${lang === "es" ? "radio" : "radius"} ${selObj.rade} R⊕ · ` : ""}{lang === "es" ? "estrella" : "host"} {selObj.host}
+              </div>
+            </div>
+          )}
+
+          {selObj.dist_ly > 0 && (
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(96,165,250,0.85)", fontSize: 10.5, marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.08)", lineHeight: 1.4 }}>
+              {lang === "es"
+                ? `Su luz tardó ${fmtYears(selObj.dist_ly, lang)} en llegar: lo ves como era entonces.`
+                : `Its light took ${fmtYears(selObj.dist_ly, lang)} to arrive: you see it as it was then.`}
+            </div>
+          )}
         </div>
       )}
     </div>
