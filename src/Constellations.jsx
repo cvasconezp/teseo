@@ -44,6 +44,30 @@ function makeTextSprite(text) {
 }
 const BODY_STYLE = { "Sol":["#ffd23f",24], "Luna":["#d8dde8",17], "Mercurio":["#b0a080",9], "Venus":["#ffe6b0",13], "Marte":["#ff6b4a",11], "Júpiter":["#e8c08a",16], "Saturno":["#e8d8a0",14], "Urano":["#a8e8e8",11], "Neptuno":["#6a8cff",11] };
 function fmtInput(d) { const z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; }
+const wikiCache = {};
+const SOLAR_WIKI = { "Sol":{es:"Sol",en:"Sun"}, "Luna":{es:"Luna",en:"Moon"}, "Mercurio":{es:"Mercurio (planeta)",en:"Mercury (planet)"}, "Venus":{es:"Venus (planeta)",en:"Venus"}, "Marte":{es:"Marte",en:"Mars"}, "Júpiter":{es:"Júpiter (planeta)",en:"Jupiter"}, "Saturno":{es:"Saturno (planeta)",en:"Saturn"}, "Urano":{es:"Urano (planeta)",en:"Uranus"}, "Neptuno":{es:"Neptuno (planeta)",en:"Neptune"} };
+const BH_WIKI = { "Sgr A*":"Sagittarius A*", "M87*":"Messier 87", "M31* (Andrómeda)":"Andromeda Galaxy", "Gaia BH1":"Gaia BH1", "Gaia BH3":"Gaia BH3" };
+function wikiTitle(obj, lang) {
+  if (!obj) return null;
+  if (obj.layer === "solar") { const m = SOLAR_WIKI[obj.name]; return m ? (m[lang] || m.en) : obj.name; }
+  if (obj.layer === "messier") return `Messier ${obj.m}`;
+  if (obj.layer === "star") return obj.name;
+  if (obj.layer === "blackholes") return BH_WIKI[obj.name] || obj.name.split("(")[0].trim();
+  if (obj.layer === "pulsars") return obj.name.split("(")[0].trim();
+  return obj.name;
+}
+async function fetchWiki(title, lang) {
+  const key = lang + ":" + title;
+  if (wikiCache[key]) return wikiCache[key];
+  const host = lang === "es" ? "es.wikipedia.org" : "en.wikipedia.org";
+  const url = `https://${host}/w/api.php?action=query&prop=pageimages%7Cextracts&exintro&explaintext&redirects=1&piprop=thumbnail&pithumbsize=360&format=json&origin=*&titles=${encodeURIComponent(title)}`;
+  try {
+    const r = await fetch(url); const d = await r.json();
+    const pg = Object.values(d.query.pages)[0];
+    const res = { title: pg.title, thumb: (pg.thumbnail || {}).source || null, extract: pg.extract || "", url: `https://${host}/wiki/${encodeURIComponent(pg.title)}`, missing: pg.missing !== undefined };
+    wikiCache[key] = res; return res;
+  } catch { return null; }
+}
 function nowLocalInput() {
   const d = new Date(); const z = n => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
@@ -133,6 +157,7 @@ export default function Constellations({ lang = "es" }) {
   const [datasets, setDatasets] = useState({}); // key -> {objects}
   const [enabled, setEnabled] = useState({});   // key -> bool
   const [selObj, setSelObj] = useState(null);
+  const [wiki, setWiki] = useState(null);
   const [localMode, setLocalMode] = useState(false);
   const [lat, setLat] = useState(null);
   const [lon, setLon] = useState(null);
@@ -147,11 +172,12 @@ export default function Constellations({ lang = "es" }) {
     if (q.length < 2 || !sky) return [];
     const r = [];
     for (const c of sky.constellations) if ((c.la + " " + c.en).toLowerCase().includes(q)) r.push({ type: "con", ab: c.ab, label: `${c.la} · ${c.en}` });
-    for (const st of sky.stars) if (st[7] && st[7].toLowerCase().includes(q)) r.push({ type: "star", nx: st[1], ny: st[2], nz: st[3], label: st[7] });
+    for (const st of sky.stars) if (st[7] && st[7].toLowerCase().includes(q)) r.push({ type: "star", nx: st[1], ny: st[2], nz: st[3], dist: st[6], label: st[7] });
+    for (const b of bodies) if (b.name.toLowerCase().includes(q)) r.push({ type: "solar", body: b, label: b.name });
     const ds = datasets.messier;
     if (ds) for (const o of ds.objects) if ((o.name + " " + (o.cn || "")).toLowerCase().includes(q)) r.push({ type: "messier", obj: o, label: `${o.name}${o.cn ? " · " + o.cn : ""}` });
     return r.slice(0, 8);
-  }, [query, sky, datasets]);
+  }, [query, sky, datasets, bodies]);
   const depthRef = useRef(0);
   const selRef = useRef(null);
 
@@ -525,16 +551,27 @@ export default function Constellations({ lang = "es" }) {
     ref.layerObjs.forEach(o => { o.points.visible = !!enabled[o.key]; });
   }, [enabled]);
 
-  // acercar la cámara al objeto seleccionado (zoom)
+  // acercar la cámara al objeto seleccionado (zoom) + traer ficha de Wikipedia
   useEffect(() => {
     const ref = sceneRef.current;
     if (!ref || !selObj) return;
-    const v = new THREE.Vector3(selObj.nx, selObj.ny, selObj.nz).normalize();
+    const v = new THREE.Vector3(selObj.nx, selObj.ny, selObj.nz);
+    if (ref.localQuat) v.applyQuaternion(ref.localQuat);
+    v.normalize();
     ref.controls.autoRotate = false;
     ref.controls.target.copy(v.clone().multiplyScalar(870));
-    ref.camera.position.copy(v.clone().multiplyScalar(560));
+    ref.camera.position.copy(v.clone().multiplyScalar(540));
     ref.controls.update();
   }, [selObj]);
+  useEffect(() => {
+    setWiki(null);
+    if (!selObj) return;
+    const title = wikiTitle(selObj, lang);
+    if (!title) return;
+    let cancel = false;
+    fetchWiki(title, lang).then(w => { if (!cancel) setWiki(w); });
+    return () => { cancel = true; };
+  }, [selObj, lang]);
 
   // modo cielo local: rota todo a coordenadas alt/azimut y muestra el horizonte
   useEffect(() => {
@@ -591,9 +628,10 @@ export default function Constellations({ lang = "es" }) {
   const onResult = useCallback((res) => {
     setQuery("");
     if (res.type === "con") setSel(res.ab);
-    else if (res.type === "star") focusDir(res.nx, res.ny, res.nz);
+    else if (res.type === "star") setSelObj({ name: res.label, nx: res.nx, ny: res.ny, nz: res.nz, dist_ly: res.dist, layer: "star" });
+    else if (res.type === "solar") { const b = res.body; setSelObj({ name: b.name, nx: b.nx, ny: b.ny, nz: b.nz, layer: "solar", dist_au: b.dist_au, illum: b.illum, waxing: b.waxing }); }
     else if (res.type === "messier") { setEnabled(e => ({ ...e, messier: true })); setSelObj({ ...res.obj, layer: "messier" }); }
-  }, [focusDir]);
+  }, []);
 
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) return;
@@ -808,12 +846,30 @@ export default function Constellations({ lang = "es" }) {
 
       {selObj && (
         <div className="absolute pointer-events-auto rounded-xl p-3.5"
-          style={{ top: 92, right: 12, width: 234, background: "rgba(9,14,28,0.95)", border: "1px solid rgba(124,58,237,0.4)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)" }}>
-          <div className="flex items-start justify-between gap-2 mb-1">
+          style={{ top: 60, right: 12, width: 252, maxHeight: 388, overflowY: "auto", background: "rgba(9,14,28,0.96)", border: "1px solid rgba(124,58,237,0.4)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)" }}>
+          <div className="flex items-start justify-between gap-2 mb-1.5">
             <div style={{ fontFamily: "Cormorant Garamond,Georgia,serif", color: "#fff", fontSize: 18, lineHeight: 1.1 }}>{selObj.name}</div>
             <button onClick={() => setSelObj(null)} className="text-white/35 hover:text-white/80 shrink-0" style={{ fontSize: 13 }}>✕</button>
           </div>
-          <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 11 }}>{fmtDist(selObj.dist_ly, lang)}</div>
+          {wiki && wiki.thumb && (
+            <img src={wiki.thumb} alt={selObj.name} loading="lazy"
+              style={{ width: "100%", borderRadius: 8, marginBottom: 8, display: "block" }} />
+          )}
+          {selObj.dist_ly != null && (
+            <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 11 }}>{fmtDist(selObj.dist_ly, lang)}</div>
+          )}
+          {selObj.layer === "star" && (
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>{lang === "es" ? "Estrella" : "Star"}</div>
+          )}
+          {selObj.layer === "solar" && (
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+              {selObj.name === "Sol" ? (lang === "es" ? "El Sol — estrella" : "The Sun — star")
+                : selObj.name === "Luna" ? (lang === "es" ? "La Luna — satélite" : "The Moon — satellite")
+                : (lang === "es" ? "Planeta" : "Planet")}
+              {selObj.dist_au != null ? ` · ${selObj.dist_au.toFixed(3)} UA` : ""}
+              {selObj.illum != null ? ` · ${lang === "es" ? "fase" : "phase"} ${Math.round(selObj.illum * 100)}% ${selObj.waxing ? (lang === "es" ? "crec." : "wax") : (lang === "es" ? "meng." : "wan")}` : ""}
+            </div>
+          )}
 
           {selObj.layer === "messier" && (
             <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
@@ -855,6 +911,17 @@ export default function Constellations({ lang = "es" }) {
               {lang === "es"
                 ? `En la Voyager 1 tardarías ${fmtYears(selObj.dist_ly * 17575, lang)}.`
                 : `In Voyager 1 you'd take ${fmtYears(selObj.dist_ly * 17575, lang)}.`}
+            </div>
+          )}
+          {wiki && wiki.extract && (
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+              <p style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 10.5, lineHeight: 1.45, margin: 0 }}>
+                {wiki.extract.length > 240 ? wiki.extract.slice(0, 240) + "…" : wiki.extract}
+              </p>
+              <a href={wiki.url} target="_blank" rel="noopener noreferrer"
+                style={{ fontFamily: "Inter,system-ui", color: "#60A5FA", fontSize: 9.5, display: "inline-block", marginTop: 5 }}>
+                Wikipedia ↗
+              </a>
             </div>
           )}
         </div>
