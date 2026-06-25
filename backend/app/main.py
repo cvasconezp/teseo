@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from app import orbital
 from app import nasa_horizons
 from app import narrative
+from app import exoplanets
 
 app = FastAPI(
     title="Teseo API",
@@ -133,6 +134,15 @@ def compute_route(req: RouteRequest):
         return data
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/exoplanets")
+async def list_exoplanets():
+    """Exoplanetas reales (NASA Exoplanet Archive), con marca de habitabilidad."""
+    try:
+        return await exoplanets.get_exoplanets()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error consultando NASA Exoplanet Archive: {e}")
 
 
 @app.get("/api/launch-windows/{origin}/{destination}")
