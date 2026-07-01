@@ -1,5 +1,7 @@
 # Hoja de ruta de Teseo
 
+> 📄 Documento de producto y visión crítica: `Teseo-Framework.docx`.
+
 > *Stellarium te dice qué hay en el cielo. Teseo te dice qué tan lejos está,
 > cuánto tardarías en llegar y cuándo conviene salir.*
 
@@ -69,8 +71,10 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 
 ## 🧱 Plataforma y calidad
 - [x] Página de **créditos y licencias** de datos in-app (ver CREDITS.md)
-- [ ] Accesibilidad y gestos táctiles (móvil) pulidos
-- [ ] Rendimiento con muchas capas activas
+- [x] Diseño responsive (desktop/tablet/móvil)
+- [~] Gestos táctiles (OrbitControls) ok · accesibilidad WCAG pendiente
+- [x] Carga inicial optimizada (exoplanetas bajo demanda)
+- [ ] Rendimiento runtime con muchas capas activas
 - [x] Tests del backend (física + endpoints) — 12 pruebas, pytest
 
 ## 🧪 Ideas para explorar
