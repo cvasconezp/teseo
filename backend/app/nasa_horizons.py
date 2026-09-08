@@ -6,12 +6,29 @@ API gratuita, sin autenticación, mantenida por NASA/JPL.
 Documentación: https://ssd-api.jpl.nasa.gov/doc/horizons.html
 """
 
+import math
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 
 import httpx
 
 HORIZONS_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
+
+# Cometas notables. Usamos la designación con "CAP" (aparición más cercana) para
+# que Horizons resuelva un único registro en vez de pedir desambiguación.
+NOTABLE_COMETS = [
+    ("DES=1P;CAP", "1P/Halley"),
+    ("DES=2P;CAP", "2P/Encke"),
+    ("DES=12P;CAP", "12P/Pons-Brooks"),
+    ("DES=55P;CAP", "55P/Tempel-Tuttle"),
+    ("DES=109P;CAP", "109P/Swift-Tuttle"),
+    ("DES=67P;CAP", "67P/Churyumov-Gerasimenko"),
+    ("C/2023 A3;", "C/2023 A3 (Tsuchinshan-ATLAS)"),
+]
+
+AU_KM = 149_597_870.7
+_comet_cache = {"date": None, "data": None}
 
 # Códigos NASA Horizons para cada cuerpo (IDs del sistema SPICE)
 HORIZONS_CODES = {
@@ -108,6 +125,81 @@ def _parse_vector_block(text: str) -> dict:
         "z_au": round(z, 6),
         "distance_from_sun_au": round(distance_au, 6),
     }
+
+
+def _radec_to_vec(ra_deg: float, dec_deg: float):
+    """RA/Dec (grados J2000) -> vector unitario ecuatorial (misma convención
+    que el resto de capas del frontend)."""
+    ra, dec = math.radians(ra_deg), math.radians(dec_deg)
+    cd = math.cos(dec)
+    return round(cd * math.cos(ra), 5), round(cd * math.sin(ra), 5), round(math.sin(dec), 5)
+
+
+async def _comet_ephem(client: httpx.AsyncClient, command: str, date: datetime) -> Optional[dict]:
+    """Posición aparente geocéntrica (RA/Dec) y distancia a la Tierra de un
+    cometa en `date`, desde NASA Horizons. Devuelve None si no se puede leer."""
+    start = date.strftime("%Y-%m-%d")
+    stop = (date + timedelta(days=1)).strftime("%Y-%m-%d")
+    params = {
+        "format": "json", "COMMAND": f"'{command}'", "OBJ_DATA": "NO",
+        "MAKE_EPHEM": "YES", "EPHEM_TYPE": "OBSERVER", "CENTER": "'500@399'",
+        "START_TIME": f"'{start}'", "STOP_TIME": f"'{stop}'", "STEP_SIZE": "'1 d'",
+        "QUANTITIES": "'1,20'", "ANG_FORMAT": "'DEG'",
+    }
+    try:
+        resp = await client.get(HORIZONS_URL, params=params)
+        resp.raise_for_status()
+        text = resp.json().get("result", "")
+        if "$$SOE" not in text:
+            return None
+        row = text.split("$$SOE")[1].split("$$EOE")[0].strip().splitlines()[0]
+        # tras la fecha/hora, los primeros números son RA, Dec, delta(UA), deldot
+        after = row.split(None, 2)[2]  # quita "YYYY-Mon-DD HH:MN"
+        nums = re.findall(r"[-+]?\d+\.\d+", after)
+        if len(nums) < 3:
+            return None
+        ra, dec, delta = float(nums[0]), float(nums[1]), float(nums[2])
+        deldot = float(nums[3]) if len(nums) > 3 else None
+        nx, ny, nz = _radec_to_vec(ra, dec)
+        return {
+            "ra_deg": round(ra, 4), "dec_deg": round(dec, 4),
+            "nx": nx, "ny": ny, "nz": nz,
+            "dist_au": round(delta, 4),
+            "dist_km": round(delta * AU_KM),
+            "light_min": round(delta * AU_KM / 17_987_547.48, 1),  # min-luz
+            "approaching": (deldot is not None and deldot < 0),
+        }
+    except Exception:
+        return None
+
+
+async def get_comet_positions(date: Optional[datetime] = None) -> dict:
+    """Posiciones reales actuales de cometas notables (NASA Horizons),
+    con caché diaria en memoria para no repetir consultas."""
+    if date is None:
+        date = datetime.utcnow()
+    day = date.strftime("%Y-%m-%d")
+    if _comet_cache["date"] == day and _comet_cache["data"] is not None:
+        return _comet_cache["data"]
+
+    objects = []
+    async with httpx.AsyncClient(timeout=25.0) as client:
+        for command, name in NOTABLE_COMETS:
+            e = await _comet_ephem(client, command, date)
+            if e:
+                e["name"] = name
+                objects.append(e)
+
+    result = {
+        "objects": objects,
+        "count": len(objects),
+        "date": day,
+        "source": "NASA JPL Horizons (posición geocéntrica aparente, en vivo)",
+    }
+    if objects:  # solo cacheamos si algo salió bien
+        _comet_cache["date"] = day
+        _comet_cache["data"] = result
+    return result
 
 
 async def get_distance_between_bodies(body_a: str, body_b: str, date: Optional[datetime] = None) -> dict:

@@ -10,9 +10,10 @@ const LAYERS = [
   { key: "blackholes", file: "/blackholes.json", es: "Agujeros negros",  en: "Black holes",  color: 0xff7a3c, size: 11 },
   { key: "galaxies",   file: "/galaxies.json",   es: "Galaxias",         en: "Galaxies",     color: 0x9db4ff, size: 5, lazy: true },
   { key: "meteors",    file: "/meteorshowers.json", es: "Lluvias de meteoros", en: "Meteor showers", color: 0xffd27a, size: 9 },
-  { key: "exoplanets", api: true,                es: "Exoplanetas",      en: "Exoplanets",   color: 0x4dd866, size: 6 },
+  { key: "comets",     api: true, endpoint: "/api/comets", es: "Cometas", en: "Comets", color: 0x8be0ff, size: 9 },
+  { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6 },
 ];
-const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", solar:"#ffe9a8" };
+const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", solar:"#ffe9a8" };
 
 // Una lluvia está activa si hoy (MM-DD) cae en [start, end]; la ventana puede
 // cruzar el fin de año (p. ej. Cuadrántidas 12-28 -> 01-12).
@@ -108,6 +109,7 @@ function wikiTitle(obj, lang) {
     return obj.cat && obj.name !== obj.cat ? obj.name : cat;
   }
   if (obj.layer === "meteors") return lang === "es" ? (obj.wiki_es || obj.name) : (obj.name_en || obj.name);
+  if (obj.layer === "comets") return obj.name.split("(").pop().replace(")", "").trim() || obj.name.split("/").pop();
   return obj.name;
 }
 async function fetchWiki(title, lang) {
@@ -263,6 +265,7 @@ export default function Constellations({ lang = "es" }) {
       ["meteors",    (o) => o.name],
       ["galaxies",   (o) => o.name + (o.cat && o.cat !== o.name ? " · " + o.cat : "")],
       ["pulsars",    (o) => o.name],
+      ["comets",     (o) => o.name],
     ];
     for (const [key, labelFn] of objLayers) {
       const ds = datasets[key];
@@ -300,7 +303,7 @@ export default function Constellations({ lang = "es" }) {
       if (enabled[cfg.key] && !datasets[cfg.key] && !loadingLayer[cfg.key]) {
         if (cfg.api && !API) return;
         setLoadingLayer(p => ({ ...p, [cfg.key]: true }));
-        const url = cfg.api ? `${API}/api/exoplanets` : cfg.file;
+        const url = cfg.api ? `${API}${cfg.endpoint}` : cfg.file;
         fetch(url).then(r => r.json())
           .then(d => setDatasets(prev => ({ ...prev, [cfg.key]: d })))
           .catch(() => {})
@@ -819,6 +822,33 @@ export default function Constellations({ lang = "es" }) {
     else if (res.type === "layer") { setEnabled(e => ({ ...e, [res.layer]: true })); setSelObj({ ...res.obj, layer: res.layer }); }
   }, []);
 
+  // zoom con botones (dolly hacia/desde el objetivo actual; mantiene centrado
+  // lo que esté en controls.target, p.ej. el objeto seleccionado)
+  const zoomBy = useCallback((f) => {
+    const ref = sceneRef.current; if (!ref) return;
+    const { camera, controls } = ref;
+    controls.autoRotate = false;
+    const dir = camera.position.clone().sub(controls.target);
+    let len = dir.length() * f;
+    len = Math.max(controls.minDistance, Math.min(controls.maxDistance, len));
+    camera.position.copy(controls.target.clone().add(dir.normalize().multiplyScalar(len)));
+    controls.update();
+  }, []);
+  // centrar en el objeto seleccionado (o volver al centro si no hay ninguno)
+  const recenter = useCallback(() => {
+    const ref = sceneRef.current; if (!ref) return;
+    if (selObj && selObj.nx != null) {
+      const v = new THREE.Vector3(selObj.nx, selObj.ny, selObj.nz);
+      if (ref.localQuat) v.applyQuaternion(ref.localQuat);
+      v.normalize().multiplyScalar(870);
+      ref.controls.target.copy(v);
+    } else {
+      ref.controls.target.set(0, 0, 0);
+    }
+    ref.controls.autoRotate = false;
+    ref.controls.update();
+  }, [selObj]);
+
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -832,7 +862,7 @@ export default function Constellations({ lang = "es" }) {
     const ref = sceneRef.current;
     if (!ref || !ref.renderer) return;
     const el = ref.renderer.domElement;
-    const rc = new THREE.Raycaster(); rc.params.Points.threshold = 16;
+    const rc = new THREE.Raycaster(); rc.params.Points.threshold = 10;
     const v = new THREE.Vector2();
     let downX = 0, downY = 0;
     const onDown = (e) => { downX = e.clientX; downY = e.clientY; };
@@ -845,6 +875,8 @@ export default function Constellations({ lang = "es" }) {
       const targets = (ref.layerObjs || []).filter(o => o.points.visible).map(o => o.points);
       const hits = targets.length ? rc.intersectObjects(targets, false) : [];
       if (hits.length) {
+        // el más cercano al rayo (selección precisa), no solo el primero en profundidad
+        hits.sort((a, b) => (a.distanceToRay ?? 1e9) - (b.distanceToRay ?? 1e9));
         const h = hits[0];
         setSelObj({ ...h.object.userData.objs[h.index], layer: h.object.userData.layer });
       } else setSelObj(null);
@@ -888,6 +920,23 @@ export default function Constellations({ lang = "es" }) {
           </button>
         </div>
       )}
+
+      {/* controles de zoom / centrado */}
+      <div className="absolute right-3 pointer-events-auto z-20 flex flex-col gap-1.5" style={{ top: "50%", transform: "translateY(-50%)" }}>
+        {[
+          { t: "+", f: () => zoomBy(0.8), lbl: lang === "es" ? "Acercar" : "Zoom in" },
+          { t: "−", f: () => zoomBy(1.25), lbl: lang === "es" ? "Alejar" : "Zoom out" },
+          { t: "◎", f: recenter, lbl: selObj ? (lang === "es" ? "Centrar en el objeto" : "Center on object") : (lang === "es" ? "Centrar vista" : "Center view") },
+        ].map((b) => (
+          <button key={b.t} onClick={b.f} aria-label={b.lbl} title={b.lbl}
+            style={{ width: 34, height: 34, borderRadius: 10, cursor: "pointer",
+              fontFamily: "Inter,system-ui", fontSize: b.t === "◎" ? 15 : 19, lineHeight: 1,
+              color: b.t === "◎" && selObj ? "#A78BFA" : "rgba(255,255,255,0.75)",
+              background: "rgba(9,14,28,0.85)", border: "1px solid rgba(124,58,237,0.35)" }}>
+            {b.t}
+          </button>
+        ))}
+      </div>
 
       {!sky && (
         <div className="absolute inset-0 flex items-center justify-center text-white/40"
@@ -1175,6 +1224,17 @@ export default function Constellations({ lang = "es" }) {
                   </div>
                 </>
               ); })()}
+            </div>
+          )}
+          {selObj.layer === "comets" && (
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+              <span style={{ color: "#8be0ff" }}>{lang === "es" ? "Cometa" : "Comet"}</span>
+              {selObj.dist_au != null ? ` · ${selObj.dist_au} ${lang === "es" ? "UA de la Tierra" : "AU from Earth"}` : ""}
+              {selObj.light_min != null ? ` · ${lang === "es" ? "luz" : "light"} ${selObj.light_min < 60 ? `${selObj.light_min} min` : `${(selObj.light_min/60).toFixed(1)} h`}` : ""}
+              <div style={{ color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                {selObj.approaching ? (lang === "es" ? "acercándose a la Tierra" : "approaching Earth") : (lang === "es" ? "alejándose de la Tierra" : "receding from Earth")}
+                {" · "}{lang === "es" ? "posición real de hoy (NASA Horizons)" : "today's real position (NASA Horizons)"}
+              </div>
             </div>
           )}
           {selObj.layer === "exoplanets" && (
