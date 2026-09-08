@@ -16,6 +16,21 @@ from groq import Groq
 # Carlos: crea tu key gratis en https://console.groq.com y ponla en tu .env
 _client: Groq | None = None
 
+# Modelo Groq, configurable por entorno para sobrevivir deprecaciones sin
+# tocar código (basta cambiar GROQ_MODEL en Railway y reiniciar).
+#
+# Aviso (sept 2026): Groq movió `llama-3.3-70b-versatile` y
+# `llama-3.1-8b-instant` a planes Enterprise, así que en cuentas developer
+# devuelven 404 ("model does not exist or you do not have access to it").
+# Modelos disponibles en plan developer: openai/gpt-oss-120b,
+# openai/gpt-oss-20b, groq/compound, groq/compound-mini.
+# Ref: https://console.groq.com/docs/models y .../docs/deprecations
+DEFAULT_MODEL = "openai/gpt-oss-120b"
+
+
+def _model() -> str:
+    return os.environ.get("GROQ_MODEL", DEFAULT_MODEL)
+
 
 def _get_client() -> Groq:
     global _client
@@ -68,7 +83,7 @@ Escribe una narrativa breve y asombrosa de este viaje, usando estos datos exacto
 """
 
     completion = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=_model(),
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
@@ -91,7 +106,7 @@ def explain_concept(concept: str, lang: str = "es") -> str:
     lang_instruction = "Responde en español." if lang == "es" else "Respond in English."
 
     completion = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=_model(),
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {
