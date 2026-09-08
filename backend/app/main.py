@@ -125,9 +125,11 @@ def compute_route(req: RouteRequest):
         if req.include_narrative:
             try:
                 data["narrative"] = narrative.generate_travel_narrative(data, lang=req.lang)
-            except RuntimeError as e:
-                # Si Groq no está configurado, la ruta sigue funcionando
-                # sin narrativa — los datos físicos son lo esencial.
+            except Exception as e:
+                # La narrativa es un extra. Si Groq falla por lo que sea
+                # (no configurado, modelo deprecado -> 404, límite de tasa,
+                # caída), la ruta sigue devolviendo TODOS los números: la
+                # física es lo esencial y nunca pasa por la IA.
                 data["narrative"] = None
                 data["narrative_error"] = str(e)
 
@@ -171,5 +173,7 @@ def explain(req: ExplainRequest):
     try:
         text = narrative.explain_concept(req.concept, req.lang)
         return {"concept": req.concept, "explanation": text}
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        # Groq no configurado, modelo deprecado (404) o caído -> 503,
+        # nunca un 500 sin explicar.
+        raise HTTPException(status_code=503, detail=f"Narrativa IA no disponible: {e}")
