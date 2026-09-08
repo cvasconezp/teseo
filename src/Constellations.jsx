@@ -240,6 +240,11 @@ export default function Constellations({ lang = "es" }) {
   const [showSolar, setShowSolar] = useState(true);
   const bodies = useMemo(() => ephemeris(new Date(whenStr)), [whenStr]);
   const [query, setQuery] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [showHint, setShowHint] = useState(() => { try { return !localStorage.getItem("teseo_hint_v1"); } catch { return true; } });
+  const dismissHint = useCallback(() => { setShowHint(false); try { localStorage.setItem("teseo_hint_v1", "1"); } catch { /* no-op */ } }, []);
+  const pendingObjRef = useRef(null);   // objeto a restaurar desde la URL
+  const hydratedRef = useRef(false);     // no escribir el hash antes de leerlo
   const [labelDensity, setLabelDensity] = useState("normal");
   const [tourActive, setTourActive] = useState(false);
   const [tourIndex, setTourIndex] = useState(0);
@@ -353,6 +358,64 @@ export default function Constellations({ lang = "es" }) {
     });
   }, [enabled, datasets, loadingLayer]);
 
+  // ── deep-links: leer el estado del hash al montar ──
+  useEffect(() => {
+    try {
+      const h = window.location.hash || "";
+      const qi = h.indexOf("?");
+      if (qi >= 0) {
+        const p = new URLSearchParams(h.slice(qi + 1));
+        const L = p.get("L"); if (L) setEnabled(e => { const n = { ...e }; L.split(",").forEach(k => { if (k) n[k] = true; }); return n; });
+        const c = p.get("c"); if (c) setSel(c);
+        const v = p.get("v"); if (v) { const q = v.split("~"); const pos = [+q[1], +q[2], +q[3]]; if (pos.every(Number.isFinite)) setViewFrom({ name: decodeURIComponent(q[0]), pos }); }
+        const o = p.get("o"); if (o) pendingObjRef.current = o;
+      }
+    } catch { /* hash inválido: se ignora */ }
+    hydratedRef.current = true;
+  }, []);
+
+  // restaurar el objeto seleccionado del hash cuando lleguen los datos
+  useEffect(() => {
+    const o = pendingObjRef.current; if (!o || !sky) return;
+    const sep = o.indexOf("~"); if (sep < 0) { pendingObjRef.current = null; return; }
+    const layer = o.slice(0, sep), name = decodeURIComponent(o.slice(sep + 1));
+    if (layer === "star") {
+      const st = sky.stars.find(s => s[7] === name);
+      if (st) { setSelObj({ name: st[7], nx: st[1], ny: st[2], nz: st[3], dist_ly: st[6], layer: "star" }); pendingObjRef.current = null; }
+      return;
+    }
+    if (!enabled[layer]) { setEnabled(e => ({ ...e, [layer]: true })); return; } // esperar a que cargue
+    const ds = datasets[layer];
+    if (ds && ds.objects) {
+      const ob = ds.objects.find(x => x.name === name);
+      if (ob) setSelObj({ ...ob, layer });
+      pendingObjRef.current = null;
+    }
+  }, [sky, datasets, enabled]);
+
+  // escribir el estado al hash (para compartir el enlace)
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      const p = new URLSearchParams();
+      const on = Object.keys(enabled).filter(k => enabled[k]);
+      if (on.length) p.set("L", on.join(","));
+      if (sel) p.set("c", sel);
+      if (viewFrom) p.set("v", encodeURIComponent(viewFrom.name) + "~" + viewFrom.pos.map(n => n.toFixed(3)).join("~"));
+      if (selObj && selObj.name && selObj.layer !== "solar") p.set("o", selObj.layer + "~" + encodeURIComponent(selObj.name));
+      const qs = p.toString();
+      const nh = "#sky" + (qs ? "?" + qs : "");
+      if (window.location.hash !== nh) window.history.replaceState(null, "", nh);
+    } catch { /* no-op */ }
+  }, [enabled, sel, viewFrom, selObj]);
+
+  const shareLink = useCallback(() => {
+    try {
+      navigator.clipboard.writeText(window.location.href);
+      setCopied(true); setTimeout(() => setCopied(false), 1600);
+    } catch { /* clipboard no disponible */ }
+  }, []);
+
   // Build scene once data is ready
   useEffect(() => {
     if (!sky || !mountRef.current) return;
@@ -363,7 +426,7 @@ export default function Constellations({ lang = "es" }) {
     scene.fog = new THREE.FogExp2(0x04080f, 0.00018);
     const camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 6000);
     camera.position.set(0, 0, 1700);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     mount.appendChild(renderer.domElement);
@@ -572,30 +635,35 @@ export default function Constellations({ lang = "es" }) {
       if (ref.earth) ref.earth.rotation.y += 0.0006;
       const dpt = depthRef.current;
       const selAb = selRef.current;
-      // lerp star positions flat<->deep
+      // Rendimiento: las posiciones de estrellas/líneas solo cambian con la
+      // profundidad, la selección o el punto de observación. Si nada de eso
+      // cambió, no reescribimos ~15k floats por frame (la cámara igual gira).
       const pa = ref.posAttr.array;
-      for (let i = 0; i < ref.N * 3; i++) pa[i] = ref.posFlat[i] + (ref.posDeep[i] - ref.posFlat[i]) * dpt;
-      ref.posAttr.needsUpdate = true;
-      // update lines
-      const selSet = selAb;
-      for (let s = 0; s < ref.segHips.length; s++) {
-        const [ha, hb, ab] = ref.segHips[s];
-        const ia = ref.hipIndex.get(ha), ib = ref.hipIndex.get(hb);
-        const hidden = selSet && ab !== selSet;
-        if (hidden) {
-          for (let q=0;q<6;q++) ref.lPos[s*6+q]=0;   // colapsar -> invisible
-        } else {
-          ref.lPos[s*6+0]=pa[ia*3]; ref.lPos[s*6+1]=pa[ia*3+1]; ref.lPos[s*6+2]=pa[ia*3+2];
-          ref.lPos[s*6+3]=pa[ib*3]; ref.lPos[s*6+4]=pa[ib*3+1]; ref.lPos[s*6+5]=pa[ib*3+2];
+      const rebuild = dpt !== ref._lastDpt || selAb !== ref._lastSel || ref._dirty;
+      if (rebuild) {
+        for (let i = 0; i < ref.N * 3; i++) pa[i] = ref.posFlat[i] + (ref.posDeep[i] - ref.posFlat[i]) * dpt;
+        ref.posAttr.needsUpdate = true;
+        const selSet = selAb;
+        for (let s = 0; s < ref.segHips.length; s++) {
+          const [ha, hb, ab] = ref.segHips[s];
+          const ia = ref.hipIndex.get(ha), ib = ref.hipIndex.get(hb);
+          const hidden = selSet && ab !== selSet;
+          if (hidden) {
+            for (let q=0;q<6;q++) ref.lPos[s*6+q]=0;   // colapsar -> invisible
+          } else {
+            ref.lPos[s*6+0]=pa[ia*3]; ref.lPos[s*6+1]=pa[ia*3+1]; ref.lPos[s*6+2]=pa[ia*3+2];
+            ref.lPos[s*6+3]=pa[ib*3]; ref.lPos[s*6+4]=pa[ib*3+1]; ref.lPos[s*6+5]=pa[ib*3+2];
+          }
+          let r,g,b;
+          if (!selSet) { r=0.42;g=0.45;b=0.78; }
+          else { r=0.70;g=0.58;b=1.0; }
+          ref.lCol[s*6+0]=r; ref.lCol[s*6+1]=g; ref.lCol[s*6+2]=b;
+          ref.lCol[s*6+3]=r; ref.lCol[s*6+4]=g; ref.lCol[s*6+5]=b;
         }
-        let r,g,b;
-        if (!selSet) { r=0.42;g=0.45;b=0.78; }
-        else { r=0.70;g=0.58;b=1.0; }
-        ref.lCol[s*6+0]=r; ref.lCol[s*6+1]=g; ref.lCol[s*6+2]=b;
-        ref.lCol[s*6+3]=r; ref.lCol[s*6+4]=g; ref.lCol[s*6+5]=b;
+        ref.lines.geometry.attributes.position.needsUpdate = true;
+        ref.lines.geometry.attributes.color.needsUpdate = true;
+        ref._lastDpt = dpt; ref._lastSel = selAb; ref._dirty = false;
       }
-      ref.lines.geometry.attributes.position.needsUpdate = true;
-      ref.lines.geometry.attributes.color.needsUpdate = true;
       ref.controls.update();
       ref.renderer.render(ref.scene, ref.camera);
       // ── etiquetas con nivel de detalle (LOD) ──
@@ -666,6 +734,7 @@ export default function Constellations({ lang = "es" }) {
     const ref = sceneRef.current;
     if (!ref || !ref.applyViewpoint) return;
     ref.applyViewpoint(viewFrom ? viewFrom.pos : null);
+    ref._dirty = true;   // fuerza reconstruir posiciones/líneas en el próximo frame
   }, [viewFrom, ready]);
 
   // posiciona la cámara según la profundidad: 0 = vista desde la Tierra (plano),
@@ -891,6 +960,49 @@ export default function Constellations({ lang = "es" }) {
     ref.controls.update();
   }, [selObj]);
 
+  // rotar la vista con el teclado (accesibilidad)
+  const orbitBy = useCallback((dAz, dPol) => {
+    const ref = sceneRef.current; if (!ref) return;
+    const { camera, controls } = ref; controls.autoRotate = false;
+    const off = camera.position.clone().sub(controls.target);
+    const sph = new THREE.Spherical().setFromVector3(off);
+    sph.theta += dAz; sph.phi = Math.max(0.05, Math.min(Math.PI - 0.05, sph.phi + dPol));
+    off.setFromSpherical(sph);
+    camera.position.copy(controls.target.clone().add(off));
+    controls.update();
+  }, []);
+  const onCanvasKey = useCallback((e) => {
+    if (e.key === "Escape") { setSelObj(null); return; }
+    if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomBy(0.85); return; }
+    if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomBy(1.18); return; }
+    const az = e.key === "ArrowLeft" ? -0.12 : e.key === "ArrowRight" ? 0.12 : 0;
+    const pol = e.key === "ArrowUp" ? -0.09 : e.key === "ArrowDown" ? 0.09 : 0;
+    if (az || pol) { e.preventDefault(); orbitBy(az, pol); }
+  }, [orbitBy, zoomBy]);
+
+  // postal del cielo: captura el lienzo en PNG con marca de Teseo
+  const savePostcard = useCallback(() => {
+    const ref = sceneRef.current; if (!ref) return;
+    ref.renderer.render(ref.scene, ref.camera);           // buffer fresco
+    const src = ref.renderer.domElement;
+    const c = document.createElement("canvas");
+    c.width = src.width; c.height = src.height;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#04080f"; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(src, 0, 0);
+    const pad = Math.round(c.height * 0.022);
+    ctx.font = `${Math.round(c.height * 0.030)}px Georgia, 'Times New Roman', serif`;
+    ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.textBaseline = "bottom";
+    ctx.fillText("Teseo", pad, c.height - pad);
+    ctx.font = `${Math.round(c.height * 0.020)}px Georgia, serif`;
+    ctx.fillStyle = "rgba(201,184,255,0.85)";
+    ctx.fillText("teseo.yachaydeep.com", pad, c.height - pad - Math.round(c.height * 0.034));
+    try {
+      const a = document.createElement("a");
+      a.href = c.toDataURL("image/png"); a.download = "teseo-cielo.png"; a.click();
+    } catch { /* toDataURL bloqueado */ }
+  }, []);
+
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -942,11 +1054,11 @@ export default function Constellations({ lang = "es" }) {
   return (
     <div className="relative w-full h-[460px] md:h-[600px]">
       <div ref={mountRef} className="absolute inset-0 rounded-2xl overflow-hidden"
-        role="img"
+        role="application" tabIndex={0} onKeyDown={onCanvasKey}
         aria-label={lang === "es"
-          ? "Mapa del cielo en 3D: estrellas, constelaciones y objetos a su distancia real. Usa el buscador y los controles para navegar."
-          : "3D sky map: stars, constellations and objects at their real distance. Use the search and controls to navigate."}
-        style={{ background: "radial-gradient(ellipse at center, #0a1020 0%, #04080f 80%)", border: "1px solid rgba(124,58,237,0.18)" }} />
+          ? "Mapa del cielo en 3D: estrellas, constelaciones y objetos a su distancia real. Flechas para girar, + y − para acercar, Escape para cerrar la ficha."
+          : "3D sky map: stars, constellations and objects at their real distance. Arrows to rotate, + and − to zoom, Escape to close the panel."}
+        style={{ background: "radial-gradient(ellipse at center, #0a1020 0%, #04080f 80%)", border: "1px solid rgba(124,58,237,0.18)", outline: "none" }} />
 
       {/* punto de observación distinto de la Tierra */}
       {viewFrom && (
@@ -969,16 +1081,34 @@ export default function Constellations({ lang = "es" }) {
           { t: "+", f: () => zoomBy(0.8), lbl: lang === "es" ? "Acercar" : "Zoom in" },
           { t: "−", f: () => zoomBy(1.25), lbl: lang === "es" ? "Alejar" : "Zoom out" },
           { t: "◎", f: recenter, lbl: selObj ? (lang === "es" ? "Centrar en el objeto" : "Center on object") : (lang === "es" ? "Centrar vista" : "Center view") },
+          { t: "📷", f: savePostcard, lbl: lang === "es" ? "Guardar postal del cielo (PNG)" : "Save sky postcard (PNG)" },
         ].map((b) => (
           <button key={b.t} onClick={b.f} aria-label={b.lbl} title={b.lbl}
-            style={{ width: 34, height: 34, borderRadius: 10, cursor: "pointer",
-              fontFamily: "Inter,system-ui", fontSize: b.t === "◎" ? 15 : 19, lineHeight: 1,
+            style={{ width: 40, height: 40, borderRadius: 10, cursor: "pointer",
+              fontFamily: "Inter,system-ui", fontSize: b.t === "◎" ? 16 : b.t === "📷" ? 15 : 20, lineHeight: 1,
               color: b.t === "◎" && selObj ? "#A78BFA" : "rgba(255,255,255,0.75)",
               background: "rgba(9,14,28,0.85)", border: "1px solid rgba(124,58,237,0.35)" }}>
             {b.t}
           </button>
         ))}
       </div>
+
+      {/* pista de bienvenida (una sola vez) */}
+      {showHint && sky && (
+        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto z-20 rounded-xl px-3.5 py-2.5"
+          style={{ bottom: 96, maxWidth: 340, background: "rgba(9,14,28,0.94)", border: "1px solid rgba(124,58,237,0.5)", boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
+          <div style={{ fontFamily: "Inter,system-ui", fontSize: 11.5, color: "rgba(255,255,255,0.82)", lineHeight: 1.5 }}>
+            {lang === "es"
+              ? "Mueve el control de abajo para revelar la profundidad real del cielo. Busca cualquier objeto (Marte, Sgr A*, pulsar) y, al tocar una estrella, mira el cielo desde allí."
+              : "Drag the control below to reveal the sky's real depth. Search any object (Mars, Sgr A*, pulsar) and, tapping a star, view the sky from there."}
+          </div>
+          <button onClick={dismissHint}
+            className="mt-1.5"
+            style={{ fontFamily: "Inter,system-ui", fontSize: 10.5, cursor: "pointer", color: "#c9b8ff", background: "rgba(124,58,237,0.2)", border: "1px solid rgba(124,58,237,0.5)", borderRadius: 999, padding: "3px 12px" }}>
+            {lang === "es" ? "Entendido" : "Got it"}
+          </button>
+        </div>
+      )}
 
       {!sky && (
         <div className="absolute inset-0 flex items-center justify-center text-white/40"
@@ -1022,7 +1152,7 @@ export default function Constellations({ lang = "es" }) {
           <div className="pointer-events-auto" style={{ width: 172, position: "relative", zIndex: 40 }}>
             <input value={query} onChange={e => setQuery(e.target.value)}
               aria-label={lang === "es" ? "Buscar objeto" : "Search object"}
-              placeholder={lang === "es" ? "Buscar objeto…" : "Search…"}
+              placeholder={lang === "es" ? "Buscar: Marte, Sgr A*, pulsar…" : "Search: Mars, Sgr A*, pulsar…"}
               style={{ width: "100%", background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.4)", borderRadius: 10, color: "#fff", padding: "6px 10px", fontFamily: "Inter,system-ui", fontSize: 11, outline: "none" }} />
             {results.length > 0 && (
               <div style={{ marginTop: 4, background: "#090e1c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden", boxShadow: "0 16px 40px rgba(0,0,0,0.7)" }}>
@@ -1185,7 +1315,13 @@ export default function Constellations({ lang = "es" }) {
           style={{ top: 60, right: 12, width: 252, maxHeight: 388, overflowY: "auto", background: "rgba(9,14,28,0.96)", border: "1px solid rgba(124,58,237,0.4)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)" }}>
           <div className="flex items-start justify-between gap-2 mb-1.5">
             <div style={{ fontFamily: "Cormorant Garamond,Georgia,serif", color: "#fff", fontSize: 18, lineHeight: 1.1 }}>{selObj.name}</div>
-            <button onClick={() => setSelObj(null)} aria-label={lang === "es" ? "Cerrar ficha" : "Close panel"} className="text-white/35 hover:text-white/80 shrink-0" style={{ fontSize: 13 }}>✕</button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button onClick={shareLink} aria-label={lang === "es" ? "Copiar enlace a este objeto" : "Copy link to this object"} title={lang === "es" ? "Copiar enlace" : "Copy link"}
+                className="text-white/45 hover:text-white/90" style={{ fontSize: 13 }}>
+                {copied ? (lang === "es" ? "✓ copiado" : "✓ copied") : "🔗"}
+              </button>
+              <button onClick={() => setSelObj(null)} aria-label={lang === "es" ? "Cerrar ficha" : "Close panel"} className="text-white/35 hover:text-white/80" style={{ fontSize: 13 }}>✕</button>
+            </div>
           </div>
           {wiki && wiki.thumb && (
             <img src={wiki.thumb} alt={selObj.name} loading="lazy"
