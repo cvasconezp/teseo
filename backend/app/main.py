@@ -147,6 +147,16 @@ async def list_exoplanets():
         raise HTTPException(status_code=502, detail=f"Error consultando NASA Exoplanet Archive: {e}")
 
 
+@app.get("/api/comets")
+async def list_comets(date: Optional[str] = Query(None)):
+    """Posiciones reales actuales de cometas notables (NASA Horizons)."""
+    try:
+        parsed = datetime.fromisoformat(date) if date else None
+        return await nasa_horizons.get_comet_positions(parsed)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error consultando NASA Horizons: {e}")
+
+
 @app.get("/api/launch-windows/{origin}/{destination}")
 def get_launch_windows(
     origin: str,
