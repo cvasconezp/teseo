@@ -584,6 +584,8 @@ export default function Teseo() {
   const [from,     setFrom]     = useState(PLANETS[2]); // Earth
   const [to,       setTo]       = useState(PLANETS[3]); // Mars
   const [tab,      setTab]      = useState("route");
+  // abrir en la pestaña Cielo si el enlace compartido lo indica (#sky...)
+  useEffect(() => { try { if ((window.location.hash || "").startsWith("#sky")) setTab("sky"); } catch { /* no-op */ } }, []);
   const [thread,   setThread]   = useState(0);
   const [backend,  setBackend]  = useState(null);
   const [loadingB, setLoadingB] = useState(false);
@@ -753,7 +755,7 @@ export default function Teseo() {
             </p>
             {[
               ["Estrellas y distancias","HYG Database v4.1 (Hipparcos) · CC BY-SA"],
-              ["Constelaciones","Stellarium modern skyculture · IAU"],
+              ["Constelaciones","Stellarium western/modern · IAU · CC BY-SA"],
               ["Cúmulos, nebulosas y galaxias","OpenNGC (Messier/NGC) · CC BY-SA"],
               ["Distancia de galaxias","por redshift (ley de Hubble, aprox.)"],
               ["Púlsares","ATNF Pulsar Catalogue (CSIRO)"],
