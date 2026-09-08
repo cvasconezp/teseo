@@ -15,6 +15,23 @@ const LAYERS = [
 ];
 const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", solar:"#ffe9a8" };
 
+// Términos genéricos de categoría: al buscar "pulsar" o "agujero negro" se
+// lista la capa entera en vez de exigir el nombre exacto de cada objeto.
+const CATEGORY_TERMS = [
+  { key: "pulsars",    terms: ["pulsar", "pulsares", "pulsars"] },
+  { key: "blackholes", terms: ["agujero negro", "agujeros negros", "agujero", "hoyo negro", "black hole", "blackhole", "black holes"] },
+  { key: "galaxies",   terms: ["galaxia", "galaxias", "galaxy", "galaxies"] },
+  { key: "comets",     terms: ["cometa", "cometas", "comet", "comets"] },
+  { key: "meteors",    terms: ["meteoro", "meteoros", "lluvia de meteoros", "lluvias", "meteor", "meteor shower"] },
+  { key: "messier",    terms: ["messier", "nebulosa", "nebulosas", "cúmulo", "cumulo", "cúmulos", "nebula", "cluster"] },
+  { key: "exoplanets", terms: ["exoplaneta", "exoplanetas", "exoplanet", "exoplanets"] },
+];
+function labelForObj(key, o) {
+  if (key === "messier") return `${o.name}${o.cn ? " · " + o.cn : ""}`;
+  if (key === "galaxies") return o.name + (o.cat && o.cat !== o.name ? " · " + o.cat : "");
+  return o.name;
+}
+
 // Una lluvia está activa si hoy (MM-DD) cae en [start, end]; la ventana puede
 // cruzar el fin de año (p. ej. Cuadrántidas 12-28 -> 01-12).
 function meteorActive(o, now = new Date()) {
@@ -237,9 +254,33 @@ export default function Constellations({ lang = "es" }) {
     return m;
   }, [sky]);
 
+  // término de categoría detectado (para listar la capa entera)
+  const catMatch = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 3) return null;
+    return CATEGORY_TERMS.find(c => c.terms.some(t => t.startsWith(q) || t === q || t.includes(q))) || null;
+  }, [query]);
+
+  // si se busca una categoría cuya capa aún no está cargada (diferida/backend),
+  // se activa para poder listarla en los resultados.
+  useEffect(() => {
+    if (catMatch && !datasets[catMatch.key]) {
+      setEnabled(e => e[catMatch.key] ? e : ({ ...e, [catMatch.key]: true }));
+    }
+  }, [catMatch, datasets]);
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2 || !sky) return [];
+    // búsqueda por categoría: lista los objetos de esa capa
+    if (catMatch) {
+      const ds = datasets[catMatch.key];
+      const layerName = LAYERS.find(l => l.key === catMatch.key)?.[lang] || catMatch.key;
+      if (!ds || !ds.objects) {
+        return [{ type: "loading", label: (lang === "es" ? "Cargando " : "Loading ") + layerName + "…" }];
+      }
+      return ds.objects.slice(0, 14).map(o => ({ type: "layer", layer: catMatch.key, obj: o, label: labelForObj(catMatch.key, o) }));
+    }
     // texto extra de la constelación asociada (por campo `const` o por la
     // primera palabra del nombre si es una abreviatura IAU de 3 letras)
     const conExp = (name, constAb) => {
@@ -278,7 +319,7 @@ export default function Constellations({ lang = "es" }) {
     }
     r.sort((a, b) => score(a.label) - score(b.label));
     return r.slice(0, 8);
-  }, [query, sky, datasets, bodies, abbrevExpand]);
+  }, [query, sky, datasets, bodies, abbrevExpand, catMatch, lang]);
   const depthRef = useRef(0);
   const selRef = useRef(null);
 
@@ -814,6 +855,7 @@ export default function Constellations({ lang = "es" }) {
   }, [tourActive, tourAuto, tourIndex]);
 
   const onResult = useCallback((res) => {
+    if (res.type === "loading") return;   // fila informativa, no navegable
     setQuery("");
     if (res.type === "con") setSel(res.ab);
     else if (res.type === "star") setSelObj({ name: res.label, nx: res.nx, ny: res.ny, nz: res.nz, dist_ly: res.dist, layer: "star" });
