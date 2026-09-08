@@ -30,6 +30,19 @@ NOTABLE_COMETS = [
 AU_KM = 149_597_870.7
 _comet_cache = {"date": None, "data": None}
 
+# Sondas y telescopios espaciales activos con efemérides en Horizons.
+# (command, nombre, nota_es, nota_en)
+SPACECRAFT = [
+    ("-31",  "Voyager 1", "el objeto humano más lejano", "the most distant human-made object"),
+    ("-32",  "Voyager 2", "único que visitó Urano y Neptuno", "only craft to visit Uranus and Neptune"),
+    ("-98",  "New Horizons", "sobrevoló Plutón (2015)", "flew by Pluto (2015)"),
+    ("-96",  "Parker Solar Probe", "roza el Sol", "grazes the Sun"),
+    ("-170", "James Webb (JWST)", "telescopio infrarrojo en el punto L2", "infrared telescope at L2"),
+    ("-48",  "Hubble (HST)", "telescopio en órbita terrestre", "telescope in Earth orbit"),
+    ("Gaia", "Gaia", "cartografía 3D de la Vía Láctea (L2)", "3D map of the Milky Way (L2)"),
+]
+_probe_cache = {"date": None, "data": None}
+
 # Códigos NASA Horizons para cada cuerpo (IDs del sistema SPICE)
 HORIZONS_CODES = {
     "sun": "10",
@@ -199,6 +212,37 @@ async def get_comet_positions(date: Optional[datetime] = None) -> dict:
     if objects:  # solo cacheamos si algo salió bien
         _comet_cache["date"] = day
         _comet_cache["data"] = result
+    return result
+
+
+async def get_spacecraft_positions(date: Optional[datetime] = None) -> dict:
+    """Posiciones reales actuales de sondas y telescopios (NASA Horizons),
+    con caché diaria en memoria."""
+    if date is None:
+        date = datetime.utcnow()
+    day = date.strftime("%Y-%m-%d")
+    if _probe_cache["date"] == day and _probe_cache["data"] is not None:
+        return _probe_cache["data"]
+
+    objects = []
+    async with httpx.AsyncClient(timeout=25.0) as client:
+        for command, name, note_es, note_en in SPACECRAFT:
+            e = await _comet_ephem(client, command, date)
+            if e:
+                e["name"] = name
+                e["note_es"] = note_es
+                e["note_en"] = note_en
+                objects.append(e)
+
+    result = {
+        "objects": objects,
+        "count": len(objects),
+        "date": day,
+        "source": "NASA JPL Horizons (posición geocéntrica aparente, en vivo)",
+    }
+    if objects:
+        _probe_cache["date"] = day
+        _probe_cache["data"] = result
     return result
 
 

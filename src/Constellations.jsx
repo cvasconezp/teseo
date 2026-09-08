@@ -11,9 +11,10 @@ const LAYERS = [
   { key: "galaxies",   file: "/galaxies.json",   es: "Galaxias",         en: "Galaxies",     color: 0x9db4ff, size: 5, lazy: true },
   { key: "meteors",    file: "/meteorshowers.json", es: "Lluvias de meteoros", en: "Meteor showers", color: 0xffd27a, size: 9 },
   { key: "comets",     api: true, endpoint: "/api/comets", es: "Cometas", en: "Comets", color: 0x8be0ff, size: 9 },
+  { key: "probes",     api: true, endpoint: "/api/probes", es: "Sondas y telescopios", en: "Probes & telescopes", color: 0xe6ebff, size: 10 },
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6 },
 ];
-const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", solar:"#ffe9a8" };
+const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", solar:"#ffe9a8" };
 
 // Términos genéricos de categoría: al buscar "pulsar" o "agujero negro" se
 // lista la capa entera en vez de exigir el nombre exacto de cada objeto.
@@ -25,6 +26,7 @@ const CATEGORY_TERMS = [
   { key: "meteors",    terms: ["meteoro", "meteoros", "lluvia de meteoros", "lluvias", "meteor", "meteor shower"] },
   { key: "messier",    terms: ["messier", "nebulosa", "nebulosas", "cúmulo", "cumulo", "cúmulos", "nebula", "cluster"] },
   { key: "exoplanets", terms: ["exoplaneta", "exoplanetas", "exoplanet", "exoplanets"] },
+  { key: "probes",     terms: ["sonda", "sondas", "telescopio", "telescopios", "nave", "probe", "probes", "spacecraft", "telescope", "voyager"] },
 ];
 function labelForObj(key, o) {
   if (key === "messier") return `${o.name}${o.cn ? " · " + o.cn : ""}`;
@@ -127,6 +129,7 @@ function wikiTitle(obj, lang) {
   }
   if (obj.layer === "meteors") return lang === "es" ? (obj.wiki_es || obj.name) : (obj.name_en || obj.name);
   if (obj.layer === "comets") return obj.name.split("(").pop().replace(")", "").trim() || obj.name.split("/").pop();
+  if (obj.layer === "probes") return obj.name.split("(")[0].trim();
   return obj.name;
 }
 async function fetchWiki(title, lang) {
@@ -312,6 +315,7 @@ export default function Constellations({ lang = "es" }) {
       ["galaxies",   (o) => o.name + (o.cat && o.cat !== o.name ? " · " + o.cat : "")],
       ["pulsars",    (o) => o.name],
       ["comets",     (o) => o.name],
+      ["probes",     (o) => o.name],
     ];
     for (const [key, labelFn] of objLayers) {
       const ds = datasets[key];
@@ -1024,24 +1028,44 @@ export default function Constellations({ lang = "es" }) {
     const ref = sceneRef.current;
     if (!ref || !ref.renderer) return;
     const el = ref.renderer.domElement;
-    const rc = new THREE.Raycaster(); rc.params.Points.threshold = 10;
+    const rc = new THREE.Raycaster(); rc.params.Points.threshold = 14;
     const v = new THREE.Vector2();
+    const vtmp = new THREE.Vector3();
     let downX = 0, downY = 0;
     const onDown = (e) => { downX = e.clientX; downY = e.clientY; };
     const onUp = (e) => {
       if (Math.abs(e.clientX - downX) > 5 || Math.abs(e.clientY - downY) > 5) return; // fue arrastre
       const r = el.getBoundingClientRect();
-      v.x = ((e.clientX - r.left) / r.width) * 2 - 1;
-      v.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+      const px = e.clientX - r.left, py = e.clientY - r.top;
+      v.x = (px / r.width) * 2 - 1;
+      v.y = -(py / r.height) * 2 + 1;
       rc.setFromCamera(v, ref.camera);
-      const targets = (ref.layerObjs || []).filter(o => o.points.visible).map(o => o.points);
-      const hits = targets.length ? rc.intersectObjects(targets, false) : [];
+      const layers = (ref.layerObjs || []).filter(o => o.points.visible);
+      const hits = layers.length ? rc.intersectObjects(layers.map(o => o.points), false) : [];
       if (hits.length) {
-        // el más cercano al rayo (selección precisa), no solo el primero en profundidad
+        // el más cercano al rayo (selección precisa)
         hits.sort((a, b) => (a.distanceToRay ?? 1e9) - (b.distanceToRay ?? 1e9));
         const h = hits[0];
         setSelObj({ ...h.object.userData.objs[h.index], layer: h.object.userData.layer });
-      } else setSelObj(null);
+        return;
+      }
+      // respaldo: el objeto visible más cercano al clic en pantalla (más fácil de atinar)
+      let best = null, bestD = 26; // px
+      for (const o of layers) {
+        const objs = o.points.userData.objs || [];
+        for (let i = 0; i < objs.length; i++) {
+          const ob = objs[i];
+          vtmp.set(ob.nx * 870, ob.ny * 870, ob.nz * 870);
+          o.points.localToWorld(vtmp);
+          vtmp.project(ref.camera);
+          if (vtmp.z > 1) continue; // detrás de la cámara
+          const sx = (vtmp.x * 0.5 + 0.5) * r.width, sy = (-vtmp.y * 0.5 + 0.5) * r.height;
+          const d = Math.hypot(sx - px, sy - py);
+          if (d < bestD) { bestD = d; best = { obj: ob, layer: o.key }; }
+        }
+      }
+      if (best) setSelObj({ ...best.obj, layer: best.layer });
+      else setSelObj(null);
     };
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointerup", onUp);
@@ -1427,6 +1451,19 @@ export default function Constellations({ lang = "es" }) {
               <div style={{ color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
                 {selObj.approaching ? (lang === "es" ? "acercándose a la Tierra" : "approaching Earth") : (lang === "es" ? "alejándose de la Tierra" : "receding from Earth")}
                 {" · "}{lang === "es" ? "posición real de hoy (NASA Horizons)" : "today's real position (NASA Horizons)"}
+              </div>
+            </div>
+          )}
+          {selObj.layer === "probes" && (
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+              <span style={{ color: "#e6ebff" }}>{lang === "es" ? "Sonda / telescopio" : "Probe / telescope"}</span>
+              {selObj.dist_au != null ? ` · ${selObj.dist_au >= 1 ? selObj.dist_au + " UA" : (selObj.dist_au * 149597870.7 / 1e6).toFixed(2) + " M km"}` : ""}
+              {selObj.light_min != null ? ` · ${lang === "es" ? "luz" : "light"} ${selObj.light_min < 120 ? selObj.light_min + " min" : (selObj.light_min / 60).toFixed(1) + " h"}` : ""}
+              {(selObj.note_es || selObj.note_en) && (
+                <div style={{ color: "rgba(255,255,255,0.42)", marginTop: 2 }}>{lang === "es" ? selObj.note_es : selObj.note_en}</div>
+              )}
+              <div style={{ color: "rgba(255,255,255,0.35)", marginTop: 2, fontSize: 10 }}>
+                {lang === "es" ? "posición real de hoy (NASA Horizons)" : "today's real position (NASA Horizons)"}
               </div>
             </div>
           )}

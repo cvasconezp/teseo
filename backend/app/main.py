@@ -157,6 +157,16 @@ async def list_comets(date: Optional[str] = Query(None)):
         raise HTTPException(status_code=502, detail=f"Error consultando NASA Horizons: {e}")
 
 
+@app.get("/api/probes")
+async def list_probes(date: Optional[str] = Query(None)):
+    """Posiciones reales actuales de sondas y telescopios (NASA Horizons)."""
+    try:
+        parsed = datetime.fromisoformat(date) if date else None
+        return await nasa_horizons.get_spacecraft_positions(parsed)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error consultando NASA Horizons: {e}")
+
+
 @app.get("/api/launch-windows/{origin}/{destination}")
 def get_launch_windows(
     origin: str,

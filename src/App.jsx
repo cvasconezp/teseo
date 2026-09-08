@@ -761,7 +761,7 @@ export default function Teseo() {
               ["Púlsares","ATNF Pulsar Catalogue (CSIRO)"],
               ["Agujeros negros","Valores publicados (selección)"],
               ["Posición de planetas","NASA JPL Horizons + efemérides"],
-              ["Cometas (posición en vivo)","NASA JPL Horizons"],
+              ["Cometas y sondas (en vivo)","NASA JPL Horizons"],
               ["Exoplanetas","NASA Exoplanet Archive"],
               ["Fichas e imágenes","Wikipedia · CC BY-SA"],
               ["Narrativa","Groq (modelos Llama)"],
