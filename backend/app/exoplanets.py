@@ -16,7 +16,8 @@ import httpx
 
 TAP_URL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
 QUERY = (
-    "select pl_name,hostname,ra,dec,sy_dist,pl_rade,pl_insol,pl_eqt,disc_year "
+    "select pl_name,hostname,ra,dec,sy_dist,pl_rade,pl_bmasse,pl_orbper,"
+    "pl_insol,pl_eqt,disc_year,discoverymethod,st_spectype "
     "from pscomppars where ra is not null and dec is not null and sy_dist is not null"
 )
 
@@ -63,16 +64,28 @@ async def get_exoplanets() -> dict:
 
         rade = _f("pl_rade")
         insol = _f("pl_insol")
-        out.append({
+        mass = _f("pl_bmasse")
+        period = _f("pl_orbper")
+        eqt = _f("pl_eqt")
+        disc = row.get("disc_year")
+        obj = {
             "name": row.get("pl_name"),
             "host": row.get("hostname"),
             "nx": round(math.cos(dec) * math.cos(ra), 5),
             "ny": round(math.cos(dec) * math.sin(ra), 5),
             "nz": round(math.sin(dec), 5),
             "dist_ly": dist_ly,
-            "rade": rade,
+            "rade": round(rade, 2) if rade is not None else None,
             "hab": _is_habitable(rade, insol),
-        })
+        }
+        # campos opcionales (solo si el archivo los tiene)
+        if mass is not None: obj["mass_e"] = round(mass, 2)      # masas terrestres
+        if period is not None: obj["period_d"] = round(period, 2)  # días
+        if eqt is not None: obj["eqt_k"] = round(eqt)              # temp. equilibrio (K)
+        if disc: obj["disc_year"] = disc
+        if row.get("discoverymethod"): obj["method"] = row.get("discoverymethod")
+        if row.get("st_spectype"): obj["spectype"] = row.get("st_spectype")
+        out.append(obj)
 
     result = {
         "count": len(out),
