@@ -25,3 +25,6 @@ dist/
 build/
 .vercel/
 backend/venv/
+
+# fuentes crudas cacheadas del pipeline de datos
+scripts/raw/

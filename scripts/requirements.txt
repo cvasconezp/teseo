@@ -1,0 +1,3 @@
+# opcional: acelera el desarrollo pero no es necesario
+# (el .db de ATNF se parsea con la librería estándar)
+psrqpy>=1.2

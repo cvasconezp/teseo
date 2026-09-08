@@ -755,6 +755,7 @@ export default function Teseo() {
               ["Estrellas y distancias","HYG Database v4.1 (Hipparcos) · CC BY-SA"],
               ["Constelaciones","Stellarium modern skyculture · IAU"],
               ["Cúmulos, nebulosas y galaxias","OpenNGC (Messier/NGC) · CC BY-SA"],
+              ["Distancia de galaxias","por redshift (ley de Hubble, aprox.)"],
               ["Púlsares","ATNF Pulsar Catalogue (CSIRO)"],
               ["Agujeros negros","Valores publicados (selección)"],
               ["Posición de planetas","NASA JPL Horizons + efemérides"],

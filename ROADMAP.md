@@ -37,9 +37,11 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 - [x] Al elegir constelación se ocultan las líneas de las demás
 
 ### Capas de objetos
-- [x] Messier (110) con distancias reales (SEDS/NASA)
-- [x] Púlsares (18, ATNF) y agujeros negros (16) notables
+- [x] Messier (110) con distancias reales (SEDS/NASA) + constelación (OpenNGC)
+- [x] Púlsares (~4.000, ATNF con distancia+período) y agujeros negros (18) notables
+- [x] Galaxias (~2.000) con distancia real por redshift (OpenNGC, flujo de Hubble)
 - [x] Exoplanetas en vivo desde NASA Exoplanet Archive (~6.300) + habitabilidad
+- [x] Pipeline de datos reproducible y auditable (`scripts/`, ver scripts/README.md)
 - [x] Toggles por capa, clic para identificar (raycast), zoom al objeto
 - [x] Ficha de objeto con distancia real y "su luz salió hace X" (twist Teseo)
 
