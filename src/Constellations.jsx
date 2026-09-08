@@ -6,11 +6,12 @@ import { ephemeris } from "./ephemeris.js";
 const API = import.meta.env.VITE_API_URL || "";
 const LAYERS = [
   { key: "messier",    file: "/deepsky.json",    es: "Messier",          en: "Messier",      color: 0x67e8c8, size: 8 },
-  { key: "pulsars",    file: "/pulsars.json",    es: "Púlsares",         en: "Pulsars",      color: 0xff5dc8, size: 10 },
+  { key: "pulsars",    file: "/pulsars.json",    es: "Púlsares",         en: "Pulsars",      color: 0xff5dc8, size: 6, lazy: true },
   { key: "blackholes", file: "/blackholes.json", es: "Agujeros negros",  en: "Black holes",  color: 0xff7a3c, size: 11 },
+  { key: "galaxies",   file: "/galaxies.json",   es: "Galaxias",         en: "Galaxies",     color: 0x9db4ff, size: 5, lazy: true },
   { key: "exoplanets", api: true,                es: "Exoplanetas",      en: "Exoplanets",   color: 0x4dd866, size: 6 },
 ];
-const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", solar:"#ffe9a8" };
+const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", solar:"#ffe9a8" };
 
 const TOUR = [
   { type: "con", ab: "Ori", title: { es: "Orión, el cazador", en: "Orion the Hunter" } },
@@ -86,6 +87,11 @@ function wikiTitle(obj, lang) {
   if (obj.layer === "star") return obj.name;
   if (obj.layer === "blackholes") return BH_WIKI[obj.name] || obj.name.split("(")[0].trim();
   if (obj.layer === "pulsars") return obj.name.split("(")[0].trim();
+  if (obj.layer === "galaxies") {
+    // nombre común si lo hay; si no, formatear el catálogo "NGC0055" -> "NGC 55"
+    const cat = (obj.cat || obj.name || "").replace(/^(NGC|IC)0*(\d+)/i, "$1 $2");
+    return obj.cat && obj.name !== obj.cat ? obj.name : cat;
+  }
   return obj.name;
 }
 async function fetchWiki(title, lang) {
@@ -222,21 +228,25 @@ export default function Constellations({ lang = "es" }) {
   useEffect(() => { selRef.current = sel; }, [sel]);
 
   const [loadingLayer, setLoadingLayer] = useState({});
-  // Carga inicial: solo la base + catálogos pequeños (Messier/púlsares/agujeros negros, ~20 KB)
+  // Carga inicial: solo la base + catálogos pequeños (Messier/agujeros negros, ~20 KB).
+  // Los catálogos grandes (púlsares ~500KB, galaxias ~320KB) y los del backend
+  // (exoplanetas ~780KB) se cargan solo al activar su capa.
   useEffect(() => {
     fetch("/sky.json").then(r => r.json()).then(setSky).catch(() => {});
-    LAYERS.filter(c => !c.api).forEach((cfg) => {
+    LAYERS.filter(c => !c.api && !c.lazy).forEach((cfg) => {
       fetch(cfg.file).then(r => r.json())
         .then(d => setDatasets(prev => ({ ...prev, [cfg.key]: d })))
         .catch(() => {});
     });
   }, []);
-  // Capas pesadas (exoplanetas, ~780 KB del backend): solo al activarlas
+  // Capas pesadas: bajo demanda. Fichero estático (lazy) o backend (api).
   useEffect(() => {
-    LAYERS.filter(c => c.api).forEach((cfg) => {
-      if (enabled[cfg.key] && !datasets[cfg.key] && !loadingLayer[cfg.key] && API) {
+    LAYERS.filter(c => c.api || c.lazy).forEach((cfg) => {
+      if (enabled[cfg.key] && !datasets[cfg.key] && !loadingLayer[cfg.key]) {
+        if (cfg.api && !API) return;
         setLoadingLayer(p => ({ ...p, [cfg.key]: true }));
-        fetch(`${API}/api/exoplanets`).then(r => r.json())
+        const url = cfg.api ? `${API}/api/exoplanets` : cfg.file;
+        fetch(url).then(r => r.json())
           .then(d => setDatasets(prev => ({ ...prev, [cfg.key]: d })))
           .catch(() => {})
           .finally(() => setLoadingLayer(p => ({ ...p, [cfg.key]: false })));
@@ -844,7 +854,7 @@ export default function Constellations({ lang = "es" }) {
           {LAYERS.map(cfg => {
             const on = !!enabled[cfg.key];
             const hex = "#" + cfg.color.toString(16).padStart(6, "0");
-            const has = cfg.api ? true : !!datasets[cfg.key];
+            const has = (cfg.api || cfg.lazy) ? true : !!datasets[cfg.key];
             return (
               <button key={cfg.key} disabled={!has}
                 onClick={() => setEnabled(e => ({ ...e, [cfg.key]: !e[cfg.key] }))}
@@ -857,8 +867,10 @@ export default function Constellations({ lang = "es" }) {
                   cursor: has ? "pointer" : "default", opacity: has ? 1 : 0.4,
                 }}>
                 ● {cfg[lang] || cfg.es}
-                {cfg.key === "exoplanets"
-                  ? (datasets.exoplanets ? ` (${datasets.exoplanets.count})` : loadingLayer.exoplanets ? " …" : "")
+                {(cfg.api || cfg.lazy)
+                  ? (datasets[cfg.key]
+                      ? ` (${datasets[cfg.key].count ?? (datasets[cfg.key].objects || []).length})`
+                      : loadingLayer[cfg.key] ? " …" : "")
                   : ""}
               </button>
             );
@@ -976,12 +988,19 @@ export default function Constellations({ lang = "es" }) {
           {selObj.layer === "messier" && (
             <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
               {TYPE_ES[selObj.type] || "Objeto"}{selObj.cn ? ` · ${selObj.cn}` : ""}{selObj.ngc ? ` · ${selObj.ngc}` : ""}
+              {selObj.const_es ? <><br/><span style={{ color: "rgba(255,255,255,0.4)" }}>{lang === "es" ? "en " : "in "}{lang === "es" ? selObj.const_es : selObj.const}</span></> : null}
             </div>
           )}
           {selObj.layer === "pulsars" && (
             <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
-              {lang === "es" ? "Púlsar" : "Pulsar"} · {lang === "es" ? "período" : "period"} {selObj.period_ms} ms<br/>
-              <span style={{ color: "rgba(255,255,255,0.4)" }}>{selObj.note}</span>
+              {lang === "es" ? "Púlsar" : "Pulsar"}{selObj.period_ms != null ? ` · ${lang === "es" ? "período" : "period"} ${selObj.period_ms} ms` : ""}
+              {selObj.note ? <><br/><span style={{ color: "rgba(255,255,255,0.4)" }}>{selObj.note}</span></> : null}
+            </div>
+          )}
+          {selObj.layer === "galaxies" && (
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+              {lang === "es" ? "Galaxia" : "Galaxy"}{selObj.hubble ? ` · ${selObj.hubble}` : ""}{selObj.cat && selObj.cat !== selObj.name ? ` · ${selObj.cat}` : ""}
+              {selObj.const_es ? <><br/><span style={{ color: "rgba(255,255,255,0.4)" }}>{lang === "es" ? "en " : "in "}{lang === "es" ? selObj.const_es : selObj.const} · {lang === "es" ? "distancia por redshift (aprox.)" : "redshift distance (approx.)"}</span></> : <><br/><span style={{ color: "rgba(255,255,255,0.4)" }}>{lang === "es" ? "distancia por redshift (aprox.)" : "redshift distance (approx.)"}</span></>}
             </div>
           )}
           {selObj.layer === "blackholes" && (
