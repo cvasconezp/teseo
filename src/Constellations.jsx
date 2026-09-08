@@ -211,6 +211,7 @@ export default function Constellations({ lang = "es" }) {
   const [datasets, setDatasets] = useState({}); // key -> {objects}
   const [enabled, setEnabled] = useState({});   // key -> bool
   const [selObj, setSelObj] = useState(null);
+  const [viewFrom, setViewFrom] = useState(null); // null = Tierra; {name,pos:[x,y,z]} = otra estrella
   const [wiki, setWiki] = useState(null);
   const [localMode, setLocalMode] = useState(false);
   const [lat, setLat] = useState(null);
@@ -226,17 +227,55 @@ export default function Constellations({ lang = "es" }) {
   const [tourAuto, setTourAuto] = useState(true);
   const [tourTitle, setTourTitle] = useState("");
   const [tourText, setTourText] = useState(null);
+  // abreviatura IAU (p.ej. "Sgr") -> nombre de constelación, para que buscar
+  // "sagit(tarius)" encuentre objetos cuyo nombre usa la abreviatura ("Sgr A*").
+  const abbrevExpand = useMemo(() => {
+    const m = {};
+    if (sky) for (const c of sky.constellations) m[c.ab.toLowerCase()] = (c.la + " " + c.en).toLowerCase();
+    return m;
+  }, [sky]);
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2 || !sky) return [];
+    // texto extra de la constelación asociada (por campo `const` o por la
+    // primera palabra del nombre si es una abreviatura IAU de 3 letras)
+    const conExp = (name, constAb) => {
+      let extra = "";
+      if (constAb && abbrevExpand[constAb.toLowerCase()]) extra += " " + abbrevExpand[constAb.toLowerCase()];
+      const first = (name || "").split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g, "");
+      if (first.length === 3 && abbrevExpand[first]) extra += " " + abbrevExpand[first];
+      return extra;
+    };
+    const score = (label) => {
+      const l = label.toLowerCase();
+      return l.startsWith(q) ? 0 : (" " + l).includes(" " + q) ? 1 : 2;
+    };
     const r = [];
     for (const c of sky.constellations) if ((c.la + " " + c.en).toLowerCase().includes(q)) r.push({ type: "con", ab: c.ab, label: `${c.la} · ${c.en}` });
     for (const st of sky.stars) if (st[7] && st[7].toLowerCase().includes(q)) r.push({ type: "star", nx: st[1], ny: st[2], nz: st[3], dist: st[6], label: st[7] });
     for (const b of bodies) if (b.name.toLowerCase().includes(q)) r.push({ type: "solar", body: b, label: b.name });
-    const ds = datasets.messier;
-    if (ds) for (const o of ds.objects) if ((o.name + " " + (o.cn || "")).toLowerCase().includes(q)) r.push({ type: "messier", obj: o, label: `${o.name}${o.cn ? " · " + o.cn : ""}` });
+    // capas de objetos: Messier / agujeros negros / meteoros siempre están
+    // cargadas; púlsares y galaxias solo si el usuario activó su capa.
+    const objLayers = [
+      ["messier",    (o) => `${o.name}${o.cn ? " · " + o.cn : ""}`],
+      ["blackholes", (o) => o.name],
+      ["meteors",    (o) => o.name],
+      ["galaxies",   (o) => o.name + (o.cat && o.cat !== o.name ? " · " + o.cat : "")],
+      ["pulsars",    (o) => o.name],
+    ];
+    for (const [key, labelFn] of objLayers) {
+      const ds = datasets[key];
+      if (!ds || !ds.objects) continue;
+      for (const o of ds.objects) {
+        const hay = (o.name + " " + (o.cn || "") + " " + (o.cat || "") + " " + (o.name_en || "") + conExp(o.name, o.const)).toLowerCase();
+        if (hay.includes(q)) r.push({ type: "layer", layer: key, obj: o, label: labelFn(o) });
+      }
+      if (r.length > 60) break;
+    }
+    r.sort((a, b) => score(a.label) - score(b.label));
     return r.slice(0, 8);
-  }, [query, sky, datasets, bodies]);
+  }, [query, sky, datasets, bodies, abbrevExpand]);
   const depthRef = useRef(0);
   const selRef = useRef(null);
 
@@ -424,9 +463,52 @@ export default function Constellations({ lang = "es" }) {
       solarGroup.add(sp); solarSprites[nm] = sp;
     });
 
+    // ── el Sol visto desde otro punto (oculto salvo en "ver desde otra estrella") ──
+    const sunSprite = (() => {
+      const c = document.createElement("canvas"); c.width = c.height = 64;
+      const cx2 = c.getContext("2d");
+      const g = cx2.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, "#ffffff"); g.addColorStop(0.3, "#fff2b0");
+      g.addColorStop(0.8, "#ffcf5a"); g.addColorStop(1, "rgba(0,0,0,0)");
+      cx2.fillStyle = g; cx2.beginPath(); cx2.arc(32, 32, 30, 0, Math.PI * 2); cx2.fill();
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
+      sp.scale.set(24, 24, 1); sp.visible = false; scene.add(sp);
+      return sp;
+    })();
+
+    // Reproyecta TODO el cielo desde un nuevo punto de observación, por paralaje
+    // real: cada estrella tiene posición 3D = dirección × distancia_ly, así que
+    // desde el nuevo origen su dirección y distancia se recalculan de verdad.
+    // origin = [x,y,z] en años luz, o null para volver a la Tierra/Sol.
+    const applyViewpoint = (origin) => {
+      const stars = sky.stars;
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        let dirx = s[1], diry = s[2], dirz = s[3], dd = s[6];
+        if (origin && s[6] > 0) {
+          const dx = s[1] * s[6] - origin[0], dy = s[2] * s[6] - origin[1], dz = s[3] * s[6] - origin[2];
+          const len = Math.hypot(dx, dy, dz);
+          if (len > 1e-6) { dirx = dx / len; diry = dy / len; dirz = dz / len; dd = len; }
+        }
+        const rd = depthRadius(dd);
+        posFlat[i*3] = dirx*FLAT_R; posFlat[i*3+1] = diry*FLAT_R; posFlat[i*3+2] = dirz*FLAT_R;
+        posDeep[i*3] = dirx*rd; posDeep[i*3+1] = diry*rd; posDeep[i*3+2] = dirz*rd;
+      }
+      // El Sol: desde otra estrella es una estrella más, en dirección -origin, a |origin| ly.
+      if (origin) {
+        const len = Math.hypot(origin[0], origin[1], origin[2]) || 1;
+        sunSprite.position.set(-origin[0]/len*FLAT_R, -origin[1]/len*FLAT_R, -origin[2]/len*FLAT_R);
+        sunSprite.visible = true; if (earth) earth.visible = false;
+      } else {
+        sunSprite.visible = false; if (earth) earth.visible = true;
+      }
+      posAttr.needsUpdate = true;
+    };
+
     sceneRef.current = { scene, camera, renderer, controls, points, lines,
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
-      markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, bodies: [], showSolar: true };
+      markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, bodies: [], showSolar: true,
+      sunSprite, applyViewpoint };
     setReady(true);
 
     // resize
@@ -534,6 +616,13 @@ export default function Constellations({ lang = "es" }) {
       sceneRef.current = null;
     };
   }, [sky]);
+
+  // aplicar/quitar el punto de observación (paralaje real desde otra estrella)
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || !ref.applyViewpoint) return;
+    ref.applyViewpoint(viewFrom ? viewFrom.pos : null);
+  }, [viewFrom, ready]);
 
   // posiciona la cámara según la profundidad: 0 = vista desde la Tierra (plano),
   // 1 = vista lateral que REVELA la profundidad real en distancia.
@@ -727,6 +816,7 @@ export default function Constellations({ lang = "es" }) {
     else if (res.type === "star") setSelObj({ name: res.label, nx: res.nx, ny: res.ny, nz: res.nz, dist_ly: res.dist, layer: "star" });
     else if (res.type === "solar") { const b = res.body; setSelObj({ name: b.name, nx: b.nx, ny: b.ny, nz: b.nz, layer: "solar", dist_au: b.dist_au, illum: b.illum, waxing: b.waxing }); }
     else if (res.type === "messier") { setEnabled(e => ({ ...e, messier: true })); setSelObj({ ...res.obj, layer: "messier" }); }
+    else if (res.type === "layer") { setEnabled(e => ({ ...e, [res.layer]: true })); setSelObj({ ...res.obj, layer: res.layer }); }
   }, []);
 
   const useMyLocation = useCallback(() => {
@@ -778,7 +868,26 @@ export default function Constellations({ lang = "es" }) {
   return (
     <div className="relative w-full h-[460px] md:h-[600px]">
       <div ref={mountRef} className="absolute inset-0 rounded-2xl overflow-hidden"
+        role="img"
+        aria-label={lang === "es"
+          ? "Mapa del cielo en 3D: estrellas, constelaciones y objetos a su distancia real. Usa el buscador y los controles para navegar."
+          : "3D sky map: stars, constellations and objects at their real distance. Use the search and controls to navigate."}
         style={{ background: "radial-gradient(ellipse at center, #0a1020 0%, #04080f 80%)", border: "1px solid rgba(124,58,237,0.18)" }} />
+
+      {/* punto de observación distinto de la Tierra */}
+      {viewFrom && (
+        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto z-20 flex items-center gap-2 rounded-full px-3 py-1.5"
+          style={{ top: 10, background: "rgba(124,58,237,0.22)", border: "1px solid rgba(124,58,237,0.6)", backdropFilter: "blur(4px)" }}>
+          <span style={{ fontFamily: "Inter,system-ui", fontSize: 11, color: "#e6ddff" }}>
+            {lang === "es" ? "Cielo desde " : "Sky from "}<strong>{viewFrom.name}</strong>
+          </span>
+          <button onClick={() => setViewFrom(null)}
+            style={{ fontFamily: "Inter,system-ui", fontSize: 10.5, cursor: "pointer", color: "#c9b8ff",
+              background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 999, padding: "2px 8px" }}>
+            {lang === "es" ? "↩ volver a la Tierra" : "↩ back to Earth"}
+          </button>
+        </div>
+      )}
 
       {!sky && (
         <div className="absolute inset-0 flex items-center justify-center text-white/40"
@@ -810,6 +919,7 @@ export default function Constellations({ lang = "es" }) {
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none">
           <div className="pointer-events-auto">
             <select value={sel || "__all__"} onChange={onPick}
+              aria-label={lang === "es" ? "Elegir constelación" : "Choose constellation"}
               className="px-3 py-2 rounded-xl text-white text-sm outline-none"
               style={{ background: "rgba(9,14,28,0.9)", border: "1px solid rgba(124,58,237,0.4)", fontFamily: "Inter,system-ui", maxWidth: 200 }}>
               <option value="__all__">✦ {t.all}</option>
@@ -820,6 +930,7 @@ export default function Constellations({ lang = "es" }) {
           </div>
           <div className="pointer-events-auto" style={{ width: 172, position: "relative", zIndex: 40 }}>
             <input value={query} onChange={e => setQuery(e.target.value)}
+              aria-label={lang === "es" ? "Buscar objeto" : "Search object"}
               placeholder={lang === "es" ? "Buscar objeto…" : "Search…"}
               style={{ width: "100%", background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.4)", borderRadius: 10, color: "#fff", padding: "6px 10px", fontFamily: "Inter,system-ui", fontSize: 11, outline: "none" }} />
             {results.length > 0 && (
@@ -850,6 +961,7 @@ export default function Constellations({ lang = "es" }) {
           </button>
           <button
             onClick={() => setShowSolar(v => !v)}
+            aria-pressed={showSolar} aria-label={lang === "es" ? "Sistema solar" : "Solar system"}
             className="px-2.5 py-1 rounded-full transition-all"
             style={{ fontFamily: "Inter,system-ui", fontSize: 10, cursor: "pointer",
               background: showSolar ? "rgba(255,210,63,0.16)" : "rgba(9,14,28,0.82)",
@@ -874,6 +986,7 @@ export default function Constellations({ lang = "es" }) {
             return (
               <button key={cfg.key} disabled={!has}
                 onClick={() => setEnabled(e => ({ ...e, [cfg.key]: !e[cfg.key] }))}
+                aria-pressed={on} aria-label={`${on ? (lang === "es" ? "Ocultar" : "Hide") : (lang === "es" ? "Mostrar" : "Show")} ${cfg[lang] || cfg.es}`}
                 className="px-2.5 py-1 rounded-full transition-all"
                 style={{
                   fontFamily: "Inter,system-ui", fontSize: 10,
@@ -904,6 +1017,8 @@ export default function Constellations({ lang = "es" }) {
             </div>
             <input type="range" min="0" max="1" step="0.01" value={depth}
               onChange={e => setDepth(parseFloat(e.target.value))}
+              aria-label={lang === "es" ? "Profundidad: de vista plana a profundidad real" : "Depth: from flat view to real depth"}
+              aria-valuetext={depth < 0.5 ? t.flat : t.depth}
               className="w-full" style={{ accentColor: "#7C3AED" }} />
             {stats && (
               <div className="flex items-center justify-between mt-1.5" style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "rgba(255,255,255,0.4)" }}>
@@ -918,12 +1033,12 @@ export default function Constellations({ lang = "es" }) {
       {sky && !tourActive && (
         <div className="absolute left-3 right-3 pointer-events-auto flex items-center gap-1 rounded-xl px-2 py-1.5"
           style={{ bottom: 12, background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.25)" }}>
-          <button onClick={() => setLabelDensity(d => d === "pocas" ? "normal" : d === "normal" ? "muchas" : "pocas")} style={timeBtn} title="densidad de nombres">
+          <button onClick={() => setLabelDensity(d => d === "pocas" ? "normal" : d === "normal" ? "muchas" : "pocas")} style={timeBtn} title="densidad de nombres" aria-label={lang === "es" ? "Densidad de nombres" : "Label density"}>
             {labelDensity === "pocas" ? "Aa·" : labelDensity === "muchas" ? "Aa···" : "Aa··"}
           </button>
           <button onClick={() => shiftMin(-1440)} style={timeBtn}>−1d</button>
           <button onClick={() => shiftMin(-60)} style={timeBtn}>−1h</button>
-          <button onClick={() => setPlaying(pl => !pl)} style={{ ...timeBtn, color: playing ? "#A78BFA" : "rgba(255,255,255,0.6)", borderColor: playing ? "#7C3AED" : "rgba(255,255,255,0.12)" }}>{playing ? "⏸" : "▶"}</button>
+          <button onClick={() => setPlaying(pl => !pl)} aria-pressed={playing} aria-label={lang === "es" ? (playing ? "Pausar animación del tiempo" : "Animar el tiempo") : (playing ? "Pause time animation" : "Animate time")} style={{ ...timeBtn, color: playing ? "#A78BFA" : "rgba(255,255,255,0.6)", borderColor: playing ? "#7C3AED" : "rgba(255,255,255,0.12)" }}>{playing ? "⏸" : "▶"}</button>
           <span style={{ flex: 1, textAlign: "center", fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "rgba(255,255,255,0.62)" }}>
             {new Date(whenStr).toLocaleString(lang === "es" ? "es-EC" : "en-US", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
           </span>
@@ -979,7 +1094,7 @@ export default function Constellations({ lang = "es" }) {
           style={{ top: 60, right: 12, width: 252, maxHeight: 388, overflowY: "auto", background: "rgba(9,14,28,0.96)", border: "1px solid rgba(124,58,237,0.4)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)" }}>
           <div className="flex items-start justify-between gap-2 mb-1.5">
             <div style={{ fontFamily: "Cormorant Garamond,Georgia,serif", color: "#fff", fontSize: 18, lineHeight: 1.1 }}>{selObj.name}</div>
-            <button onClick={() => setSelObj(null)} className="text-white/35 hover:text-white/80 shrink-0" style={{ fontSize: 13 }}>✕</button>
+            <button onClick={() => setSelObj(null)} aria-label={lang === "es" ? "Cerrar ficha" : "Close panel"} className="text-white/35 hover:text-white/80 shrink-0" style={{ fontSize: 13 }}>✕</button>
           </div>
           {wiki && wiki.thumb && (
             <img src={wiki.thumb} alt={selObj.name} loading="lazy"
@@ -989,7 +1104,22 @@ export default function Constellations({ lang = "es" }) {
             <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 11 }}>{fmtDist(selObj.dist_ly, lang)}</div>
           )}
           {selObj.layer === "star" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>{lang === "es" ? "Estrella" : "Star"}</div>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+              {lang === "es" ? "Estrella" : "Star"}
+              {selObj.dist_ly > 0 && (
+                <button
+                  onClick={() => {
+                    const d = selObj.dist_ly;
+                    setViewFrom({ name: selObj.name, pos: [selObj.nx * d, selObj.ny * d, selObj.nz * d] });
+                    setSel(null); setSelObj(null);
+                  }}
+                  className="mt-2 w-full rounded-lg px-2 py-1.5 transition-all"
+                  style={{ display: "block", fontFamily: "Inter,system-ui", fontSize: 11, cursor: "pointer",
+                    background: "rgba(124,58,237,0.18)", border: "1px solid rgba(124,58,237,0.5)", color: "#c9b8ff" }}>
+                  {lang === "es" ? "🪐 Ver el cielo desde aquí" : "🪐 View the sky from here"}
+                </button>
+              )}
+            </div>
           )}
           {selObj.layer === "solar" && (
             <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
