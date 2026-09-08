@@ -845,7 +845,15 @@ export default function Constellations({ lang = "es" }) {
     const title = wikiTitle(selObj, lang);
     if (!title) return;
     let cancel = false;
-    fetchWiki(title, lang).then(w => { if (!cancel) setWiki(w); });
+    (async () => {
+      let w = await fetchWiki(title, lang);
+      // exoplaneta sin página/imagen: intentar la estrella anfitriona
+      if (!cancel && selObj.layer === "exoplanets" && (!w || w.missing || !w.thumb) && selObj.host) {
+        const w2 = await fetchWiki(selObj.host, lang);
+        if (w2 && (w2.thumb || !w2.missing)) w = w2;
+      }
+      if (!cancel) setWiki(w);
+    })();
     return () => { cancel = true; };
   }, [selObj, lang]);
 
@@ -1324,8 +1332,15 @@ export default function Constellations({ lang = "es" }) {
             </div>
           </div>
           {wiki && wiki.thumb && (
-            <img src={wiki.thumb} alt={selObj.name} loading="lazy"
-              style={{ width: "100%", borderRadius: 8, marginBottom: 8, display: "block" }} />
+            <div style={{ marginBottom: 8 }}>
+              <img src={wiki.thumb} alt={selObj.name} loading="lazy"
+                style={{ width: "100%", borderRadius: 8, marginBottom: 2, display: "block" }} />
+              <div style={{ fontFamily: "Inter,system-ui", fontSize: 9, color: "rgba(255,255,255,0.4)" }}>
+                {selObj.layer === "exoplanets"
+                  ? (lang === "es" ? "Ilustración — concepto artístico · Wikipedia" : "Illustration — artist's concept · Wikipedia")
+                  : (lang === "es" ? "Imagen · Wikipedia (CC)" : "Image · Wikipedia (CC)")}
+              </div>
+            </div>
           )}
           {selObj.dist_ly != null && (
             <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 11 }}>{fmtDist(selObj.dist_ly, lang)}</div>
@@ -1420,8 +1435,19 @@ export default function Constellations({ lang = "es" }) {
               <span style={{ color: selObj.hab ? "#aaff7a" : "rgba(255,255,255,0.5)" }}>
                 {selObj.hab ? (lang === "es" ? "● potencialmente habitable" : "● potentially habitable") : (lang === "es" ? "no habitable" : "not habitable")}
               </span>
-              <div style={{ color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
-                {selObj.rade ? `${lang === "es" ? "radio" : "radius"} ${selObj.rade} R⊕ · ` : ""}{lang === "es" ? "estrella" : "host"} {selObj.host}
+              <div style={{ color: "rgba(255,255,255,0.5)", marginTop: 3, lineHeight: 1.5 }}>
+                {(() => {
+                  const bits = [];
+                  if (selObj.rade) bits.push(`${lang === "es" ? "radio" : "radius"} ${selObj.rade} R⊕`);
+                  if (selObj.mass_e) bits.push(`${lang === "es" ? "masa" : "mass"} ${selObj.mass_e} M⊕`);
+                  if (selObj.period_d) bits.push(`${lang === "es" ? "año" : "year"} ${selObj.period_d < 1 ? (selObj.period_d * 24).toFixed(1) + " h" : selObj.period_d.toFixed(selObj.period_d < 10 ? 1 : 0) + " d"}`);
+                  if (selObj.eqt_k) bits.push(`${selObj.eqt_k} K (${Math.round(selObj.eqt_k - 273)} °C)`);
+                  return bits.join(" · ");
+                })()}
+              </div>
+              <div style={{ color: "rgba(255,255,255,0.42)", marginTop: 2 }}>
+                {lang === "es" ? "estrella" : "host"} {selObj.host}{selObj.spectype ? ` (${selObj.spectype})` : ""}
+                {selObj.disc_year ? ` · ${lang === "es" ? "descubierto" : "found"} ${selObj.disc_year}${selObj.method ? " · " + selObj.method : ""}` : ""}
               </div>
             </div>
           )}
