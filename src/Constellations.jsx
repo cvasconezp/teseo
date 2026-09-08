@@ -992,28 +992,75 @@ export default function Constellations({ lang = "es" }) {
     if (az || pol) { e.preventDefault(); orbitBy(az, pol); }
   }, [orbitBy, zoomBy]);
 
-  // postal del cielo: captura el lienzo en PNG con marca de Teseo
+  // postal del cielo: captura el lienzo en PNG con marca de Teseo y, si hay un
+  // objeto seleccionado, sus datos (nombre, tipo, distancia, descripción).
   const savePostcard = useCallback(() => {
     const ref = sceneRef.current; if (!ref) return;
     ref.renderer.render(ref.scene, ref.camera);           // buffer fresco
     const src = ref.renderer.domElement;
+    const W = src.width, H = src.height;
     const c = document.createElement("canvas");
-    c.width = src.width; c.height = src.height;
+    c.width = W; c.height = H;
     const ctx = c.getContext("2d");
-    ctx.fillStyle = "#04080f"; ctx.fillRect(0, 0, c.width, c.height);
-    ctx.drawImage(src, 0, 0);
-    const pad = Math.round(c.height * 0.022);
-    ctx.font = `${Math.round(c.height * 0.030)}px Georgia, 'Times New Roman', serif`;
-    ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.textBaseline = "bottom";
-    ctx.fillText("Teseo", pad, c.height - pad);
-    ctx.font = `${Math.round(c.height * 0.020)}px Georgia, serif`;
-    ctx.fillStyle = "rgba(201,184,255,0.85)";
-    ctx.fillText("teseo.yachaydeep.com", pad, c.height - pad - Math.round(c.height * 0.034));
+    ctx.fillStyle = "#04080f"; ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(src, 0, 0);                              // el cielo (mismo origen)
+    const es = lang === "es";
+    const pad = Math.round(H * 0.045);
+    const wrap = (text, maxW, font) => {
+      ctx.font = font; const words = text.split(/\s+/); const lines = []; let cur = "";
+      for (const w of words) { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
+      if (cur) lines.push(cur); return lines;
+    };
+
+    // franja inferior para legibilidad
+    const grad = ctx.createLinearGradient(0, H * 0.52, 0, H);
+    grad.addColorStop(0, "rgba(4,8,15,0)"); grad.addColorStop(1, "rgba(4,8,15,0.94)");
+    ctx.fillStyle = grad; ctx.fillRect(0, Math.round(H * 0.52), W, H);
+    ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+
+    if (selObj && selObj.name) {
+      const TYPE = {
+        star: es ? "Estrella" : "Star", galaxies: es ? "Galaxia" : "Galaxy",
+        blackholes: es ? "Agujero negro" : "Black hole", pulsars: es ? "Púlsar" : "Pulsar",
+        messier: es ? "Objeto Messier" : "Messier object", meteors: es ? "Lluvia de meteoros" : "Meteor shower",
+        comets: es ? "Cometa" : "Comet", probes: es ? "Sonda / telescopio" : "Probe / telescope",
+        exoplanets: es ? "Exoplaneta" : "Exoplanet", solar: es ? "Sistema solar" : "Solar system",
+      }[selObj.layer] || "";
+      let distStr = "";
+      if (selObj.dist_ly != null && selObj.dist_ly > 0) distStr = fmtDist(selObj.dist_ly, lang);
+      else if (selObj.dist_au != null) distStr = selObj.dist_au >= 1 ? `${selObj.dist_au} UA` : `${(selObj.dist_au * 149597870.7 / 1e6).toFixed(2)} M km`;
+      const descFont = `${Math.round(H * 0.026)}px Georgia, serif`;
+      const desc = (wiki && wiki.extract) ? wiki.extract : "";
+      const descLines = desc ? wrap(desc, W - pad * 2, descFont).slice(0, 3) : [];
+      const lightLine = (selObj.dist_ly > 0)
+        ? (es ? `Su luz tardó ${fmtYears(selObj.dist_ly, lang)} en llegar.` : `Its light took ${fmtYears(selObj.dist_ly, lang)} to arrive.`)
+        : "";
+
+      // dibujar de abajo hacia arriba
+      let y = H - pad;
+      ctx.fillStyle = "rgba(201,184,255,0.9)"; ctx.font = `${Math.round(H * 0.022)}px Georgia, serif`;
+      ctx.fillText("Teseo · teseo.yachaydeep.com", pad, y); y -= Math.round(H * 0.042);
+      if (lightLine) { ctx.fillStyle = "rgba(120,170,255,0.95)"; ctx.font = `italic ${Math.round(H * 0.024)}px Georgia, serif`; ctx.fillText(lightLine, pad, y); y -= Math.round(H * 0.040); }
+      ctx.fillStyle = "rgba(255,255,255,0.82)"; ctx.font = descFont;
+      for (let i = descLines.length - 1; i >= 0; i--) { ctx.fillText(descLines[i], pad, y); y -= Math.round(H * 0.034); }
+      if (distStr || TYPE) { ctx.fillStyle = "#c9b8ff"; ctx.font = `${Math.round(H * 0.028)}px 'JetBrains Mono', monospace`; ctx.fillText([TYPE, distStr].filter(Boolean).join("  ·  "), pad, y); y -= Math.round(H * 0.050); }
+      ctx.fillStyle = "#ffffff"; ctx.font = `${Math.round(H * 0.055)}px Georgia, 'Times New Roman', serif`;
+      ctx.fillText(selObj.name, pad, y);
+    } else {
+      let y = H - pad;
+      ctx.fillStyle = "rgba(201,184,255,0.85)"; ctx.font = `${Math.round(H * 0.024)}px Georgia, serif`;
+      ctx.fillText("teseo.yachaydeep.com", pad, y); y -= Math.round(H * 0.045);
+      ctx.fillStyle = "#ffffff"; ctx.font = `${Math.round(H * 0.05)}px Georgia, serif`;
+      ctx.fillText("Teseo", pad, y);
+    }
+
     try {
       const a = document.createElement("a");
-      a.href = c.toDataURL("image/png"); a.download = "teseo-cielo.png"; a.click();
+      a.href = c.toDataURL("image/png");
+      a.download = selObj && selObj.name ? `teseo-${selObj.name.replace(/[^\w-]+/g, "_")}.png` : "teseo-cielo.png";
+      a.click();
     } catch { /* toDataURL bloqueado */ }
-  }, []);
+  }, [selObj, lang, wiki]);
 
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) return;
