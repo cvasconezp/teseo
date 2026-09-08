@@ -9,9 +9,24 @@ const LAYERS = [
   { key: "pulsars",    file: "/pulsars.json",    es: "Púlsares",         en: "Pulsars",      color: 0xff5dc8, size: 6, lazy: true },
   { key: "blackholes", file: "/blackholes.json", es: "Agujeros negros",  en: "Black holes",  color: 0xff7a3c, size: 11 },
   { key: "galaxies",   file: "/galaxies.json",   es: "Galaxias",         en: "Galaxies",     color: 0x9db4ff, size: 5, lazy: true },
+  { key: "meteors",    file: "/meteorshowers.json", es: "Lluvias de meteoros", en: "Meteor showers", color: 0xffd27a, size: 9 },
   { key: "exoplanets", api: true,                es: "Exoplanetas",      en: "Exoplanets",   color: 0x4dd866, size: 6 },
 ];
-const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", solar:"#ffe9a8" };
+const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", solar:"#ffe9a8" };
+
+// Una lluvia está activa si hoy (MM-DD) cae en [start, end]; la ventana puede
+// cruzar el fin de año (p. ej. Cuadrántidas 12-28 -> 01-12).
+function meteorActive(o, now = new Date()) {
+  const md = String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+  return o.start <= o.end ? (md >= o.start && md <= o.end) : (md >= o.start || md <= o.end);
+}
+const MONTHS_ES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtMD(md, lang) {
+  const [m, d] = md.split("-").map(Number);
+  const mon = (lang === "es" ? MONTHS_ES : MONTHS_EN)[m - 1];
+  return lang === "es" ? `${d} ${mon}` : `${mon} ${d}`;
+}
 
 const TOUR = [
   { type: "con", ab: "Ori", title: { es: "Orión, el cazador", en: "Orion the Hunter" } },
@@ -92,6 +107,7 @@ function wikiTitle(obj, lang) {
     const cat = (obj.cat || obj.name || "").replace(/^(NGC|IC)0*(\d+)/i, "$1 $2");
     return obj.cat && obj.name !== obj.cat ? obj.name : cat;
   }
+  if (obj.layer === "meteors") return lang === "es" ? (obj.wiki_es || obj.name) : (obj.name_en || obj.name);
   return obj.name;
 }
 async function fetchWiki(title, lang) {
@@ -1007,6 +1023,28 @@ export default function Constellations({ lang = "es" }) {
             <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
               {lang === "es" ? "Agujero negro" : "Black hole"} {selObj.kind} · {fmtMass(selObj.mass_sun)} M☉<br/>
               <span style={{ color: "rgba(255,255,255,0.4)" }}>{selObj.note}</span>
+            </div>
+          )}
+          {selObj.layer === "meteors" && (
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+              {(() => { const active = meteorActive(selObj); return (
+                <>
+                  <span style={{ color: active ? "#ffd27a" : "rgba(255,255,255,0.5)", fontWeight: active ? 600 : 400 }}>
+                    {active ? (lang === "es" ? "● activa ahora" : "● active now") : (lang === "es" ? "lluvia de meteoros" : "meteor shower")}
+                  </span>
+                  <div style={{ color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                    {lang === "es" ? "máximo" : "peak"} {fmtMD(selObj.peak, lang)} · {lang === "es" ? "activa" : "active"} {fmtMD(selObj.start, lang)}–{fmtMD(selObj.end, lang)} · ZHR ~{selObj.zhr}
+                  </div>
+                  <div style={{ color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                    {lang === "es" ? "origen" : "parent"}: {selObj.parent}
+                  </div>
+                  <div style={{ color: "rgba(255,255,255,0.35)", marginTop: 4, fontSize: 10 }}>
+                    {lang === "es"
+                      ? "El radiante es la dirección de donde parecen venir; no es un objeto lejano."
+                      : "The radiant is the direction they appear to come from; not a distant object."}
+                  </div>
+                </>
+              ); })()}
             </div>
           )}
           {selObj.layer === "exoplanets" && (

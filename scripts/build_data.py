@@ -52,12 +52,15 @@ def main():
     import build_pulsars
     import build_deepsky
     import build_blackholes
+    import build_meteors
     print("Púlsares (ATNF):")
     build_pulsars.build()
     print("Cielo profundo (OpenNGC):")
     build_deepsky.build()
     print("Agujeros negros (curado):")
     build_blackholes.build()
+    print("Lluvias de meteoros (curado):")
+    build_meteors.build()
     print("Listo. Catálogos regenerados en public/.")
 
 
