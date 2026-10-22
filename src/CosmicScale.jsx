@@ -45,7 +45,7 @@ export default function CosmicScale({ lang = "es" }) {
   const y = (ly) => pad + (1 - (Math.log10(ly) - LOGMIN) / (LOGMAX - LOGMIN)) * (H - 2 * pad);
   return (
     <div>
-      <p style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 4, lineHeight: 1.5 }}>
+      <p style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "rgba(255,255,255,0.72)", marginBottom: 4, lineHeight: 1.5 }}>
         {lang === "es"
           ? "El universo a escala. La distancia es también el tiempo que tardó su luz en llegar: mirar lejos es mirar al pasado."
           : "The universe to scale. Distance is also how long its light took to reach us: to look far is to look into the past."}
@@ -57,7 +57,7 @@ export default function CosmicScale({ lang = "es" }) {
         {/* "estás aquí" abajo */}
         <div style={{ position: "absolute", left: "50%", bottom: 4, transform: "translateX(-50%)", textAlign: "center" }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#60A5FA", margin: "0 auto", boxShadow: "0 0 10px #60A5FA" }} />
-          <span style={{ fontFamily: "Inter,system-ui", fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          <span style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "rgba(255,255,255,0.62)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
             {lang === "es" ? "estás aquí" : "you are here"}
           </span>
         </div>
@@ -74,14 +74,14 @@ export default function CosmicScale({ lang = "es" }) {
               <div style={{ position: "absolute", top: "50%", transform: "translateY(-50%)",
                 [left ? "right" : "left"]: "53%", width: "44%", textAlign: left ? "right" : "left" }}>
                 <div style={{ fontFamily: "Cormorant Garamond,Georgia,serif", fontSize: 14, color: "#fff", lineHeight: 1.05 }}>{lang === "es" ? o.es : o.en}</div>
-                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: col }}>{fmtScale(o.ly, lang)}</div>
-                <div style={{ fontFamily: "Inter,system-ui", fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{o.note[lang] || o.note.es}</div>
+                <div style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 12, color: col }}>{fmtScale(o.ly, lang)}</div>
+                <div style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "rgba(255,255,255,0.62)" }}>{o.note[lang] || o.note.es}</div>
               </div>
             </div>
           );
         })}
       </div>
-      <p style={{ fontFamily: "Inter,system-ui", fontSize: 9, color: "rgba(255,255,255,0.3)", textAlign: "center", marginTop: 8, lineHeight: 1.5 }}>
+      <p style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "rgba(255,255,255,0.62)", textAlign: "center", marginTop: 8, lineHeight: 1.5 }}>
         {lang === "es"
           ? "Escala logarítmica. Distancias de luz-viaje (lookback) reales. La luz del fondo cósmico salió hace ~13.800 millones de años."
           : "Logarithmic scale. Real light-travel (lookback) distances. CMB light left ~13.8 billion years ago."}

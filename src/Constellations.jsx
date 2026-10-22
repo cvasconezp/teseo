@@ -1128,7 +1128,7 @@ export default function Constellations({ lang = "es" }) {
   const selMeta = sky && sel ? sky.constellations.find(c => c.ab === sel) : null;
   const stats = selMeta ? constellationStats(selMeta, sky) : null;
 
-  const timeBtn = { fontFamily: "Inter,system-ui", fontSize: 10, padding: "3px 7px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)", cursor: "pointer", background: "transparent" };
+  const timeBtn = { fontFamily: "Inter,system-ui", fontSize: 12, padding: "3px 7px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.72)", cursor: "pointer", background: "transparent" };
 
   return (
     <div className="relative w-full h-[460px] md:h-[600px]">
@@ -1143,11 +1143,11 @@ export default function Constellations({ lang = "es" }) {
       {viewFrom && (
         <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto z-20 flex items-center gap-2 rounded-full px-3 py-1.5"
           style={{ top: 10, background: "rgba(124,58,237,0.22)", border: "1px solid rgba(124,58,237,0.6)", backdropFilter: "blur(4px)" }}>
-          <span style={{ fontFamily: "Inter,system-ui", fontSize: 11, color: "#e6ddff" }}>
+          <span style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "#e6ddff" }}>
             {lang === "es" ? "Cielo desde " : "Sky from "}<strong>{viewFrom.name}</strong>
           </span>
           <button onClick={() => setViewFrom(null)}
-            style={{ fontFamily: "Inter,system-ui", fontSize: 10.5, cursor: "pointer", color: "#c9b8ff",
+            style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer", color: "#c9b8ff",
               background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 999, padding: "2px 8px" }}>
             {lang === "es" ? "↩ volver a la Tierra" : "↩ back to Earth"}
           </button>
@@ -1176,21 +1176,21 @@ export default function Constellations({ lang = "es" }) {
       {showHint && sky && (
         <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto z-20 rounded-xl px-3.5 py-2.5"
           style={{ bottom: 96, maxWidth: 340, background: "rgba(9,14,28,0.94)", border: "1px solid rgba(124,58,237,0.5)", boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
-          <div style={{ fontFamily: "Inter,system-ui", fontSize: 11.5, color: "rgba(255,255,255,0.82)", lineHeight: 1.5 }}>
+          <div style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "rgba(255,255,255,0.82)", lineHeight: 1.5 }}>
             {lang === "es"
               ? "Mueve el control de abajo para revelar la profundidad real del cielo. Busca cualquier objeto (Marte, Sgr A*, pulsar) y, al tocar una estrella, mira el cielo desde allí."
               : "Drag the control below to reveal the sky's real depth. Search any object (Mars, Sgr A*, pulsar) and, tapping a star, view the sky from there."}
           </div>
           <button onClick={dismissHint}
             className="mt-1.5"
-            style={{ fontFamily: "Inter,system-ui", fontSize: 10.5, cursor: "pointer", color: "#c9b8ff", background: "rgba(124,58,237,0.2)", border: "1px solid rgba(124,58,237,0.5)", borderRadius: 999, padding: "3px 12px" }}>
+            style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer", color: "#c9b8ff", background: "rgba(124,58,237,0.2)", border: "1px solid rgba(124,58,237,0.5)", borderRadius: 999, padding: "3px 12px" }}>
             {lang === "es" ? "Entendido" : "Got it"}
           </button>
         </div>
       )}
 
       {!sky && (
-        <div className="absolute inset-0 flex items-center justify-center text-white/40"
+        <div className="absolute inset-0 flex items-center justify-center text-white/60"
           style={{ fontFamily: "Inter,system-ui", fontSize: 13 }}>{t.loading}</div>
       )}
 
@@ -1207,7 +1207,7 @@ export default function Constellations({ lang = "es" }) {
             lineHeight: 1, textShadow: "0 1px 6px #000",
           }}>{l.name}</div>
           {l.sub != null && (
-            <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 9, textShadow: "0 1px 6px #000" }}>
+            <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 12, textShadow: "0 1px 6px #000" }}>
               {l.sub.toLocaleString()} {t.lightyears.split("-").join(" ")}
             </div>
           )}
@@ -1232,12 +1232,12 @@ export default function Constellations({ lang = "es" }) {
             <input value={query} onChange={e => setQuery(e.target.value)}
               aria-label={lang === "es" ? "Buscar objeto" : "Search object"}
               placeholder={lang === "es" ? "Buscar: Marte, Sgr A*, pulsar…" : "Search: Mars, Sgr A*, pulsar…"}
-              style={{ width: "100%", background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.4)", borderRadius: 10, color: "#fff", padding: "6px 10px", fontFamily: "Inter,system-ui", fontSize: 11, outline: "none" }} />
+              style={{ width: "100%", background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.4)", borderRadius: 10, color: "#fff", padding: "6px 10px", fontFamily: "Inter,system-ui", fontSize: 12, outline: "none" }} />
             {results.length > 0 && (
               <div style={{ marginTop: 4, background: "#090e1c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden", boxShadow: "0 16px 40px rgba(0,0,0,0.7)" }}>
                 {results.map((r, i) => (
                   <button key={i} onClick={() => onResult(r)}
-                    style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", color: "rgba(255,255,255,0.78)", fontFamily: "Inter,system-ui", fontSize: 11, borderBottom: "1px solid rgba(255,255,255,0.05)", background: "transparent", cursor: "pointer" }}>
+                    style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", color: "rgba(255,255,255,0.78)", fontFamily: "Inter,system-ui", fontSize: 12, borderBottom: "1px solid rgba(255,255,255,0.05)", background: "transparent", cursor: "pointer" }}>
                     {r.label}
                   </button>
                 ))}
@@ -1253,30 +1253,30 @@ export default function Constellations({ lang = "es" }) {
           <button
             onClick={() => { setLocalMode(v => { const nv = !v; if (nv && lat == null) { setLat(-0.18); setLon(-78.47); } return nv; }); }}
             className="px-2.5 py-1 rounded-full transition-all"
-            style={{ fontFamily: "Inter,system-ui", fontSize: 10, cursor: "pointer",
+            style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer",
               background: localMode ? "rgba(96,165,250,0.18)" : "rgba(9,14,28,0.82)",
               border: `1px solid ${localMode ? "#60A5FA" : "rgba(255,255,255,0.12)"}`,
-              color: localMode ? "#60A5FA" : "rgba(255,255,255,0.5)" }}>
+              color: localMode ? "#60A5FA" : "rgba(255,255,255,0.72)" }}>
             🌍 {lang === "es" ? "Mi cielo" : "My sky"}
           </button>
           <button
             onClick={() => setShowSolar(v => !v)}
             aria-pressed={showSolar} aria-label={lang === "es" ? "Sistema solar" : "Solar system"}
             className="px-2.5 py-1 rounded-full transition-all"
-            style={{ fontFamily: "Inter,system-ui", fontSize: 10, cursor: "pointer",
+            style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer",
               background: showSolar ? "rgba(255,210,63,0.16)" : "rgba(9,14,28,0.82)",
               border: `1px solid ${showSolar ? "#ffd23f" : "rgba(255,255,255,0.12)"}`,
-              color: showSolar ? "#ffd23f" : "rgba(255,255,255,0.5)" }}>
+              color: showSolar ? "#ffd23f" : "rgba(255,255,255,0.72)" }}>
             ☉ {lang === "es" ? "Sistema solar" : "Solar system"}
           </button>
           <button
             onClick={startTour}
             disabled={!datasets.messier || !datasets.blackholes}
             className="px-2.5 py-1 rounded-full transition-all"
-            style={{ fontFamily: "Inter,system-ui", fontSize: 10, cursor: (datasets.messier && datasets.blackholes) ? "pointer" : "default",
+            style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: (datasets.messier && datasets.blackholes) ? "pointer" : "default",
               background: tourActive ? "rgba(167,139,250,0.2)" : "rgba(9,14,28,0.82)",
               border: `1px solid ${tourActive ? "#A78BFA" : "rgba(255,255,255,0.12)"}`,
-              color: tourActive ? "#A78BFA" : "rgba(255,255,255,0.5)", opacity: (datasets.messier && datasets.blackholes) ? 1 : 0.4 }}>
+              color: tourActive ? "#A78BFA" : ((datasets.messier && datasets.blackholes) ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0.6)") }}>
             🎬 {lang === "es" ? "Tour" : "Tour"}
           </button>
           {LAYERS.map(cfg => {
@@ -1289,11 +1289,11 @@ export default function Constellations({ lang = "es" }) {
                 aria-pressed={on} aria-label={`${on ? (lang === "es" ? "Ocultar" : "Hide") : (lang === "es" ? "Mostrar" : "Show")} ${cfg[lang] || cfg.es}`}
                 className="px-2.5 py-1 rounded-full transition-all"
                 style={{
-                  fontFamily: "Inter,system-ui", fontSize: 10,
+                  fontFamily: "Inter,system-ui", fontSize: 12,
                   background: on ? hex + "22" : "rgba(9,14,28,0.82)",
                   border: `1px solid ${on ? hex : "rgba(255,255,255,0.12)"}`,
-                  color: on ? hex : "rgba(255,255,255,0.45)",
-                  cursor: has ? "pointer" : "default", opacity: has ? 1 : 0.4,
+                  color: on ? hex : (has ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0.6)"),
+                  cursor: has ? "pointer" : "default",
                 }}>
                 ● {cfg[lang] || cfg.es}
                 {(cfg.api || cfg.lazy)
@@ -1312,8 +1312,8 @@ export default function Constellations({ lang = "es" }) {
         <div className="absolute left-3 right-3 pointer-events-auto" style={{ bottom: 56 }}>
           <div className="rounded-xl px-4 py-3" style={{ background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.3)" }}>
             <div className="flex items-center justify-between mb-1.5">
-              <span style={{ color: depth < 0.5 ? "#60A5FA" : "rgba(255,255,255,0.4)", fontFamily: "Inter,system-ui", fontSize: 10 }}>{t.flat}</span>
-              <span style={{ color: depth >= 0.5 ? "#A78BFA" : "rgba(255,255,255,0.4)", fontFamily: "Inter,system-ui", fontSize: 10 }}>{t.depth}</span>
+              <span style={{ color: depth < 0.5 ? "#60A5FA" : "rgba(255,255,255,0.62)", fontFamily: "Inter,system-ui", fontSize: 12 }}>{t.flat}</span>
+              <span style={{ color: depth >= 0.5 ? "#A78BFA" : "rgba(255,255,255,0.62)", fontFamily: "Inter,system-ui", fontSize: 12 }}>{t.depth}</span>
             </div>
             <input type="range" min="0" max="1" step="0.01" value={depth}
               onChange={e => setDepth(parseFloat(e.target.value))}
@@ -1321,7 +1321,7 @@ export default function Constellations({ lang = "es" }) {
               aria-valuetext={depth < 0.5 ? t.flat : t.depth}
               className="w-full" style={{ accentColor: "#7C3AED" }} />
             {stats && (
-              <div className="flex items-center justify-between mt-1.5" style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "rgba(255,255,255,0.4)" }}>
+              <div className="flex items-center justify-between mt-1.5" style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 12, color: "rgba(255,255,255,0.62)" }}>
                 <span>{t.nearest}: {stats.near.name||"—"} {stats.near.d.toLocaleString()} {t.lightyears}</span>
                 <span>{t.farthest}: {stats.far.name||"—"} {stats.far.d.toLocaleString()} {t.lightyears}</span>
               </div>
@@ -1338,8 +1338,8 @@ export default function Constellations({ lang = "es" }) {
           </button>
           <button onClick={() => shiftMin(-1440)} style={timeBtn}>−1d</button>
           <button onClick={() => shiftMin(-60)} style={timeBtn}>−1h</button>
-          <button onClick={() => setPlaying(pl => !pl)} aria-pressed={playing} aria-label={lang === "es" ? (playing ? "Pausar animación del tiempo" : "Animar el tiempo") : (playing ? "Pause time animation" : "Animate time")} style={{ ...timeBtn, color: playing ? "#A78BFA" : "rgba(255,255,255,0.6)", borderColor: playing ? "#7C3AED" : "rgba(255,255,255,0.12)" }}>{playing ? "⏸" : "▶"}</button>
-          <span style={{ flex: 1, textAlign: "center", fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "rgba(255,255,255,0.62)" }}>
+          <button onClick={() => setPlaying(pl => !pl)} aria-pressed={playing} aria-label={lang === "es" ? (playing ? "Pausar animación del tiempo" : "Animar el tiempo") : (playing ? "Pause time animation" : "Animate time")} style={{ ...timeBtn, color: playing ? "#A78BFA" : "rgba(255,255,255,0.72)", borderColor: playing ? "#7C3AED" : "rgba(255,255,255,0.12)" }}>{playing ? "⏸" : "▶"}</button>
+          <span style={{ flex: 1, textAlign: "center", fontFamily: "JetBrains Mono,monospace", fontSize: 12, color: "rgba(255,255,255,0.62)" }}>
             {new Date(whenStr).toLocaleString(lang === "es" ? "es-EC" : "en-US", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
           </span>
           <button onClick={() => shiftMin(60)} style={timeBtn}>+1h</button>
@@ -1352,17 +1352,17 @@ export default function Constellations({ lang = "es" }) {
         <div className="absolute left-3 right-3 pointer-events-auto rounded-xl px-4 py-2.5"
           style={{ bottom: 56, background: "rgba(9,14,28,0.93)", border: "1px solid rgba(96,165,250,0.3)" }}>
           <div className="flex items-center justify-between gap-2 mb-2">
-            <span style={{ fontFamily: "Inter,system-ui", fontSize: 10, color: "#60A5FA" }}>
+            <span style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "#60A5FA" }}>
               {lat != null ? `${lat}°, ${lon}°` : (lang === "es" ? "sin ubicación" : "no location")}
             </span>
             <button onClick={useMyLocation}
               className="px-2.5 py-1 rounded-full"
-              style={{ fontFamily: "Inter,system-ui", fontSize: 9, cursor: "pointer",
+              style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer",
                 background: "rgba(96,165,250,0.15)", border: "1px solid rgba(96,165,250,0.4)", color: "#60A5FA" }}>
               {lang === "es" ? "Usar mi ubicación" : "Use my location"}
             </button>
           </div>
-          <p style={{ fontFamily: "Inter,system-ui", fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
+          <p style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "rgba(255,255,255,0.62)", marginTop: 4 }}>
             {lang === "es" ? "Horizonte y brújula N-E-S-O según tu lugar y hora." : "Horizon & N-E-S-W compass for your place and time."}
           </p>
         </div>
@@ -1373,7 +1373,7 @@ export default function Constellations({ lang = "es" }) {
           style={{ bottom: 12, background: "rgba(9,14,28,0.96)", border: "1px solid rgba(124,58,237,0.4)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)" }}>
           <div className="flex items-center justify-between mb-1.5">
             <span style={{ fontFamily: "Cormorant Garamond,Georgia,serif", color: "#fff", fontSize: 16 }}>{tourTitle}</span>
-            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{tourIndex + 1}/{TOUR.length}</span>
+            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 12, color: "rgba(255,255,255,0.62)" }}>{tourIndex + 1}/{TOUR.length}</span>
           </div>
           <p style={{ fontFamily: "Cormorant Garamond,Georgia,serif", fontStyle: "italic", color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.45, minHeight: 42, margin: 0 }}>
             {tourText === null ? (lang === "es" ? "narrando…" : "narrating…") : (tourText ? `"${tourText}"` : "—")}
@@ -1381,7 +1381,7 @@ export default function Constellations({ lang = "es" }) {
           <div className="flex items-center justify-between mt-2">
             <div className="flex gap-1.5">
               <button onClick={() => setTourIndex(i => (i - 1 + TOUR.length) % TOUR.length)} style={timeBtn}>‹ {lang === "es" ? "ant." : "prev"}</button>
-              <button onClick={() => setTourAuto(a => !a)} style={{ ...timeBtn, color: tourAuto ? "#A78BFA" : "rgba(255,255,255,0.6)", borderColor: tourAuto ? "#7C3AED" : "rgba(255,255,255,0.12)" }}>{tourAuto ? "⏸ auto" : "▶ auto"}</button>
+              <button onClick={() => setTourAuto(a => !a)} style={{ ...timeBtn, color: tourAuto ? "#A78BFA" : "rgba(255,255,255,0.72)", borderColor: tourAuto ? "#7C3AED" : "rgba(255,255,255,0.12)" }}>{tourAuto ? "⏸ auto" : "▶ auto"}</button>
               <button onClick={() => setTourIndex(i => (i + 1) % TOUR.length)} style={timeBtn}>{lang === "es" ? "sig." : "next"} ›</button>
             </div>
             <button onClick={() => setTourActive(false)} style={{ ...timeBtn, color: "rgba(255,140,140,0.85)" }}>{lang === "es" ? "salir" : "exit"}</button>
@@ -1396,17 +1396,17 @@ export default function Constellations({ lang = "es" }) {
             <div style={{ fontFamily: "Cormorant Garamond,Georgia,serif", color: "#fff", fontSize: 18, lineHeight: 1.1 }}>{selObj.name}</div>
             <div className="flex items-center gap-1.5 shrink-0">
               <button onClick={shareLink} aria-label={lang === "es" ? "Copiar enlace a este objeto" : "Copy link to this object"} title={lang === "es" ? "Copiar enlace" : "Copy link"}
-                className="text-white/45 hover:text-white/90" style={{ fontSize: 13 }}>
+                className="text-white/70 hover:text-white/90" style={{ fontSize: 13 }}>
                 {copied ? (lang === "es" ? "✓ copiado" : "✓ copied") : "🔗"}
               </button>
-              <button onClick={() => setSelObj(null)} aria-label={lang === "es" ? "Cerrar ficha" : "Close panel"} className="text-white/35 hover:text-white/80" style={{ fontSize: 13 }}>✕</button>
+              <button onClick={() => setSelObj(null)} aria-label={lang === "es" ? "Cerrar ficha" : "Close panel"} className="text-white/60 hover:text-white/90" style={{ fontSize: 13 }}>✕</button>
             </div>
           </div>
           {wiki && wiki.thumb && (
             <div style={{ marginBottom: 8 }}>
               <img src={wiki.thumb} alt={selObj.name} loading="lazy"
                 style={{ width: "100%", borderRadius: 8, marginBottom: 2, display: "block" }} />
-              <div style={{ fontFamily: "Inter,system-ui", fontSize: 9, color: "rgba(255,255,255,0.4)" }}>
+              <div style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "rgba(255,255,255,0.62)" }}>
                 {selObj.layer === "exoplanets"
                   ? (lang === "es" ? "Ilustración — concepto artístico · Wikipedia" : "Illustration — artist's concept · Wikipedia")
                   : (lang === "es" ? "Imagen · Wikipedia (CC)" : "Image · Wikipedia (CC)")}
@@ -1414,10 +1414,10 @@ export default function Constellations({ lang = "es" }) {
             </div>
           )}
           {selObj.dist_ly != null && (
-            <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 11 }}>{fmtDist(selObj.dist_ly, lang)}</div>
+            <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 12 }}>{fmtDist(selObj.dist_ly, lang)}</div>
           )}
           {selObj.layer === "star" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
               {lang === "es" ? "Estrella" : "Star"}
               {selObj.dist_ly > 0 && (
                 <button
@@ -1427,7 +1427,7 @@ export default function Constellations({ lang = "es" }) {
                     setSel(null); setSelObj(null);
                   }}
                   className="mt-2 w-full rounded-lg px-2 py-1.5 transition-all"
-                  style={{ display: "block", fontFamily: "Inter,system-ui", fontSize: 11, cursor: "pointer",
+                  style={{ display: "block", fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer",
                     background: "rgba(124,58,237,0.18)", border: "1px solid rgba(124,58,237,0.5)", color: "#c9b8ff" }}>
                   {lang === "es" ? "🪐 Ver el cielo desde aquí" : "🪐 View the sky from here"}
                 </button>
@@ -1435,7 +1435,7 @@ export default function Constellations({ lang = "es" }) {
             </div>
           )}
           {selObj.layer === "solar" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
               {selObj.name === "Sol" ? (lang === "es" ? "El Sol — estrella" : "The Sun — star")
                 : selObj.name === "Luna" ? (lang === "es" ? "La Luna — satélite" : "The Moon — satellite")
                 : (lang === "es" ? "Planeta" : "Planet")}
@@ -1445,43 +1445,43 @@ export default function Constellations({ lang = "es" }) {
           )}
 
           {selObj.layer === "messier" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
               {TYPE_ES[selObj.type] || "Objeto"}{selObj.cn ? ` · ${selObj.cn}` : ""}{selObj.ngc ? ` · ${selObj.ngc}` : ""}
-              {selObj.const_es ? <><br/><span style={{ color: "rgba(255,255,255,0.4)" }}>{lang === "es" ? "en " : "in "}{lang === "es" ? selObj.const_es : selObj.const}</span></> : null}
+              {selObj.const_es ? <><br/><span style={{ color: "rgba(255,255,255,0.62)" }}>{lang === "es" ? "en " : "in "}{lang === "es" ? selObj.const_es : selObj.const}</span></> : null}
             </div>
           )}
           {selObj.layer === "pulsars" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
               {lang === "es" ? "Púlsar" : "Pulsar"}{selObj.period_ms != null ? ` · ${lang === "es" ? "período" : "period"} ${selObj.period_ms} ms` : ""}
-              {selObj.note ? <><br/><span style={{ color: "rgba(255,255,255,0.4)" }}>{selObj.note}</span></> : null}
+              {selObj.note ? <><br/><span style={{ color: "rgba(255,255,255,0.62)" }}>{selObj.note}</span></> : null}
             </div>
           )}
           {selObj.layer === "galaxies" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
               {lang === "es" ? "Galaxia" : "Galaxy"}{selObj.hubble ? ` · ${selObj.hubble}` : ""}{selObj.cat && selObj.cat !== selObj.name ? ` · ${selObj.cat}` : ""}
-              {selObj.const_es ? <><br/><span style={{ color: "rgba(255,255,255,0.4)" }}>{lang === "es" ? "en " : "in "}{lang === "es" ? selObj.const_es : selObj.const} · {lang === "es" ? "distancia por redshift (aprox.)" : "redshift distance (approx.)"}</span></> : <><br/><span style={{ color: "rgba(255,255,255,0.4)" }}>{lang === "es" ? "distancia por redshift (aprox.)" : "redshift distance (approx.)"}</span></>}
+              {selObj.const_es ? <><br/><span style={{ color: "rgba(255,255,255,0.62)" }}>{lang === "es" ? "en " : "in "}{lang === "es" ? selObj.const_es : selObj.const} · {lang === "es" ? "distancia por redshift (aprox.)" : "redshift distance (approx.)"}</span></> : <><br/><span style={{ color: "rgba(255,255,255,0.62)" }}>{lang === "es" ? "distancia por redshift (aprox.)" : "redshift distance (approx.)"}</span></>}
             </div>
           )}
           {selObj.layer === "blackholes" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
               {lang === "es" ? "Agujero negro" : "Black hole"} {selObj.kind} · {fmtMass(selObj.mass_sun)} M☉<br/>
-              <span style={{ color: "rgba(255,255,255,0.4)" }}>{selObj.note}</span>
+              <span style={{ color: "rgba(255,255,255,0.62)" }}>{selObj.note}</span>
             </div>
           )}
           {selObj.layer === "meteors" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
               {(() => { const active = meteorActive(selObj); return (
                 <>
-                  <span style={{ color: active ? "#ffd27a" : "rgba(255,255,255,0.5)", fontWeight: active ? 600 : 400 }}>
+                  <span style={{ color: active ? "#ffd27a" : "rgba(255,255,255,0.72)", fontWeight: active ? 600 : 400 }}>
                     {active ? (lang === "es" ? "● activa ahora" : "● active now") : (lang === "es" ? "lluvia de meteoros" : "meteor shower")}
                   </span>
-                  <div style={{ color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                  <div style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
                     {lang === "es" ? "máximo" : "peak"} {fmtMD(selObj.peak, lang)} · {lang === "es" ? "activa" : "active"} {fmtMD(selObj.start, lang)}–{fmtMD(selObj.end, lang)} · ZHR ~{selObj.zhr}
                   </div>
-                  <div style={{ color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                  <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>
                     {lang === "es" ? "origen" : "parent"}: {selObj.parent}
                   </div>
-                  <div style={{ color: "rgba(255,255,255,0.35)", marginTop: 4, fontSize: 10 }}>
+                  <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 4, fontSize: 12 }}>
                     {lang === "es"
                       ? "El radiante es la dirección de donde parecen venir; no es un objeto lejano."
                       : "The radiant is the direction they appear to come from; not a distant object."}
@@ -1491,35 +1491,35 @@ export default function Constellations({ lang = "es" }) {
             </div>
           )}
           {selObj.layer === "comets" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
               <span style={{ color: "#8be0ff" }}>{lang === "es" ? "Cometa" : "Comet"}</span>
               {selObj.dist_au != null ? ` · ${selObj.dist_au} ${lang === "es" ? "UA de la Tierra" : "AU from Earth"}` : ""}
               {selObj.light_min != null ? ` · ${lang === "es" ? "luz" : "light"} ${selObj.light_min < 60 ? `${selObj.light_min} min` : `${(selObj.light_min/60).toFixed(1)} h`}` : ""}
-              <div style={{ color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+              <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>
                 {selObj.approaching ? (lang === "es" ? "acercándose a la Tierra" : "approaching Earth") : (lang === "es" ? "alejándose de la Tierra" : "receding from Earth")}
                 {" · "}{lang === "es" ? "posición real de hoy (NASA Horizons)" : "today's real position (NASA Horizons)"}
               </div>
             </div>
           )}
           {selObj.layer === "probes" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
               <span style={{ color: "#e6ebff" }}>{lang === "es" ? "Sonda / telescopio" : "Probe / telescope"}</span>
               {selObj.dist_au != null ? ` · ${selObj.dist_au >= 1 ? selObj.dist_au + " UA" : (selObj.dist_au * 149597870.7 / 1e6).toFixed(2) + " M km"}` : ""}
               {selObj.light_min != null ? ` · ${lang === "es" ? "luz" : "light"} ${selObj.light_min < 120 ? selObj.light_min + " min" : (selObj.light_min / 60).toFixed(1) + " h"}` : ""}
               {(selObj.note_es || selObj.note_en) && (
-                <div style={{ color: "rgba(255,255,255,0.42)", marginTop: 2 }}>{lang === "es" ? selObj.note_es : selObj.note_en}</div>
+                <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>{lang === "es" ? selObj.note_es : selObj.note_en}</div>
               )}
-              <div style={{ color: "rgba(255,255,255,0.35)", marginTop: 2, fontSize: 10 }}>
+              <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 2, fontSize: 12 }}>
                 {lang === "es" ? "posición real de hoy (NASA Horizons)" : "today's real position (NASA Horizons)"}
               </div>
             </div>
           )}
           {selObj.layer === "exoplanets" && (
-            <div style={{ fontFamily: "Inter,system-ui", fontSize: 11, marginTop: 6 }}>
-              <span style={{ color: selObj.hab ? "#aaff7a" : "rgba(255,255,255,0.5)" }}>
+            <div style={{ fontFamily: "Inter,system-ui", fontSize: 12, marginTop: 6 }}>
+              <span style={{ color: selObj.hab ? "#aaff7a" : "rgba(255,255,255,0.72)" }}>
                 {selObj.hab ? (lang === "es" ? "● potencialmente habitable" : "● potentially habitable") : (lang === "es" ? "no habitable" : "not habitable")}
               </span>
-              <div style={{ color: "rgba(255,255,255,0.5)", marginTop: 3, lineHeight: 1.5 }}>
+              <div style={{ color: "rgba(255,255,255,0.72)", marginTop: 3, lineHeight: 1.5 }}>
                 {(() => {
                   const bits = [];
                   if (selObj.rade) bits.push(`${lang === "es" ? "radio" : "radius"} ${selObj.rade} R⊕`);
@@ -1529,7 +1529,7 @@ export default function Constellations({ lang = "es" }) {
                   return bits.join(" · ");
                 })()}
               </div>
-              <div style={{ color: "rgba(255,255,255,0.42)", marginTop: 2 }}>
+              <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>
                 {lang === "es" ? "estrella" : "host"} {selObj.host}{selObj.spectype ? ` (${selObj.spectype})` : ""}
                 {selObj.disc_year ? ` · ${lang === "es" ? "descubierto" : "found"} ${selObj.disc_year}${selObj.method ? " · " + selObj.method : ""}` : ""}
               </div>
@@ -1537,14 +1537,14 @@ export default function Constellations({ lang = "es" }) {
           )}
 
           {selObj.dist_ly > 0 && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(96,165,250,0.85)", fontSize: 10.5, marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.08)", lineHeight: 1.4 }}>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(96,165,250,0.85)", fontSize: 12, marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.08)", lineHeight: 1.4 }}>
               {lang === "es"
                 ? `Su luz tardó ${fmtYears(selObj.dist_ly, lang)} en llegar: lo ves como era entonces.`
                 : `Its light took ${fmtYears(selObj.dist_ly, lang)} to arrive: you see it as it was then.`}
             </div>
           )}
           {selObj.dist_ly > 0 && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.4)", fontSize: 10, marginTop: 5 }}>
+            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.62)", fontSize: 12, marginTop: 5 }}>
               {lang === "es"
                 ? `En la Voyager 1 tardarías ${fmtYears(selObj.dist_ly * 17575, lang)}.`
                 : `In Voyager 1 you'd take ${fmtYears(selObj.dist_ly * 17575, lang)}.`}
@@ -1552,11 +1552,11 @@ export default function Constellations({ lang = "es" }) {
           )}
           {wiki && wiki.extract && (
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-              <p style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.55)", fontSize: 10.5, lineHeight: 1.45, margin: 0 }}>
+              <p style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, lineHeight: 1.45, margin: 0 }}>
                 {wiki.extract.length > 240 ? wiki.extract.slice(0, 240) + "…" : wiki.extract}
               </p>
               <a href={wiki.url} target="_blank" rel="noopener noreferrer"
-                style={{ fontFamily: "Inter,system-ui", color: "#60A5FA", fontSize: 9.5, display: "inline-block", marginTop: 5 }}>
+                style={{ fontFamily: "Inter,system-ui", color: "#60A5FA", fontSize: 12, display: "inline-block", marginTop: 5 }}>
                 Wikipedia ↗
               </a>
             </div>
