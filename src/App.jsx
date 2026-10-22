@@ -24,8 +24,11 @@ const T = {
     sky:            "Sky",
     scale:          "Scale",
     vehicle:        "Vehicle",
-    travelTime:     "Estimated travel time",
-    hohmann:        "Hohmann transfer",
+    travelTime:     "Approximation: constant speed (illustrative)",
+    hohmann:        "Hohmann transfer (orbital physics)",
+    modelNote:      "Two different models: the first assumes a straight line at constant speed with no gravity (for comparing scales only); the Hohmann transfer is the real minimum-energy orbit, computed with hapsira.",
+    accuracyNote:   "Using NASA/JPL data for positions does not make the whole simulation exact: the map is schematic and every model has its own assumptions.",
+    window:         "Window",
     arrives:        "Arrives",
     synodic:        "Synodic period",
     nextWindows:    "Next launch windows",
@@ -36,7 +39,7 @@ const T = {
     years:          "years",
     computing:      "Computing...",
     realPhysics:    "Computing real orbital mechanics...",
-    disclaimer:     "Hohmann transfer · circular orbit approximation · NASA JPL data",
+    disclaimer:     "Hohmann: circular, coplanar orbits · Distances: NASA JPL Horizons",
     windowNote:     "Windows repeat every synodic period. Exact date may vary ±days due to orbital eccentricity.",
     noBackend:      "Backend offline — showing approximate distances",
     realPositions:  "Real positions",
@@ -58,8 +61,11 @@ const T = {
     sky:            "Cielo",
     scale:          "Escala",
     vehicle:        "Vehículo",
-    travelTime:     "Tiempo de viaje estimado",
-    hohmann:        "Transferencia de Hohmann",
+    travelTime:     "Aproximación: velocidad constante (ilustrativa)",
+    hohmann:        "Transferencia de Hohmann (física orbital)",
+    modelNote:      "Son dos modelos distintos: el primero supone una línea recta a velocidad constante y sin gravedad (solo para comparar escalas); la transferencia de Hohmann es la órbita real de mínima energía, calculada con hapsira.",
+    accuracyNote:   "Usar datos de NASA/JPL para las posiciones no hace exacta toda la simulación: el mapa es esquemático y cada modelo tiene sus propios supuestos.",
+    window:         "Ventana",
     arrives:        "Llega el",
     synodic:        "Período sinódico",
     nextWindows:    "Próximas ventanas de lanzamiento",
@@ -70,7 +76,7 @@ const T = {
     years:          "años",
     computing:      "Calculando...",
     realPhysics:    "Calculando con física orbital real...",
-    disclaimer:     "Trayectoria de Hohmann · aproximación circular · datos NASA JPL",
+    disclaimer:     "Hohmann: órbitas circulares y coplanares · Distancias: NASA JPL Horizons",
     windowNote:     "Las ventanas se repiten cada período sinódico. La fecha exacta puede variar ±días por la excentricidad orbital.",
     noBackend:      "Backend sin conexión — mostrando distancias aproximadas",
     realPositions:  "Posiciones reales",
@@ -117,6 +123,47 @@ function fmt(sec, lang) {
 }
 
 function pname(p, lang) { return lang === "es" ? p.es : p.en; }
+
+// Idioma: preferencia guardada > idioma del navegador > español (coherente con <html lang="es">)
+function initialLang() {
+  try {
+    const saved = localStorage.getItem("teseo-lang");
+    if (saved === "es" || saved === "en") return saved;
+  } catch { /* no-op */ }
+  try {
+    const nav = (navigator.languages && navigator.languages[0]) || navigator.language || "";
+    if (/^en\b/i.test(nav)) return "en";
+  } catch { /* no-op */ }
+  return "es";
+}
+
+const META = {
+  es: {
+    title: "Teseo — Navegación Interplanetaria",
+    description: "Navegación interplanetaria real: transferencias de Hohmann, ventanas de lanzamiento y posiciones planetarias en vivo con datos de NASA JPL.",
+    locale: "es_EC",
+  },
+  en: {
+    title: "Teseo — Interplanetary Navigation",
+    description: "Real interplanetary navigation: Hohmann transfers, launch windows and live planetary positions with NASA JPL data.",
+    locale: "en_US",
+  },
+};
+
+// Sincroniza <html lang>, título y metadatos (description/og/twitter) con el idioma activo
+function applyLangToDocument(lang) {
+  if (typeof document === "undefined") return;
+  const m = META[lang] || META.es;
+  document.documentElement.lang = lang;
+  document.title = m.title;
+  const set = (sel, val) => { const el = document.head.querySelector(sel); if (el) el.setAttribute("content", val); };
+  set('meta[name="description"]', m.description);
+  set('meta[property="og:title"]', m.title);
+  set('meta[property="og:description"]', m.description);
+  set('meta[property="og:locale"]', m.locale);
+  set('meta[name="twitter:title"]', m.title);
+  set('meta[name="twitter:description"]', m.description);
+}
 
 // ─── SPACE TRAVEL BACKGROUND ─────────────────────────────────────────────────
 
@@ -230,7 +277,7 @@ function Intro({ lang, onDone }) {
             <div className="absolute inset-0 rounded-full bg-blue-300"
               style={{animation:"ping 2s ease-out infinite",opacity:0}}/>
           </div>
-          <p className="text-white/50 text-xs tracking-[0.35em] uppercase"
+          <p className="text-white/70 text-xs tracking-[0.35em] uppercase"
             style={{fontFamily:"Inter,system-ui"}}>{t.youAreHere}</p>
         </div>
       )}
@@ -286,7 +333,7 @@ function Intro({ lang, onDone }) {
             WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
             letterSpacing:"-0.02em",
           }}>Teseo</h1>
-          <p className="text-white/35 text-xs tracking-[0.45em] uppercase mt-4"
+          <p className="text-white/60 text-xs tracking-[0.45em] uppercase mt-4"
             style={{fontFamily:"Inter,system-ui"}}>{t.whereToGo}</p>
         </div>
       )}
@@ -381,7 +428,7 @@ function PlanetSelector({ value, onChange, exclude, label, accentColor, lang }) 
   return (
     <div className="relative">
       <p className="text-xs mb-1.5 tracking-widest uppercase"
-        style={{color:accentColor,fontFamily:"Inter,system-ui",opacity:0.65,fontSize:9}}>
+        style={{color:accentColor,fontFamily:"Inter,system-ui",fontSize: 12}}>
         {label}
       </p>
       <button onClick={()=>setOpen(o=>!o)}
@@ -393,11 +440,11 @@ function PlanetSelector({ value, onChange, exclude, label, accentColor, lang }) 
             style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:17}}>
             {pname(value,lang)}
           </p>
-          <p className="text-xs" style={{color:value.color,fontFamily:"JetBrains Mono,monospace",fontSize:10}}>
+          <p className="text-xs" style={{color:value.color,fontFamily:"JetBrains Mono,monospace",fontSize: 12}}>
             {value.au} AU
           </p>
         </div>
-        <span className="text-white/25 text-xs shrink-0">{open?"▲":"▼"}</span>
+        <span className="text-white/60 text-xs shrink-0">{open?"▲":"▼"}</span>
       </button>
       {open&&(
         <div className="absolute top-full left-0 right-0 mt-1 rounded-xl border border-white/10 overflow-hidden z-30"
@@ -434,29 +481,32 @@ function RouteResult({ from, to, lang, backendData, loading, realDist }) {
       <div className="rounded-2xl p-5 text-center"
         style={{background:"linear-gradient(135deg,rgba(124,58,237,0.1),rgba(37,99,235,0.07))",
           border:"1px solid rgba(124,58,237,0.22)"}}>
-        <p className="text-xs tracking-widest uppercase text-white/30 mb-2"
-          style={{fontFamily:"Inter,system-ui",fontSize:9}}>{t.travelTime}</p>
+        <p className="text-xs tracking-widest uppercase text-white/60 mb-2"
+          style={{fontFamily:"Inter,system-ui",fontSize: 12}}>{t.travelTime}</p>
         <p className="font-bold leading-none"
           style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:46,
             background:"linear-gradient(135deg,#A78BFA,#60A5FA)",
             WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
           {fmt(sec,lang)}
         </p>
-        <p className="text-white/35 mt-2" style={{fontFamily:"JetBrains Mono,monospace",fontSize:10}}>
+        <p className="text-white/60 mt-2" style={{fontFamily:"JetBrains Mono,monospace",fontSize: 12}}>
           {(distKm/1e6).toFixed(2)}M km · {(distKm/AU_KM).toFixed(3)} AU
-          {realDist&&<span className="text-green-400/60 ml-2">· NASA ✓</span>}
+          {realDist&&<span className="text-green-400 ml-2">· NASA ✓</span>}
         </p>
-        <p className="text-white/30" style={{fontFamily:"Inter,system-ui",fontSize:10,marginTop:3}}>
+        <p className="text-white/60" style={{fontFamily:"Inter,system-ui",fontSize: 12,marginTop:3}}>
           {lang==="es"?"a esta velocidad llegarías el":"at this speed you'd arrive"} {vehicleArrival.toLocaleDateString(lang==="es"?"es-EC":"en-US",{year:"numeric",month:"short",day:"numeric"})}
         </p>
 
         {/* Hohmann data from backend */}
         {backendData&&!loading&&(
           <div className="mt-3 pt-3 border-t border-white/8 space-y-1">
-            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"rgba(255,255,255,0.35)"}}>
-              {t.hohmann}: {backendData.transfer_time_days}d · Δv {backendData.delta_v_total_km_s} km/s
+            <p className="tracking-widest uppercase" style={{fontFamily:"Inter,system-ui",fontSize: 12,color:"#C4B5FD"}}>
+              {t.hohmann}
             </p>
-            <p style={{fontFamily:"Inter,system-ui",fontSize:11,color:"rgba(255,255,255,0.25)"}}>
+            <p style={{fontFamily:"JetBrains Mono,monospace",fontSize: 12,color:"rgba(255,255,255,0.72)"}}>
+              {backendData.transfer_time_days} {t.days} · Δv {backendData.delta_v_total_km_s} km/s
+            </p>
+            <p style={{fontFamily:"Inter,system-ui",fontSize: 12,color:"rgba(255,255,255,0.62)"}}>
               {t.arrives}: {new Date(backendData.arrival_date).toLocaleDateString(
                 lang==="es"?"es-EC":"en-US",{year:"numeric",month:"long",day:"numeric"})}
               {" · "}{lang==="es"?"ruta real, no depende del vehículo":"real route, vehicle-independent"}
@@ -464,20 +514,24 @@ function RouteResult({ from, to, lang, backendData, loading, realDist }) {
           </div>
         )}
         {loading&&(
-          <p className="text-purple-400/50 mt-2 animate-pulse"
-            style={{fontFamily:"Inter,system-ui",fontSize:11}}>{t.realPhysics}</p>
+          <p className="text-purple-300 mt-2 animate-pulse"
+            style={{fontFamily:"Inter,system-ui",fontSize: 12}}>{t.realPhysics}</p>
         )}
         {!backendData&&!loading&&(
-          <p className="text-white/20 mt-2" style={{fontFamily:"Inter,system-ui",fontSize:10}}>
+          <p className="text-white/60 mt-2" style={{fontFamily:"Inter,system-ui",fontSize: 12}}>
             {t.noBackend}
           </p>
         )}
+        <p className="mt-3 pt-3 border-t border-white/8 text-left leading-relaxed"
+          style={{fontFamily:"Inter,system-ui",fontSize: 12,color:"rgba(255,255,255,0.72)"}}>
+          {t.modelNote} {t.accuracyNote}
+        </p>
       </div>
 
       {/* Vehicle selector */}
       <div>
-        <p className="text-xs tracking-widest uppercase text-white/25 mb-2"
-          style={{fontFamily:"Inter,system-ui",fontSize:9}}>{t.vehicle}</p>
+        <p className="text-xs tracking-widest uppercase text-white/60 mb-2"
+          style={{fontFamily:"Inter,system-ui",fontSize: 12}}>{t.vehicle}</p>
         <div className="grid grid-cols-2 gap-1.5">
           {VEHICLES.map(v=>(
             <button key={v.id} onClick={()=>setVehicle(v)}
@@ -485,7 +539,7 @@ function RouteResult({ from, to, lang, backendData, loading, realDist }) {
               style={{
                 background:vehicle.id===v.id?"rgba(124,58,237,0.18)":"rgba(255,255,255,0.03)",
                 border:vehicle.id===v.id?"1px solid rgba(124,58,237,0.45)":"1px solid rgba(255,255,255,0.07)",
-                color:vehicle.id===v.id?"#A78BFA":"rgba(255,255,255,0.35)",
+                color:vehicle.id===v.id?"#A78BFA":"rgba(255,255,255,0.62)",
                 fontFamily:"Inter,system-ui",
               }}>
               <span>{v.id==="light"?"⚡":v.id==="voyager"?"🛸":v.id==="rocket"?"🚀":"✈️"}</span>
@@ -499,14 +553,14 @@ function RouteResult({ from, to, lang, backendData, loading, realDist }) {
       {backendData?.narrative&&(
         <div className="rounded-xl p-4 border border-white/6"
           style={{background:"rgba(255,255,255,0.02)"}}>
-          <p className="text-white/45 leading-relaxed italic"
+          <p className="text-white/70 leading-relaxed italic"
             style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:14}}>
             "{backendData.narrative}"
           </p>
         </div>
       )}
 
-      <p className="text-center text-white/15" style={{fontFamily:"Inter,system-ui",fontSize:10}}>
+      <p className="text-center text-white/60" style={{fontFamily:"Inter,system-ui",fontSize: 12}}>
         {t.disclaimer}
       </p>
     </div>
@@ -526,14 +580,14 @@ function LaunchWindows({ from, to, lang }) {
   },[from,to]);
 
   if(!data) return (
-    <p className="text-center text-white/20 py-8 animate-pulse"
+    <p className="text-center text-white/60 py-8 animate-pulse"
       style={{fontFamily:"Inter,system-ui",fontSize:12}}>{t.computing}</p>
   );
 
   return (
     <div className="space-y-3">
       <div className="rounded-xl px-4 py-2.5 border border-white/8 bg-white/3">
-        <p style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"rgba(255,255,255,0.35)"}}>
+        <p style={{fontFamily:"JetBrains Mono,monospace",fontSize: 12,color:"rgba(255,255,255,0.62)"}}>
           {t.synodic}: <span style={{color:"#A78BFA"}}>{data.synodic_period_days}d</span>
           {" "}({data.synodic_period_years} {t.years})
         </p>
@@ -542,10 +596,10 @@ function LaunchWindows({ from, to, lang }) {
         <div key={w.window_number} className="rounded-xl p-4 border border-white/8 bg-white/3">
           <div className="flex items-center justify-between mb-2.5">
             <span className="text-purple-400 tracking-wider uppercase"
-              style={{fontFamily:"Inter,system-ui",fontSize:10,fontWeight:500}}>
-              Window {w.window_number}
+              style={{fontFamily:"Inter,system-ui",fontSize: 12,fontWeight:500}}>
+              {t.window} {w.window_number}
             </span>
-            <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"rgba(255,255,255,0.25)"}}>
+            <span style={{fontFamily:"JetBrains Mono,monospace",fontSize: 12,color:"rgba(255,255,255,0.62)"}}>
               Δv {w.delta_v_km_s} km/s
             </span>
           </div>
@@ -555,20 +609,20 @@ function LaunchWindows({ from, to, lang }) {
               [t.arrival,   w.arrival_date],
             ].map(([label,date])=>(
               <div key={label}>
-                <p className="text-white/25 mb-0.5" style={{fontFamily:"Inter,system-ui",fontSize:9}}>{label}</p>
-                <p className="text-white/75" style={{fontFamily:"JetBrains Mono,monospace",fontSize:10}}>
+                <p className="text-white/60 mb-0.5" style={{fontFamily:"Inter,system-ui",fontSize: 12}}>{label}</p>
+                <p className="text-white/75" style={{fontFamily:"JetBrains Mono,monospace",fontSize: 12}}>
                   {new Date(date).toLocaleDateString(lang==="es"?"es-EC":"en-US",
                     {year:"numeric",month:"short",day:"numeric"})}
                 </p>
               </div>
             ))}
           </div>
-          <p className="text-white/20 mt-2" style={{fontFamily:"Inter,system-ui",fontSize:9}}>
+          <p className="text-white/60 mt-2" style={{fontFamily:"Inter,system-ui",fontSize: 12}}>
             {t.duration}: {w.transfer_time_days} {t.days}
           </p>
         </div>
       ))}
-      <p className="text-white/12 text-center" style={{fontFamily:"Inter,system-ui",fontSize:9}}>
+      <p className="text-white/60 text-center" style={{fontFamily:"Inter,system-ui",fontSize: 12}}>
         {t.windowNote}
       </p>
     </div>
@@ -580,7 +634,8 @@ function LaunchWindows({ from, to, lang }) {
 export default function Teseo() {
   const [intro,    setIntro]    = useState(true);
   const [showCredits, setShowCredits] = useState(false);
-  const [lang,     setLang]     = useState("en");
+  const [lang,     setLang]     = useState(initialLang);
+  useEffect(() => { applyLangToDocument(lang); try { localStorage.setItem("teseo-lang", lang); } catch { /* no-op */ } }, [lang]);
   const [from,     setFrom]     = useState(PLANETS[2]); // Earth
   const [to,       setTo]       = useState(PLANETS[3]); // Mars
   const [tab,      setTab]      = useState("route");
@@ -658,18 +713,18 @@ export default function Teseo() {
                 WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
                 letterSpacing:"-0.02em",
               }}>Teseo</h1>
-              <p className="text-white/25 tracking-widest uppercase"
-                style={{fontFamily:"Inter,system-ui",fontSize:8}}>{t.tagline}</p>
+              <p className="text-white/60 tracking-widest uppercase"
+                style={{fontFamily:"Inter,system-ui",fontSize: 12}}>{t.tagline}</p>
             </div>
             <div className="flex items-center gap-2">
               {hasRealPos&&(
-                <span className="text-green-400/50 tracking-widest uppercase"
-                  style={{fontFamily:"Inter,system-ui",fontSize:8}}>
+                <span className="text-green-400 tracking-widest uppercase"
+                  style={{fontFamily:"Inter,system-ui",fontSize: 12}}>
                   ● {t.realPositions}
                 </span>
               )}
               <button onClick={()=>setLang(l=>l==="en"?"es":"en")}
-                className="text-xs px-3 py-1.5 rounded-full border border-white/10 text-white/40 hover:text-white/70 hover:border-white/20 transition-all"
+                className="text-xs px-3 py-1.5 rounded-full border border-white/10 text-white/60 hover:text-white/90 hover:border-white/20 transition-all"
                 style={{fontFamily:"Inter,system-ui"}}>
                 {lang==="en"?"ES":"EN"}
               </button>
@@ -700,7 +755,7 @@ export default function Teseo() {
                 className="flex-1 py-2 rounded-lg text-xs font-medium transition-all"
                 style={{
                   background:tab===id?"linear-gradient(135deg,#7C3AED,#2563EB)":"transparent",
-                  color:tab===id?"white":"rgba(255,255,255,0.28)",
+                  color:tab===id?"white":"rgba(255,255,255,0.62)",
                   fontFamily:"Inter,system-ui",
                 }}>
                 {label}
@@ -718,7 +773,7 @@ export default function Teseo() {
           )}
 
           {tab==="sky"&&(
-            <Suspense fallback={<div className="text-center text-white/30 py-12" style={{fontFamily:"Inter,system-ui",fontSize:12}}>...</div>}>
+            <Suspense fallback={<div className="text-center text-white/60 py-12" style={{fontFamily:"Inter,system-ui",fontSize:12}}>...</div>}>
               <Constellations lang={lang}/>
             </Suspense>
           )}
@@ -730,14 +785,14 @@ export default function Teseo() {
           {/* Footer */}
           <footer className="mt-8 mb-10 text-center">
             <a href="https://yachaydeep.com" target="_blank" rel="noopener noreferrer"
-              className="inline-block text-white/30 hover:text-white/60 transition-all tracking-widest uppercase"
-              style={{fontFamily:"Inter,system-ui",fontSize:9}}>
+              className="inline-block text-white/60 hover:text-white/90 transition-all tracking-widest uppercase"
+              style={{fontFamily:"Inter,system-ui",fontSize: 12}}>
               desarrollado por Yachay Deep Labs
             </a>
-            <span className="text-white/15" style={{fontSize:9}}> · </span>
+            <span className="text-white/60" style={{fontSize: 12}}> · </span>
             <button onClick={()=>setShowCredits(true)}
-              className="text-white/30 hover:text-white/60 transition-all tracking-widest uppercase"
-              style={{fontFamily:"Inter,system-ui",fontSize:9,background:"transparent",border:"none",cursor:"pointer"}}>
+              className="text-white/60 hover:text-white/90 transition-all tracking-widest uppercase"
+              style={{fontFamily:"Inter,system-ui",fontSize: 12,background:"transparent",border:"none",cursor:"pointer"}}>
               {lang==="es"?"créditos y datos":"credits & data"}
             </button>
           </footer>
@@ -748,9 +803,9 @@ export default function Teseo() {
             style={{background:"#090E1C",border:"1px solid rgba(124,58,237,0.3)",maxHeight:"82vh",overflowY:"auto"}}>
             <div className="flex items-start justify-between mb-3">
               <h2 style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:24,color:"#fff"}}>{lang==="es"?"Créditos y fuentes de datos":"Credits & data sources"}</h2>
-              <button onClick={()=>setShowCredits(false)} className="text-white/40 hover:text-white/80" style={{fontSize:18}}>✕</button>
+              <button onClick={()=>setShowCredits(false)} className="text-white/60 hover:text-white/90" style={{fontSize:18}}>✕</button>
             </div>
-            <p style={{fontFamily:"Inter,system-ui",fontSize:11,color:"rgba(255,255,255,0.5)",marginBottom:12}}>
+            <p style={{fontFamily:"Inter,system-ui",fontSize: 12,color:"rgba(255,255,255,0.72)",marginBottom:12}}>
               {lang==="es"?"Teseo usa datos reales de fuentes oficiales. Código MIT.":"Teseo uses real data from official sources. MIT code."}
             </p>
             {[
@@ -768,11 +823,11 @@ export default function Teseo() {
               ["Render 3D","Three.js · MIT"],
             ].map(([k,v])=>(
               <div key={k} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-                <span style={{fontFamily:"Inter,system-ui",fontSize:11,color:"rgba(255,255,255,0.8)"}}>{k}</span>
-                <span style={{fontFamily:"Inter,system-ui",fontSize:10,color:"rgba(255,255,255,0.4)",textAlign:"right"}}>{v}</span>
+                <span style={{fontFamily:"Inter,system-ui",fontSize: 12,color:"rgba(255,255,255,0.8)"}}>{k}</span>
+                <span style={{fontFamily:"Inter,system-ui",fontSize: 12,color:"rgba(255,255,255,0.62)",textAlign:"right"}}>{v}</span>
               </div>
             ))}
-            <p style={{fontFamily:"Inter,system-ui",fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:12,lineHeight:1.5}}>
+            <p style={{fontFamily:"Inter,system-ui",fontSize: 12,color:"rgba(255,255,255,0.62)",marginTop:12,lineHeight:1.5}}>
               {lang==="es"?"Las distancias de objetos lejanos y púlsares son valores publicados con incertidumbre; se muestran como aproximaciones.":"Distances to deep-sky objects and pulsars are published values with uncertainty; shown as approximations."}
             </p>
           </div>
