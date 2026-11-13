@@ -287,6 +287,39 @@
 .sk-error { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; padding: 20px; }
 .sk-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
+/* apuntar al cielo: invitación, indicador del modo activo y aviso */
+.sk-exp { font-style: normal; font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 7px; border-radius: 999px; border: 1px solid rgba(242, 198, 109, 0.55); color: var(--gold); background: rgba(242, 198, 109, 0.1); line-height: 1.1; white-space: nowrap; }
+.sk-ar { position: absolute; z-index: 22; left: 10px; right: 10px; bottom: calc(86px + var(--sk-safe, 0px) + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; animation: sk-rise 0.3s var(--ease); }
+.sk-ar.is-on, .sk-ar.is-error { padding: 10px 10px 10px 12px; border-radius: 18px; background: var(--ink); border: 1px solid rgba(125, 180, 255, 0.55); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5); }
+.sk-ar.is-cta { justify-items: center; pointer-events: none; }
+.sk-ar-cta { pointer-events: auto; display: inline-flex; align-items: center; gap: 9px; min-height: 48px; max-width: 100%; padding: 0 14px 0 16px; border-radius: 999px; background: var(--ink) !important; border: 1px solid rgba(125, 180, 255, 0.6) !important; color: var(--text) !important; font-size: 15px; font-weight: 500; -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); transition: border-color 0.15s, transform 0.1s; }
+.sk-ar-cta svg { color: var(--blue); flex: none; }
+.sk-ar-cta:hover { border-color: var(--blue) !important; }
+.sk-ar-cta:active { transform: scale(0.97); }
+.sk-ar-main { display: flex; align-items: center; gap: 10px; }
+.sk-ar-icon { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 12px; color: var(--blue); background: rgba(125, 180, 255, 0.12); }
+.sk-ar-read { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.sk-ar-read strong { font-family: var(--serif); font-size: 21px; font-weight: 600; line-height: 1.05; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-ar-read span { font-size: 13px; color: var(--mute); line-height: 1.25; font-variant-numeric: tabular-nums; }
+.sk-ar.is-below { border-color: rgba(242, 198, 109, 0.6); }
+.sk-ar.is-below .sk-ar-icon { color: var(--gold); background: rgba(242, 198, 109, 0.12); }
+.sk-ar.is-below .sk-ar-read span { color: var(--gold); }
+.sk-ar-exit { flex: none; min-height: 48px; padding: 0 16px; font-size: 15px; }
+.sk-ar-help { display: flex; align-items: center; gap: 10px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.sk-ar-help p { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.35; color: var(--mute); margin: 0; }
+.sk-ar-help .sk-btn { flex: none; font-size: 13px; padding: 0 12px; white-space: normal; max-width: 44%; line-height: 1.15; text-align: left; }
+.sk-ar.is-error { border-color: rgba(252, 165, 165, 0.5); }
+.sk-ar.is-error p { display: flex; gap: 9px; margin: 0; font-size: 13.5px; line-height: 1.4; color: #fecaca; }
+.sk-ar.is-error p svg { flex: none; margin-top: 1px; }
+.sk-ar-row { display: flex; justify-content: flex-end; gap: 8px; }
+.sk-point-card { display: grid; gap: 8px; padding: 10px; border-radius: 16px; border: 1px solid rgba(125, 180, 255, 0.35); background: rgba(125, 180, 255, 0.06); }
+.sk-point-card p { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--mute); }
+.sk-point-card.is-armed { border-color: var(--blue); }
+.sk-point-card.is-armed p { color: #d8e8ff; }
+.sk-point-btn { min-height: 48px; font-size: 15px; border-color: rgba(125, 180, 255, 0.55) !important; }
+.sk-point-btn svg { color: var(--blue); }
+.sk-point-btn[aria-pressed="true"] { background: rgba(125, 180, 255, 0.16) !important; }
+
 /* móvil: con una hoja abierta el dock se oculta y el riel sube */
 @media (max-width: 899.98px) {
   .sk-stage.is-covered .sk-dock, .sk-stage.is-covered .sk-depth, .sk-stage.is-covered .sk-onboard { opacity: 0; pointer-events: none; }
@@ -295,6 +328,9 @@
   .sk-stage.is-covered .sk-chips { display: none; }
   .sk-stage.has-tour .sk-rail { top: 72px; transform: none; }
   .sk-stage.has-depth .sk-rail { top: 72px; transform: none; }
+  /* con una hoja abierta, el indicador sube bajo el buscador (compacto) para que "Salir" siga a mano */
+  .sk-stage.is-covered .sk-ar { top: 68px; bottom: auto; right: 64px; animation: none; }
+  .sk-stage.is-covered .sk-ar .sk-ar-help { display: none; }
 }
 
 /* escritorio / proyector */
@@ -309,6 +345,8 @@
   .sk-stage.has-sheet .sk-dock, .sk-stage.has-sheet .sk-tour, .sk-stage.has-sheet .sk-depth, .sk-stage.has-sheet .sk-onboard { left: calc((100% - 416px) / 2); }
   .sk-dock-item { flex-direction: row; gap: 9px; min-height: 50px; padding: 0 18px; border-radius: 16px; }
   .sk-dock-label { font-size: 14.5px; }
+  .sk-ar { left: 50%; right: auto; width: 520px; max-width: calc(100% - 32px); transform: translateX(-50%); bottom: calc(92px + var(--sk-safe, 0px)); animation-name: sk-fade-c; }
+  .sk-stage.has-sheet .sk-ar { left: calc((100% - 416px) / 2); }
   .sk-label { font-size: 15px; }
   .sk-label-con { font-size: 14px; }
   .sk-label-solar { font-size: 17px; }

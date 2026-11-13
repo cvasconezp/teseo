@@ -25,6 +25,8 @@ const P = {
   down: <path d="m6 9.5 6 6 6-6" />,
   hand: <><path d="M9 11.5V5.2a1.6 1.6 0 0 1 3.2 0v5" /><path d="M12.2 10.2V8.6a1.6 1.6 0 0 1 3.2 0v2.2" /><path d="M15.4 11V9.9a1.5 1.5 0 0 1 3 0v4.6c0 3.6-2.4 6-6 6-2.6 0-4-1.1-5.3-3.3L5 13.6a1.5 1.5 0 0 1 2.6-1.5l1.4 2" /></>,
   sun: <><circle cx="12" cy="12" r="3.8" /><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7" /></>,
+  // teléfono levantado hacia una estrella (modo "Apuntar al cielo")
+  point: <><rect x="4.5" y="9" width="8.5" height="12.5" rx="1.8" transform="rotate(-18 8.75 15.25)" /><path d="M17.5 2.8v5M15 5.3h5" /><path d="M20 11.5v2.6M18.7 12.8h2.6" strokeWidth="1.3" /></>,
   constellation: <><circle cx="5" cy="7" r="1.4" fill="currentColor" /><circle cx="11" cy="11" r="1.4" fill="currentColor" /><circle cx="18" cy="6" r="1.4" fill="currentColor" /><circle cx="15" cy="18" r="1.4" fill="currentColor" /><path d="m5 7 6 4 7-5M11 11l4 7" strokeWidth="1.1" /></>,
 };
 
