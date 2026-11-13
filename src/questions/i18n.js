@@ -5,6 +5,22 @@
 
 export const TQ = {
   es: {
+    // ── Índice de recorridos ──
+    indexTitle: "Preguntas",
+    indexLead: "Cuatro preguntas grandes y lo que de verdad sabemos de cada una. En todas hay algo que mover con el dedo: los números salen de mediciones publicadas y la cuenta se hace en tu teléfono.",
+    indexLegend: "Cada dato lleva una de estas tres etiquetas",
+    indexOpen: "Abrir el recorrido",
+    allQuestions: "Todas las preguntas",
+    tourLoading: "Cargando el recorrido…",
+    tourError: "Este recorrido no terminó de cargar. Revisa tu conexión.",
+    tourRetry: "Reintentar",
+    tours: {
+      bh: { title: "¿Qué pasa cerca de un agujero negro?", teaser: "Elige una masa, de la Tierra a un cuásar, y mira cuánto mide su horizonte y cuánto se frena el tiempo a su lado.", tag: "Calculadora de horizonte, tiempo y mareas" },
+      expansion: { title: "¿El universo se expande?", teaser: "Ajusta una recta sobre 36 supernovas reales y obtén la edad del universo. Luego quita la energía oscura y mira qué cambia.", tag: "Diagrama de Hubble con datos publicados" },
+      dm: { title: "¿De qué está hecho el universo?", teaser: "Las estrellas del borde de una galaxia giran demasiado rápido. Añade masa invisible hasta que la cuenta cuadre con lo medido.", tag: "Curva de rotación real de NGC 3198" },
+      drake: { title: "¿Estamos solos?", teaser: "Siete números para ordenar la pregunta. Tres se han medido; de los otros cuatro nadie sabe nada.", tag: "Ecuación de Drake, Fermi y Kardashov" },
+    },
+    // ── ¿Estamos solos? ──
     title: "¿Estamos solos?",
     lead: "En 1961 Frank Drake escribió una multiplicación para ordenar la pregunta. No da una respuesta: muestra qué sabemos y qué no. Mueve cada factor y mira qué le pasa al resultado.",
     eqAria: "Ecuación de Drake con tus valores",
@@ -118,6 +134,22 @@ export const TQ = {
   },
 
   en: {
+    // ── Tour index ──
+    indexTitle: "Questions",
+    indexLead: "Four big questions and what we actually know about each. Every one has something to move with your finger: the numbers come from published measurements and the arithmetic runs on your phone.",
+    indexLegend: "Every figure carries one of these three labels",
+    indexOpen: "Open the tour",
+    allQuestions: "All questions",
+    tourLoading: "Loading the tour…",
+    tourError: "This tour did not finish loading. Check your connection.",
+    tourRetry: "Try again",
+    tours: {
+      bh: { title: "What happens near a black hole?", teaser: "Pick a mass, from Earth to a quasar, and see how big its horizon is and how much time slows beside it.", tag: "Horizon, time and tide calculator" },
+      expansion: { title: "Is the universe expanding?", teaser: "Fit a line through 36 real supernovae and get the age of the universe. Then remove dark energy and see what changes.", tag: "Hubble diagram with published data" },
+      dm: { title: "What is the universe made of?", teaser: "Stars at the edge of a galaxy orbit too fast. Add unseen mass until the sums match what was measured.", tag: "Real rotation curve of NGC 3198" },
+      drake: { title: "Are we alone?", teaser: "Seven numbers to frame the question. Three have been measured; nobody knows anything about the other four.", tag: "Drake equation, Fermi and Kardashev" },
+    },
+    // ── Are we alone? ──
     title: "Are we alone?",
     lead: "In 1961 Frank Drake wrote down a multiplication to organise the question. It gives no answer: it shows what we know and what we don't. Move each factor and watch what happens to the result.",
     eqAria: "Drake equation with your values",
