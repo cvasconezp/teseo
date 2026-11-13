@@ -7,11 +7,18 @@ const Constellations = lazy(loadSky);
 const loadQuestions = () => import("./questions/Questions.jsx");
 const QuestionsLazy = lazy(loadQuestions);
 import QuestionsBoundary from "./questions/Boundary.jsx";
+// "Ahora en el espacio": lanzamientos, naves a Marte y asteroides, en su chunk.
+const loadNow = () => import("./now/Now.jsx");
+const NowLazy = lazy(loadNow);
+import SectionBoundary from "./ui/SectionBoundary.jsx";
 import CosmicScale from "./CosmicScale.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
 import PlanetSphere from "./ui/PlanetSphere.jsx";
 import { AU_KM, helioPosition, approxDistanceKm, hohmannLocal, launchWindowsLocal } from "./ui/orbits.js";
+import { DAY_MS, parseISO, daysUntil, durationParts, relParts } from "./ui/time.js";
+import { parseHash, hashBelongsTo, hashForTab } from "./ui/hash.js";
+import { track } from "./ui/track.js";
 import {
   IconRoute, IconWindows, IconSky, IconScale, IconLight, IconProbe, IconRocket, IconPlane,
   IconSwap, IconChevron, IconRetry, IconClose, IconInfo, IconArrow,
@@ -22,8 +29,6 @@ import {
 // En producción apunta al backend en Railway/Render.
 // En desarrollo, Vite proxea /api → localhost:8000
 const API = import.meta.env.VITE_API_URL || "";
-
-const DAY_MS = 86400000;
 
 // ─── i18n ────────────────────────────────────────────────────────────────────
 // Todo texto visible vive aquí, en ES y EN. Las entradas con datos variables
@@ -151,6 +156,16 @@ const T = {
     computing:      "Finding the next alignments…",
     loadingSky:     "Loading the 3D sky…",
 
+    // Ahora en el espacio (entrada; el contenido vive en src/now/)
+    nowTitle:       "Right now in space",
+    nowSub:         "Upcoming launches, spacecraft bound for Mars and asteroids passing nearby. Live data.",
+    nowShow:        "Show",
+    nowHide:        "Hide",
+    nowLoading:     "Loading live data…",
+    nowErrTitle:    "This section could not be shown",
+    nowErrBody:     "“Right now in space” failed to load. Check your connection and try again; the rest of Teseo keeps working.",
+    skipToContent:  "Skip to content",
+
     // Pie y créditos
     madeBy:         "Made by Yachay Deep Labs",
     creditsLink:    "Credits and data",
@@ -168,6 +183,8 @@ const T = {
       ["Planet positions", "NASA JPL Horizons + ephemerides"],
       ["Comets and probes (live)", "NASA JPL Horizons"],
       ["Exoplanets", "NASA Exoplanet Archive"],
+      ["Upcoming launches", "Launch Library 2 · The Space Devs"],
+      ["Near-Earth asteroids", "NASA/JPL CNEOS"],
       ["Planetary textures", "Solar System Scope (CC BY 4.0), NASA"],
       ["Fact sheets and images", "Wikipedia · CC BY-SA"],
       ["Narrative", "Groq (Llama models)"],
@@ -289,6 +306,15 @@ const T = {
     computing:      "Buscando las próximas alineaciones…",
     loadingSky:     "Cargando el cielo en 3D…",
 
+    nowTitle:       "Ahora en el espacio",
+    nowSub:         "Próximos lanzamientos, naves rumbo a Marte y asteroides que pasan cerca. Datos en vivo.",
+    nowShow:        "Ver",
+    nowHide:        "Ocultar",
+    nowLoading:     "Cargando datos en vivo…",
+    nowErrTitle:    "No se pudo mostrar esta sección",
+    nowErrBody:     "“Ahora en el espacio” no terminó de cargar. Revisa tu conexión y vuelve a intentarlo; el resto de Teseo sigue funcionando.",
+    skipToContent:  "Saltar al contenido",
+
     madeBy:         "Desarrollado por Yachay Deep Labs",
     creditsLink:    "Créditos y datos",
     creditsTitle:   "Créditos y fuentes de datos",
@@ -305,6 +331,8 @@ const T = {
       ["Posición de planetas", "NASA JPL Horizons + efemérides"],
       ["Cometas y sondas (en vivo)", "NASA JPL Horizons"],
       ["Exoplanetas", "NASA Exoplanet Archive"],
+      ["Próximos lanzamientos", "Launch Library 2 · The Space Devs"],
+      ["Asteroides cercanos", "NASA/JPL CNEOS"],
       ["Texturas planetarias", "Solar System Scope (CC BY 4.0), NASA"],
       ["Fichas e imágenes", "Wikipedia · CC BY-SA"],
       ["Narrativa", "Groq (modelos Llama)"],
@@ -344,12 +372,6 @@ function pname(p, lang) { return lang === "es" ? p.es : p.en; }
 // Con artículo cuando el español lo pide ("a la Tierra", "de la Tierra")
 function pnameArt(p, lang) { return lang === "es" ? (p.esArt || p.es) : p.en; }
 
-// El backend manda fechas ISO en UTC sin sufijo; sin la "Z" el navegador las
-// leería como hora local y el día podría bailar.
-function parseISO(s) {
-  if (s instanceof Date) return s;
-  return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(s) ? s : `${s}Z`);
-}
 function fmtDate(d, lang, style = "long") {
   const opts = style === "long"
     ? { day: "numeric", month: "long", year: "numeric" }
@@ -358,25 +380,14 @@ function fmtDate(d, lang, style = "long") {
       : { day: "numeric", month: "short", year: "numeric" };
   return parseISO(d).toLocaleDateString(loc(lang), { ...opts, timeZone: "UTC" });
 }
-// Días de calendario (UTC) que faltan hasta una fecha
-function daysUntil(d, now = Date.now()) {
-  return Math.max(0, Math.floor(+parseISO(d) / DAY_MS) - Math.floor(now / DAY_MS));
-}
-
 // Duración en lenguaje humano: "8 meses y medio" / "8½ months"
 function humanDuration(days, lang) {
   const t = T[lang];
-  const build = (n, half, unitFn) => {
-    const plural = lang === "es" ? n !== 1 : (n !== 1 || half);
-    const unit = unitFn(plural ? 2 : 1);
-    return lang === "es" ? `${n} ${unit}${half ? t.half : ""}` : `${n}${half ? t.half : ""} ${unit}`;
-  };
-  if (days < 45) return build(Math.max(1, Math.round(days)), false, t.unitDay);
-  const months = days / 30.4375;
-  if (months < 11.75) { const r = Math.round(months * 2) / 2; return build(Math.floor(r), r % 1 !== 0, t.unitMonth); }
-  const years = days / 365.25;
-  if (years < 10) { const r = Math.round(years * 2) / 2; return build(Math.floor(r), r % 1 !== 0, t.unitYear); }
-  return build(Math.round(years), false, t.unitYear);
+  const { n, half, unit } = durationParts(days);
+  const unitFn = unit === "day" ? t.unitDay : unit === "month" ? t.unitMonth : t.unitYear;
+  const plural = lang === "es" ? n !== 1 : (n !== 1 || half);
+  const word = unitFn(plural ? 2 : 1);
+  return lang === "es" ? `${n} ${word}${half ? t.half : ""}` : `${n}${half ? t.half : ""} ${word}`;
 }
 
 // Tiempo de un trayecto a velocidad constante, en palabras
@@ -416,13 +427,13 @@ const reducedMotion = () => {
 
 const META = {
   es: {
-    title: "Teseo — Navegación Interplanetaria",
-    description: "Navegación interplanetaria real: transferencias de Hohmann, ventanas de lanzamiento y posiciones planetarias en vivo con datos de NASA JPL.",
+    title: "Teseo — Planetario y navegación interplanetaria",
+    description: "Planetario 3D y navegación interplanetaria con datos reales: tu cielo de esta noche, rutas y ventanas de lanzamiento a los planetas, próximos lanzamientos y asteroides cercanos.",
     locale: "es_EC",
   },
   en: {
-    title: "Teseo — Interplanetary Navigation",
-    description: "Real interplanetary navigation: Hohmann transfers, launch windows and live planetary positions with NASA JPL data.",
+    title: "Teseo — Planetarium and interplanetary navigation",
+    description: "A 3D planetarium and interplanetary navigation with real data: your sky tonight, routes and launch windows to the planets, upcoming launches and nearby asteroids.",
     locale: "en_US",
   },
 };
@@ -870,11 +881,14 @@ function RouteAnswer({ from, to, lang, route, loading, onSeeWindows }) {
         <span className="answer__thread"/>
         <PlanetSphere id={to.id} size={68}/>
       </div>
-      <h2 id="answer-q" className="answer__q">{t.answerQ(pnameArt(to, lang))}</h2>
-      <p className="answer__big">
-        <span className="answer__about">{t.about}</span>
-        <span className="answer__value">{humanDuration(days, lang)}</span>
-      </p>
+      {/* región viva: al cambiar de destino se anuncia la nueva respuesta */}
+      <div aria-live="polite" aria-atomic="true">
+        <h2 id="answer-q" className="answer__q">{t.answerQ(pnameArt(to, lang))}</h2>
+        <p className="answer__big">
+          <span className="answer__about">{t.about}</span>
+          <span className="answer__value">{humanDuration(days, lang)}</span>
+        </p>
+      </div>
       <p className="answer__sub">
         {t.answerSub(nf(days, lang, 0))}
         <Term k="hohmann" lang={lang}>{t.hohmannTerm}</Term>.
@@ -986,9 +1000,10 @@ function TechDetails({ lang, route, distKm, distReal }) {
 
 function relTime(days, lang) {
   const t = T[lang];
-  if (days < 60) return `${nf(days, lang)} ${t.unitDay(days)}`;
-  if (days < 700) { const m = Math.round(days / 30.4375); return `${m} ${t.unitMonth(m)}`; }
-  return `${nf(days / 365.25, lang, 1)} ${t.unitYear(2)}`;
+  const { n, unit } = relParts(days);
+  if (unit === "day") return `${nf(n, lang)} ${t.unitDay(n)}`;
+  if (unit === "month") return `${n} ${t.unitMonth(n)}`;
+  return `${nf(n, lang, 1)} ${t.unitYear(2)}`;
 }
 
 function LaunchWindows({ from, to, lang, attempt, onError, notice }) {
@@ -1027,6 +1042,7 @@ function LaunchWindows({ from, to, lang, attempt, onError, notice }) {
     <div className="stack">
       <section className="countdown" aria-labelledby="win-next">
         <div className="countdown__sphere" aria-hidden="true"><PlanetSphere id={to.id} size={112}/></div>
+        <div aria-live="polite" aria-atomic="true">
         <h2 id="win-next" className="countdown__title">{t.winNext(A, B)}</h2>
         {left > 0 ? (
           <p className="countdown__big">
@@ -1039,6 +1055,7 @@ function LaunchWindows({ from, to, lang, attempt, onError, notice }) {
             <span className="countdown__unit">{t.winTodaySub}</span></p>
         )}
         <p className="countdown__date">{fmtDate(next.departure_date, lang, "weekday")}</p>
+        </div>
 
         <dl className="dates dates--window">
           <div className="dates__cell"><dt>{t.winDeparture}</dt><dd>{fmtDate(next.departure_date, lang, "short")}</dd></div>
@@ -1103,9 +1120,6 @@ const TABS = [
   { id:"scale",   Icon:IconScale },
   { id:"questions", Icon:IconQuestions },
 ];
-// Enlaces profundos de la pestaña Preguntas: #preguntas… (ES) o #questions… (EN)
-const QUESTIONS_HASH = /^#(preguntas|questions)\b/;
-
 function Tabs({ tab, onChange, lang }) {
   const t = T[lang];
   const refs = useRef({});
@@ -1145,10 +1159,19 @@ function CreditsModal({ lang, onClose }) {
   const t = T[lang];
   const closeRef = useRef(null);
   useEffect(()=>{
+    // el foco entra al diálogo, no sale con Tab (solo hay un control) y al
+    // cerrar vuelve a donde estaba
+    const before = document.activeElement;
     closeRef.current?.focus();
-    const onKey = e => { if (e.key === "Escape") onClose(); };
+    const onKey = e => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "Tab") { e.preventDefault(); closeRef.current?.focus(); }
+    };
     document.addEventListener("keydown", onKey);
-    return ()=>document.removeEventListener("keydown", onKey);
+    return ()=>{
+      document.removeEventListener("keydown", onKey);
+      try { if (before && before.isConnected && typeof before.focus === "function") before.focus(); } catch { /* no-op */ }
+    };
   },[onClose]);
   return (
     <div className="modal" onClick={onClose}>
@@ -1172,24 +1195,105 @@ function CreditsModal({ lang, onClose }) {
   );
 }
 
+// ─── AHORA EN EL ESPACIO (entrada) ───────────────────────────────────────────
+// Aquí solo vive la puerta: el contenido (src/now/) se descarga al abrirla.
+
+// Acceso desde Ruta: lleva a la sección, ya abierta, en la pestaña Ventanas
+function NowTeaser({ lang, onOpen }) {
+  const t = T[lang];
+  return (
+    <button type="button" className="now-teaser" onClick={onOpen}>
+      <span className="now-teaser__live" aria-hidden="true"/>
+      <span className="now-teaser__text">
+        <span className="now-teaser__title">{t.nowTitle}</span>
+        <span className="now-teaser__sub">{t.nowSub}</span>
+      </span>
+      <IconArrow className="now-teaser__arrow" width={20} height={20}/>
+    </button>
+  );
+}
+
+function NowSection({ lang, open, onToggle, View, onRetry, sectionRef }) {
+  const t = T[lang];
+  return (
+    <section ref={sectionRef} id="now" className={`now ${open ? "is-open" : ""}`} aria-labelledby="now-h">
+      <h2 id="now-h" className="now__h">
+        <button type="button" className="now__toggle" aria-expanded={open} aria-controls="now-body" onClick={onToggle}>
+          <span className="now-teaser__live" aria-hidden="true"/>
+          <span className="now__text">
+            <span className="now__title">{t.nowTitle}</span>
+            <span className="now__sub">{t.nowSub}</span>
+          </span>
+          <span className="now__state">
+            <span>{open ? t.nowHide : t.nowShow}</span>
+            <IconChevron className="now__chev" width={18} height={18}/>
+          </span>
+        </button>
+      </h2>
+      <div id="now-body" className="now__body" hidden={!open}>
+        {open && (
+          <SectionBoundary name="Ahora en el espacio" onReset={onRetry} title={t.nowErrTitle} message={t.nowErrBody} retryLabel={t.retry}>
+            <Suspense fallback={<p role="status" className="loading">{t.nowLoading}</p>}>
+              <View lang={lang} api={API}/>
+            </Suspense>
+          </SectionBoundary>
+        )}
+      </div>
+    </section>
+  );
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 export default function Teseo() {
-  const [intro,    setIntro]    = useState(true);
+  const [intro,    setIntro]    = useState(()=>!reducedMotion());   // con «reducir movimiento» no hay intro animada
   const [showCredits, setShowCredits] = useState(false);
   const [lang,     setLang]     = useState(initialLang);
   useEffect(() => { applyLangToDocument(lang); try { localStorage.setItem("teseo-lang", lang); } catch { /* no-op */ } }, [lang]);
   const [from,     setFrom]     = useState(PLANETS[2]); // Earth
   const [to,       setTo]       = useState(PLANETS[3]); // Mars
   const [tab,      setTab]      = useState("route");
-  // abrir en la pestaña Cielo si el enlace compartido lo indica (#sky...)
-  useEffect(() => { try { if ((window.location.hash || "").startsWith("#sky")) setTab("sky"); } catch { /* no-op */ } }, []);
-  // …o en Preguntas (#preguntas / #questions), también si el hash cambia con la app abierta
+  // "Ahora en el espacio": abierta o no, y un contador para llevar la vista hasta ella
+  const [nowOpen,  setNowOpen]  = useState(false);
+  const [nowFocus, setNowFocus] = useState(0);
+  const nowRef = useRef(null);
+  // Enlaces directos (#ventanas, #escala, #preguntas?…, #sky?…, #ahora…): al
+  // cargar y cada vez que cambia el hash con la app abierta. Lo que sigue al
+  // nombre lo lee cada pestaña; aquí solo se elige cuál mostrar.
   useEffect(() => {
-    const check = () => { try { if (QUESTIONS_HASH.test(window.location.hash || "")) setTab("questions"); } catch { /* no-op */ } };
+    const check = () => {
+      let target = null;
+      try { target = parseHash(window.location.hash); } catch { /* no-op */ }
+      if (!target) return;
+      setTab(target.tab);
+      if (target.now) { setNowOpen(true); setNowFocus(n => n + 1); track("now_open", { source: "link" }); }
+    };
     check();
     window.addEventListener("hashchange", check);
     return () => window.removeEventListener("hashchange", check);
+  }, []);
+  // El visor del Cielo abre los créditos desde su menú con este evento
+  useEffect(() => {
+    const open = () => setShowCredits(true);
+    window.addEventListener("teseo:credits", open);
+    return () => window.removeEventListener("teseo:credits", open);
+  }, []);
+  // Alto del aviso de cookies (si está): el pie deja ese hueco para no quedar tapado
+  useEffect(() => {
+    const root = document.documentElement;
+    const measure = () => {
+      const el = document.getElementById("yd-cookies");
+      const h = el ? Math.round(el.getBoundingClientRect().height) : 0;
+      root.style.setProperty("--cookie-h", `${h}px`);
+    };
+    measure();
+    const mo = typeof MutationObserver !== "undefined" ? new MutationObserver(measure) : null;
+    if (mo) mo.observe(document.body, { childList: true });
+    const el = document.getElementById("yd-cookies");
+    const ro = typeof ResizeObserver !== "undefined" && el ? new ResizeObserver(measure) : null;
+    if (ro) ro.observe(el);
+    window.addEventListener("resize", measure);
+    return () => { if (mo) mo.disconnect(); if (ro) ro.disconnect(); window.removeEventListener("resize", measure); };
   }, []);
   const [backend,  setBackend]  = useState(null);
   const [loadingB, setLoadingB] = useState(false);
@@ -1210,6 +1314,9 @@ export default function Teseo() {
   // Preguntas: mismo patrón (lazy recreable)
   const [QuestionsView, setQuestionsView] = useState(()=>QuestionsLazy);
   const retryQuestions = useCallback(()=>setQuestionsView(()=>lazy(loadQuestions)),[]);
+  // Ahora en el espacio: mismo patrón
+  const [NowView, setNowView] = useState(()=>NowLazy);
+  const retryNow = useCallback(()=>setNowView(()=>lazy(loadNow)),[]);
 
   const t = T[lang];
   const onDone = useCallback(()=>setIntro(false),[]);
@@ -1307,10 +1414,75 @@ export default function Teseo() {
     if (tab==="windows" && winError) setWinTry(n=>n+1);
   };
 
+  // El hash acompaña a la pestaña (para compartir o recargar donde estabas),
+  // sin pisar el estado que el Cielo y Preguntas guardan tras su nombre.
+  const syncHash = useCallback((id, now = false)=>{
+    try {
+      const cur = window.location.hash || "";
+      if (!now && hashBelongsTo(cur, id) && !parseHash(cur).now) return;
+      const h = hashForTab(id, lang, now);
+      if (h === cur) return;
+      window.history.replaceState(null, "", h || `${window.location.pathname}${window.location.search}`);
+    } catch { /* no-op */ }
+  },[lang]);
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
   const changeTab = useCallback(id=>{
+    if (tabRef.current !== id) track("tab_change", { tab: id });
     setTab(id);
+    syncHash(id);
     try { if (window.scrollY > 120) window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" }); } catch { /* no-op */ }
-  },[]);
+  },[syncHash]);
+  // Abrir "Ahora en el espacio" (vive en Ventanas) y llevar la vista hasta allí
+  const openNow = useCallback(source=>{
+    setTab("windows"); setNowOpen(true); setNowFocus(n=>n+1);
+    syncHash("windows", true);
+    track("now_open", { source });
+  },[syncHash]);
+  const toggleNow = useCallback(()=>{
+    if (!nowOpen) track("now_open", { source: "windows" });
+    setNowOpen(!nowOpen);
+  },[nowOpen]);
+  useEffect(()=>{
+    if (!nowFocus || tab !== "windows") return;
+    // Lleva la cabecera de la sección bajo las pestañas fijas. Mientras llegan
+    // las ventanas y el chunk, la página cambia de alto: se realinea durante un
+    // par de segundos, salvo que la persona ya esté desplazándose por su cuenta.
+    let live = true;
+    const align = smooth=>{
+      const el = nowRef.current;
+      if (!live || !el) return;
+      try {
+        const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 70);
+        if (Math.abs(y - window.scrollY) > 2) window.scrollTo({ top: y, behavior: smooth && !reducedMotion() ? "smooth" : "auto" });
+      } catch { /* no-op */ }
+    };
+    const raf = requestAnimationFrame(()=>{
+      align(true);
+      try { nowRef.current?.querySelector(".now__toggle")?.focus({ preventScroll: true }); } catch { /* no-op */ }
+    });
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(()=>align(false)) : null;
+    if (ro) ro.observe(document.body);
+    const stop = ()=>{ live = false; if (ro) ro.disconnect(); };
+    const timer = setTimeout(stop, 2500);
+    const opts = { passive: true };
+    window.addEventListener("wheel", stop, opts); window.addEventListener("touchstart", stop, opts); window.addEventListener("keydown", stop);
+    return ()=>{
+      cancelAnimationFrame(raf); clearTimeout(timer); stop();
+      window.removeEventListener("wheel", stop, opts); window.removeEventListener("touchstart", stop, opts); window.removeEventListener("keydown", stop);
+    };
+  },[nowFocus, tab]);
+  // Analítica anónima (solo con consentimiento): cambio de destino
+  const firstPair = useRef(true);
+  useEffect(()=>{
+    if (firstPair.current) { firstPair.current = false; return; }
+    track("destination_change", { origin: from.id, destination: to.id });
+  },[from.id, to.id]);
+  const toggleLang = useCallback(()=>{
+    const n = lang === "en" ? "es" : "en";
+    track("language_change", { lang: n });
+    setLang(n);
+  },[lang]);
   // Desde Preguntas: abrir el Cielo con la capa de exoplanetas activada
   // (Constellations lee `L=` del hash al montarse).
   const seeExoplanetsInSky = useCallback(()=>{
@@ -1331,18 +1503,21 @@ export default function Teseo() {
     <>
       {intro && <Intro lang={lang} onDone={onDone}/>}
 
-      <div className="min-h-screen bg-[#04080F] text-white relative">
+      <div className={`app app--${tab}`}>
         <SpaceTravel/>
 
-        <div className="relative z-10">
+        <div className="app__body">
+          <a className="skip-link" href={`#panel-${tab}`}
+            onClick={e=>{ e.preventDefault(); document.getElementById(`panel-${tab}`)?.focus(); }}>
+            {t.skipToContent}
+          </a>
           {/* Cabecera */}
           <header className="shell flex items-center justify-between pt-4 pb-2">
             <div>
               <h1 className="wordmark" style={{fontSize:30}}>Teseo</h1>
               <p className="tagline">{t.tagline}</p>
             </div>
-            <button type="button" className="lang" aria-label={t.switchLang}
-              onClick={()=>setLang(l=>l==="en"?"es":"en")}>
+            <button type="button" className="lang" aria-label={t.switchLang} onClick={toggleLang}>
               <span className={lang==="es" ? "is-on" : ""} aria-hidden="true">ES</span>
               <span className={lang==="en" ? "is-on" : ""} aria-hidden="true">EN</span>
             </button>
@@ -1351,10 +1526,11 @@ export default function Teseo() {
           {/* Navegación principal: siempre visible */}
           <Tabs tab={tab} onChange={changeTab} lang={lang}/>
 
-          <main className="shell pt-4">
+          <main className="shell app__main pt-4">
             <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} tabIndex={-1} className="panel">
 
               {navigator_ && (
+                <div className="nav-wrap">
                 <div className={`nav-grid nav-grid--${tab}`}>
                     {/* Origen y destino */}
                     <div className="picks nav-grid__picks">
@@ -1393,6 +1569,8 @@ export default function Teseo() {
                         </figure>
                       )}
 
+                      <NowTeaser lang={lang} onOpen={()=>openNow("route")}/>
+
                       <VehicleCompare from={from} to={to} lang={lang} distKm={distKm}/>
                       <TechDetails lang={lang} route={route} distKm={distKm} distReal={!!realDist}/>
                     </>)}
@@ -1401,6 +1579,15 @@ export default function Teseo() {
                       <LaunchWindows from={from} to={to} lang={lang} attempt={winTry} onError={setWinError} notice={notice}/>
                     )}
                   </div>
+
+                </div>
+                  {/* Fuera de la rejilla: así el mapa fijo (sticky) de escritorio no la pisa.
+                      En móvil va antes del mapa (ver .nav-wrap en index.css). */}
+                  {tab==="windows" && (
+                    <div className="nav-wrap__now">
+                      <NowSection lang={lang} open={nowOpen} onToggle={toggleNow} View={NowView} onRetry={retryNow} sectionRef={nowRef}/>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1427,16 +1614,20 @@ export default function Teseo() {
             </div>
           </main>
 
-          {/* Pie */}
-          <footer className="shell footer">
-            <a href="https://yachaydeep.com" target="_blank" rel="noopener noreferrer" className="footer__link">
-              {t.madeBy}
-            </a>
-            <span aria-hidden="true" className="footer__sep"/>
-            <button type="button" onClick={()=>setShowCredits(true)} className="footer__link">
-              {t.creditsLink}
-            </button>
-          </footer>
+          {/* Pie: al final del contenido, o pegado al fondo si el contenido es
+              corto. En el Cielo no existe: el visor ocupa toda la pantalla y
+              abre los créditos desde su menú (evento "teseo:credits"). */}
+          {tab!=="sky" && (
+            <footer className="shell footer">
+              <a href="https://yachaydeep.com" target="_blank" rel="noopener noreferrer" className="footer__link">
+                {t.madeBy}
+              </a>
+              <span aria-hidden="true" className="footer__sep"/>
+              <button type="button" onClick={()=>setShowCredits(true)} className="footer__link">
+                {t.creditsLink}
+              </button>
+            </footer>
+          )}
         </div>
       </div>
 
