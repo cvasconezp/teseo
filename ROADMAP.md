@@ -83,10 +83,16 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 - [x] Error boundaries y errores visibles con reintento en el frontend
 - [x] Deep-links, postal del cielo y onboarding
 - [x] Rediseño UI/UX (nov-2026): pestañas fijas, mapa tocable, texturas reales y modelos 3D
-- [~] "Apuntar al cielo" (experimental, giroscopio/brújula): falta validar en Android e iPhone reales
+- [x] "Apuntar al cielo" (giroscopio/brújula): probado en iPhone; modo inmersivo con flecha guía "Encuéntralo"
+- [x] "Esta noche en tu cielo": Luna, planetas, lluvias activas y constelaciones visibles desde tu ubicación
+- [x] Capas explicadas: qué es, fuente, patrón en el cielo y dato → frase (exoplanetas a escala con la Tierra)
+- [x] Pestaña "Preguntas": ¿Estamos solos? (Drake, Fermi, Gran Filtro, Kardashov) con niveles de certeza
 
 ## 🧪 Ideas para explorar
-- [ ] Más culturas de constelaciones (no solo la moderna/occidental)
+- [ ] Más culturas de constelaciones (no solo la moderna/occidental; p. ej. andina)
+- [ ] Más "Preguntas": materia oscura (curvas de rotación), energía oscura (expansión), agujeros negros
+- [ ] Ciencia ciudadana: enlaces "Participa" por ficha; misiones en vuelo y lanzamientos (Launch Library 2, JPL)
+- [ ] Declinación magnética en el modo apuntar (hoy: alineación manual)
 - [x] Lluvias de meteoros ("activa ahora"), cometas y sondas/telescopios en vivo (NASA Horizons)
 - [ ] Satélites en vivo (TLE de Celestrak + SGP4)
 - [x] Modo "tour guiado" narrado por IA — recorrido de objetos icónicos con narración Groq

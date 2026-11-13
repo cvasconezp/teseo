@@ -5,7 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import Planet3D from "./Planet3D.jsx";
 import Icon from "./icons.jsx";
 import { BODIES, bodyName } from "./bodies.js";
-import { fmtDist, fmtYears, fmtDuration, fmtKm, fmtMassSun, num, AU_KM, LIGHT_KM_S, VOYAGER_KM_S, LY_KM, SEC_PER_YEAR } from "./format.js";
+import { fmtDist, fmtYears, fmtDuration, fmtKm, fmtMassSun, fmtSuns, num, AU_KM, LIGHT_KM_S, VOYAGER_KM_S, LY_KM, SEC_PER_YEAR } from "./format.js";
+import { exoClass, tempBand, methodKey, starClass, schwarzschildKm, bhSizeBand, pulsarSpin, hubbleFamily, magReach, JUPITER_RE, JUPITER_ME } from "./explain.js";
+import { NoteArt, ExoCompare } from "./NoteArt.jsx";
+
+// parte del cielo (en %) que ocupa la zona con la que se compara cada patrón
+const NOTE_SKY_PCT = { kepler: 0.55, pulsarPlane: 17.4, avoidance: 17.4, globulars: 14.6 };
 
 const MESSIER_TYPE = {
   galaxy: { es: "Galaxia", en: "Galaxy" }, globular: { es: "Cúmulo globular", en: "Globular cluster" },
@@ -45,7 +50,9 @@ const raDec = (ra, dec, lang) => {
 // datos reales del objeto; aquí solo se les da formato.
 export function describeObject(o, lang, t, meteorActive) {
   const es = lang === "es";
-  const d = { name: o.name, type: "", badge: null, facts: [], note: "", details: [], visual: "photo", distNote: "" };
+  // explain = lista "dato → frase": cada entrada sale de un número real del objeto
+  const d = { name: o.name, type: "", badge: null, facts: [], note: "", explain: [], details: [], visual: "photo", distNote: "" };
+  const say = (title, text, hint) => { if (text) d.explain.push({ title, text, hint: hint || null }); };
   const lightFacts = (ly) => {
     d.facts.push({ label: t.fDistance, value: fmtDist(ly, lang) });
     d.facts.push({ label: t.fLightLeft, value: t.ago(fmtYears(ly, lang)), hint: t.fLightHint });
@@ -70,12 +77,14 @@ export function describeObject(o, lang, t, meteorActive) {
     if (b.day_h) d.details.push([t.dRotation, fmtDuration(b.day_h * 3600, lang) + (b.spin < 0 ? ` (${t.retrograde})` : "")]);
     if (b.year_d) d.details.push([o.name === "Luna" ? t.dOrbitEarth : t.dOrbitSun, fmtDuration(b.year_d * 86400, lang)]);
     if (o.ra != null) d.details.push([t.dPosition, raDec(o.ra, o.dec, lang)]);
+    d.details.push([t.dSource, t.srcSolar]);
     d.distNote = t.ephemNote;
   } else if (L === "star") {
     d.type = t.typeStar; d.visual = "star";
     if (o.dist_ly > 0) lightFacts(o.dist_ly);
-    if (o.mag != null) d.details.push([t.dMagnitude, `${num(o.mag, lang, 2)} · ${t.magHint}`]);
-    d.details.push([t.dSource, "HYG v4.1 (Hipparcos / Yale / Gliese)"]);
+    if (o.mag != null) { say(null, t.starMag(o.mag)); d.details.push([t.dMagnitude, `${num(o.mag, lang, 2)} · ${t.magHint}`]); }
+    d.details.push([t.dSource, t.srcStar]);
+    if (o.dist_ly > 0) d.distNote = t.starDistNote;
   } else if (L === "messier") {
     const ty = MESSIER_TYPE[o.type] || MESSIER_TYPE.other;
     d.type = ty[lang] + ((es ? o.const_es : o.const) ? ` · ${t.inConst(es ? o.const_es : o.const)}` : "");
@@ -84,32 +93,57 @@ export function describeObject(o, lang, t, meteorActive) {
     if (o.dist_ly > 0) lightFacts(o.dist_ly);
     d.details.push([t.dCatalog, [o.name, o.ngc && o.ngc.replace(/^(NGC|IC)0*/, "$1 ")].filter(Boolean).join(" · ")]);
     if (o.mag != null) d.details.push([t.dMagnitude, `${num(o.mag, lang, 1)} · ${t.magHint}`]);
+    say(null, t.deepWhat[o.type]);
+    const reach = magReach(o.mag); if (reach) say(null, t.reach[reach], t.reachHint);
+    d.details.push([t.dSource, t.srcMessier]);
     d.distNote = t.distPublished;
   } else if (L === "galaxies") {
     d.type = t.typeGalaxy + ((es ? o.const_es : o.const) ? ` · ${t.inConst(es ? o.const_es : o.const)}` : "");
     d.visual = "galaxy";
     if (o.dist_ly > 0) lightFacts(o.dist_ly);
     if (o.cat && o.cat !== o.name) d.details.push([t.dCatalog, o.cat.replace(/^(NGC|IC)0*/, "$1 ")]);
-    if (o.hubble) d.details.push([t.dHubble, o.hubble]);
+    const fam = hubbleFamily(o.hubble);
+    if (o.hubble) d.details.push([t.dHubble, fam ? `${o.hubble} · ${t.hubble[fam]}` : o.hubble]);
+    if (fam) say(null, t.galaxyKind(t.hubble[fam]));
+    const reach = magReach(o.mag); if (reach) say(null, t.reach[reach], t.reachHint);
     if (o.mag != null) d.details.push([t.dMagnitude, `${num(o.mag, lang, 1)} · ${t.magHint}`]);
+    d.details.push([t.dSource, t.srcGalaxy]);
     d.distNote = t.distRedshift;
   } else if (L === "blackholes") {
     d.type = `${t.typeBlackHole} ${es ? o.kind : (BH_KIND_EN[o.kind] || o.kind)}`.trim();
     d.visual = "blackhole";
     if (o.dist_ly > 0) lightFacts(o.dist_ly);
     d.note = noteIn(o.note, lang); d.note = d.note ? d.note.charAt(0).toUpperCase() + d.note.slice(1) + "." : "";
-    if (o.mass_sun) d.details.push([t.dMass, fmtMassSun(o.mass_sun, lang)]);
+    if (o.mass_sun) {
+      say(null, t.bhMass(fmtSuns(o.mass_sun, lang)));
+      d.details.push([t.dMass, `${fmtMassSun(o.mass_sun, lang)} (${t.approx})`]);
+      // radio de Schwarzschild: física pura a partir de la masa publicada
+      const rs = schwarzschildKm(o.mass_sun), band = bhSizeBand(rs);
+      if (band) {
+        const size = band.key === "beyond" ? t.bhSize.beyond(num(band.x, lang, band.x < 10 ? 1 : 0)) : t.bhSize[band.key];
+        say(null, `${t.bhRadius(fmtKm(rs, lang))}: ${size}`, t.bhCalc);
+        d.details.push([t.dHorizon, `${fmtKm(rs, lang)} · ${t.bhCalc}`]);
+      }
+    }
+    d.details.push([t.dSource, t.srcBlackHole]);
     d.distNote = t.distPublished;
   } else if (L === "pulsars") {
     d.type = t.typePulsar; d.visual = "pulsar";
     if (o.dist_ly > 0) lightFacts(o.dist_ly);
-    if (o.period_ms) {
-      const perSec = 1000 / o.period_ms;
-      d.note = perSec >= 1 ? t.pulsarSpin(num(perSec, lang, perSec < 10 ? 1 : 0)) : t.pulsarSlow(num(o.period_ms / 1000, lang, 2));
+    const spin = pulsarSpin(o.period_ms);
+    if (spin) {
+      const n = spin.perSec;
+      const head = n >= 1 ? t.pulsarSpin(num(n, lang, n < 10 ? 1 : 0)) : t.pulsarSlow(num(o.period_ms / 1000, lang, 2));
+      d.note = `${head}: ${t.pulsarBand[spin.band]}`;
+      say(null, t.pulsarBeam);
       d.details.push([t.dPeriod, `${num(o.period_ms, lang, 2)} ms`]);
     }
-    if (o.note) d.details.push([t.dKind, noteIn(o.note, lang)]);
-    d.details.push([t.dSource, "ATNF Pulsar Catalogue"]);
+    if (o.note) {
+      // cada etiqueta del catálogo (milisegundo, binario…) se explica en una frase
+      for (const k of o.note.split(",").map((x) => x.trim())) if (t.pulsarKinds[k]) say(null, t.pulsarKinds[k].charAt(0).toUpperCase() + t.pulsarKinds[k].slice(1) + ".");
+      d.details.push([t.dKind, noteIn(o.note, lang)]);
+    }
+    d.details.push([t.dSource, t.srcPulsar]);
     d.distNote = t.distPublished;
   } else if (L === "meteors") {
     d.name = es ? o.name : (o.name_en || o.name);
@@ -119,25 +153,64 @@ export function describeObject(o, lang, t, meteorActive) {
     d.facts.push({ label: t.fActive, value: `${fmtMD(o.start, lang)} – ${fmtMD(o.end, lang)}` });
     d.facts.push({ label: t.fRate, value: t.perHour(o.zhr), hint: t.zhrHint });
     d.note = t.radiantNote;
-    if (o.parent) d.details.push([t.dParent, o.parent]);
+    if (o.parent) { say(null, t.meteorParent(o.parent)); d.details.push([t.dParent, o.parent]); }
+    d.details.push([t.dSource, t.srcMeteor]);
   } else if (L === "comets" || L === "probes") {
     d.type = L === "comets" ? t.typeComet : t.typeProbe; d.visual = L === "comets" ? "comet" : "probe";
     if (o.dist_au != null) nearFacts(o.dist_au * AU_KM, o.dist_au);
     if (L === "comets") d.note = o.approaching ? t.approaching : t.receding;
     else d.note = (es ? o.note_es : o.note_en) || "";
+    d.details.push([t.dSource, t.srcHorizons]);
     d.distNote = t.horizonsNote;
   } else if (L === "exoplanets") {
-    d.type = t.typeExoplanet + (o.host ? ` · ${t.orbits(o.host)}` : ""); d.visual = "exoplanet";
+    const cls = exoClass(o.rade);
+    d.type = [t.typeExoplanet, cls && t.exoClassShort[cls], o.host && t.orbits(o.host)].filter(Boolean).join(" · ");
+    d.visual = "exoplanet";
     d.badge = o.hab ? t.habitable : null;
     if (o.dist_ly > 0) lightFacts(o.dist_ly);
-    if (o.rade) d.details.push([t.dRadius, `${num(o.rade, lang, 2)} ${t.earthRadii}`]);
-    if (o.mass_e) d.details.push([t.dMass, `${num(o.mass_e, lang, 2)} ${t.earthMasses}`]);
-    if (o.period_d) d.details.push([t.dYear, fmtDuration(o.period_d * 86400, lang)]);
-    if (o.eqt_k) d.details.push([t.dTemp, `${num(o.eqt_k, lang)} K (${num(Math.round(o.eqt_k - 273), lang)} °C)`]);
-    if (o.host) d.details.push([t.dHost, o.host + (o.spectype ? ` (${o.spectype})` : "")]);
-    if (o.disc_year) d.details.push([t.dDiscovered, `${o.disc_year}${o.method ? " · " + o.method : ""}`]);
-    d.details.push([t.dSource, "NASA Exoplanet Archive"]);
-    if (!o.hab) d.note = t.notHabitable;
+    if (o.rade > 0) {
+      say(t.exoSizeTitle, t.exoSize(o.rade) + (o.rade >= 4 ? t.exoSizeJup(o.rade / JUPITER_RE) : "") + " " + t.exoClass[cls]);
+      d.details.push([t.dRadius, `${num(o.rade, lang, 2)} ${t.earthRadii}`]);
+    }
+    if (o.mass_e > 0) {
+      say(t.exoMassTitle, t.exoMass(o.mass_e) + (o.mass_e >= 30 ? t.exoMassJup(o.mass_e / JUPITER_ME) : ""));
+      d.details.push([t.dMass, `${num(o.mass_e, lang, 2)} ${t.earthMasses}`]);
+    }
+    if (o.period_d > 0) {
+      say(t.exoYearTitle, t.exoYear(fmtDuration(o.period_d * 86400, lang)) + t.exoYearCmp(o.period_d));
+      d.details.push([t.dYear, `${num(o.period_d, lang, 2)} ${lang === "es" ? "días" : "days"}`]);
+    }
+    if (o.eqt_k > 0) {
+      const c = Math.round(o.eqt_k - 273.15);
+      say(t.exoTempTitle, `${t.exoTemp(num(c, lang).replace("-", "−"))} ${t.exoTempBand[tempBand(c)]}`, t.exoTempHint);
+      d.details.push([t.dTemp, `${num(o.eqt_k, lang)} K (${num(c, lang).replace("-", "−")} °C)`]);
+    }
+    if (!(o.rade > 0) && !(o.mass_e > 0) && !(o.period_d > 0) && !(o.eqt_k > 0)) say(null, t.exoNoData);
+    if (o.disc_year || o.method) {
+      const mk = methodKey(o.method);
+      say(t.exoFoundTitle, t.exoFound(o.disc_year, o.method ? (mk ? t.methodName[mk] : o.method) : null) + (mk ? " " + t.methodHow[mk] : ""));
+      d.details.push([t.dDiscovered, [o.disc_year, o.method].filter(Boolean).join(" · ")]);
+    }
+    if (o.host) {
+      const sc = starClass(o.spectype);
+      const desc = sc && (sc.lum === "giant" ? t.starColor[sc.letter] : t.starLetter[sc.letter]);
+      say(t.exoStarTitle, t.exoStar(o.host) + (desc ? t.starTypeIs(sc.letter, desc) + (sc.lum ? t.starLum[sc.lum] : "") : "."));
+      d.details.push([t.dHost, o.host + (o.spectype ? ` (${o.spectype})` : "")]);
+    }
+    say(t.exoHabTitle, o.hab ? t.exoHabYes : t.exoHabNo);
+    d.details.push([t.dSource, t.srcExo]);
+    d.distNote = t.exoDataNote;
+  } else if (L === "note") {
+    // explicación de un patrón del cielo: las cifras se cuentan en los datos cargados
+    const id = o.note;
+    d.name = t.noteTitle[id]; d.type = t.noteType[id]; d.visual = "note";
+    const pct = 100 * o.n / o.total;
+    d.facts.push({ label: t.noteCount[id], value: t.noteNOf(o.n, o.total), hint: t.noteWhat[id] });
+    const pc = es ? " %" : "%";
+    d.facts.push({ label: t.noteShare, value: `${num(pct, lang, pct < 10 ? 1 : 0)}${pc}` });
+    d.facts.push({ label: t.noteSky, value: `≈ ${num(NOTE_SKY_PCT[id], lang, 1)}${pc}`, hint: t.noteSkyHint });
+    d.note = t.noteBody[id];
+    d.distNote = t.noteSource[id];
   }
   return d;
 }
@@ -171,10 +244,26 @@ function Visual({ obj, info, t, lang, wiki, wikiState }) {
       </figure>
     );
   }
+  if (info.visual === "exoplanet") {
+    const sized = obj.rade > 0;
+    return (
+      <figure className="sk-visual is-exo" role="img" aria-label={t.exoFigAria(obj.name)}>
+        <div className="sk-visual-stage"><ExoCompare obj={obj} t={t} /></div>
+        <figcaption><b>{sized ? t.exoCap : t.exoCapNoSize}</b>{sized && <span>{obj.eqt_k > 0 ? t.exoCapTone : t.exoCapNoTone}</span>}</figcaption>
+      </figure>
+    );
+  }
+  if (info.visual === "note") {
+    return (
+      <figure className="sk-visual is-illus">
+        <div className="sk-visual-stage"><NoteArt id={obj.note} /></div>
+        <figcaption><b>{obj.note === "kepler" ? t.capKepler : t.capNote}</b></figcaption>
+      </figure>
+    );
+  }
   const hasPhoto = wiki && wiki.thumb && !imgFail;
   if (hasPhoto) {
-    const cap = obj.layer === "exoplanets" ? t.capArtist
-      : (obj.layer === "star" || obj.layer === "pulsars" || obj.layer === "blackholes") ? t.capWikiMixed : t.capWiki;
+    const cap = (obj.layer === "star" || obj.layer === "pulsars" || obj.layer === "blackholes") ? t.capWikiMixed : t.capWiki;
     return (
       <figure className="sk-visual is-photo">
         <div className={`sk-visual-stage${imgOk ? " is-loaded" : ""}`}>
@@ -195,7 +284,7 @@ function Visual({ obj, info, t, lang, wiki, wikiState }) {
   }
   // sin imagen: representación etiquetada
   const kind = info.visual;
-  const cap = kind === "star" ? t.capStar : (kind === "blackhole" || kind === "pulsar" || kind === "exoplanet") ? t.capSchematic : t.capNoImage;
+  const cap = kind === "star" ? t.capStar : (kind === "blackhole" || kind === "pulsar") ? t.capSchematic : t.capNoImage;
   return (
     <figure className="sk-visual is-illus">
       <div className="sk-visual-stage">
@@ -208,13 +297,13 @@ function Visual({ obj, info, t, lang, wiki, wikiState }) {
   );
 }
 
-export default function ObjectSheet({ obj, lang, t, wiki, wikiState, meteorActive, onClose, onShare, shareState, onPostcard, onViewFrom, onCenter, canViewFrom }) {
+export default function ObjectSheet({ obj, lang, t, wiki, wikiState, meteorActive, onClose, onShare, shareState, onPostcard, onViewFrom, onCenter, canViewFrom, onFind }) {
   const info = describeObject(obj, lang, t, meteorActive);
   const [mode, setMode] = useState("peek");           // móvil: "peek" (media altura) | "full"
   const [dragY, setDragY] = useState(0);
   const startRef = useRef(null);
   const bodyRef = useRef(null);
-  useEffect(() => { setMode("peek"); if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [obj.name, obj.layer]);
+  useEffect(() => { setMode("peek"); if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [obj.name, obj.layer, obj.note]);
 
   // asa: arrastrar arriba expande, abajo reduce / cierra; un toque alterna
   const onDown = (e) => { startRef.current = { y: e.clientY, moved: false }; try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* no-op */ } };
@@ -227,7 +316,10 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, meteorActiv
     if (dy < -40) setMode("full");
     else if (dy > 40) { if (mode === "full") setMode("peek"); else onClose(); }
   };
-  const extract = wiki && wiki.extract ? (wiki.extract.length > 340 ? wiki.extract.slice(0, 340).replace(/\s+\S*$/, "") + "…" : wiki.extract) : "";
+  // exoplanetas: si Wikipedia solo tiene la página de la estrella, su texto no describe al planeta
+  const wikiFits = obj.layer !== "exoplanets" || (wiki && wiki.title && wiki.title.toLowerCase().includes(String(obj.name).toLowerCase()));
+  const isNote = obj.layer === "note";
+  const extract = wiki && wiki.extract && wikiFits ? (wiki.extract.length > 340 ? wiki.extract.slice(0, 340).replace(/\s+\S*$/, "") + "…" : wiki.extract) : "";
 
   return (
     <section className={`sk-sheet is-${mode}${dragY ? " is-dragging" : ""}`} role="dialog" aria-labelledby="sk-sheet-title"
@@ -254,6 +346,13 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, meteorActiv
           </dl>
         )}
         {info.note && <p className="sk-note">{info.note}</p>}
+        {info.explain.length > 0 && (
+          <ul className="sk-explain">
+            {info.explain.map((e, i) => (
+              <li key={i}>{e.title && <b>{e.title}</b>}<span>{e.text}</span>{e.hint && <small>{e.hint}</small>}</li>
+            ))}
+          </ul>
+        )}
         {extract && (
           <p className="sk-desc">{extract} <a href={wiki.url} target="_blank" rel="noopener noreferrer">{t.readMore}</a></p>
         )}
@@ -270,11 +369,16 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, meteorActiv
           {canViewFrom && (
             <button type="button" className="sk-btn primary wide" onClick={onViewFrom}><Icon name="eye" size={18} />{t.viewFromHere}</button>
           )}
-          <button type="button" className="sk-btn" onClick={onShare} aria-live="polite">
-            <Icon name={shareState === "ok" ? "check" : shareState === "fail" ? "warn" : "share"} size={17} />
-            {shareState === "ok" ? t.linkCopied : shareState === "fail" ? t.linkFailed : t.share}
-          </button>
-          <button type="button" className="sk-btn" onClick={onPostcard}><Icon name="camera" size={17} />{t.postcard}</button>
+          {onFind && (
+            <button type="button" className="sk-btn wide sk-find-btn" onClick={onFind} aria-label={t.findItAria(info.name)}><Icon name="point" size={18} />{t.findIt}</button>
+          )}
+          {!isNote && (
+            <button type="button" className="sk-btn" onClick={onShare} aria-live="polite">
+              <Icon name={shareState === "ok" ? "check" : shareState === "fail" ? "warn" : "share"} size={17} />
+              {shareState === "ok" ? t.linkCopied : shareState === "fail" ? t.linkFailed : t.share}
+            </button>
+          )}
+          {!isNote && <button type="button" className="sk-btn" onClick={onPostcard}><Icon name="camera" size={17} />{t.postcard}</button>}
           <button type="button" className="sk-btn" onClick={onCenter}><Icon name="target" size={17} />{t.center}</button>
         </div>
       </div>

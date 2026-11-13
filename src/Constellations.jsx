@@ -7,8 +7,12 @@ import { fetchJson, isAbort, TIMEOUT_MS } from "./net.js";
 import { BODIES, BODY_NAMES, bodyName, textureUrl, drawBodySprite, SPRITE_PX } from "./sky/bodies.js";
 import { fmtDist, fmtYears, fmtWhenShort } from "./sky/format.js";
 import Icon from "./sky/icons.jsx";
-import { SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TimePanel, TourCard, Onboarding, PointingBar } from "./sky/panels.jsx";
+import { SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TimePanel, TourCard, Onboarding, PointingBar, SkyActions, GuideHud, TonightPanel } from "./sky/panels.jsx";
 import { cameraQuat, lookFromQuat } from "./sky/deviceOrientation.js";
+import { guideArrow, turnHint } from "./sky/guide.js";
+import { computeTonight } from "./sky/tonight.js";
+import { buildSkyNotes } from "./sky/explain.js";
+import { TX } from "./sky/i18n.js";
 import { createPointing, pointingSupported } from "./sky/pointing.js";
 import ObjectSheet, { describeObject } from "./sky/ObjectSheet.jsx";
 import "./sky/sky.css";
@@ -25,7 +29,18 @@ const LAYERS = [
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", solar:"#ffe9a8" };
+const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8" };
+// Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
+// de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
+// en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
+function isNotable(key, ob, when) {
+  if (key === "messier") return !!ob.cn || (ob.mag != null && ob.mag <= 6);
+  if (key === "galaxies") return !!ob.cat && ob.cat !== ob.name;
+  if (key === "pulsars" || key === "exoplanets") return false;
+  if (key === "meteors") return meteorActive(ob, when);
+  return true;                        // agujeros negros, cometas y sondas: listas cortas y curadas
+}
+const CATALOG_LABELS = { pocas: 3, normal: 9, muchas: 26 };
 
 // Atajos de "Mi cielo": coordenadas del centro de cada ciudad (grados decimales).
 const PLACES = [
@@ -139,7 +154,7 @@ const wikiCache = {};
 const SOLAR_WIKI = { "Sol":{es:"Sol",en:"Sun"}, "Luna":{es:"Luna",en:"Moon"}, "Mercurio":{es:"Mercurio (planeta)",en:"Mercury (planet)"}, "Venus":{es:"Venus (planeta)",en:"Venus"}, "Marte":{es:"Marte",en:"Mars"}, "Júpiter":{es:"Júpiter (planeta)",en:"Jupiter"}, "Saturno":{es:"Saturno (planeta)",en:"Saturn"}, "Urano":{es:"Urano (planeta)",en:"Uranus"}, "Neptuno":{es:"Neptuno (planeta)",en:"Neptune"} };
 const BH_WIKI = { "Sgr A*":"Sagittarius A*", "M87*":"Messier 87", "M31* (Andrómeda)":"Andromeda Galaxy", "Gaia BH1":"Gaia BH1", "Gaia BH3":"Gaia BH3" };
 function wikiTitle(obj, lang) {
-  if (!obj) return null;
+  if (!obj || obj.layer === "note") return null;
   if (obj.layer === "solar") { const m = SOLAR_WIKI[obj.name]; return m ? (m[lang] || m.en) : obj.name; }
   if (obj.layer === "messier") return `Messier ${obj.m}`;
   if (obj.layer === "star") return obj.name;
@@ -449,6 +464,9 @@ const TC = {
   },
 };
 
+// textos de la ronda 2 (src/sky/i18n.js): mismas claves en ES y EN
+for (const k of ["es", "en"]) TC[k] = { ...TC[k], ...TX[k] };
+
 const FLAT_R = 900;
 const BG_R = 1000;
 function depthRadius(d) {
@@ -522,6 +540,16 @@ export default function Constellations({ lang = "es" }) {
   const [arError, setArError] = useState(null);       // null | "denied" | "nosensor"
   const [arAligned, setArAligned] = useState(() => pointAzOffset !== 0);
   const arHudRef = useRef(null);                      // setter del indicador (vive en <PointingBar>)
+  const guideApiRef = useRef(null);                   // setter de la flecha guía (vive en <GuideHud>)
+  const [guide, setGuide] = useState(null);           // objetivo a encontrar apuntando: { label, body | dir }
+  const [arCtl, setArCtl] = useState(false);          // controles temporales mientras se apunta
+  const [arHelp, setArHelp] = useState(false);        // ayuda de alineación (solo los primeros segundos)
+  const [ctlBump, setCtlBump] = useState(0);          // cada toque en los controles reinicia su temporizador
+  const [railOpen, setRailOpen] = useState(false);    // móvil: menú "más" (zoom, centrar, postal, pantalla completa)
+  const railRef = useRef(null);
+  const stageRef = useRef(null);
+  const arOnRef = useRef(false);
+  const panelRef = useRef(null);
   const pointRef = useRef(null);
   if (!pointRef.current) {
     pointRef.current = createPointing((s) => {
@@ -531,6 +559,22 @@ export default function Constellations({ lang = "es" }) {
   }
   const selObjRef = useRef(null);
   useEffect(() => { selObjRef.current = selObj; }, [selObj]);
+  useEffect(() => { panelRef.current = panel; }, [panel]);
+  // patrones llamativos de cada capa, contados en los datos cargados
+  const notes = useMemo(() => buildSkyNotes(datasets), [datasets]);
+  // dirección (centroide) de cada constelación, para "Esta noche" y la flecha guía
+  const conDirs = useMemo(() => {
+    if (!sky) return [];
+    const byHip = new Map(); sky.stars.forEach((st) => byHip.set(st[0], st));
+    return sky.constellations.map((c) => {
+      let x = 0, y = 0, z = 0; const seen = new Set();
+      c.lines.forEach((pl) => pl.forEach((h) => { if (seen.has(h)) return; seen.add(h); const st = byHip.get(h); if (st) { x += st[1]; y += st[2]; z += st[3]; } }));
+      const L = Math.hypot(x, y, z);
+      return L > 0 ? { ab: c.ab, name: c.la, dir: [x / L, y / L, z / L] } : null;
+    }).filter(Boolean);
+  }, [sky]);
+  const conDirsRef = useRef(conDirs);
+  useEffect(() => { conDirsRef.current = conDirs; }, [conDirs]);
   const langRef = useRef(lang);
   useEffect(() => { isWideRef.current = isWide; }, [isWide]);
   useEffect(() => { datasetsRef.current = datasets; }, [datasets]);
@@ -692,7 +736,7 @@ export default function Constellations({ lang = "es" }) {
       if (on.length) p.set("L", on.join(","));
       if (sel) p.set("c", sel);
       if (viewFrom) p.set("v", encodeURIComponent(viewFrom.name) + "~" + viewFrom.pos.map(n => n.toFixed(3)).join("~"));
-      if (selObj && selObj.name) p.set("o", selObj.layer + "~" + encodeURIComponent(selObj.name));
+      if (selObj && selObj.name && selObj.layer !== "note") p.set("o", selObj.layer + "~" + encodeURIComponent(selObj.name));
       const qs = p.toString();
       const nh = "#sky" + (qs ? "?" + qs : "");
       if (window.location.hash !== nh) window.history.replaceState(null, "", nh);
@@ -959,7 +1003,8 @@ export default function Constellations({ lang = "es" }) {
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, lang: langRef.current, sizeSolar, applyArFov, ground,
       // apuntar al cielo: objetos fijos que el bucle reutiliza (nada se crea por frame)
-      ar: { on: false, has: false, t: 0, n: 0, span: POINT_SPAN, savedFov: 55, alt: 0, cur: new THREE.Quaternion(), tgt: new THREE.Quaternion(), arr: [0, 0, 0, 1], look: { alt: 0, az: 0 } },
+      ar: { on: false, has: false, t: 0, n: 0, span: POINT_SPAN, savedFov: 55, alt: 0, cur: new THREE.Quaternion(), tgt: new THREE.Quaternion(), arr: [0, 0, 0, 1], look: { alt: 0, az: 0 }, g: {}, look2: {} },
+      guide: null, notes: [], noteTags: {}, when: new Date(), occl: [], _occN: 0,
       viewShift: { x: 0, yf: 0, cx: 0, cy: 0, dirty: false } };
     setReady(true);
 
@@ -1058,25 +1103,88 @@ export default function Constellations({ lang = "es" }) {
         vs.dirty = false;
       }
       ref.renderer.render(ref.scene, ref.camera);
+      // ── flecha guía: dónde queda el objetivo respecto a la mirada del teléfono ──
+      const gd = ref.guide;
+      if (ar.on && ar.has && gd && guideApiRef.current) {
+        let gx = 0, gy = 0, gz = 0, okG = true;
+        if (gd.body) { const gb = (ref.bodies || []).find(x => x.name === gd.body); if (gb) { gx = gb.nx; gy = gb.ny; gz = gb.nz; } else okG = false; }
+        else { gx = gd.dir[0]; gy = gd.dir[1]; gz = gd.dir[2]; }
+        if (okG) {
+          tmp.set(gx, gy, gz);
+          if (ref.localQuat) tmp.applyQuaternion(ref.localQuat);
+          tmp.normalize();
+          const g = guideArrow(ar.cur.x, ar.cur.y, ar.cur.z, ar.cur.w, tmp.x, tmp.y, tmp.z, ar.g);
+          const lk = lookFromQuat(ar.cur.x, ar.cur.y, ar.cur.z, ar.cur.w, ar.look2);
+          const tAlt = Math.asin(Math.max(-1, Math.min(1, tmp.y))) * 180 / Math.PI;
+          const tAz = Math.atan2(tmp.x, -tmp.z) * 180 / Math.PI;
+          const h = turnHint(lk.alt, lk.az, tAlt, tAz);
+          tmp.multiplyScalar(870).project(ref.camera);
+          const vis = tmp.z < 1 && Math.abs(tmp.x) < 0.98 && Math.abs(tmp.y) < 0.98;
+          guideApiRef.current(g.sep, g.ang, h.dAz, h.dAlt, vis, (tmp.x * 0.5 + 0.5) * mount.clientWidth, (-tmp.y * 0.5 + 0.5) * mount.clientHeight, tAlt, lk.alt);
+        }
+      }
       // ── etiquetas con nivel de detalle (LOD) ──
       ref._lf = (ref._lf || 0) + 1;
       if (ref._lf < 4 || ref._lf % 5 === 0) {
         const W = mount.clientWidth, H = mount.clientHeight;
         const camDist = ref.camera.position.length();
         const out = [];
-        const push = (x, y, z, name, cls, sub, dx) => {
+        // zonas tapadas por la ficha o un panel: ahí no se dibujan nombres (ni a medias)
+        if (ref._occN++ % 6 === 0) {
+          const stEl = mount.parentElement, sr = stEl.getBoundingClientRect();
+          ref.occl = [...stEl.querySelectorAll(".sk-sheet, .sk-panel, .sk-search-field, .sk-rail button, .sk-dock, .sk-cta-btn, .sk-arpill, .sk-artray, .sk-guide-msg, .sk-depth, .sk-tour, .sk-onboard, .sk-chip")].map(el => { const r = el.getBoundingClientRect(); return [r.left - sr.left - 8, r.top - sr.top - 6, r.right - sr.left + 8, r.bottom - sr.top]; });
+        }
+        const occl = ref.occl;
+        const free = (x0, y0, x1, y1) => {
+          if (x0 < 2 || x1 > W - 2) return false;
+          for (const o of occl) if (x1 > o[0] && x0 < o[2] && y1 > o[1] && y0 < o[3]) return false;
+          return true;
+        };
+        const CH = W >= 900 ? 7.8 : 6.9;        // ancho medio de un carácter de etiqueta, en px
+        let psx = 0, psy = 0;
+        const proj = (x, y, z, cls) => {
           tmp.set(x, y, z);
           if (ref.localQuat) tmp.applyQuaternion(ref.localQuat);
           // apuntando: bajo el horizonte solo se nombran el Sol, la Luna y los planetas (están "bajo tus pies")
-          if (ar.on && cls !== "solar" && tmp.y < -12) return;
+          if (ar.on && cls !== "solar" && tmp.y < -12) return false;
           tmp.project(ref.camera);
-          if (tmp.z >= 1 || tmp.x < -1.05 || tmp.x > 1.05 || tmp.y < -1.05 || tmp.y > 1.05) return;
-          const sx = (tmp.x * 0.5 + 0.5) * W, sy = (-tmp.y * 0.5 + 0.5) * H;
-          for (const e of out) { if (Math.abs(e.x - sx) < 72 && Math.abs(e.y - sy) < 18) return; } // anti-solape
-          out.push({ key: cls + ":" + name, name, cls, sub: sub == null ? null : sub, x: sx, y: sy, dx });
+          if (tmp.z >= 1 || tmp.x < -1.05 || tmp.x > 1.05 || tmp.y < -1.05 || tmp.y > 1.05) return false;
+          psx = (tmp.x * 0.5 + 0.5) * W; psy = (-tmp.y * 0.5 + 0.5) * H;
+          return true;
         };
+        const boxes = [];                        // cajas ya ocupadas por otros nombres (anti-solape)
+        const clear = (x0, y0, x1, y1) => {
+          for (let i = 0; i < boxes.length; i += 4) if (x1 + 6 > boxes[i] && x0 - 6 < boxes[i + 2] && y1 + 3 > boxes[i + 1] && y0 - 3 < boxes[i + 3]) return false;
+          return true;
+        };
+        const place = (sx, sy, name, cls, sub, dx, extra) => {
+          let flip = false;
+          if (cls === "note") {
+            const w = name.length * 7.2 + 52;
+            if (!free(sx - w / 2, sy - 58, sx + w / 2, sy + 4) || !clear(sx - w / 2, sy - 54, sx + w / 2, sy - 8)) return;
+            boxes.push(sx - w / 2, sy - 54, sx + w / 2, sy - 8);
+          } else {
+            const w = String(name).length * (cls === "con" ? CH * 1.6 : cls === "solar" ? CH * 1.15 : CH) + (dx || 8) + 4;
+            const h = sub == null ? 9 : 24;
+            // junto a un borde o a la ficha, el nombre pasa al otro lado del punto; si tampoco cabe, no se dibuja
+            if (!free(sx, sy - 10, sx + w, sy + h)) { if (!free(sx - w, sy - 10, sx, sy + h)) return; flip = true; }
+            const x0 = flip ? sx - w : sx;
+            if (!clear(x0, sy - 9, x0 + w, sy + h)) return;
+            boxes.push(x0, sy - 9, x0 + w, sy + h);
+          }
+          out.push({ key: cls + ":" + name, name, cls, sub: sub == null ? null : sub, x: sx, y: sy, dx, flip, ...extra });
+        };
+        const push = (x, y, z, name, cls, sub, dx, extra) => { if (proj(x, y, z, cls)) place(psx, psy, name, cls, sub, dx, extra); };
         // primero el sistema solar: sus nombres tienen prioridad en el anti-solape
         if (ref.showSolar) for (const b of (ref.bodies || [])) push(b.nx*860, b.ny*860, b.nz*860, bodyName(b.name, ref.lang), "solar", null, Math.round(ref.solarSprites[b.name].userData.discPx + 7));
+        // el objeto abierto siempre lleva su nombre, aunque sea de catálogo
+        const so = selObjRef.current;
+        if (so && so.nx != null && so.layer !== "solar" && so.layer !== "note" && !(so.layer === "star" && selAb)) {
+          if (so.layer === "star" && so.si != null) push(pa[so.si*3], pa[so.si*3+1], pa[so.si*3+2], so.name, "star", null, undefined, { hot: true });
+          else push(so.nx*870, so.ny*870, so.nz*870, (so.layer === "meteors" && ref.lang === "en" && so.name_en) || so.name, "obj_" + so.layer, null, undefined, { hot: true });
+        }
+        // notas tocables sobre patrones del cielo (campo de Kepler, plano galáctico…)
+        if (camDist < 1050) for (const nt of (ref.notes || [])) push(nt.dir[0]*870, nt.dir[1]*870, nt.dir[2]*870, ref.noteTags[nt.id] || "?", "note", null, 0, { id: nt.id });
         if (selAb && ref.conMeta[selAb]) {
           collectNamed(ref.conMeta[selAb], ref.byHip).forEach(st => {
             const i = ref.hipIndex.get(st[0]);
@@ -1106,13 +1214,20 @@ export default function Constellations({ lang = "es" }) {
           for (const s of cand) push(pa[s.i*3], pa[s.i*3+1], pa[s.i*3+2], s.name, "star");
         }
         if (camDist < 1050) {
+          const lim = CATALOG_LABELS[ref.labelDensity || "normal"];
           for (const o of (ref.layerObjs || [])) {
-            if (!o.points.visible || o.key === "exoplanets") continue;
-            const objs = o.points.userData.objs;
-            for (let q = 0; q < objs.length && q < 200; q++) {
+            if (!o.points.visible) continue;
+            const objs = o.points.userData.objs, cls = "obj_" + o.key;
+            // de catálogo: se cuentan los que caen en pantalla y solo se nombran si son pocos (hay zoom suficiente)
+            let nCat = 0; const cat = [];
+            for (let q = 0; q < objs.length; q++) {
               const ob = objs[q];
-              push(ob.nx*870, ob.ny*870, ob.nz*870, (o.key === "meteors" && ref.lang === "en" && ob.name_en) || ob.name, "obj_" + o.key);
+              if (!proj(ob.nx*870, ob.ny*870, ob.nz*870, cls)) continue;
+              const nm = (o.key === "meteors" && ref.lang === "en" && ob.name_en) || ob.name;
+              if (isNotable(o.key, ob, ref.when)) place(psx, psy, nm, cls);
+              else if (++nCat <= lim) cat.push(psx, psy, nm);
             }
+            if (nCat <= lim) for (let q = 0; q < cat.length; q += 3) place(cat[q], cat[q+1], cat[q+2], cls);
           }
         }
         const dens2 = ref.labelDensity || "normal";
@@ -1328,6 +1443,18 @@ export default function Constellations({ lang = "es" }) {
     const id = setInterval(() => setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + 10 * 60000))), 120);
     return () => clearInterval(id);
   }, [playing]);
+  // sin tocar el control de tiempo, "ahora" sigue al reloj (el cielo gira 15° por hora)
+  useEffect(() => {
+    if (timeMoved || playing) return;
+    const id = setInterval(() => setWhenStr(nowLocalInput()), 60000);
+    return () => clearInterval(id);
+  }, [timeMoved, playing]);
+  useEffect(() => { if (sceneRef.current) sceneRef.current.when = new Date(whenStr); }, [whenStr, ready]);
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref) return;
+    ref.notes = notes.filter((n) => enabled[n.layer]);
+    ref.noteTags = TC[lang].noteTag;
+  }, [notes, enabled, lang, ready]);
   const shiftMin = useCallback((m) => { setTimeMoved(true); setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + m * 60000))); }, []);
   useEffect(() => { if (sceneRef.current) sceneRef.current.labelDensity = labelDensity; }, [labelDensity, ready]);
   // idioma: nombres de las etiquetas y punto cardinal Oeste (O / W)
@@ -1380,6 +1507,16 @@ export default function Constellations({ lang = "es" }) {
   const onResult = useCallback((res) => {
     if (res.type === "loading") return;   // fila informativa, no navegable
     setQuery("");
+    if (arOnRef.current) {
+      // apuntando: en vez de abrir la ficha, la flecha guía lleva hasta el objeto
+      let g = null;
+      if (res.type === "solar") { setShowSolar(true); g = { label: bodyName(res.body.name, langRef.current), body: res.body.name }; }
+      else if (res.type === "star") g = { label: res.st[7], dir: [res.st[1], res.st[2], res.st[3]] };
+      else if (res.type === "con") { const c = conDirsRef.current.find((x) => x.ab === res.ab); if (c) g = { label: c.name, dir: c.dir }; }
+      else if (res.type === "layer") { setEnabled(e => ({ ...e, [res.layer]: true })); g = { label: labelForObj(res.layer, res.obj, langRef.current), dir: [res.obj.nx, res.obj.ny, res.obj.nz] }; }
+      if (g) { setGuide(g); setSelObj(null); setPanel(null); setArCtl(false); }
+      return;
+    }
     if (!isWideRef.current) setPanel(null);
     if (res.type === "con") { setSelObj(null); setDepth(0); setSel(res.ab); }
     else if (res.type === "star") setSelObj(starObj(res.st, res.si));
@@ -1528,7 +1665,7 @@ export default function Constellations({ lang = "es" }) {
     if (!isWideRef.current) setPanel(null);
   }, []);
   // ── apuntar al cielo ──
-  const stopAr = useCallback(() => { pointRef.current.stop(); setAr("off"); setArSrc(null); }, []);
+  const stopAr = useCallback(() => { pointRef.current.stop(); setAr("off"); setArSrc(null); setGuide(null); setArCtl(false); }, []);
   // Se llama desde el toque en el botón: iOS solo muestra el permiso de sensores dentro del gesto.
   const startAr = useCallback(() => {
     setArError(null);
@@ -1543,6 +1680,16 @@ export default function Constellations({ lang = "es" }) {
     }
   }, [lat, lon]);
   const resetArAlign = useCallback(() => { pointAzOffset = 0; setArAligned(false); }, []);
+  // "Encuéntralo": entra en el modo apuntar (dentro del gesto, por el permiso de iOS) con una flecha guía
+  const findIt = useCallback((g) => {
+    setGuide(g); setSelObj(null); setPanel(null); setArCtl(false);
+    if (ar !== "on") startAr();
+  }, [ar, startAr]);
+  const guideOf = useCallback((o) => {
+    if (!o || o.nx == null) return null;
+    if (o.layer === "solar") return { label: bodyName(o.name, lang), body: o.name };
+    return { label: o.layer === "star" ? o.name : labelForObj(o.layer, o, lang), dir: [o.nx, o.ny, o.nz] };
+  }, [lang]);
   // con la ubicación ya elegida, el modo pendiente pasa a activo
   useEffect(() => {
     if (ar === "pending" && localMode && lat != null && lon != null) setAr("on");
@@ -1556,6 +1703,34 @@ export default function Constellations({ lang = "es" }) {
   useEffect(() => () => { pointRef.current.stop(); }, []);
   // entrar / salir: la cámara pasa a manos del teléfono y OrbitControls se desactiva
   const arOn = ar === "on";
+  useEffect(() => { arOnRef.current = arOn; }, [arOn]);
+  useEffect(() => { if (sceneRef.current) sceneRef.current.guide = arOn ? guide : null; }, [guide, arOn, ready]);
+  // ayuda de alineación: sola los primeros segundos; después queda dentro de "Controles"
+  useEffect(() => {
+    if (!arOn) { setArHelp(false); return; }
+    setArHelp(true);
+    const id = setTimeout(() => setArHelp(false), 7000);
+    return () => clearTimeout(id);
+  }, [arOn]);
+  // sin norte fiable hay que alinear a mano: se abren los controles con la explicación
+  useEffect(() => { if (arOn && arSrc === "relative") setArCtl(true); }, [arOn, arSrc]);
+  // los controles temporales se esconden solos si no se usan
+  useEffect(() => {
+    if (!arOn || !arCtl) return;
+    const id = setTimeout(() => {
+      const st = stageRef.current;
+      const busy = panelRef.current || (st && st.querySelector(".sk-top:focus-within, .sk-artray:focus-within"));
+      if (busy) setCtlBump(n => n + 1); else { setArCtl(false); setRailOpen(false); }
+    }, 9000);
+    return () => clearTimeout(id);
+  }, [arOn, arCtl, ctlBump]);
+  // menú "más": se cierra al tocar fuera
+  useEffect(() => {
+    if (!railOpen) return;
+    const off = (e) => { if (railRef.current && !railRef.current.contains(e.target)) setRailOpen(false); };
+    document.addEventListener("pointerdown", off, true);
+    return () => document.removeEventListener("pointerdown", off, true);
+  }, [railOpen]);
   useEffect(() => {
     const ref = sceneRef.current;
     if (!ref || !arOn) return;
@@ -1654,8 +1829,8 @@ export default function Constellations({ lang = "es" }) {
   }, []);
   const onStageKey = useCallback((e) => {
     if (e.key !== "Escape" || e.defaultPrevented) return;
-    if (panel) setPanel(null); else if (selObj) setSelObj(null); else if (full) setFull(false);
-  }, [panel, selObj, full]);
+    if (railOpen) setRailOpen(false); else if (panel) setPanel(null); else if (selObj) setSelObj(null); else if (guide) setGuide(null); else if (full) setFull(false);
+  }, [panel, selObj, full, railOpen, guide]);
 
   // click para identificar un objeto (raycast)
   useEffect(() => {
@@ -1692,7 +1867,10 @@ export default function Constellations({ lang = "es" }) {
         consider(pa[i * 3], pa[i * 3 + 1], pa[i * 3 + 2], 16, () => starObj(stars[i], i));
       }
       if (best) setSelObj(best());
-      else { setSelObj(null); if (!isWideRef.current) setPanel(null); }
+      else {
+        if (ref.ar.on && !isWideRef.current && !selObjRef.current && !panelRef.current) setArCtl(v => !v);
+        setSelObj(null); if (!isWideRef.current) setPanel(null);
+      }
     };
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointerup", onUp);
@@ -1786,18 +1964,49 @@ export default function Constellations({ lang = "es" }) {
   const showDepth = !!(sky && selMeta && !localMode && !tourActive);
   const showOnboard = !!(showHint && sky && !selObj && !panel && !tourActive && !showDepth && !arOn);
   // barra de "Apuntar al cielo": invitación (dentro de Mi cielo), indicador activo o aviso de error
-  const arBar = !sky || tourActive ? null
-    : arOn ? "on"
-    : arError ? "error"
-    : (arCapable && ar === "off" && localMode && lat != null && !covered && !showOnboard) ? "cta" : null;
-  const stageClass = "sk-stage" + (full ? " is-full" : "") + (covered ? " is-covered" : "") + (selObj ? " has-sheet" : "")
-    + (tourActive ? " has-tour" : "") + (showDepth ? " has-depth" : "") + (arOn ? " is-ar" : "");
+  const arBar = !sky || tourActive ? null : arOn ? "on" : arError ? "error" : null;
+  const immersive = arOn && !isWide;          // teléfono apuntando: el cielo ocupa toda la pantalla
+  const inMySky = localMode && lat != null;
+  // "Esta noche": solo se calcula con el panel abierto
+  const tonight = useMemo(() => {
+    if (panel !== "tonight" || !localMode || lat == null || lon == null) return null;
+    return computeTonight({ date: new Date(whenStr), lat, lon, ephemeris,
+      showers: datasets.meteors && datasets.meteors.objects, messier: datasets.messier && datasets.messier.objects, constellations: conDirs });
+  }, [panel, localMode, lat, lon, whenStr, datasets.meteors, datasets.messier, conDirs]);
+  const tonightGo = (it) => {
+    if (!isWide) setPanel(null);
+    // de día la lista es la del anochecer: el cielo se lleva a esa hora para que coincida
+    if (tonight && tonight.shifted) { setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(tonight.evalDate)); }
+    if (it.kind === "planet" || it.kind === "moon") {
+      const b = ephemeris(tonight ? tonight.evalDate : new Date(whenStr)).find(x => x.name === it.key);
+      if (b) { setShowSolar(true); setSelObj({ ...b, layer: "solar" }); }
+    } else if (it.kind === "shower") { setEnabled(e => ({ ...e, meteors: true })); setSelObj({ ...it.obj, layer: "meteors" }); }
+    else if (it.kind === "deep") { setEnabled(e => ({ ...e, messier: true })); setSelObj({ ...it.obj, layer: "messier" }); }
+    else if (it.kind === "con") { setSelObj(null); focusDir(it.dir[0], it.dir[1], it.dir[2]); }
+  };
+  const tonightFind = (it, name) => {
+    if (it.kind === "planet" || it.kind === "moon") { setShowSolar(true); findIt({ label: name, body: it.key }); return; }
+    if (it.kind === "shower") setEnabled(e => ({ ...e, meteors: true }));
+    if (it.kind === "deep") setEnabled(e => ({ ...e, messier: true }));
+    findIt({ label: name, dir: it.kind === "con" ? it.dir : [it.obj.nx, it.obj.ny, it.obj.nz] });
+  };
+  const openNote = (id) => {
+    const n = notes.find(x => x.id === id); if (!n) return;
+    setEnabled(e => (e[n.layer] ? e : { ...e, [n.layer]: true }));
+    if (!isWide) setPanel(null);
+    setSelObj({ layer: "note", note: id, name: id, nx: n.dir[0], ny: n.dir[1], nz: n.dir[2], n: n.n, total: n.total });
+  };
+  const canFind = !!liveObj && liveObj.layer !== "note" && liveObj.nx != null && !viewFrom && (arOn || (arCapable && inMySky));
+  const showActions = !!(sky && !tourActive && !arOn && !arError && inMySky && !covered && !showOnboard && !viewFrom && !showDepth);
+  const stageClass = "sk-stage" + (full || immersive ? " is-full" : "") + (immersive ? " is-immersive" : "") + (arOn && arCtl ? " ar-ctl" : "") + (covered ? " is-covered" : "") + (selObj ? " has-sheet" : "")
+    + (tourActive ? " has-tour" : "") + (showDepth ? " has-depth" : "") + (arOn ? " is-ar" : "") + (panel ? " has-panel" : "");
+  const bumpCtl = arOn && arCtl ? () => setCtlBump(n => n + 1) : undefined;
 
   return (
     <div ref={wrapRef} className="sk-wrap">
-    <div className={stageClass} onKeyDown={onStageKey}>
+    <div ref={stageRef} className={stageClass} onKeyDown={onStageKey} onPointerDownCapture={bumpCtl}>
       <div ref={mountRef} className="sk-canvas" role="application" tabIndex={0} onKeyDown={onCanvasKey} aria-label={t.canvasAria} />
-      <SkyLabels apiRef={labelsApiRef} colors={LABEL_COLOR} unit={t.lightyears} locale={lang === "es" ? "es" : "en-US"} />
+      <SkyLabels apiRef={labelsApiRef} colors={LABEL_COLOR} unit={t.lightyears} locale={lang === "es" ? "es" : "en-US"} onNote={openNote} noteAria={t.noteAria} />
 
       {!sky && !skyError && (
         <div role="status" className="sk-loading"><i className="sk-spin" />{t.loading}</div>
@@ -1814,8 +2023,8 @@ export default function Constellations({ lang = "es" }) {
 
       {sky && (
         <div className="sk-top">
-          <SearchBox t={t} query={query} setQuery={setQuery} results={results} onResult={onResult} quick={quick} />
-          {(viewFrom || localMode) && (
+          <SearchBox t={t} query={query} setQuery={setQuery} results={results} onResult={onResult} quick={quick} compact={!isWide} />
+          {(viewFrom || (isWide && localMode)) && (
             <div className="sk-chips">
               {viewFrom && (
                 <div className="sk-chip tone-violet">
@@ -1823,7 +2032,8 @@ export default function Constellations({ lang = "es" }) {
                   <button type="button" onClick={() => setViewFrom(null)}>{t.backToEarth}</button>
                 </div>
               )}
-              {localMode && lat != null && (
+              {/* en el teléfono el lugar va en el botón "Mi cielo" del dock, no en una fila propia */}
+              {isWide && localMode && lat != null && (
                 <div className="sk-chip tone-blue">
                   <button type="button" className="chip-main" onClick={() => openPanel("location")} aria-label={`${t.changePlace}: ${placeLabel}`}>
                     <Icon name="pin" size={16} /><span>{placeLabel}</span>
@@ -1837,13 +2047,14 @@ export default function Constellations({ lang = "es" }) {
       )}
 
       {sky && (
-        <div className="sk-rail">
+        <div ref={railRef} className={`sk-rail${railOpen ? " is-open" : ""}`}>
+          <button type="button" className="sk-rail-toggle" onClick={() => setRailOpen(o => !o)} aria-expanded={railOpen} aria-label={railOpen ? t.moreClose : t.more} title={t.more}><Icon name={railOpen ? "close" : "dots"} size={21} /></button>
           <button type="button" onClick={() => zoomBy(0.8)} aria-label={t.zoomIn} title={t.zoomIn}><Icon name="plus" size={22} /></button>
           <button type="button" onClick={() => zoomBy(1.25)} aria-label={t.zoomOut} title={t.zoomOut}><Icon name="minus" size={22} /></button>
           <span className="sk-rail-gap is-extra" aria-hidden="true" />
-          <button type="button" className={`is-extra${selObj ? " is-on" : ""}`} onClick={recenter} aria-label={selObj ? t.centerObj : t.centerView} title={selObj ? t.centerObj : t.centerView}><Icon name="target" size={20} /></button>
-          <button type="button" className="is-extra" onClick={savePostcard} aria-label={t.postcardAria} title={t.postcardAria}><Icon name="camera" size={20} /></button>
-          <button type="button" className={`is-extra${full ? " is-on" : ""}`} onClick={() => setFull(f => !f)} aria-pressed={full} aria-label={full ? t.fullOff : t.fullOn} title={full ? t.fullOff : t.fullOn}><Icon name={full ? "shrink" : "expand"} size={20} /></button>
+          {!arOn && <button type="button" className={`is-extra${selObj ? " is-on" : ""}`} onClick={() => { recenter(); setRailOpen(false); }} aria-label={selObj ? t.centerObj : t.centerView} title={selObj ? t.centerObj : t.centerView}><Icon name="target" size={20} /></button>}
+          <button type="button" className="is-extra" onClick={() => { savePostcard(); setRailOpen(false); }} aria-label={t.postcardAria} title={t.postcardAria}><Icon name="camera" size={20} /></button>
+          {!immersive && <button type="button" className={`is-extra${full ? " is-on" : ""}`} onClick={() => { setFull(f => !f); setRailOpen(false); }} aria-pressed={full} aria-label={full ? t.fullOff : t.fullOn} title={full ? t.fullOff : t.fullOn}><Icon name={full ? "shrink" : "expand"} size={20} /></button>}
         </div>
       )}
 
@@ -1872,7 +2083,7 @@ export default function Constellations({ lang = "es" }) {
       {sky && !tourActive && (
         <Dock t={t} panel={panel} onPanel={openPanel} localMode={localMode} tourReady={tourReady} onTour={startTour}
           timeLabel={timeMoved ? fmtWhenShort(when, lang) : t.now} isNow={!timeMoved} playing={playing}
-          layersOn={layersOn} layersWarn={failedLayers.length > 0} />
+          layersOn={layersOn} layersWarn={failedLayers.length > 0} mySkyLabel={!isWide && inMySky ? placeLabel : null} />
       )}
 
       {sky && tourActive && (
@@ -1886,8 +2097,13 @@ export default function Constellations({ lang = "es" }) {
 
       {arBar && (
         <PointingBar t={t} mode={arBar} source={arSrc} error={arError} aligned={arAligned} apiRef={arHudRef}
-          onStart={startAr} onExit={stopAr} onReset={resetArAlign} onDismiss={() => setArError(null)} canRetry={arCapable} />
+          onStart={startAr} onExit={stopAr} onReset={resetArAlign} onDismiss={() => setArError(null)} canRetry={arCapable}
+          ctl={arCtl} onCtl={() => setArCtl(v => !v)} help={arHelp && !covered} onZoom={zoomBy}
+          onLayers={() => openPanel("layers")} onTonight={() => openPanel("tonight")}
+          onSearch={() => { const i = stageRef.current && stageRef.current.querySelector(".sk-search input"); if (i) i.focus(); }} />
       )}
+      {arOn && guide && <GuideHud t={t} label={guide.label} apiRef={guideApiRef} onStop={() => setGuide(null)} />}
+      {showActions && panel !== "tonight" && <SkyActions t={t} onTonight={() => openPanel("tonight")} onPoint={arCapable && ar === "off" ? startAr : null} />}
 
       {showOnboard && <Onboarding t={t} onDone={dismissHint} onTour={startTour} tourReady={tourReady} />}
 
@@ -1895,13 +2111,19 @@ export default function Constellations({ lang = "es" }) {
         <LayersPanel t={t} lang={lang} layers={LAYERS} datasets={datasets} enabled={enabled} loadingLayer={loadingLayer} layerError={layerError}
           onToggle={toggleLayer} onRetry={loadLayer} showSolar={showSolar} onToggleSolar={() => setShowSolar(v => !v)}
           constellations={sortedCons} sel={sel} onPick={onPick} labelDensity={labelDensity} onDensity={setLabelDensity}
-          onClose={() => setPanel(null)} />
+          onClose={() => setPanel(null)} notes={notes} onNote={openNote} />
       )}
       {sky && panel === "location" && (
         <LocationPanel t={t} localMode={localMode} lat={lat} lon={lon} placeName={placeLabel} geo={geo}
           onUseMyLocation={useMyLocation} places={PLACES} onPlace={pickPlace} onManual={setManualPlace}
-          onExit={() => setLocalMode(false)} onClose={() => setPanel(null)}
+          onExit={() => setLocalMode(false)} onClose={() => setPanel(null)} onTonight={() => setPanel("tonight")}
           pointing={arCapable ? { state: ar, onStart: ar === "off" ? startAr : stopAr } : null} />
+      )}
+      {sky && panel === "tonight" && (
+        <TonightPanel t={t} lang={lang} data={tonight} placeName={placeLabel} onGo={tonightGo}
+          onFind={arCapable ? tonightFind : null}
+          onGoTime={(d) => { setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(d)); }}
+          onClose={() => setPanel(null)} />
       )}
       {sky && panel === "time" && (
         <TimePanel t={t} lang={lang} when={when} whenStr={whenStr} isNow={!timeMoved} playing={playing}
@@ -1916,6 +2138,7 @@ export default function Constellations({ lang = "es" }) {
           meteorActive={liveObj.layer === "meteors" && meteorActive(liveObj)}
           onClose={() => setSelObj(null)} onShare={shareLink} shareState={shareState}
           onPostcard={savePostcard} onCenter={recenter}
+          onFind={canFind ? () => findIt(guideOf(liveObj)) : null}
           canViewFrom={liveObj.layer === "star" && liveObj.dist_ly > 0}
           onViewFrom={() => {
             const d = liveObj.dist_ly;
