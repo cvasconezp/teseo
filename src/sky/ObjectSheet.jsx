@@ -1,13 +1,20 @@
 // Ficha de objeto: hoja inferior deslizable en móvil, panel lateral en escritorio.
 // Jerarquía: nombre + tipo → visual (3D / imagen / representación) → 3 datos en
 // lenguaje humano → descripción → detalles técnicos plegables → acciones.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Planet3D from "./Planet3D.jsx";
 import Icon from "./icons.jsx";
 import { BODIES, bodyName } from "./bodies.js";
 import { fmtDist, fmtYears, fmtDuration, fmtKm, fmtMassSun, fmtSuns, num, AU_KM, LIGHT_KM_S, VOYAGER_KM_S, LY_KM, SEC_PER_YEAR } from "./format.js";
 import { exoClass, tempBand, methodKey, starClass, schwarzschildKm, bhSizeBand, pulsarSpin, hubbleFamily, magReach, JUPITER_RE, JUPITER_ME } from "./explain.js";
 import { NoteArt, ExoCompare } from "./NoteArt.jsx";
+import { drawArt, artKind, artOptions } from "./art.js";
+import { riseTransitSet, bestTonight, signalDelay, horizonFor } from "./riseset.js";
+import { altAz } from "./guide.js";
+import { compassPoint8 } from "./deviceOrientation.js";
+import { citizenFor, CITIZEN_VERIFIED } from "./citizen.js";
+import { ephemeris } from "../ephemeris.js";
+import { useDialogFocus } from "./focus.js";
 
 // parte del cielo (en %) que ocupa la zona con la que se compara cada patrón
 const NOTE_SKY_PCT = { kepler: 0.55, pulsarPlane: 17.4, avoidance: 17.4, globulars: 14.6 };
@@ -46,6 +53,20 @@ const raDec = (ra, dec, lang) => {
   return `${lang === "es" ? "AR" : "RA"} ${hh} h ${String(mm % 60).padStart(2, "0")} m · Dec ${dec >= 0 ? "+" : "−"}${Math.abs(dec).toFixed(1)}°`;
 };
 
+// Tono de una estrella a partir del color del catálogo (que a su vez sale de su
+// índice de color B−V, es decir, de su temperatura). Solo nombra el tono: sky.json
+// no trae el B−V ni el tipo espectral, así que no se da una temperatura en kelvin.
+export function starHue(hex) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex || "")) return null;
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const d = r - b;
+  if (d < -12) return "blue";
+  if (d < 22) return "white";
+  if (d < 60) return "yellow";
+  if (d < 105) return "orange";
+  return "red";
+}
+
 // Convierte el objeto seleccionado en lo que muestra la ficha. Todo sale de los
 // datos reales del objeto; aquí solo se les da formato.
 export function describeObject(o, lang, t, meteorActive) {
@@ -83,6 +104,7 @@ export function describeObject(o, lang, t, meteorActive) {
     d.type = t.typeStar; d.visual = "star";
     if (o.dist_ly > 0) lightFacts(o.dist_ly);
     if (o.mag != null) { say(null, t.starMag(o.mag)); d.details.push([t.dMagnitude, `${num(o.mag, lang, 2)} · ${t.magHint}`]); }
+    const hue = starHue(o.hex); if (hue) say(null, t.starColorLine(t.starHue[hue]));
     d.details.push([t.dSource, t.srcStar]);
     if (o.dist_ly > 0) d.distNote = t.starDistNote;
   } else if (L === "messier") {
@@ -157,11 +179,31 @@ export function describeObject(o, lang, t, meteorActive) {
     d.details.push([t.dSource, t.srcMeteor]);
   } else if (L === "comets" || L === "probes") {
     d.type = L === "comets" ? t.typeComet : t.typeProbe; d.visual = L === "comets" ? "comet" : "probe";
-    if (o.dist_au != null) nearFacts(o.dist_au * AU_KM, o.dist_au);
+    const km = o.dist_km != null ? o.dist_km : (o.dist_au != null ? o.dist_au * AU_KM : null);
+    if (km != null) nearFacts(km, o.dist_au);
     if (L === "comets") d.note = o.approaching ? t.approaching : t.receding;
-    else d.note = (es ? o.note_es : o.note_en) || "";
+    else {
+      // nota corta + estado de la misión en el idioma activo (campos opcionales del backend)
+      const note = (es ? o.note_es : o.note_en) || "", status = (es ? o.status_note : o.status_note_en) || "";
+      const cap1 = (x) => (x ? x.charAt(0).toUpperCase() + x.slice(1) : "");
+      d.note = [note && cap1(note) + (/[.!?]$/.test(note) ? "" : "."), status].filter(Boolean).join(" ");
+      const line = t.probeLine(o.agency, o.launched);
+      if (line) d.type = `${d.type} · ${line}`;
+      if (o.agency) d.details.push([t.fAgency, o.agency]);
+      if (o.launched) d.details.push([t.fLaunched, String(o.launched)]);
+      const tgt = o.target && (t.targetName[o.target] || String(o.target).replace(/_/g, " "));
+      if (tgt) d.details.push([t.fTarget, tgt + (o.phase && t.phaseName[o.phase] ? ` · ${t.phaseName[o.phase]}` : "")]);
+    }
+    // señal de radio: distancia real de hoy ÷ velocidad de la luz
+    const sig = signalDelay(km);
+    if (sig) {
+      if (L === "probes") say(t.sigTitle, `${t.sigLine(fmtDuration(sig.oneWay, lang), fmtDuration(sig.roundTrip, lang))} ${t.sigBand[sig.band]}`, t.sigHint);
+      else say(t.sigTitleComet, t.sigComet(fmtDuration(sig.oneWay, lang)), t.sigHint);
+    }
+    if (o.sun_dist_km > 0) d.details.push([t.dSunDist, `${fmtKm(o.sun_dist_km, lang)}${o.sun_dist_au >= 0.1 ? ` · ${num(o.sun_dist_au, lang, 2)} ${t.au}` : ""}`]);
+    if (o.epoch) d.details.push([t.dEpoch, String(o.epoch).replace("T", " ").replace("Z", " UTC")]);
     d.details.push([t.dSource, t.srcHorizons]);
-    d.distNote = t.horizonsNote;
+    d.distNote = t.horizonsNote + (o._stale ? " " + t.staleNote : "");
   } else if (L === "exoplanets") {
     const cls = exoClass(o.rade);
     d.type = [t.typeExoplanet, cls && t.exoClassShort[cls], o.host && t.orbits(o.host)].filter(Boolean).join(" · ");
@@ -217,7 +259,7 @@ export function describeObject(o, lang, t, meteorActive) {
 
 // Visual principal: modelo 3D (sistema solar), imagen de Wikipedia (si existe) o
 // una representación esquemática claramente etiquetada. Nunca se inventan fotos.
-function Visual({ obj, info, t, lang, wiki, wikiState }) {
+function Visual({ obj, info, t, lang, wiki, wikiState, credit }) {
   const [texStatus, setTexStatus] = useState("loading");
   const [imgOk, setImgOk] = useState(false);
   const [imgFail, setImgFail] = useState(false);
@@ -263,14 +305,20 @@ function Visual({ obj, info, t, lang, wiki, wikiState }) {
   }
   const hasPhoto = wiki && wiki.thumb && !imgFail;
   if (hasPhoto) {
-    const cap = (obj.layer === "star" || obj.layer === "pulsars" || obj.layer === "blackholes") ? t.capWikiMixed : t.capWiki;
+    const mixed = obj.layer === "star" || obj.layer === "pulsars" || obj.layer === "blackholes" || obj.layer === "exoplanets";
+    const who = credit && [credit.artist, credit.license].filter(Boolean).join(" · ");
     return (
       <figure className="sk-visual is-photo">
         <div className={`sk-visual-stage${imgOk ? " is-loaded" : ""}`}>
           {!imgOk && <i className="sk-skeleton" aria-hidden="true" />}
           <img src={wiki.thumb} alt={t.imgAlt(info.name)} onLoad={() => setImgOk(true)} onError={() => setImgFail(true)} />
         </div>
-        <figcaption><b>{cap}</b><a href={wiki.url} target="_blank" rel="noopener noreferrer">{t.capLicense}</a></figcaption>
+        <figcaption>
+          <b>{who ? `${t.capImgBy(who)} · ${t.capImgCommons}` : mixed ? t.capWikiMixed : t.capWiki}</b>
+          {who && mixed && <span>{t.capWikiMixed}</span>}
+          {wiki.imgLang && wiki.imgLang !== lang && <span>{t.capImgOtherLang}</span>}
+          <a href={(credit && credit.page) || wiki.imgUrl || wiki.url} target="_blank" rel="noopener noreferrer">{t.capLicense}</a>
+        </figcaption>
       </figure>
     );
   }
@@ -282,29 +330,134 @@ function Visual({ obj, info, t, lang, wiki, wikiState }) {
       </figure>
     );
   }
-  // sin imagen: representación etiquetada
-  const kind = info.visual;
-  const cap = kind === "star" ? t.capStar : (kind === "blackhole" || kind === "pulsar") ? t.capSchematic : t.capNoImage;
+  // sin imagen: representación propia del tipo de objeto, siempre rotulada
+  const kind = artKind(obj);
   return (
     <figure className="sk-visual is-illus">
-      <div className="sk-visual-stage">
-        <div className={`sk-illus illus-${kind}`} style={kind === "star" ? { "--orb": obj.hex || "#ffffff" } : undefined} aria-hidden="true">
-          <i /><i /><i />
-        </div>
-      </div>
-      <figcaption><b>{cap}</b></figcaption>
+      <div className="sk-visual-stage"><ArtCanvas kind={kind} obj={obj} label={t.artAria(info.name)} /></div>
+      <figcaption>
+        <b>{t.capRep[kind] || t.capSchematic}</b>
+        {kind !== "star" && wikiState === "done" && <span>{t.capNoPhoto}</span>}
+      </figcaption>
     </figure>
   );
 }
 
-export default function ObjectSheet({ obj, lang, t, wiki, wikiState, meteorActive, onClose, onShare, shareState, onPostcard, onViewFrom, onCenter, canViewFrom, onFind }) {
-  const info = describeObject(obj, lang, t, meteorActive);
+// Representación esquemática en <canvas> (src/sky/art.js), nítida a la densidad de la pantalla.
+export function ArtCanvas({ kind, obj, label }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const c = ref.current; if (!c) return undefined;
+    const paint = () => {
+      const w = c.clientWidth, h = c.clientHeight; if (!w || !h) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+      const x = c.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawArt(x, kind, 0, 0, w, h, artOptions(obj));
+    };
+    paint();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(paint) : null;
+    if (ro) ro.observe(c);
+    return () => { if (ro) ro.disconnect(); };
+  }, [kind, obj.name, obj.hex, obj.hubble, obj.rade, obj.eqt_k]);   // eslint-disable-line react-hooks/exhaustive-deps
+  return <canvas ref={ref} className="sk-art" role="img" aria-label={label} />;
+}
+
+// ── salida, culminación y puesta desde "Mi cielo" ───────────────────────────
+const bodyDirAt = (name) => (d) => { const b = ephemeris(d).find((x) => x.name === name); return [b.nx, b.ny, b.nz]; };
+const sunDirAt = bodyDirAt("Sol");
+/** Cálculo para la ficha: { rts, best, now } o null si el objeto no tiene dirección. */
+export function visibilityOf(obj, local, when) {
+  if (!obj || obj.nx == null || !local) return null;
+  const solar = obj.layer === "solar";
+  const dirAt = solar ? bodyDirAt(obj.name) : () => [obj.nx, obj.ny, obj.nz];
+  const minAlt = horizonFor(solar && obj.name === "Sol" ? "sun" : solar && obj.name === "Luna" ? "moon" : "star");
+  const rts = riseTransitSet(dirAt, local.lat, local.lon, when, { minAlt });
+  const d0 = dirAt(when), now = altAz(d0[0], d0[1], d0[2], local.lat, local.lon, when);
+  const isSun = solar && obj.name === "Sol";
+  // estrellas débiles y cielo profundo piden cielo oscuro (−12°); la Luna y los planetas ya se ven con −6°
+  const best = isSun ? null : bestTonight(dirAt, sunDirAt, local.lat, local.lon, when, { sunLimit: solar ? -6 : -12 });
+  return { rts, best, now, isSun };
+}
+export function RiseSet({ obj, t, lang, local, when, onNeedPlace }) {
+  // el cálculo se rehace por minuto, no por render
+  const minute = Math.floor(when.getTime() / 60000);
+  const vis = useMemo(() => (local ? visibilityOf(obj, local, new Date(minute * 60000)) : null),
+    [obj.name, obj.layer, obj.nx, obj.ny, obj.nz, local && local.lat, local && local.lon, minute]);   // eslint-disable-line react-hooks/exhaustive-deps
+  if (obj.nx == null || obj.layer === "note") return null;
+  if (!local) {
+    return (
+      <div className="sk-rs is-off">
+        <p>{t.rsNeedPlace}</p>
+        <button type="button" className="sk-btn" onClick={onNeedPlace}><Icon name="pin" size={16} />{t.rsActivate}</button>
+      </div>
+    );
+  }
+  if (!vis) return null;
+  const loc = lang === "es" ? "es-EC" : "en-US";
+  const hm = (d) => d.toLocaleTimeString(loc, lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { hour: "numeric", minute: "2-digit" });
+  // si el instante cae en otro día que el de referencia, se dice cuál
+  const dayOf = (d) => (d.toDateString() === when.toDateString() ? "" : t.rsDay(d.toLocaleDateString(loc, { weekday: "short", day: "numeric" })));
+  const { rts, best, now, isSun } = vis;
+  // si los tres instantes caen en el mismo día (distinto de hoy), el día se dice una sola vez
+  const evs = [rts.rise, rts.transit, rts.set].filter(Boolean).map((x) => dayOf(x.date));
+  const oneDay = evs.length > 0 && evs.every((d) => d === evs[0]) ? evs[0] : null;
+  const at = (x) => (x ? hm(x.date) + (oneDay != null ? "" : dayOf(x.date)) : null);
+  const tDay = rts.transit && oneDay == null ? dayOf(rts.transit.date) : "";
+  const main = rts.state === "never" ? t.rsNever
+    : rts.state === "always" ? t.rsAlways(hm(rts.transit.date), Math.round(rts.transit.alt), dayOf(rts.transit.date))
+    : t.rsLine(at(rts.rise), rts.transit ? hm(rts.transit.date) : null, rts.transit ? Math.round(rts.transit.alt) : null, at(rts.set), tDay) + (oneDay || "");
+  let bestLine = null;
+  if (isSun) bestLine = t.rsSun;
+  else if (best) {
+    if (best.ok) bestLine = Math.abs(best.date.getTime() - when.getTime()) < 6 * 60000 ? t.rsBestNow(Math.round(best.alt)) : t.rsBest(hm(best.date) + dayOf(best.date), Math.round(best.alt));
+    else if (best.reason === "daylight") bestLine = rts.state === "never" ? null : t.rsDaylight;
+    else if (best.reason === "gone") bestLine = t.rsGone;
+    else if (best.reason === "low") bestLine = t.rsLow(Math.ceil(best.alt));
+    else if (best.reason === "nonight") bestLine = t.rsNoNight;
+  }
+  return (
+    <section className="sk-rs" aria-label={t.rsTitle(local.place)}>
+      <h3><Icon name="pin" size={15} />{t.rsTitle(local.place)}</h3>
+      <p className="sk-rs-main">{main}</p>
+      <p>{now.alt > 0 ? t.rsUp(Math.round(now.alt), compassPoint8(now.az)) : t.rsDown}{bestLine ? " " + bestLine : ""}</p>
+      <small>{t.rsHint}</small>
+    </section>
+  );
+}
+
+// ── "Participa": ciencia ciudadana relacionada (src/sky/citizen.js) ─────────
+export function Citizen({ obj, t, lang, local }) {
+  const list = citizenFor(obj, local);
+  if (!list.length) return null;
+  return (
+    <section className="sk-join" aria-label={t.joinTitle}>
+      <h3>{t.joinTitle}</h3>
+      <ul>
+        {list.map((p) => (
+          <li key={p.id}>
+            <a href={p.url} target="_blank" rel="noopener noreferrer" aria-label={t.joinOpen(p.name)}><b>{p.name}</b> <span>{p.org}</span></a>
+            <p>{p[lang] || p.es}</p>
+            <small>{t.joinNeeds[p.needs]}</small>
+          </li>
+        ))}
+      </ul>
+      <small className="sk-join-foot">{t.joinVerified(CITIZEN_VERIFIED)}</small>
+    </section>
+  );
+}
+
+// ── armazón de la ficha (hoja inferior deslizable en móvil, panel lateral en escritorio) ──
+// Es un diálogo no modal: el cielo sigue usable detrás. Al abrirse lleva el foco a su
+// título (los lectores de pantalla lo anuncian) y al cerrarse lo devuelve a donde estaba.
+export function SheetShell({ t, title, subtitle, badge, resetKey, onClose, children, className = "" }) {
   const [mode, setMode] = useState("peek");           // móvil: "peek" (media altura) | "full"
   const [dragY, setDragY] = useState(0);
   const startRef = useRef(null);
   const bodyRef = useRef(null);
-  useEffect(() => { setMode("peek"); if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [obj.name, obj.layer, obj.note]);
-
+  const boxRef = useRef(null);
+  useEffect(() => { setMode("peek"); if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [resetKey]);
+  useDialogFocus(boxRef, { trap: false });
   // asa: arrastrar arriba expande, abajo reduce / cierra; un toque alterna
   const onDown = (e) => { startRef.current = { y: e.clientY, moved: false }; try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* no-op */ } };
   const onMove = (e) => { const s = startRef.current; if (!s) return; const dy = e.clientY - s.y; if (Math.abs(dy) > 6) s.moved = true; setDragY(mode === "full" ? Math.max(0, dy) : dy); };
@@ -316,13 +469,8 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, meteorActiv
     if (dy < -40) setMode("full");
     else if (dy > 40) { if (mode === "full") setMode("peek"); else onClose(); }
   };
-  // exoplanetas: si Wikipedia solo tiene la página de la estrella, su texto no describe al planeta
-  const wikiFits = obj.layer !== "exoplanets" || (wiki && wiki.title && wiki.title.toLowerCase().includes(String(obj.name).toLowerCase()));
-  const isNote = obj.layer === "note";
-  const extract = wiki && wiki.extract && wikiFits ? (wiki.extract.length > 340 ? wiki.extract.slice(0, 340).replace(/\s+\S*$/, "") + "…" : wiki.extract) : "";
-
   return (
-    <section className={`sk-sheet is-${mode}${dragY ? " is-dragging" : ""}`} role="dialog" aria-labelledby="sk-sheet-title"
+    <section ref={boxRef} className={`sk-sheet is-${mode}${dragY ? " is-dragging" : ""} ${className}`} role="dialog" aria-labelledby="sk-sheet-title"
       style={dragY ? { "--drag": `${dragY}px` } : undefined}>
       <button type="button" className="sk-grab" aria-label={mode === "peek" ? t.sheetExpand : t.sheetCollapse} aria-expanded={mode === "full"}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
@@ -331,13 +479,26 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, meteorActiv
       </button>
       <header className="sk-sheet-head">
         <div>
-          <h2 id="sk-sheet-title">{info.name}</h2>
-          <p className="sk-type">{info.type}{info.badge && <em>{info.badge}</em>}</p>
+          <h2 id="sk-sheet-title" tabIndex={-1}>{title}</h2>
+          <p className="sk-type">{subtitle}{badge && <em>{badge}</em>}</p>
         </div>
         <button type="button" className="sk-iconbtn" onClick={onClose} aria-label={t.closeSheet}><Icon name="close" size={18} /></button>
       </header>
-      <div className="sk-sheet-body" ref={bodyRef}>
-        <Visual obj={obj} info={info} t={t} lang={lang} wiki={wiki} wikiState={wikiState} />
+      <div className="sk-sheet-body" ref={bodyRef}>{children}</div>
+    </section>
+  );
+}
+
+export default function ObjectSheet({ obj, lang, t, wiki, wikiState, credit, meteorActive, onClose, onShare, onViewFrom, onCenter, canViewFrom, onFind, findAria, local, when, onNeedPlace }) {
+  const info = describeObject(obj, lang, t, meteorActive);
+  // exoplanetas: si Wikipedia solo tiene la página de la estrella, su texto no describe al planeta
+  const wikiFits = obj.layer !== "exoplanets" || (wiki && wiki.title && wiki.title.toLowerCase().includes(String(obj.name).toLowerCase()));
+  const isNote = obj.layer === "note";
+  const extract = wiki && wiki.extract && wikiFits ? (wiki.extract.length > 340 ? wiki.extract.slice(0, 340).replace(/\s+\S*$/, "") + "…" : wiki.extract) : "";
+
+  return (
+    <SheetShell t={t} title={info.name} subtitle={info.type} badge={info.badge} resetKey={`${obj.layer}|${obj.name}|${obj.note || ""}`} onClose={onClose}>
+        <Visual obj={obj} info={info} t={t} lang={lang} wiki={wiki} wikiState={wikiState} credit={credit} />
         {info.facts.length > 0 && (
           <dl className="sk-facts">
             {info.facts.map((f) => (
@@ -346,6 +507,7 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, meteorActiv
           </dl>
         )}
         {info.note && <p className="sk-note">{info.note}</p>}
+        {!isNote && <RiseSet obj={obj} t={t} lang={lang} local={local} when={when} onNeedPlace={onNeedPlace} />}
         {info.explain.length > 0 && (
           <ul className="sk-explain">
             {info.explain.map((e, i) => (
@@ -370,18 +532,12 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, meteorActiv
             <button type="button" className="sk-btn primary wide" onClick={onViewFrom}><Icon name="eye" size={18} />{t.viewFromHere}</button>
           )}
           {onFind && (
-            <button type="button" className="sk-btn wide sk-find-btn" onClick={onFind} aria-label={t.findItAria(info.name)}><Icon name="point" size={18} />{t.findIt}</button>
+            <button type="button" className="sk-btn wide sk-find-btn" onClick={onFind} aria-label={findAria}><Icon name="point" size={18} />{t.findIt}</button>
           )}
-          {!isNote && (
-            <button type="button" className="sk-btn" onClick={onShare} aria-live="polite">
-              <Icon name={shareState === "ok" ? "check" : shareState === "fail" ? "warn" : "share"} size={17} />
-              {shareState === "ok" ? t.linkCopied : shareState === "fail" ? t.linkFailed : t.share}
-            </button>
-          )}
-          {!isNote && <button type="button" className="sk-btn" onClick={onPostcard}><Icon name="camera" size={17} />{t.postcard}</button>}
+          {!isNote && <button type="button" className="sk-btn" onClick={onShare}><Icon name="share" size={17} />{t.share}</button>}
           <button type="button" className="sk-btn" onClick={onCenter}><Icon name="target" size={17} />{t.center}</button>
         </div>
-      </div>
-    </section>
+        {!isNote && <Citizen obj={obj} t={t} lang={lang} local={!!local} />}
+    </SheetShell>
   );
 }

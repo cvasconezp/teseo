@@ -86,13 +86,17 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 - [x] "Apuntar al cielo" (giroscopio/brújula): probado en iPhone; modo inmersivo con flecha guía "Encuéntralo"
 - [x] "Esta noche en tu cielo": Luna, planetas, lluvias activas y constelaciones visibles desde tu ubicación
 - [x] Capas explicadas: qué es, fuente, patrón en el cielo y dato → frase (exoplanetas a escala con la Tierra)
-- [x] Pestaña "Preguntas": ¿Estamos solos? (Drake, Fermi, Gran Filtro, Kardashov) con niveles de certeza
+- [x] Pestaña "Preguntas": ¿Estamos solos?, agujeros negros, expansión del universo y materia oscura, con niveles de certeza y datos publicados
+- [x] "Ahora en el espacio": naves rumbo a Marte, próximos lanzamientos (Launch Library 2) y asteroides cercanos (JPL CNEOS)
+- [x] 21 naves en vivo (JPL Horizons) con tiempo de señal; fotos reales de sondas; fichas de constelación
+- [x] Salida, culminación y puesta por objeto; norte geográfico en el modo apuntar (WMM2025, verificado con los valores de prueba de NOAA)
+- [x] Postal para compartir con vista previa; enlaces "Participa" de ciencia ciudadana
+- [x] Accesibilidad: contraste AA medido, teclado y foco; pruebas de Node de toda la matemática
 
 ## 🧪 Ideas para explorar
 - [ ] Más culturas de constelaciones (no solo la moderna/occidental; p. ej. andina)
-- [ ] Más "Preguntas": materia oscura (curvas de rotación), energía oscura (expansión), agujeros negros
-- [ ] Ciencia ciudadana: enlaces "Participa" por ficha; misiones en vuelo y lanzamientos (Launch Library 2, JPL)
-- [ ] Declinación magnética en el modo apuntar (hoy: alineación manual)
+- [ ] Color de las estrellas por temperatura real (falta B−V o tipo espectral en sky.json)
+- [ ] Rutas con órbitas reales y asistencias gravitatorias; pasos visibles de la ISS
 - [x] Lluvias de meteoros ("activa ahora"), cometas y sondas/telescopios en vivo (NASA Horizons)
 - [ ] Satélites en vivo (TLE de Celestrak + SGP4)
 - [x] Modo "tour guiado" narrado por IA — recorrido de objetos icónicos con narración Groq
