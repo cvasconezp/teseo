@@ -278,7 +278,9 @@ def find_launch_windows(
                     "window_number": len(windows) + 1,
                     "departure_date": window_date.isoformat(),
                     "arrival_date": transfer.arrival_date.isoformat(),
-                    "transfer_time_days": round(transfer.transfer_time_days, 1),
+                    # Misma precisión (2 decimales) que /api/route, para que
+                    # "Ruta" y "Ventanas" muestren exactamente la misma cifra.
+                    "transfer_time_days": round(transfer.transfer_time_days, 2),
                     "delta_v_km_s": round(transfer.delta_v_total_km_s, 3),
                     "days_from_start": round(float(jd_win - jd0), 1),
                 }

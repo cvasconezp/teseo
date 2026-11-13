@@ -115,6 +115,19 @@ probar.
 | POST | `/api/route` | Ruta Hohmann completa + narrativa IA |
 | GET | `/api/launch-windows/{a}/{b}` | Próximas ventanas de lanzamiento |
 | POST | `/api/explain` | Explicación de un concepto (IA) |
+| GET | `/api/positions` | Posición real de todos los planetas (NASA Horizons) |
+| GET | `/api/exoplanets` | Exoplanetas (NASA Exoplanet Archive) |
+| GET | `/api/comets` | Cometas notables, posición actual (NASA Horizons) |
+| GET | `/api/probes` | Sondas y telescopios en vuelo, con destino, agencia y estado (NASA Horizons) |
+| GET | `/api/launches?limit=8` | Próximos lanzamientos orbitales de todas las agencias (The Space Devs — Launch Library 2) |
+| GET | `/api/asteroids?days=30&dist_ld=10` | Asteroides y cometas que pasan cerca de la Tierra (NASA/JPL CNEOS) |
+| GET | `/api/missions/mars` | Próxima ventana Tierra→Marte y naves con destino Marte |
+| GET | `/api/health` | Versión y edad de las cachés por proveedor (no llama a nadie) |
+
+Toda llamada a un proveedor externo va con caché en memoria, una sola petición
+a la vez donde el proveedor lo exige y, si el proveedor falla, se sirve el
+último dato válido marcado `stale: true` (ver `backend/app/cache.py`). Ningún
+endpoint espera más de ~25 s y los errores son siempre JSON con `detail`.
 
 ### Ejemplo: calcular una ruta Tierra → Marte
 
@@ -169,6 +182,11 @@ Variables de entorno del backend en Railway:
   devolviendo todos los números, solo sin texto narrado).
 - `ALLOWED_ORIGINS` — opcional, lista separada por comas con los dominios del
   frontend (p. ej. `https://teseo.yachaydeep.com`). Por defecto es `*`.
+- `LL2_API_KEY` — opcional, clave de Launch Library 2 (sin ella: 15
+  peticiones/hora por IP, suficiente con la caché de 30 min).
+- `TESEO_USER_AGENT` — recomendado: identifica al backend ante NASA/JPL, cuya
+  política de uso pide producto, versión y contacto en el User-Agent
+  (p. ej. `Teseo/0.2 (+https://tu-sitio; tu-correo@dominio)`).
 
 ## Licencia
 

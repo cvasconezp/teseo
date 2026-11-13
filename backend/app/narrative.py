@@ -41,7 +41,9 @@ def _get_client() -> Groq:
                 "GROQ_API_KEY no configurada. Crea una cuenta gratis en "
                 "console.groq.com y ponla en tu archivo .env"
             )
-        _client = Groq(api_key=api_key)
+        # Tope de espera: 11 s por intento y un solo reintento (~23 s como
+        # máximo), para que /api/route y /api/explain nunca se queden colgados.
+        _client = Groq(api_key=api_key, timeout=11.0, max_retries=1)
     return _client
 
 
