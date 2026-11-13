@@ -68,7 +68,7 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 - [x] Profundidad real de las constelaciones
 - [x] "La luz que ves salió hace X años"
 - [x] **Tiempo de viaje a objetos** (luz + Voyager 1) en la ficha
-- [ ] **"¿Cómo se vería el cielo desde allí?"** (cambiar el punto de observación)
+- [x] **"¿Cómo se vería el cielo desde allí?"** (cambiar el punto de observación)
 - [x] Comparador de escalas / distancias (regla cósmica) — pestaña 'Escala'
 
 ## 🧱 Plataforma y calidad
@@ -77,9 +77,14 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 - [~] Gestos táctiles (OrbitControls) ok · accesibilidad WCAG pendiente
 - [x] Carga inicial optimizada (exoplanetas bajo demanda)
 - [ ] Rendimiento runtime con muchas capas activas
-- [x] Tests del backend (física + endpoints) — 12 pruebas, pytest
+- [x] Tests del backend (física + endpoints) — 21 pruebas, pytest
+- [x] Ventanas de lanzamiento por **alineación real** (ángulo de fase heliocéntrico), no "hoy + período sinódico"
+- [x] Horizons en cola (una petición a la vez) + reintentos + caché por día + último dato válido si la NASA cae
+- [x] Error boundaries y errores visibles con reintento en el frontend
+- [x] Deep-links, postal del cielo y onboarding
 
 ## 🧪 Ideas para explorar
 - [ ] Más culturas de constelaciones (no solo la moderna/occidental)
-- [ ] Lluvias de meteoros, cometas, satélites (TLE)
+- [x] Lluvias de meteoros ("activa ahora"), cometas y sondas/telescopios en vivo (NASA Horizons)
+- [ ] Satélites en vivo (TLE de Celestrak + SGP4)
 - [x] Modo "tour guiado" narrado por IA — recorrido de objetos icónicos con narración Groq

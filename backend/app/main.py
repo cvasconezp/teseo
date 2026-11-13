@@ -73,6 +73,43 @@ def list_bodies():
     }
 
 
+@app.get("/api/positions")
+async def get_all_positions(date: Optional[str] = Query(None)):
+    """
+    Posición heliocéntrica real de TODOS los planetas en una sola llamada
+    (NASA Horizons, en cola y con caché). Los cuerpos que no se puedan
+    consultar se listan en `errors` en vez de tumbar toda la respuesta.
+    """
+    try:
+        parsed_date = datetime.fromisoformat(date) if date else None
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    positions, errors = {}, {}
+    for body_id in orbital.BODIES.keys():
+        try:
+            positions[body_id] = await nasa_horizons.get_body_position(body_id, parsed_date)
+        except Exception as e:
+            errors[body_id] = str(e)
+    return {"positions": positions, "errors": errors, "source": "NASA JPL Horizons"}
+
+
+@app.on_event("startup")
+async def _prewarm_positions():
+    """Al arrancar, precarga en segundo plano las posiciones de hoy para
+    que el primer visitante no espere a la NASA."""
+    import asyncio
+
+    async def warm():
+        for body_id in orbital.BODIES.keys():
+            try:
+                await nasa_horizons.get_body_position(body_id)
+            except Exception:
+                pass
+
+    if os.getenv("TESEO_PREWARM", "1") == "1":
+        asyncio.create_task(warm())
+
+
 @app.get("/api/position/{body}")
 async def get_position(body: str, date: Optional[str] = Query(None)):
     """
@@ -167,6 +204,9 @@ async def list_probes(date: Optional[str] = Query(None)):
         raise HTTPException(status_code=502, detail=f"Error consultando NASA Horizons: {e}")
 
 
+_windows_cache: dict = {}
+
+
 @app.get("/api/launch-windows/{origin}/{destination}")
 def get_launch_windows(
     origin: str,
@@ -177,7 +217,15 @@ def get_launch_windows(
     """Próximas ventanas de lanzamiento óptimas entre dos cuerpos."""
     try:
         parsed_date = datetime.fromisoformat(start_date) if start_date else None
-        return orbital.find_launch_windows(origin, destination, parsed_date, count)
+        # Las ventanas son fechas absolutas: el resultado no cambia dentro
+        # del mismo día, así que se cachea por (ruta, día, cantidad).
+        day = (parsed_date or datetime.utcnow()).strftime("%Y-%m-%d")
+        key = (origin.lower(), destination.lower(), start_date or day, count)
+        if key not in _windows_cache:
+            if len(_windows_cache) > 500:
+                _windows_cache.clear()
+            _windows_cache[key] = orbital.find_launch_windows(origin, destination, parsed_date, count)
+        return _windows_cache[key]
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
