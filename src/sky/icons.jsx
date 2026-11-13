@@ -27,6 +27,11 @@ const P = {
   sun: <><circle cx="12" cy="12" r="3.8" /><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7" /></>,
   // teléfono levantado hacia una estrella (modo "Apuntar al cielo")
   point: <><rect x="4.5" y="9" width="8.5" height="12.5" rx="1.8" transform="rotate(-18 8.75 15.25)" /><path d="M17.5 2.8v5M15 5.3h5" /><path d="M20 11.5v2.6M18.7 12.8h2.6" strokeWidth="1.3" /></>,
+  dots: <><circle cx="5.5" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="18.5" cy="12" r="1.5" fill="currentColor" stroke="none" /></>,
+  moon: <path d="M19.5 14.2A8 8 0 1 1 9.8 4.5a6.4 6.4 0 0 0 9.7 9.7Z" />,
+  planet: <><circle cx="12" cy="12" r="4.6" /><ellipse cx="12" cy="12" rx="10" ry="3.4" transform="rotate(-20 12 12)" /></>,
+  meteor: <><path d="m20 4-9.5 9.5" /><path d="M20 9.5 14.5 15" strokeWidth="1.3" /><path d="M14.5 4 9 9.5" strokeWidth="1.3" /><circle cx="7" cy="17" r="3" /></>,
+  sparkle: <><path d="M12 3.5c.6 4.400 2.100 5.900 6.5 6.5-4.400.6-5.900 2.100-6.5 6.5-.6-4.400-2.100-5.900-6.5-6.5 4.400-.6 5.900-2.100 6.5-6.5Z" /><path d="M18.5 16v4M16.5 18h4" strokeWidth="1.3" /></>,
   constellation: <><circle cx="5" cy="7" r="1.4" fill="currentColor" /><circle cx="11" cy="11" r="1.4" fill="currentColor" /><circle cx="18" cy="6" r="1.4" fill="currentColor" /><circle cx="15" cy="18" r="1.4" fill="currentColor" /><path d="m5 7 6 4 7-5M11 11l4 7" strokeWidth="1.1" /></>,
 };
 

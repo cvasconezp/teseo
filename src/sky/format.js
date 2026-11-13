@@ -42,6 +42,11 @@ export function fmtKm(km, lang) {
 export function fmtMassSun(m, lang) {
   return `${big(m, lang)} ${lang === "es" ? (m >= 1e6 ? "de " : "") + "masas solares" : "solar masses"}`;
 }
+// "4,3 millones de soles" · "21 soles" · "1 sol"
+export function fmtSuns(m, lang) {
+  const one = Math.abs(m - 1) < 0.05;
+  return `${big(m, lang)} ${de(m, lang)}${lang === "es" ? (one ? "sol" : "soles") : (one ? "Sun" : "Suns")}`;
+}
 export const AU_KM = 149597870.7;
 export const LIGHT_KM_S = 299792.458;
 export const VOYAGER_KM_S = 17;                 // Voyager 1 ≈ 17 km/s respecto al Sol (NASA/JPL)

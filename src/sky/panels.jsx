@@ -5,19 +5,26 @@ import { memo, useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { fmtWhenLong } from "./format.js";
 import { compassPoint8 } from "./deviceOrientation.js";
+import { bodyName } from "./bodies.js";
 
 // ── Etiquetas proyectadas ────────────────────────────────────────────────
 // Tienen su propio estado: el bucle de render las actualiza ~12 veces/s sin
 // volver a renderizar toda la vista.
-export const SkyLabels = memo(function SkyLabels({ apiRef, colors, unit, locale }) {
+export const SkyLabels = memo(function SkyLabels({ apiRef, colors, unit, locale, onNote, noteAria }) {
   const [labels, setLabels] = useState([]);
   useEffect(() => { apiRef.current = setLabels; return () => { apiRef.current = null; }; }, [apiRef]);
   return (
-    <div className="sk-labels" aria-hidden="true">
-      {labels.map((l) => (
-        <div key={l.key} className={`sk-label sk-label-${l.cls.startsWith("obj_") ? "obj" : l.cls}`}
+    <div className="sk-labels">
+      {labels.map((l) => l.cls === "note" ? (
+        // nota sobre un patrón del cielo: es un botón (lo demás son etiquetas mudas)
+        <button key={l.key} type="button" className="sk-skynote" onClick={() => onNote(l.id)} aria-label={noteAria(l.name)}
+          style={{ transform: `translate(${Math.round(l.x)}px,${Math.round(l.y)}px) translate(-50%,-135%)` }}>
+          <i aria-hidden="true">?</i>{l.name}
+        </button>
+      ) : (
+        <div key={l.key} aria-hidden="true" className={`sk-label sk-label-${l.cls.startsWith("obj_") ? "obj" : l.cls}${l.flip ? " is-flip" : ""}${l.hot ? " is-hot" : ""}`}
           style={{ transform: `translate(${Math.round(l.x)}px,${Math.round(l.y)}px)`, color: colors[l.cls] || "#fff" }}>
-          <span style={l.dx ? { transform: `translate(${l.dx}px,-50%)` } : undefined}>{l.name}</span>
+          <span style={l.dx ? { transform: l.flip ? `translate(calc(-100% - ${l.dx}px),-50%)` : `translate(${l.dx}px,-50%)` } : undefined}>{l.name}</span>
           {l.sub != null && <small>{l.sub.toLocaleString(locale)} {unit}</small>}
         </div>
       ))}
@@ -26,15 +33,17 @@ export const SkyLabels = memo(function SkyLabels({ apiRef, colors, unit, locale 
 });
 
 // ── Buscador ─────────────────────────────────────────────────────────────
-export function SearchBox({ t, query, setQuery, results, onResult, quick }) {
+export function SearchBox({ t, query, setQuery, results, onResult, quick, compact }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef(null);
   const inputRef = useRef(null);
   const close = () => { setOpen(false); if (inputRef.current) inputRef.current.blur(); };
   const showQuick = open && query.trim().length < 2;
   const showResults = open && query.trim().length >= 2;
+  // en el teléfono, vacío y sin foco, se queda en una píldora corta que se abre al tocarla
+  const collapsed = !!compact && !open && !query;
   return (
-    <div className="sk-search" ref={boxRef}
+    <div className={`sk-search${collapsed ? " is-collapsed" : ""}`} ref={boxRef}
       onBlur={(e) => { if (!boxRef.current || !boxRef.current.contains(e.relatedTarget)) setOpen(false); }}>
       <div className="sk-search-field">
         <Icon name="search" size={19} />
@@ -45,7 +54,7 @@ export function SearchBox({ t, query, setQuery, results, onResult, quick }) {
             if (e.key === "Escape") { setQuery(""); close(); }
             if (e.key === "Enter") { const r = results.find((x) => x.type !== "loading"); if (r) { onResult(r); close(); } }
           }}
-          aria-label={t.searchAria} placeholder={t.searchPlaceholder} />
+          aria-label={t.searchAria} placeholder={collapsed ? t.searchShort : t.searchPlaceholder} />
         {query && (
           <button type="button" className="sk-search-clear" onClick={() => { setQuery(""); if (inputRef.current) inputRef.current.focus(); }} aria-label={t.searchClear}>
             <Icon name="close" size={16} />
@@ -80,21 +89,22 @@ export function SearchBox({ t, query, setQuery, results, onResult, quick }) {
 }
 
 // ── Dock de acciones principales ─────────────────────────────────────────
-export function Dock({ t, panel, onPanel, localMode, tourReady, onTour, timeLabel, isNow, layersOn, layersWarn, playing }) {
+export function Dock({ t, panel, onPanel, localMode, tourReady, onTour, timeLabel, isNow, layersOn, layersWarn, playing, mySkyLabel }) {
   // función normal (no componente): así los botones no se remontan en cada render
   const item = ({ id, icon, label, active, onClick, disabled, badge, tone }) => (
     <button type="button" key={id} className={`sk-dock-item${active ? " is-active" : ""}${tone ? " tone-" + tone : ""}`}
       onClick={onClick} disabled={disabled} aria-pressed={id === "tour" ? undefined : !!active}
       aria-expanded={id === "tour" ? undefined : panel === id}>
-      <span className="sk-dock-icon"><Icon name={icon} size={22} />{badge}</span>
+      <span className="sk-dock-icon"><Icon name={icon} size={21} /></span>
       <span className="sk-dock-label">{label}</span>
+      {badge}
     </button>
   );
   return (
     <nav className="sk-dock" aria-label={t.dockAria}>
       {item({ id: "layers", icon: "layers", label: t.layers, active: panel === "layers", onClick: () => onPanel("layers"),
         badge: layersWarn ? <i className="sk-badge warn" role="img" aria-label={t.layerFailed} /> : layersOn > 0 ? <i className="sk-badge">{layersOn}</i> : null })}
-      {item({ id: "location", icon: "pin", label: t.mySky, active: panel === "location" || localMode, tone: localMode ? "blue" : null, onClick: () => onPanel("location") })}
+      {item({ id: "location", icon: "pin", label: mySkyLabel || t.mySky, active: panel === "location" || localMode, tone: localMode ? "blue" : null, onClick: () => onPanel("location") })}
       {item({ id: "tour", icon: "tour", label: t.tour, onClick: onTour, disabled: !tourReady })}
       {item({ id: "time", icon: playing ? "play" : "clock", label: timeLabel, active: panel === "time" || !isNow, tone: !isNow ? "gold" : null, onClick: () => onPanel("time") })}
     </nav>
@@ -119,7 +129,17 @@ const GROUPS = [
   { id: "deep", keys: ["messier", "galaxies", "blackholes", "pulsars", "exoplanets"] },
 ];
 export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, layerError, onToggle, onRetry,
-  showSolar, onToggleSolar, constellations, sel, onPick, labelDensity, onDensity, onClose }) {
+  showSolar, onToggleSolar, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote }) {
+  // patrón llamativo de la capa (contado en los datos cargados): una línea y un botón para verlo
+  const noteLine = (key) => {
+    const n = enabled[key] && notes.find((x) => x.layer === key);
+    return n ? (
+      <div className="sk-layer-note">
+        <span>{t.noteLayerLine[n.id](n.n, n.total)}</span>
+        <button type="button" onClick={() => onNote(n.id)}>{t.noteSee}</button>
+      </div>
+    ) : null;
+  };
   const row = (key) => {
     if (key === "__solar") {
       return (
@@ -156,6 +176,7 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
             <button type="button" onClick={() => onRetry(cfg)}><Icon name="retry" size={14} />{t.retry}</button>
           </div>
         )}
+        {noteLine(key)}
       </div>
     );
   };
@@ -187,13 +208,13 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
           </div>
         </div>
       </div>
-      <p className="sk-panel-foot">{t.scaleNote}</p>
+      <p className="sk-panel-foot">{t.scaleNote}<br />{t.baseSources}</p>
     </PanelShell>
   );
 }
 
 // ── Mi cielo (ubicación) ─────────────────────────────────────────────────
-export function LocationPanel({ t, localMode, lat, lon, placeName, geo, onUseMyLocation, places, onPlace, onManual, onExit, onClose, pointing }) {
+export function LocationPanel({ t, localMode, lat, lon, placeName, geo, onUseMyLocation, places, onPlace, onManual, onExit, onClose, pointing, onTonight }) {
   const [mLat, setMLat] = useState(lat != null ? String(lat) : "");
   const [mLon, setMLon] = useState(lon != null ? String(lon) : "");
   const [bad, setBad] = useState(false);
@@ -216,7 +237,10 @@ export function LocationPanel({ t, localMode, lat, lon, placeName, geo, onUseMyL
           <button type="button" className="sk-btn ghost" onClick={onExit}>{t.exitMySky}</button>
         </div>
       )}
-      <button type="button" className="sk-btn primary wide" onClick={onUseMyLocation} disabled={geo === "asking"}>
+      {localMode && lat != null && onTonight && (
+        <button type="button" className="sk-btn wide sk-tonight-btn" onClick={onTonight}><Icon name="moon" size={19} />{t.tonightTitle}</button>
+      )}
+      <button type="button" className={`sk-btn wide${localMode ? "" : " primary"}`} onClick={onUseMyLocation} disabled={geo === "asking"}>
         {geo === "asking" ? <i className="sk-spin" /> : <Icon name="locate" size={19} />}
         {geo === "asking" ? t.geoAskingBtn : t.useMyLocation}
       </button>
@@ -255,10 +279,21 @@ export function LocationPanel({ t, localMode, lat, lon, placeName, geo, onUseMyL
 }
 
 // ── Apuntar al cielo ─────────────────────────────────────────────────────
-// Tres caras de la misma barra: invitación ("cta"), indicador del modo activo
-// ("on") y aviso de error ("error"). El rumbo y la altitud tienen estado propio:
-// el bucle de render los actualiza sin volver a renderizar toda la vista.
-export const PointingBar = memo(function PointingBar({ t, mode, source, error, aligned, apiRef, onStart, onExit, onReset, onDismiss, canRetry }) {
+// Fuera del modo: una fila corta con "Esta noche" y "Apuntar". Dentro: una sola
+// píldora (rumbo · altitud, controles, salir); todo lo demás se oculta y vuelve
+// un momento con "Controles". El rumbo y la altitud tienen estado propio: el
+// bucle de render los actualiza sin volver a renderizar toda la vista.
+export function SkyActions({ t, onTonight, onPoint }) {
+  return (
+    <div className="sk-cta">
+      {onTonight && <button type="button" className="sk-cta-btn" onClick={onTonight}><Icon name="moon" size={19} /><span>{t.tonight}</span></button>}
+      {onPoint && <button type="button" className="sk-cta-btn is-point" onClick={onPoint}><Icon name="point" size={20} /><span>{t.pointSky}</span></button>}
+    </div>
+  );
+}
+
+export const PointingBar = memo(function PointingBar({ t, mode, source, error, aligned, apiRef, onStart, onExit, onReset, onDismiss, canRetry,
+  ctl, onCtl, help, onZoom, onLayers, onTonight, onSearch }) {
   const [look, setLook] = useState(null);   // { p: punto cardinal 0-7, a: altitud en grados enteros }
   useEffect(() => {
     apiRef.current = (az, alt) => {
@@ -269,15 +304,6 @@ export const PointingBar = memo(function PointingBar({ t, mode, source, error, a
   }, [apiRef]);
   useEffect(() => { if (mode !== "on") setLook(null); }, [mode]);
 
-  if (mode === "cta") {
-    return (
-      <div className="sk-ar is-cta">
-        <button type="button" className="sk-ar-cta" onClick={onStart}>
-          <Icon name="point" size={21} /><span>{t.pointSky}</span><em className="sk-exp">{t.experimental}</em>
-        </button>
-      </div>
-    );
-  }
   if (mode === "error") {
     return (
       <div className="sk-ar is-error" role="alert">
@@ -291,27 +317,152 @@ export const PointingBar = memo(function PointingBar({ t, mode, source, error, a
   }
   const waiting = !look || !source;
   const below = !waiting && look.a < 0;
-  const main = waiting ? t.pointStarting : look.a >= 80 ? t.pointZenith : look.a <= -80 ? t.pointNadir : t.pointDir(t.pointDirs[look.p]);
-  const sub = waiting ? t.pointStartingSub : look.a >= 80 ? t.pointZenithSub : look.a <= -80 ? t.pointNadirSub : below ? t.pointUnder(-look.a) : t.pointAbove(look.a);
+  const text = waiting ? t.pointPillWait : look.a >= 80 ? t.pointPillZenith : look.a <= -80 ? t.pointPillNadir : t.pointPill(look.p, look.a);
+  const aria = waiting ? t.pointStarting : look.a >= 80 ? t.pointZenith : look.a <= -80 ? t.pointNadir : t.pointPillAria(look.p, look.a);
+  const hint = source === "relative" ? t.pointHintRel : t.pointHint;
   return (
-    <section className={`sk-ar is-on${below ? " is-below" : ""}`} aria-label={t.pointActive}>
-      <div className="sk-ar-main">
-        <span className="sk-ar-icon" aria-hidden="true">{waiting ? <i className="sk-spin" /> : <Icon name="point" size={22} />}</span>
-        <div className="sk-ar-read">
-          <strong>{main}</strong>
-          <span>{sub}</span>
+    <>
+      {/* ayuda de alineación: sola los primeros segundos; después, dentro de "Controles" */}
+      {help && !ctl && <p className="sk-arhelp" role="status">{hint}</p>}
+      {ctl && (
+        <div className="sk-artray" role="group" aria-label={t.pointTray}>
+          <div className="sk-artray-row">
+            <button type="button" className="sk-artray-btn" onClick={onSearch}><Icon name="search" size={19} /><span>{t.searchShort}</span></button>
+            <button type="button" className="sk-artray-btn" onClick={onLayers}><Icon name="layers" size={19} /><span>{t.layers}</span></button>
+            <button type="button" className="sk-artray-btn" onClick={onTonight}><Icon name="moon" size={19} /><span>{t.tonight}</span></button>
+            <button type="button" className="sk-artray-btn is-icon" onClick={() => onZoom(1.25)} aria-label={t.zoomOut}><Icon name="minus" size={20} /></button>
+            <button type="button" className="sk-artray-btn is-icon" onClick={() => onZoom(0.8)} aria-label={t.zoomIn}><Icon name="plus" size={20} /></button>
+          </div>
+          <div className="sk-artray-help">
+            <p>{hint}</p>
+            {aligned && <button type="button" className="sk-btn" onClick={onReset}><Icon name="retry" size={15} />{t.pointReset}</button>}
+          </div>
         </div>
-        <button type="button" className="sk-btn primary sk-ar-exit" onClick={onExit} aria-label={t.pointExitAria}>
-          <Icon name="close" size={17} />{t.pointExit}
+      )}
+      <section className={`sk-arpill${below ? " is-below" : ""}`} aria-label={t.pointActive}>
+        <span className="sk-arpill-read" role="img" aria-label={aria}>
+          {waiting ? <i className="sk-spin" /> : <Icon name="point" size={19} />}
+          <strong>{text}</strong>
+        </span>
+        <button type="button" className="sk-arpill-more" onClick={onCtl} aria-expanded={!!ctl} aria-label={ctl ? t.pointControlsHide : t.pointControls} title={t.pointControls}>
+          <Icon name={ctl ? "down" : "dots"} size={20} />
         </button>
-      </div>
-      <div className="sk-ar-help">
-        <p>{source === "relative" ? t.pointHintRel : t.pointHint}</p>
-        {aligned && <button type="button" className="sk-btn" onClick={onReset}><Icon name="retry" size={15} />{t.pointReset}</button>}
-      </div>
-    </section>
+        <button type="button" className="sk-arpill-exit" onClick={onExit} aria-label={t.pointExitAria}>
+          <Icon name="close" size={16} /><span>{t.pointExit}</span>
+        </button>
+      </section>
+    </>
   );
 });
+
+// ── Flecha guía (modo apuntar) ───────────────────────────────────────────
+// El bucle de render llama a apiRef.current(sep, ang, dAz, dAlt, visible, sx, sy):
+// la flecha y la retícula se mueven tocando el DOM directamente (sin renders);
+// solo el texto pasa por estado, y redondeado para no parpadear.
+export const GuideHud = memo(function GuideHud({ t, label, apiRef, onStop }) {
+  const arrowRef = useRef(null), retRef = useRef(null);
+  const [msg, setMsg] = useState({ found: false, dAz: 0, dAlt: 0, sep: 0, follow: false, below: false, ready: false });
+  useEffect(() => {
+    apiRef.current = (sep, ang, dAz, dAlt, visible, sx, sy, tgtAlt, lookAlt) => {
+      const found = sep < 6;
+      if (arrowRef.current) {
+        arrowRef.current.style.transform = `rotate(${ang.toFixed(1)}deg)`;
+        arrowRef.current.style.opacity = found ? "0" : "1";
+      }
+      if (retRef.current) {
+        retRef.current.style.opacity = visible ? "1" : "0";
+        if (visible) retRef.current.style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px)`;
+      }
+      const q = (v) => (Math.abs(v) > 25 ? Math.round(v / 5) * 5 : Math.round(v));
+      const a = q(dAz), b = q(dAlt), sp = q(sep), below = tgtAlt < 0;
+      // cerca del cenit o del nadir "girar a la derecha" deja de tener sentido: manda la flecha
+      const follow = Math.abs(lookAlt) > 60 || Math.abs(tgtAlt) > 75;
+      setMsg((m) => (m.ready && m.found === found && m.dAz === a && m.dAlt === b && m.sep === sp && m.follow === follow && m.below === below ? m : { found, dAz: a, dAlt: b, sep: sp, follow, below, ready: true }));
+    };
+    return () => { apiRef.current = null; };
+  }, [apiRef]);
+  return (
+    <div className={`sk-guide${msg.found ? " is-found" : ""}`}>
+      <div className="sk-guide-ring" aria-hidden="true"><div className="sk-guide-arrow" ref={arrowRef}><i /></div></div>
+      <div className="sk-guide-reticle" ref={retRef} aria-hidden="true"><i /></div>
+      <div className="sk-guide-msg" aria-label={t.guideAria}>
+        <div className="sk-guide-txt">
+          <strong>{msg.found ? t.guideFound(label) : t.guideFinding(label)}</strong>
+          <span>{!msg.ready ? "" : msg.found ? t.guideFoundSub : msg.follow ? t.guideFollow(msg.sep) : t.guideTurn(msg.dAz, msg.dAlt)}</span>
+          {msg.ready && msg.below && !msg.found && <small>{t.guideBelow}</small>}
+        </div>
+        <button type="button" className="sk-iconbtn" onClick={onStop} aria-label={t.guideStop} title={t.guideStop}><Icon name="close" size={18} /></button>
+        <span className="sk-sr" role="status">{msg.found ? t.guideFound(label) : ""}</span>
+      </div>
+    </div>
+  );
+});
+
+// ── Esta noche en tu cielo ───────────────────────────────────────────────
+const TN_ICON = { moon: "moon", planet: "planet", shower: "meteor", con: "constellation", deep: "sparkle" };
+export function TonightPanel({ t, lang, data, placeName, onGo, onFind, onGoTime, onClose }) {
+  const loc = lang === "es" ? "es-EC" : "en-US";
+  const hm = (d) => d.toLocaleTimeString(loc, lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { hour: "numeric", minute: "2-digit" });
+  const md = (o) => { const [m, d] = o.peak.split("-").map(Number); return new Date(2024, m - 1, d).toLocaleDateString(lang === "es" ? "es" : "en-US", { day: "numeric", month: "short" }); };
+  const where = (it) => (it.alt >= 65 ? t.tnHigh : it.alt >= 30 ? t.tnMid(compassPoint8(it.az)) : t.tnLow(compassPoint8(it.az)));
+  const describe = (it) => {
+    if (it.kind === "planet") {
+      const name = bodyName(it.key, lang);
+      if (!it.up) return { name, sub: t.tnRises(hm(it.rise.date), compassPoint8(it.rise.az)) };
+      return { name, sub: `${where(it)} · ${it.scope ? t.tnScope : t.tnNaked}` };
+    }
+    if (it.kind === "moon") {
+      const ph = t.tnMoon(t.moonPhases[it.phase], Math.round(it.illum * 100));
+      return { name: bodyName("Luna", lang), sub: it.up ? `${ph} · ${where(it)}` : it.rise ? `${ph} · ${t.tnRises(hm(it.rise.date), compassPoint8(it.rise.az))}` : `${ph}. ${t.tnMoonDown}` };
+    }
+    if (it.kind === "shower") {
+      const name = lang === "es" ? it.obj.name : (it.obj.name_en || it.obj.name);
+      const rad = it.up ? t.tnRadiantUp(it.alt, compassPoint8(it.az)) : it.rise ? t.tnRadiantRises(hm(it.rise.date)) : "";
+      return { name, sub: `${t.tnPeak(md(it.obj), it.toPeak)} · ${t.tnRate(it.zhr)}${rad ? ". " + rad : ""}`, tag: t.tnShower };
+    }
+    if (it.kind === "con") return { name: it.name, sub: `${t.tnCon} · ${where(it)}` };
+    return { name: it.obj.cn ? `${it.obj.name} · ${it.obj.cn}` : it.obj.name, sub: `${where(it)} · ${it.naked ? t.tnDeepEye : t.tnDeepBino}` };
+  };
+  const row = (it) => {
+    const d = describe(it);
+    return (
+      <li key={it.id} className={`sk-tn-row kind-${it.kind}${it.up ? "" : " is-later"}`}>
+        <button type="button" className="sk-tn-main" onClick={() => onGo(it)} aria-label={t.goTo(d.name)}>
+          <span className="sk-tn-icon" aria-hidden="true"><Icon name={TN_ICON[it.kind]} size={20} /></span>
+          <span className="sk-tn-txt">
+            <span className="sk-tn-head"><b>{d.name}</b>{it.up && <em className="sk-tn-pos">{t.altDir(it.alt, compassPoint8(it.az))}</em>}</span>
+            <small>{d.sub}</small>
+          </span>
+        </button>
+        {onFind && it.up && !data.shifted && (
+          <button type="button" className="sk-tn-find" onClick={() => onFind(it, d.name)} aria-label={t.findItAria(d.name)}>
+            <Icon name="point" size={17} /><span>{t.findIt}</span>
+          </button>
+        )}
+      </li>
+    );
+  };
+  const up = data ? data.items.filter((i) => i.up) : [];
+  const later = data ? data.items.filter((i) => !i.up).sort((a, b) => (a.rise ? a.rise.date.getTime() : Infinity) - (b.rise ? b.rise.date.getTime() : Infinity)) : [];
+  return (
+    <PanelShell t={t} title={t.tonightTitle} onClose={onClose} labelledBy="sk-tonight-title" className="sk-panel-tonight">
+      {!data ? <p className="sk-panel-lead">{t.tonightNeedPlace}</p> : data.noNight ? <p className="sk-panel-lead">{t.tonightNoNight}</p> : (
+        <>
+          <p className="sk-panel-lead">{data.shifted ? t.tonightShifted(hm(data.evalDate)) : t.tonightLead(placeName, hm(data.evalDate))}</p>
+          {data.shifted && <button type="button" className="sk-btn gold" onClick={() => onGoTime(data.evalDate)}><Icon name="clock" size={17} />{t.tonightGo}</button>}
+          {up.length === 0 && later.length === 0 && <p className="sk-pop-empty">{t.tonightEmpty}</p>}
+          {up.length > 0 && (
+            <div className="sk-group"><h3>{data.shifted ? t.tonightUpAt(hm(data.evalDate)) : t.tonightUp}</h3><ul className="sk-tn-list">{up.map(row)}</ul></div>
+          )}
+          {later.length > 0 && (
+            <div className="sk-group"><h3>{t.tonightLater}</h3><ul className="sk-tn-list">{later.map(row)}</ul></div>
+          )}
+          <p className="sk-panel-foot">{t.tonightFoot}</p>
+        </>
+      )}
+    </PanelShell>
+  );
+}
 
 // ── Tiempo ───────────────────────────────────────────────────────────────
 export function TimePanel({ t, lang, when, whenStr, isNow, playing, onShift, onTogglePlay, onNow, onSet, onClose }) {
