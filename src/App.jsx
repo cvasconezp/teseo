@@ -1246,7 +1246,9 @@ function NowSection({ lang, open, onToggle, View, onRetry, sectionRef }) {
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 export default function Teseo() {
-  const [intro,    setIntro]    = useState(()=>!reducedMotion());   // con «reducir movimiento» no hay intro animada
+  // La intro solo sale al entrar por la portada: con «reducir movimiento» o con un
+  // enlace directo (#ventanas, #sky?..., #preguntas?...) se va directo al contenido.
+  const [intro,    setIntro]    = useState(()=>!reducedMotion() && !(typeof location!=="undefined" && location.hash.length>1));
   const [showCredits, setShowCredits] = useState(false);
   const [lang,     setLang]     = useState(initialLang);
   useEffect(() => { applyLangToDocument(lang); try { localStorage.setItem("teseo-lang", lang); } catch { /* no-op */ } }, [lang]);
