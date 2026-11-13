@@ -4,6 +4,12 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { ephemeris } from "./ephemeris.js";
 import { ErrorNotice } from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS } from "./net.js";
+import { BODIES, BODY_NAMES, bodyName, textureUrl, drawBodySprite, SPRITE_PX } from "./sky/bodies.js";
+import { fmtDist, fmtYears, fmtWhenShort } from "./sky/format.js";
+import Icon from "./sky/icons.jsx";
+import { SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TimePanel, TourCard, Onboarding } from "./sky/panels.jsx";
+import ObjectSheet, { describeObject } from "./sky/ObjectSheet.jsx";
+import "./sky/sky.css";
 
 const API = import.meta.env.VITE_API_URL || "";
 const LAYERS = [
@@ -19,6 +25,15 @@ const LAYERS = [
 ];
 const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", solar:"#ffe9a8" };
 
+// Atajos de "Mi cielo": coordenadas del centro de cada ciudad (grados decimales).
+const PLACES = [
+  { name: "Quito", lat: -0.2202, lon: -78.5123 },
+  { name: "Cayambe", lat: 0.0431, lon: -78.1456 },
+  { name: "Guayaquil", lat: -2.1894, lon: -79.8891 },
+  { name: "Cuenca", lat: -2.9001, lon: -79.0059 },
+];
+const HINT_KEY = "teseo_hint_v2";   // primeros pasos vistos (v1 era el párrafo antiguo)
+
 // Términos genéricos de categoría: al buscar "pulsar" o "agujero negro" se
 // lista la capa entera en vez de exigir el nombre exacto de cada objeto.
 const CATEGORY_TERMS = [
@@ -31,10 +46,15 @@ const CATEGORY_TERMS = [
   { key: "exoplanets", terms: ["exoplaneta", "exoplanetas", "exoplanet", "exoplanets"] },
   { key: "probes",     terms: ["sonda", "sondas", "telescopio", "telescopios", "nave", "probe", "probes", "spacecraft", "telescope", "voyager"] },
 ];
-function labelForObj(key, o) {
+function labelForObj(key, o, lang) {
   if (key === "messier") return `${o.name}${o.cn ? " · " + o.cn : ""}`;
   if (key === "galaxies") return o.name + (o.cat && o.cat !== o.name ? " · " + o.cat : "");
+  if (key === "meteors") return lang === "en" ? (o.name_en || o.name) : o.name;
   return o.name;
+}
+// estrella del catálogo ([hip, nx, ny, nz, mag, color, dist_ly, nombre]) -> objeto seleccionable
+function starObj(st, si) {
+  return { name: st[7], nx: st[1], ny: st[2], nz: st[3], dist_ly: st[6], mag: st[4], hex: st[5], si, layer: "star" };
 }
 
 // Una lluvia está activa si hoy (MM-DD) cae en [start, end]; la ventana puede
@@ -42,13 +62,6 @@ function labelForObj(key, o) {
 function meteorActive(o, now = new Date()) {
   const md = String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
   return o.start <= o.end ? (md >= o.start && md <= o.end) : (md >= o.start || md <= o.end);
-}
-const MONTHS_ES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-function fmtMD(md, lang) {
-  const [m, d] = md.split("-").map(Number);
-  const mon = (lang === "es" ? MONTHS_ES : MONTHS_EN)[m - 1];
-  return lang === "es" ? `${d} ${mon}` : `${mon} ${d}`;
 }
 
 const TOUR = [
@@ -99,7 +112,9 @@ function localSkyQuat(latDeg, lonDeg, date) {
   const ncp = new THREE.Vector3(0, 0, 1);
   const north = ncp.clone().sub(up.clone().multiplyScalar(ncp.dot(up)));
   if (north.lengthSq() < 1e-6) north.set(1, 0, 0); else north.normalize();
-  const east = new THREE.Vector3().crossVectors(up, north).normalize();
+  // Este = Norte × Cenit: así (Este, Cenit, −Norte) es una base diestra (rotación pura).
+  // Con Cenit × Norte salía el Oeste, la base era zurda y el cuaternión resultaba inválido.
+  const east = new THREE.Vector3().crossVectors(north, up).normalize();
   const B = new THREE.Matrix4().makeBasis(east, up, north.clone().multiplyScalar(-1));
   B.transpose();
   return new THREE.Quaternion().setFromRotationMatrix(B);
@@ -107,13 +122,12 @@ function localSkyQuat(latDeg, lonDeg, date) {
 function makeTextSprite(text) {
   const c = document.createElement("canvas"); c.width = c.height = 64;
   const ctx = c.getContext("2d");
-  ctx.fillStyle = "rgba(96,165,250,0.95)"; ctx.font = "bold 34px Inter, system-ui, sans-serif";
+  ctx.fillStyle = "rgba(147,197,253,1)"; ctx.font = "bold 40px Inter, system-ui, sans-serif";
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, 32, 32);
   const tex = new THREE.CanvasTexture(c);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-  sp.scale.set(46, 46, 1); return sp;
+  sp.scale.set(78, 78, 1); return sp;
 }
-const BODY_STYLE = { "Sol":["#ffd23f",24], "Luna":["#d8dde8",17], "Mercurio":["#b0a080",9], "Venus":["#ffe6b0",13], "Marte":["#ff6b4a",11], "Júpiter":["#e8c08a",16], "Saturno":["#e8d8a0",14], "Urano":["#a8e8e8",11], "Neptuno":["#6a8cff",11] };
 function fmtInput(d) { const z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; }
 const wikiCache = {};
 const SOLAR_WIKI = { "Sol":{es:"Sol",en:"Sun"}, "Luna":{es:"Luna",en:"Moon"}, "Mercurio":{es:"Mercurio (planeta)",en:"Mercury (planet)"}, "Venus":{es:"Venus (planeta)",en:"Venus"}, "Marte":{es:"Marte",en:"Mars"}, "Júpiter":{es:"Júpiter (planeta)",en:"Jupiter"}, "Saturno":{es:"Saturno (planeta)",en:"Saturn"}, "Urano":{es:"Urano (planeta)",en:"Uranus"}, "Neptuno":{es:"Neptuno (planeta)",en:"Neptune"} };
@@ -139,7 +153,7 @@ async function fetchWiki(title, lang) {
   const key = lang + ":" + title;
   if (wikiCache[key]) return wikiCache[key];
   const host = lang === "es" ? "es.wikipedia.org" : "en.wikipedia.org";
-  const url = `https://${host}/w/api.php?action=query&prop=pageimages%7Cextracts&exintro&explaintext&redirects=1&piprop=thumbnail&pithumbsize=360&format=json&origin=*&titles=${encodeURIComponent(title)}`;
+  const url = `https://${host}/w/api.php?action=query&prop=pageimages%7Cextracts&exintro&explaintext&redirects=1&piprop=thumbnail&pithumbsize=640&format=json&origin=*&titles=${encodeURIComponent(title)}`;
   try {
     // enriquecimiento opcional de la ficha: timeout corto y fallo silencioso
     const d = await fetchJson(url, { timeout: 10000 });
@@ -151,31 +165,6 @@ async function fetchWiki(title, lang) {
 function nowLocalInput() {
   const d = new Date(); const z = n => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
-}
-function fmtYears(y, lang) {
-  const es = lang === "es";
-  const u = es ? "años" : "yr";
-  if (!y || y <= 0) return "—";
-  if (y < 1000) return `${Math.round(y)} ${u}`;
-  if (y < 1e6) return `${(y / 1000).toFixed(1)} mil ${u}`;
-  if (y < 1e9) return `${(y / 1e6).toFixed(2)} M ${u}`;
-  return `${(y / 1e9).toFixed(2)} G ${u}`;
-}
-function fmtMass(m) {
-  if (m >= 1e9) return `${(m / 1e9).toFixed(1)} mil M`;
-  if (m >= 1e6) return `${(m / 1e6).toFixed(1)} M`;
-  if (m >= 1e3) return `${(m / 1e3).toFixed(0)} mil`;
-  return `${m}`;
-}
-const TYPE_ES = { galaxy:"Galaxia", globular:"Cúmulo globular", open:"Cúmulo abierto", nebula:"Nebulosa", snr:"Remanente de supernova", cluster:"Cúmulo/asociación", other:"Objeto" };
-function fmtDist(ly, lang) {
-  const es = lang === "es";
-  if (!ly || ly <= 0) return es ? "distancia n/d" : "distance n/a";
-  const u = es ? "años luz" : "ly";
-  if (ly < 1000) return `${Math.round(ly)} ${u}`;
-  if (ly < 1e6) return `${(ly / 1000).toFixed(1)} mil ${u}`;
-  if (ly < 1e9) return `${(ly / 1e6).toFixed(2)} M ${u}`;
-  return `${(ly / 1e9).toFixed(2)} G ${u}`;
 }
 
 // ─── i18n ──────────────────────────────────────────────────────────────
@@ -197,8 +186,109 @@ const TC = {
     skyError: "The star catalogue could not be loaded. Check the connection and try again.",
     layersError: "These layers could not be loaded:",
     layerFailed: "Could not load",
-    tourNoText: "Narration unavailable right now — the tour goes on.",
+    tourNoText: "Narration isn't available right now. The tour goes on with the real data.",
     nearest: "Nearest", farthest: "Farthest", spread: "Depth spread",
+    // ── visor ──
+    canvasAria: "3D sky map: stars, constellations and objects in their real positions. Arrow keys rotate, + and − zoom, Escape closes the open panel.",
+    skyFrom: "Sky seen from", backToEarth: "Back to Earth",
+    zoomIn: "Zoom in", zoomOut: "Zoom out", centerView: "Center the view", centerObj: "Center on the object",
+    postcardAria: "Save a postcard of this sky (PNG)", fullOn: "Full screen", fullOff: "Exit full screen",
+    close: "Close", now: "Now", west: "W",
+    kinds: { con: "Constellation", star: "Star", solar: "Solar system" },
+    loadingLayer: (n) => `Loading ${n}…`, failedLayer: (n) => `${n} could not be loaded`,
+    depthAria: "Depth: from the flat view to real depth", wholeSky: "Whole sky",
+    depthTitle: (n) => `${n} in real depth`,
+    myLocation: "Your location", changePlace: "Change place", leaveMySky: "Leave My sky",
+    tourFactDist: (d) => `${d} from Earth`,
+    // ── buscador ──
+    searchAria: "Search the sky", searchPlaceholder: "Search: Saturn, Orion, a galaxy…", searchClear: "Clear search",
+    searchTry: "Try one of these", searchResults: "Search results", searchEmpty: "Nothing in the sky with that name. Try a planet, a star or a constellation.",
+    // ── dock ──
+    dockAria: "Sky tools", layers: "Layers", mySky: "My sky", tour: "Tour",
+    // ── capas ──
+    layersTitle: "Layers", layersLead: "Add what you want to see. Every point sits where the real object is.",
+    groups: { near: "Our neighbourhood", deep: "Deep sky", view: "View" },
+    solarLayer: "Sun, Moon and planets",
+    layerDesc: {
+      solar: "Where they are right now, computed from their orbits.",
+      meteors: "The point each shower seems to come from.",
+      comets: "Today's positions, from NASA Horizons.",
+      probes: "Voyager, James Webb and other spacecraft, today.",
+      messier: "Nebulae, clusters and galaxies visible with a small telescope.",
+      galaxies: "Other galaxies, millions of light-years away.",
+      blackholes: "Confirmed black holes, from Sgr A* to M87*.",
+      pulsars: "Dead stars spinning up to hundreds of times a second.",
+      exoplanets: "Planets around other stars (NASA Exoplanet Archive).",
+    },
+    loadingShort: "loading…", layerErrorLine: "It didn't load.",
+    constellation3d: "Constellation in 3D", constellation3dHint: "Pick one to see how far apart its stars really are.",
+    labelDensity: "Names on the sky", densFew: "Few", densNormal: "Normal", densMany: "Many",
+    scaleNote: "The Sun, the Moon and the planets are drawn larger so you can find them: they are not to scale.",
+    // ── mi cielo ──
+    mySkyTitle: "My sky", mySkyLead: "See the sky as it looks from one place, with its horizon and compass points.",
+    useMyLocation: "Use my location", geoAskingBtn: "Asking for permission…",
+    geoAsking: "Your browser is asking for permission. Accept to see your sky.",
+    geoDenied: "Location permission is blocked. Allow it in your browser's site settings, or pick a city below.",
+    geoUnavailable: "Your location couldn't be found. Pick a city or type your coordinates.",
+    geoTimeout: "Finding your location took too long. Try again or pick a city.",
+    geoUnsupported: "This browser can't share your location. Pick a city or type your coordinates.",
+    orPickPlace: "Or pick a place", orCoords: "Or type coordinates", latitude: "Latitude", longitude: "Longitude", apply: "Show",
+    coordsBad: "Use numbers: latitude from −90 to 90, longitude from −180 to 180.",
+    coordsHint: "South and west are negative. Quito: −0.22, −78.51.",
+    customPlace: "Custom coordinates", exitMySky: "Leave",
+    latLon: (a, o) => `${Math.abs(a).toFixed(2)}° ${a >= 0 ? "N" : "S"}, ${Math.abs(o).toFixed(2)}° ${o >= 0 ? "E" : "W"}`,
+    // ── tiempo ──
+    timeTitle: "Time", isNow: "Right now", backToNow: "Back to now",
+    dayBack: "1 day", hourBack: "1 hour", hourFwd: "1 hour", dayFwd: "1 day",
+    playTime: "Play time forward", pauseTime: "Pause", pickDate: "Pick a date and time",
+    timeNote: "Time moves the Sun, the Moon and the planets — and your horizon in My sky.",
+    // ── tour ──
+    tourAria: "Guided tour", tourStep: (i, n) => `Stop ${i} of ${n}`, tourExit: "Leave the tour",
+    narrating: "Writing the narration…", aiNarration: "Narrated by AI. The distances and positions are real data.",
+    prev: "Previous", next: "Next", tourPause: "Pause", tourResume: "Auto-play", startTour: "Start the tour",
+    // ── primeros pasos ──
+    onboardAria: "Getting started", skip: "Skip", exploreAlone: "Explore on my own",
+    onboard: [
+      { title: "Turn the sky with your finger", body: "Drag to look around and pinch to zoom in. Every star sits in its real position." },
+      { title: "Tap anything that catches your eye", body: "A planet, a star, a nebula… or search for it by name. You'll see what it is and how far away." },
+      { title: "Add layers, or let us guide you", body: "Below: Layers (galaxies, pulsars, comets…), My sky (what's up from where you are), Tour and Time." },
+    ],
+    // ── ficha ──
+    closeSheet: "Close this card", sheetExpand: "Expand the card", sheetCollapse: "Shrink the card",
+    typeSun: "Star · the centre of the solar system", typeMoon: "Earth's natural satellite", typePlanet: "Planet of the solar system",
+    typeStar: "Star", typeGalaxy: "Galaxy", typeBlackHole: "Black hole ·", typePulsar: "Pulsar · a spinning neutron star",
+    typeMeteor: "Meteor shower", typeComet: "Comet", typeProbe: "Spacecraft or space telescope", typeExoplanet: "Exoplanet",
+    inConst: (c) => `in ${c}`, orbits: (h) => `orbits ${h}`,
+    fDistance: "Distance", fLightLeft: "Its light left", fLightTakes: "Its light takes", fVoyager: "Aboard Voyager 1 you'd take",
+    ago: (s) => `${s} ago`, fLightHint: "you see it as it was then", au: "AU (Earth–Sun distances)",
+    fPeak: "Peak night", fActive: "Active", fRate: "At its best", perHour: (n) => `~${n} per hour`, zhrHint: "under a dark, clear sky",
+    moonPhase: (p, w) => `Tonight's Moon: ${p}% lit, ${w ? "waxing" : "waning"}.`,
+    activeNow: "active now", habitable: "potentially habitable", notHabitable: "Outside its star's habitable zone, as far as the data shows.",
+    radiantNote: "This marks the radiant: the direction the meteors seem to come from. It isn't a distant object.",
+    approaching: "Right now it is getting closer to Earth.", receding: "Right now it is moving away from Earth.",
+    pulsarSpin: (n) => `It spins ${n} times every second.`, pulsarSlow: (s) => `It turns once every ${s} seconds.`,
+    techDetails: "Technical details", readMore: "Read on Wikipedia",
+    dDiameter: "Diameter", timesEarth: (x) => `${x} × Earth`, dRotation: "One spin takes", retrograde: "backwards",
+    dOrbitSun: "One trip around the Sun", dOrbitEarth: "One trip around Earth", dPosition: "Position in the sky",
+    dMagnitude: "Apparent magnitude", magHint: "lower is brighter", dSource: "Source", dCatalog: "Catalogue", dHubble: "Hubble type",
+    dMass: "Mass", dPeriod: "Spin period", dKind: "Kind", dParent: "Comes from", dRadius: "Radius", earthRadii: "Earth radii",
+    earthMasses: "Earth masses", dYear: "Its year lasts", dTemp: "Equilibrium temperature", dHost: "Star", dDiscovered: "Discovered",
+    ephemNote: "Position computed for the chosen date and time (orbital elements; accurate to about 1–2 arcminutes).",
+    distPublished: "Published distance, with uncertainty: treat it as approximate.",
+    distRedshift: "Distance estimated from redshift (Hubble's law): approximate.",
+    horizonsNote: "Real position for today, from NASA/JPL Horizons.",
+    model3dAria: (n) => `3D model of ${n}. Drag, or use the left and right arrows, to spin it.`, dragToSpin: "Drag to spin",
+    cap3dReal: "3D model · texture based on real NASA data", cap3dFallback: "3D model · approximate colours (real texture not available yet)",
+    texCredit: { sss: "Texture: Solar System Scope (CC BY 4.0)", svs: "Texture: NASA Scientific Visualization Studio", messenger: "Texture: NASA / JHUAPL / Carnegie (MESSENGER)" },
+    capMoonPhase: "Lit as it is at the chosen moment. Drag to see its far side.",
+    capSunWarn: "Never look at the Sun directly, or through a telescope without a certified solar filter.",
+    capWiki: "Image: Wikipedia / Wikimedia Commons", capWikiMixed: "Image from Wikipedia: it may be a real observation or an illustration",
+    capArtist: "Illustration: artist's concept (Wikipedia)", capLicense: "Author and licence",
+    capLoading: "Looking for an image…", imgAlt: (n) => `Image of ${n}`,
+    capStar: "Representation: colour from the star's real temperature (HYG catalogue). Not a photograph.",
+    capSchematic: "Schematic illustration. Not a real image.", capNoImage: "No image available right now. Schematic illustration.",
+    viewFromHere: "See the sky from here", share: "Share", linkCopied: "Link copied", linkFailed: "Couldn't copy the link",
+    postcard: "Postcard", center: "Center",
   },
   es: {
     title: "Constelaciones en profundidad real",
@@ -217,8 +307,109 @@ const TC = {
     skyError: "No se pudo cargar el catálogo de estrellas. Revisa la conexión y vuelve a intentarlo.",
     layersError: "No se pudieron cargar estas capas:",
     layerFailed: "No se pudo cargar",
-    tourNoText: "Narración no disponible ahora — el recorrido continúa.",
+    tourNoText: "La narración no está disponible ahora. El recorrido sigue con los datos reales.",
     nearest: "Más cercana", farthest: "Más lejana", spread: "Rango de profundidad",
+    // ── visor ──
+    canvasAria: "Mapa del cielo en 3D: estrellas, constelaciones y objetos en su posición real. Flechas para girar, + y − para acercar, Escape para cerrar el panel abierto.",
+    skyFrom: "Cielo visto desde", backToEarth: "Volver a la Tierra",
+    zoomIn: "Acercar", zoomOut: "Alejar", centerView: "Centrar la vista", centerObj: "Centrar en el objeto",
+    postcardAria: "Guardar una postal de este cielo (PNG)", fullOn: "Pantalla completa", fullOff: "Salir de pantalla completa",
+    close: "Cerrar", now: "Ahora", west: "O",
+    kinds: { con: "Constelación", star: "Estrella", solar: "Sistema solar" },
+    loadingLayer: (n) => `Cargando ${n}…`, failedLayer: (n) => `No se pudo cargar ${n}`,
+    depthAria: "Profundidad: de la vista plana a la profundidad real", wholeSky: "Todo el cielo",
+    depthTitle: (n) => `${n} en profundidad real`,
+    myLocation: "Tu ubicación", changePlace: "Cambiar de lugar", leaveMySky: "Salir de Mi cielo",
+    tourFactDist: (d) => `A ${d} de la Tierra`,
+    // ── buscador ──
+    searchAria: "Buscar en el cielo", searchPlaceholder: "Busca: Saturno, Orión, una galaxia…", searchClear: "Borrar la búsqueda",
+    searchTry: "Prueba con alguno", searchResults: "Resultados de la búsqueda", searchEmpty: "No hay nada en el cielo con ese nombre. Prueba con un planeta, una estrella o una constelación.",
+    // ── dock ──
+    dockAria: "Herramientas del cielo", layers: "Capas", mySky: "Mi cielo", tour: "Tour",
+    // ── capas ──
+    layersTitle: "Capas", layersLead: "Suma lo que quieras ver. Cada punto está donde está el objeto real.",
+    groups: { near: "Nuestro vecindario", deep: "Cielo profundo", view: "Vista" },
+    solarLayer: "Sol, Luna y planetas",
+    layerDesc: {
+      solar: "Dónde están ahora mismo, calculado con sus órbitas.",
+      meteors: "El punto del que parece venir cada lluvia.",
+      comets: "Posiciones de hoy, de NASA Horizons.",
+      probes: "Voyager, James Webb y otras naves, hoy.",
+      messier: "Nebulosas, cúmulos y galaxias visibles con un telescopio pequeño.",
+      galaxies: "Otras galaxias, a millones de años luz.",
+      blackholes: "Agujeros negros confirmados, de Sgr A* a M87*.",
+      pulsars: "Estrellas muertas que giran hasta cientos de veces por segundo.",
+      exoplanets: "Planetas de otras estrellas (NASA Exoplanet Archive).",
+    },
+    loadingShort: "cargando…", layerErrorLine: "No se cargó.",
+    constellation3d: "Constelación en 3D", constellation3dHint: "Elige una para ver lo lejos que están sus estrellas entre sí.",
+    labelDensity: "Nombres en el cielo", densFew: "Pocos", densNormal: "Normal", densMany: "Muchos",
+    scaleNote: "El Sol, la Luna y los planetas se dibujan agrandados para que puedas encontrarlos: no están a escala.",
+    // ── mi cielo ──
+    mySkyTitle: "Mi cielo", mySkyLead: "Mira el cielo tal como se ve desde un lugar, con su horizonte y sus puntos cardinales.",
+    useMyLocation: "Usar mi ubicación", geoAskingBtn: "Pidiendo permiso…",
+    geoAsking: "Tu navegador te está pidiendo permiso. Acéptalo para ver tu cielo.",
+    geoDenied: "El permiso de ubicación está bloqueado. Actívalo en los ajustes del sitio de tu navegador o elige una ciudad aquí abajo.",
+    geoUnavailable: "No se pudo encontrar tu ubicación. Elige una ciudad o escribe tus coordenadas.",
+    geoTimeout: "Encontrar tu ubicación tardó demasiado. Inténtalo de nuevo o elige una ciudad.",
+    geoUnsupported: "Este navegador no puede compartir tu ubicación. Elige una ciudad o escribe tus coordenadas.",
+    orPickPlace: "O elige un lugar", orCoords: "O escribe coordenadas", latitude: "Latitud", longitude: "Longitud", apply: "Ver",
+    coordsBad: "Usa números: latitud entre −90 y 90, longitud entre −180 y 180.",
+    coordsHint: "Sur y oeste van en negativo. Quito: −0.22, −78.51.",
+    customPlace: "Coordenadas propias", exitMySky: "Salir",
+    latLon: (a, o) => `${Math.abs(a).toFixed(2)}° ${a >= 0 ? "N" : "S"}, ${Math.abs(o).toFixed(2)}° ${o >= 0 ? "E" : "O"}`,
+    // ── tiempo ──
+    timeTitle: "Tiempo", isNow: "Ahora mismo", backToNow: "Volver a ahora",
+    dayBack: "1 día", hourBack: "1 hora", hourFwd: "1 hora", dayFwd: "1 día",
+    playTime: "Dejar correr el tiempo", pauseTime: "Pausar", pickDate: "Elegir fecha y hora",
+    timeNote: "El tiempo mueve el Sol, la Luna y los planetas, y también tu horizonte en Mi cielo.",
+    // ── tour ──
+    tourAria: "Tour guiado", tourStep: (i, n) => `Parada ${i} de ${n}`, tourExit: "Salir del tour",
+    narrating: "Escribiendo la narración…", aiNarration: "Narrado por IA. Las distancias y posiciones son datos reales.",
+    prev: "Anterior", next: "Siguiente", tourPause: "Pausar", tourResume: "Automático", startTour: "Empezar el tour",
+    // ── primeros pasos ──
+    onboardAria: "Primeros pasos", skip: "Saltar", exploreAlone: "Explorar por mi cuenta",
+    onboard: [
+      { title: "Gira el cielo con el dedo", body: "Arrastra para mirar alrededor y pellizca para acercarte. Cada estrella está en su posición real." },
+      { title: "Toca lo que te llame la atención", body: "Un planeta, una estrella, una nebulosa… o búscalo por su nombre. Verás qué es y a qué distancia está." },
+      { title: "Suma capas o déjate guiar", body: "Abajo tienes Capas (galaxias, púlsares, cometas…), Mi cielo (lo que se ve desde donde estás), Tour y Tiempo." },
+    ],
+    // ── ficha ──
+    closeSheet: "Cerrar la ficha", sheetExpand: "Ampliar la ficha", sheetCollapse: "Reducir la ficha",
+    typeSun: "Estrella · el centro del sistema solar", typeMoon: "Satélite natural de la Tierra", typePlanet: "Planeta del sistema solar",
+    typeStar: "Estrella", typeGalaxy: "Galaxia", typeBlackHole: "Agujero negro", typePulsar: "Púlsar · una estrella de neutrones que gira",
+    typeMeteor: "Lluvia de meteoros", typeComet: "Cometa", typeProbe: "Sonda o telescopio espacial", typeExoplanet: "Exoplaneta",
+    inConst: (c) => `en ${c}`, orbits: (h) => `orbita ${h}`,
+    fDistance: "Distancia", fLightLeft: "Su luz salió hace", fLightTakes: "Su luz tarda", fVoyager: "En la Voyager 1 tardarías",
+    ago: (s) => s, fLightHint: "lo ves como era entonces", au: "UA (distancias Tierra–Sol)",
+    fPeak: "Noche máxima", fActive: "Activa", fRate: "En su mejor momento", perHour: (n) => `~${n} por hora`, zhrHint: "con cielo oscuro y despejado",
+    moonPhase: (p, w) => `La Luna de esta noche: ${p} % iluminada, ${w ? "creciente" : "menguante"}.`,
+    activeNow: "activa ahora", habitable: "potencialmente habitable", notHabitable: "Fuera de la zona habitable de su estrella, según los datos.",
+    radiantNote: "Aquí está el radiante: la dirección de la que parecen venir los meteoros. No es un objeto lejano.",
+    approaching: "Ahora mismo se está acercando a la Tierra.", receding: "Ahora mismo se está alejando de la Tierra.",
+    pulsarSpin: (n) => `Da ${n} vueltas cada segundo.`, pulsarSlow: (s) => `Da una vuelta cada ${s} segundos.`,
+    techDetails: "Detalles técnicos", readMore: "Leer en Wikipedia",
+    dDiameter: "Diámetro", timesEarth: (x) => `${x} × la Tierra`, dRotation: "Una vuelta sobre sí", retrograde: "al revés",
+    dOrbitSun: "Una vuelta al Sol", dOrbitEarth: "Una vuelta a la Tierra", dPosition: "Posición en el cielo",
+    dMagnitude: "Magnitud aparente", magHint: "menor es más brillante", dSource: "Fuente", dCatalog: "Catálogo", dHubble: "Tipo de Hubble",
+    dMass: "Masa", dPeriod: "Período de giro", dKind: "Tipo", dParent: "Proviene de", dRadius: "Radio", earthRadii: "radios terrestres",
+    earthMasses: "masas terrestres", dYear: "Su año dura", dTemp: "Temperatura de equilibrio", dHost: "Estrella", dDiscovered: "Descubierto",
+    ephemNote: "Posición calculada para la fecha y hora elegidas (elementos orbitales; precisión de 1 a 2 minutos de arco).",
+    distPublished: "Distancia publicada, con incertidumbre: tómala como aproximada.",
+    distRedshift: "Distancia estimada por corrimiento al rojo (ley de Hubble): aproximada.",
+    horizonsNote: "Posición real de hoy, de NASA/JPL Horizons.",
+    model3dAria: (n) => `Modelo 3D de ${n}. Arrastra, o usa las flechas izquierda y derecha, para girarlo.`, dragToSpin: "Arrastra para girar",
+    cap3dReal: "Modelo 3D · textura basada en datos reales de NASA", cap3dFallback: "Modelo 3D · colores aproximados (textura real aún no disponible)",
+    texCredit: { sss: "Textura: Solar System Scope (CC BY 4.0)", svs: "Textura: NASA Scientific Visualization Studio", messenger: "Textura: NASA / JHUAPL / Carnegie (MESSENGER)" },
+    capMoonPhase: "Iluminada como está en el momento elegido. Arrastra para ver su cara oculta.",
+    capSunWarn: "Nunca mires al Sol directamente ni con un telescopio sin filtro solar certificado.",
+    capWiki: "Imagen: Wikipedia / Wikimedia Commons", capWikiMixed: "Imagen de Wikipedia: puede ser una observación real o una ilustración",
+    capArtist: "Ilustración: concepto artístico (Wikipedia)", capLicense: "Autor y licencia",
+    capLoading: "Buscando una imagen…", imgAlt: (n) => `Imagen de ${n}`,
+    capStar: "Representación: color según la temperatura real de la estrella (catálogo HYG). No es una fotografía.",
+    capSchematic: "Ilustración esquemática. No es una imagen real.", capNoImage: "Sin imagen disponible ahora. Ilustración esquemática.",
+    viewFromHere: "Ver el cielo desde aquí", share: "Compartir", linkCopied: "Enlace copiado", linkFailed: "No se pudo copiar el enlace",
+    postcard: "Postal", center: "Centrar",
   },
 };
 
@@ -235,6 +426,10 @@ function hexToRgb(h) {
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }
 
+const prefersReducedMotion = () => {
+  try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
+};
+
 export default function Constellations({ lang = "es" }) {
   const t = TC[lang];
   const mountRef = useRef(null);
@@ -242,7 +437,8 @@ export default function Constellations({ lang = "es" }) {
   const [sky, setSky] = useState(null);
   const [sel, setSel] = useState(null);      // abbr or null
   const [depth, setDepth] = useState(0);     // 0..1
-  const [labels, setLabels] = useState([]);  // projected labels
+  const wrapRef = useRef(null);          // hueco en el flujo de la página; el visor se ensancha desde él
+  const labelsApiRef = useRef(null);     // setter de etiquetas (viven en <SkyLabels>)
   const [ready, setReady] = useState(false);
   const [datasets, setDatasets] = useState({}); // key -> {objects}
   const [enabled, setEnabled] = useState({});   // key -> bool
@@ -257,9 +453,9 @@ export default function Constellations({ lang = "es" }) {
   const [showSolar, setShowSolar] = useState(true);
   const bodies = useMemo(() => ephemeris(new Date(whenStr)), [whenStr]);
   const [query, setQuery] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [showHint, setShowHint] = useState(() => { try { return !localStorage.getItem("teseo_hint_v1"); } catch { return true; } });
-  const dismissHint = useCallback(() => { setShowHint(false); try { localStorage.setItem("teseo_hint_v1", "1"); } catch { /* no-op */ } }, []);
+  const [shareState, setShareState] = useState(null);   // null | "ok" | "fail"
+  const [showHint, setShowHint] = useState(() => { try { return !localStorage.getItem(HINT_KEY); } catch { return true; } });
+  const dismissHint = useCallback(() => { setShowHint(false); try { localStorage.setItem(HINT_KEY, "1"); } catch { /* no-op */ } }, []);
   const pendingObjRef = useRef(null);   // objeto a restaurar desde la URL
   const hydratedRef = useRef(false);     // no escribir el hash antes de leerlo
   const [labelDensity, setLabelDensity] = useState("normal");
@@ -272,6 +468,21 @@ export default function Constellations({ lang = "es" }) {
   const [loadingLayer, setLoadingLayer] = useState({});
   const [layerError, setLayerError] = useState({});   // key -> true si falló la carga
   const [skyError, setSkyError] = useState(false);
+  const [panel, setPanel] = useState(null);           // null | "layers" | "location" | "time"
+  const [geo, setGeo] = useState("idle");             // idle | asking | ok | denied | unavailable | timeout | unsupported
+  const [placeKind, setPlaceKind] = useState("custom"); // "me" | "custom" | nombre de ciudad
+  const [wikiState, setWikiState] = useState("idle"); // idle | loading | done
+  const [full, setFull] = useState(false);            // visor a pantalla completa
+  const [timeMoved, setTimeMoved] = useState(false);  // false = se muestra "ahora"
+  const [tourFact, setTourFact] = useState("");
+  const [isWide, setIsWide] = useState(() => { try { return window.matchMedia("(min-width: 900px)").matches; } catch { return false; } });
+  const isWideRef = useRef(isWide);
+  const datasetsRef = useRef(datasets);
+  const bodiesRef = useRef(bodies);
+  const langRef = useRef(lang);
+  useEffect(() => { isWideRef.current = isWide; }, [isWide]);
+  useEffect(() => { datasetsRef.current = datasets; }, [datasets]);
+  useEffect(() => { bodiesRef.current = bodies; }, [bodies]);
   // abreviatura IAU (p.ej. "Sgr") -> nombre de constelación, para que buscar
   // "sagit(tarius)" encuentre objetos cuyo nombre usa la abreviatura ("Sgr A*").
   const abbrevExpand = useMemo(() => {
@@ -303,10 +514,10 @@ export default function Constellations({ lang = "es" }) {
       const ds = datasets[catMatch.key];
       const layerName = LAYERS.find(l => l.key === catMatch.key)?.[lang] || catMatch.key;
       if (!ds || !ds.objects) {
-        if (layerError[catMatch.key]) return [{ type: "loading", label: `⚠ ${TC[lang].layerFailed} ${layerName}` }];
-        return [{ type: "loading", label: (lang === "es" ? "Cargando " : "Loading ") + layerName + "…" }];
+        if (layerError[catMatch.key]) return [{ type: "loading", label: TC[lang].failedLayer(layerName) }];
+        return [{ type: "loading", label: TC[lang].loadingLayer(layerName) }];
       }
-      return ds.objects.slice(0, 14).map(o => ({ type: "layer", layer: catMatch.key, obj: o, label: labelForObj(catMatch.key, o) }));
+      return ds.objects.slice(0, 14).map(o => ({ type: "layer", layer: catMatch.key, obj: o, label: labelForObj(catMatch.key, o, lang), kind: layerName }));
     }
     // texto extra de la constelación asociada (por campo `const` o por la
     // primera palabra del nombre si es una abreviatura IAU de 3 letras)
@@ -322,26 +533,19 @@ export default function Constellations({ lang = "es" }) {
       return l.startsWith(q) ? 0 : (" " + l).includes(" " + q) ? 1 : 2;
     };
     const r = [];
-    for (const c of sky.constellations) if ((c.la + " " + c.en).toLowerCase().includes(q)) r.push({ type: "con", ab: c.ab, label: `${c.la} · ${c.en}` });
-    for (const st of sky.stars) if (st[7] && st[7].toLowerCase().includes(q)) r.push({ type: "star", nx: st[1], ny: st[2], nz: st[3], dist: st[6], label: st[7] });
-    for (const b of bodies) if (b.name.toLowerCase().includes(q)) r.push({ type: "solar", body: b, label: b.name });
+    const kinds = TC[lang].kinds;
+    for (const b of bodies) if ((b.name + " " + bodyName(b.name, "en")).toLowerCase().includes(q)) r.push({ type: "solar", body: b, label: bodyName(b.name, lang), kind: kinds.solar });
+    for (const c of sky.constellations) if ((c.la + " " + c.en).toLowerCase().includes(q)) r.push({ type: "con", ab: c.ab, label: `${c.la} · ${c.en}`, kind: kinds.con });
+    sky.stars.forEach((st, si) => { if (st[7] && st[7].toLowerCase().includes(q)) r.push({ type: "star", st, si, label: st[7], kind: kinds.star }); });
     // capas de objetos: Messier / agujeros negros / meteoros siempre están
-    // cargadas; púlsares y galaxias solo si el usuario activó su capa.
-    const objLayers = [
-      ["messier",    (o) => `${o.name}${o.cn ? " · " + o.cn : ""}`],
-      ["blackholes", (o) => o.name],
-      ["meteors",    (o) => o.name],
-      ["galaxies",   (o) => o.name + (o.cat && o.cat !== o.name ? " · " + o.cat : "")],
-      ["pulsars",    (o) => o.name],
-      ["comets",     (o) => o.name],
-      ["probes",     (o) => o.name],
-    ];
-    for (const [key, labelFn] of objLayers) {
+    // cargadas; el resto solo si el usuario activó su capa.
+    for (const key of ["messier", "blackholes", "meteors", "galaxies", "pulsars", "comets", "probes", "exoplanets"]) {
       const ds = datasets[key];
       if (!ds || !ds.objects) continue;
+      const layerName = LAYERS.find(l => l.key === key)?.[lang] || key;
       for (const o of ds.objects) {
         const hay = (o.name + " " + (o.cn || "") + " " + (o.cat || "") + " " + (o.name_en || "") + conExp(o.name, o.const)).toLowerCase();
-        if (hay.includes(q)) r.push({ type: "layer", layer: key, obj: o, label: labelFn(o) });
+        if (hay.includes(q)) r.push({ type: "layer", layer: key, obj: o, label: labelForObj(key, o, lang), kind: layerName });
       }
       if (r.length > 60) break;
     }
@@ -381,7 +585,6 @@ export default function Constellations({ lang = "es" }) {
   useEffect(() => {
     LAYERS.filter(c => c.api || c.lazy).forEach((cfg) => {
       if (enabled[cfg.key] && !datasets[cfg.key] && !loadingLayer[cfg.key] && !layerError[cfg.key]) {
-        if (cfg.api && !API) return;
         loadLayer(cfg);
       }
     });
@@ -410,7 +613,13 @@ export default function Constellations({ lang = "es" }) {
     const layer = o.slice(0, sep), name = decodeURIComponent(o.slice(sep + 1));
     if (layer === "star") {
       const st = sky.stars.find(s => s[7] === name);
-      if (st) { setSelObj({ name: st[7], nx: st[1], ny: st[2], nz: st[3], dist_ly: st[6], layer: "star" }); pendingObjRef.current = null; }
+      if (st) { setSelObj(starObj(st, sky.stars.indexOf(st))); pendingObjRef.current = null; }
+      return;
+    }
+    if (layer === "solar") {
+      const b = bodiesRef.current.find(x => x.name === name);
+      if (b) setSelObj({ ...b, layer: "solar" });
+      pendingObjRef.current = null;
       return;
     }
     if (!enabled[layer]) { setEnabled(e => ({ ...e, [layer]: true })); return; } // esperar a que cargue
@@ -431,19 +640,35 @@ export default function Constellations({ lang = "es" }) {
       if (on.length) p.set("L", on.join(","));
       if (sel) p.set("c", sel);
       if (viewFrom) p.set("v", encodeURIComponent(viewFrom.name) + "~" + viewFrom.pos.map(n => n.toFixed(3)).join("~"));
-      if (selObj && selObj.name && selObj.layer !== "solar") p.set("o", selObj.layer + "~" + encodeURIComponent(selObj.name));
+      if (selObj && selObj.name) p.set("o", selObj.layer + "~" + encodeURIComponent(selObj.name));
       const qs = p.toString();
       const nh = "#sky" + (qs ? "?" + qs : "");
       if (window.location.hash !== nh) window.history.replaceState(null, "", nh);
     } catch { /* no-op */ }
   }, [enabled, sel, viewFrom, selObj]);
 
-  const shareLink = useCallback(() => {
+  const shareTimer = useRef(0);
+  const shareLink = useCallback(async () => {
+    const url = window.location.href;
+    let ok = false;
     try {
-      navigator.clipboard.writeText(window.location.href);
-      setCopied(true); setTimeout(() => setCopied(false), 1600);
-    } catch { /* clipboard no disponible */ }
+      if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(url); ok = true; }
+    } catch { ok = false; }
+    if (!ok) {
+      // respaldo para contextos sin permiso de portapapeles
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = url; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.select();
+        ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch { ok = false; }
+    }
+    setShareState(ok ? "ok" : "fail");
+    clearTimeout(shareTimer.current);
+    shareTimer.current = setTimeout(() => setShareState(null), 2400);
   }, []);
+  useEffect(() => () => clearTimeout(shareTimer.current), []);
 
   // Build scene once data is ready
   useEffect(() => {
@@ -455,7 +680,8 @@ export default function Constellations({ lang = "es" }) {
     scene.fog = new THREE.FogExp2(0x04080f, 0.00018);
     const camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 6000);
     camera.position.set(0, 0, 1700);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    // sin preserveDrawingBuffer: la postal vuelve a renderizar justo antes de copiar el lienzo
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     mount.appendChild(renderer.domElement);
@@ -466,7 +692,8 @@ export default function Constellations({ lang = "es" }) {
     controls.rotateSpeed = 0.5;
     controls.minDistance = 50;
     controls.maxDistance = 3000;
-    controls.autoRotate = true;
+    const calm = prefersReducedMotion();
+    controls.autoRotate = !calm;
     controls.autoRotateSpeed = 0.15;
 
     // index stars by hip
@@ -580,24 +807,49 @@ export default function Constellations({ lang = "es" }) {
     const ground = new THREE.Mesh(new THREE.CircleGeometry(905, 96),
       new THREE.MeshBasicMaterial({ color: 0x05070e, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
     ground.rotation.x = -Math.PI / 2; ground.position.y = -1.5; horizon.add(ground);
-    [["N", 0, -905], ["E", 905, 0], ["S", 0, 905], ["O", -905, 0]].forEach(([tt, x, z]) => {
-      const sp = makeTextSprite(tt); sp.position.set(x, 20, z); horizon.add(sp);
+    const cardinals = {};
+    [["N", 0, -905], ["E", 905, 0], ["S", 0, 905], ["O", -905, 0], ["W", -905, 0]].forEach(([tt, x, z]) => {
+      const sp = makeTextSprite(tt); sp.position.set(x, 20, z); horizon.add(sp); cardinals[tt] = sp;
     });
+    cardinals.O.visible = langRef.current === "es"; cardinals.W.visible = langRef.current !== "es";
     horizon.visible = false; scene.add(horizon);
 
     // Sol, Luna y planetas (efemérides reales)
     const solarGroup = new THREE.Group(); scene.add(solarGroup);
-    const solarSprites = {};
-    Object.keys(BODY_STYLE).forEach(nm => {
-      const [col, sz] = BODY_STYLE[nm];
-      const c = document.createElement("canvas"); c.width = c.height = 64; const cx2 = c.getContext("2d");
-      const g = cx2.createRadialGradient(32, 32, 0, 32, 32, 32);
-      g.addColorStop(0, "#ffffff"); g.addColorStop(0.3, col); g.addColorStop(0.75, col); g.addColorStop(1, "rgba(0,0,0,0)");
-      cx2.fillStyle = g; cx2.beginPath(); cx2.arc(32, 32, 30, 0, Math.PI * 2); cx2.fill();
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
-      sp.scale.set(sz * 2.2, sz * 2.2, 1);
-      solarGroup.add(sp); solarSprites[nm] = sp;
+    // Cada cuerpo es un disco con su textura real (o la de respaldo si aún no
+    // existe el archivo) y un halo de su color. Se dibujan agrandados para que
+    // se encuentren: no representan su tamaño aparente real.
+    const solarSprites = {}, solarCanvas = {}, solarImg = {}, solarTex = {};
+    let sceneDead = false;
+    BODY_NAMES.forEach(nm => {
+      const b = BODIES[nm];
+      const c = document.createElement("canvas"); c.width = c.height = SPRITE_PX;
+      drawBodySprite(c, nm, null, null);
+      const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+      // tamaño fijo en pantalla (no crece al acercarse): es un marcador, no una escala
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, sizeAttenuation: false }));
+      sp.userData.px = b.ring ? 118 : 40 + b.size * 2.6;                       // lado del sprite en px
+      sp.userData.discPx = sp.userData.px * (b.ring ? 21 : b.id === "sun" ? 26 : 28) / SPRITE_PX;  // radio del disco en px
+      solarGroup.add(sp); solarSprites[nm] = sp; solarCanvas[nm] = c; solarTex[nm] = tex;
+      const img = new Image();
+      img.onload = () => {
+        if (sceneDead) return;
+        solarImg[nm] = img;
+        drawBodySprite(c, nm, img, nm === "Luna" ? (sceneRef.current && sceneRef.current.moonPhase) : null);
+        tex.needsUpdate = true;
+      };
+      img.onerror = () => { /* textura aún no publicada (p. ej. marte, venus): queda el disco de respaldo */ };
+      img.src = textureUrl(b.id);
     });
+    const sizeSolar = () => {
+      const k = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / (mount.clientHeight || 1);
+      for (const nm in solarSprites) { const v = solarSprites[nm].userData.px * k; solarSprites[nm].scale.set(v, v, 1); }
+    };
+    sizeSolar();
+    const redrawMoon = (phase) => {
+      drawBodySprite(solarCanvas["Luna"], "Luna", solarImg["Luna"] || null, phase);
+      solarTex["Luna"].needsUpdate = true;
+    };
 
     // ── el Sol visto desde otro punto (oculto salvo en "ver desde otra estrella") ──
     const sunSprite = (() => {
@@ -644,7 +896,8 @@ export default function Constellations({ lang = "es" }) {
     sceneRef.current = { scene, camera, renderer, controls, points, lines,
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, bodies: [], showSolar: true,
-      sunSprite, applyViewpoint };
+      sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, lang: langRef.current,
+      viewShift: { x: 0, yf: 0, cx: 0, cy: 0, dirty: false } };
     setReady(true);
 
     // resize
@@ -652,8 +905,13 @@ export default function Constellations({ lang = "es" }) {
       const w = mount.clientWidth, h = mount.clientHeight;
       camera.aspect = w / h; camera.updateProjectionMatrix();
       renderer.setSize(w, h);
+      sizeSolar();
+      if (sceneRef.current) sceneRef.current.viewShift.dirty = true;
     };
     window.addEventListener("resize", onResize);
+    // el visor también cambia de tamaño sin que cambie la ventana (pantalla completa, barras del navegador)
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(onResize) : null;
+    if (ro) ro.observe(mount);
 
     // animation
     let raf;
@@ -694,6 +952,20 @@ export default function Constellations({ lang = "es" }) {
         ref._lastDpt = dpt; ref._lastSel = selAb; ref._dirty = false;
       }
       ref.controls.update();
+      // encuadre: desplaza el centro de la vista para que el objeto no quede bajo
+      // la ficha o un panel (x en px a la izquierda, yf = fracción del alto hacia arriba)
+      const vs = ref.viewShift;
+      const vw = mount.clientWidth, vh = mount.clientHeight;
+      const tx = vs.x, ty = vs.yf * vh;
+      if (vs.dirty || Math.abs(tx - vs.cx) > 0.5 || Math.abs(ty - vs.cy) > 0.5) {
+        const k = calm ? 1 : 0.16;
+        vs.cx += (tx - vs.cx) * k; vs.cy += (ty - vs.cy) * k;
+        if (Math.abs(tx - vs.cx) <= 0.5) vs.cx = tx;
+        if (Math.abs(ty - vs.cy) <= 0.5) vs.cy = ty;
+        if (vs.cx === 0 && vs.cy === 0) ref.camera.clearViewOffset();
+        else ref.camera.setViewOffset(vw, vh, vs.cx, vs.cy, vw, vh);
+        vs.dirty = false;
+      }
       ref.renderer.render(ref.scene, ref.camera);
       // ── etiquetas con nivel de detalle (LOD) ──
       ref._lf = (ref._lf || 0) + 1;
@@ -701,15 +973,17 @@ export default function Constellations({ lang = "es" }) {
         const W = mount.clientWidth, H = mount.clientHeight;
         const camDist = ref.camera.position.length();
         const out = [];
-        const push = (x, y, z, name, cls, sub) => {
+        const push = (x, y, z, name, cls, sub, dx) => {
           tmp.set(x, y, z);
           if (ref.localQuat) tmp.applyQuaternion(ref.localQuat);
           tmp.project(ref.camera);
           if (tmp.z >= 1 || tmp.x < -1.05 || tmp.x > 1.05 || tmp.y < -1.05 || tmp.y > 1.05) return;
           const sx = (tmp.x * 0.5 + 0.5) * W, sy = (-tmp.y * 0.5 + 0.5) * H;
-          for (const e of out) { if (Math.abs(e.x - sx) < 56 && Math.abs(e.y - sy) < 15) return; } // anti-solape
-          out.push({ key: cls + ":" + name, name, cls, sub: sub == null ? null : sub, x: sx, y: sy });
+          for (const e of out) { if (Math.abs(e.x - sx) < 72 && Math.abs(e.y - sy) < 18) return; } // anti-solape
+          out.push({ key: cls + ":" + name, name, cls, sub: sub == null ? null : sub, x: sx, y: sy, dx });
         };
+        // primero el sistema solar: sus nombres tienen prioridad en el anti-solape
+        if (ref.showSolar) for (const b of (ref.bodies || [])) push(b.nx*860, b.ny*860, b.nz*860, bodyName(b.name, ref.lang), "solar", null, Math.round(ref.solarSprites[b.name].userData.discPx + 7));
         if (selAb && ref.conMeta[selAb]) {
           collectNamed(ref.conMeta[selAb], ref.byHip).forEach(st => {
             const i = ref.hipIndex.get(st[0]);
@@ -729,28 +1003,36 @@ export default function Constellations({ lang = "es" }) {
           const cand = ref.namedStars.filter(s => s.mag <= magT).sort((a, b) => a.mag - b.mag).slice(0, dens === "muchas" ? 70 : 38);
           for (const s of cand) push(pa[s.i*3], pa[s.i*3+1], pa[s.i*3+2], s.name, "star");
         }
-        if (ref.showSolar) for (const b of (ref.bodies || [])) push(b.nx*860, b.ny*860, b.nz*860, b.name, "solar");
         if (camDist < 1050) {
           for (const o of (ref.layerObjs || [])) {
             if (!o.points.visible || o.key === "exoplanets") continue;
             const objs = o.points.userData.objs;
             for (let q = 0; q < objs.length && q < 200; q++) {
               const ob = objs[q];
-              push(ob.nx*870, ob.ny*870, ob.nz*870, ob.name, "obj_" + o.key);
+              push(ob.nx*870, ob.ny*870, ob.nz*870, (o.key === "meteors" && ref.lang === "en" && ob.name_en) || ob.name, "obj_" + o.key);
             }
           }
         }
         const dens2 = ref.labelDensity || "normal";
-        setLabels(out.slice(0, dens2 === "pocas" ? 26 : dens2 === "muchas" ? 110 : 64));
+        if (labelsApiRef.current) labelsApiRef.current(out.slice(0, dens2 === "pocas" ? 26 : dens2 === "muchas" ? 110 : 64));
       }
     };
     const labelsNonEmpty = { current: false };
     animate();
 
     return () => {
+      sceneDead = true;
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
+      if (ro) ro.disconnect();
       controls.dispose();
+      // liberar geometrías, materiales y texturas de toda la escena
+      scene.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        const m = o.material;
+        if (m) (Array.isArray(m) ? m : [m]).forEach(mm => { if (mm.map) mm.map.dispose(); mm.dispose(); });
+      });
+      starTex.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       setReady(false);
@@ -861,18 +1143,22 @@ export default function Constellations({ lang = "es" }) {
     const ref = sceneRef.current;
     if (!ref || !selObj) return;
     const v = new THREE.Vector3(selObj.nx, selObj.ny, selObj.nz);
+    // una estrella vista desde otro punto de observación ya no está en su dirección terrestre
+    if (selObj.layer === "star" && selObj.si != null) v.set(ref.posFlat[selObj.si*3], ref.posFlat[selObj.si*3+1], ref.posFlat[selObj.si*3+2]);
     if (ref.localQuat) v.applyQuaternion(ref.localQuat);
     v.normalize();
     ref.controls.autoRotate = false;
     ref.controls.target.copy(v.clone().multiplyScalar(870));
     ref.camera.position.copy(v.clone().multiplyScalar(540));
     ref.controls.update();
-  }, [selObj]);
+    // solo al cambiar de objeto: el paso del tiempo no debe recolocar la cámara
+  }, [selObj && selObj.name, selObj && selObj.layer]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    setWiki(null);
+    setWiki(null); setWikiState("idle");
     if (!selObj) return;
     const title = wikiTitle(selObj, lang);
     if (!title) return;
+    setWikiState("loading");
     let cancel = false;
     (async () => {
       let w = await fetchWiki(title, lang);
@@ -881,10 +1167,10 @@ export default function Constellations({ lang = "es" }) {
         const w2 = await fetchWiki(selObj.host, lang);
         if (w2 && (w2.thumb || !w2.missing)) w = w2;
       }
-      if (!cancel) setWiki(w);
+      if (!cancel) { setWiki(w); setWikiState("done"); }
     })();
     return () => { cancel = true; };
-  }, [selObj, lang]);
+  }, [selObj && selObj.name, selObj && selObj.layer, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // modo cielo local: rota todo a coordenadas alt/azimut y muestra el horizonte
   useEffect(() => {
@@ -898,27 +1184,40 @@ export default function Constellations({ lang = "es" }) {
     (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));
     if (ref.solarGroup) ref.solarGroup.quaternion.copy(q);
     if (ref.horizon) ref.horizon.visible = active;
+    // (antes se recolocaba con cada cambio de hora o de capa y se perdía el encuadre)
+    const key = active ? `on|${lat}|${lon}` : "off";
+    if (ref._localKey === key) return;
+    const first = ref._localKey === undefined;
+    ref._localKey = key;
     if (active) {
       ref.controls.autoRotate = false;
       ref.controls.target.set(0, 120, 0);
-      ref.camera.position.set(0, 560, 1500);
+      const tall = ref.camera.aspect < 1 ? 1.5 : 1;   // en vertical se aleja para que quepa el horizonte
+      ref.camera.position.set(0, 560 * tall, 1500 * tall);
       ref.controls.update();
-    } else if (!sel) {
-      ref.controls.autoRotate = true;
+    } else if (!first && !sel && !selObj) {
+      ref.controls.autoRotate = !prefersReducedMotion();
       ref.controls.target.set(0, 0, 0);
       ref.camera.position.set(0, 0, 1700);
       ref.controls.update();
     }
-  }, [localMode, lat, lon, whenStr, ready, datasets, sel]);
+  }, [localMode, lat, lon, whenStr, ready, datasets, sel]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const ref = sceneRef.current;
     if (!ref || !ref.solarSprites) return;
-    ref.bodies = bodies; ref.showSolar = showSolar;
-    ref.solarGroup.visible = showSolar;
+    // desde otra estrella las posiciones geocéntricas de los planetas no valen: se ocultan
+    const vis = showSolar && !viewFrom;
+    ref.bodies = bodies; ref.showSolar = vis;
+    ref.solarGroup.visible = vis;
+    const moon = bodies.find(b => b.name === "Luna");
+    if (moon && (!ref.moonPhase || ref.moonPhase.illum !== moon.illum || ref.moonPhase.waxing !== moon.waxing)) {
+      ref.moonPhase = { illum: moon.illum, waxing: moon.waxing };
+      ref.redrawMoon(ref.moonPhase);
+    }
     bodies.forEach(b => { const sp = ref.solarSprites[b.name]; if (sp) sp.position.set(b.nx*860, b.ny*860, b.nz*860); });
     ref.solarGroup.quaternion.copy(ref.localQuat || new THREE.Quaternion());
-  }, [bodies, showSolar, ready]);
+  }, [bodies, showSolar, ready, viewFrom]);
 
   // animar el tiempo (play)
   useEffect(() => {
@@ -926,8 +1225,15 @@ export default function Constellations({ lang = "es" }) {
     const id = setInterval(() => setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + 10 * 60000))), 120);
     return () => clearInterval(id);
   }, [playing]);
-  const shiftMin = useCallback((m) => setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + m * 60000))), []);
-  useEffect(() => { if (sceneRef.current) sceneRef.current.labelDensity = labelDensity; }, [labelDensity]);
+  const shiftMin = useCallback((m) => { setTimeMoved(true); setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + m * 60000))); }, []);
+  useEffect(() => { if (sceneRef.current) sceneRef.current.labelDensity = labelDensity; }, [labelDensity, ready]);
+  // idioma: nombres de las etiquetas y punto cardinal Oeste (O / W)
+  useEffect(() => {
+    langRef.current = lang;
+    const ref = sceneRef.current; if (!ref) return;
+    ref.lang = lang;
+    if (ref.cardinals) { ref.cardinals.O.visible = lang === "es"; ref.cardinals.W.visible = lang !== "es"; }
+  }, [lang, ready]);
   const focusDir = useCallback((nx, ny, nz) => {
     const ref = sceneRef.current; if (!ref) return;
     const v = new THREE.Vector3(nx, ny, nz);
@@ -938,15 +1244,20 @@ export default function Constellations({ lang = "es" }) {
     ref.camera.position.copy(v.clone().multiplyScalar(390));
     ref.controls.update();
   }, []);
-  const startTour = useCallback(() => { setSel(null); setSelObj(null); setTourAuto(true); setTourIndex(0); setTourActive(true); }, []);
+  const startTour = useCallback(() => { setSel(null); setSelObj(null); setPanel(null); setTourAuto(true); setTourIndex(0); setTourActive(true); }, []);
+  // Los datos del tour (Messier y agujeros negros) se leen por referencia: así, si
+  // OTRA capa termina de cargar a mitad del recorrido, la parada actual no se
+  // reinicia ni se vuelve a pedir su narración.
+  const tourDataReady = !!(ready && sky && datasets.messier && datasets.blackholes);
   useEffect(() => {
-    if (!tourActive) return;
+    if (!tourActive || !tourDataReady) return;
     const ref = sceneRef.current; const stop = TOUR[tourIndex];
-    const r = resolveStop(stop, ref, sky, datasets);
+    const r = resolveStop(stop, ref, sky, datasetsRef.current);
     if (!r) return;
     focusDir(r.dir[0], r.dir[1], r.dir[2]);
     const title = stop.title ? (stop.title[lang] || stop.title.es) : "";
     setTourTitle(title); setTourText(null);
+    setTourFact(r.dist ? TC[lang].tourFactDist(fmtDist(r.dist, lang)) : "");
     const tw = r.type === "con" ? (lang === "es" ? "la constelación de" : "the constellation") : r.type === "star" ? (lang === "es" ? "la estrella" : "the star") : "";
     const concept = `${tw} ${title}${r.dist ? `, ${lang === "es" ? "a" : "at"} ${fmtDist(r.dist, lang)} ${lang === "es" ? "de la Tierra" : "from Earth"}` : ""}`.trim();
     let cancel = false;
@@ -956,7 +1267,7 @@ export default function Constellations({ lang = "es" }) {
       .then(d => { if (!cancel) setTourText((d && d.explanation) || ""); })
       .catch(e => { if (!cancel && !isAbort(e)) setTourText(""); });
     return () => { cancel = true; ctrl.abort(); };
-  }, [tourActive, tourIndex, sky, datasets, lang, focusDir, tourTry]);
+  }, [tourActive, tourIndex, tourDataReady, sky, lang, focusDir, tourTry]);
   useEffect(() => {
     if (!tourActive || !tourAuto) return;
     const id = setTimeout(() => setTourIndex(i => (i + 1) % TOUR.length), 15000);
@@ -966,10 +1277,10 @@ export default function Constellations({ lang = "es" }) {
   const onResult = useCallback((res) => {
     if (res.type === "loading") return;   // fila informativa, no navegable
     setQuery("");
-    if (res.type === "con") setSel(res.ab);
-    else if (res.type === "star") setSelObj({ name: res.label, nx: res.nx, ny: res.ny, nz: res.nz, dist_ly: res.dist, layer: "star" });
-    else if (res.type === "solar") { const b = res.body; setSelObj({ name: b.name, nx: b.nx, ny: b.ny, nz: b.nz, layer: "solar", dist_au: b.dist_au, illum: b.illum, waxing: b.waxing }); }
-    else if (res.type === "messier") { setEnabled(e => ({ ...e, messier: true })); setSelObj({ ...res.obj, layer: "messier" }); }
+    if (!isWideRef.current) setPanel(null);
+    if (res.type === "con") { setSelObj(null); setDepth(0); setSel(res.ab); }
+    else if (res.type === "star") setSelObj(starObj(res.st, res.si));
+    else if (res.type === "solar") { setShowSolar(true); setSelObj({ ...res.body, layer: "solar" }); }
     else if (res.type === "layer") { setEnabled(e => ({ ...e, [res.layer]: true })); setSelObj({ ...res.obj, layer: res.layer }); }
   }, []);
 
@@ -1012,7 +1323,6 @@ export default function Constellations({ lang = "es" }) {
     controls.update();
   }, []);
   const onCanvasKey = useCallback((e) => {
-    if (e.key === "Escape") { setSelObj(null); return; }
     if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomBy(0.85); return; }
     if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomBy(1.18); return; }
     const az = e.key === "ArrowLeft" ? -0.12 : e.key === "ArrowRight" ? 0.12 : 0;
@@ -1047,16 +1357,10 @@ export default function Constellations({ lang = "es" }) {
     ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
 
     if (selObj && selObj.name) {
-      const TYPE = {
-        star: es ? "Estrella" : "Star", galaxies: es ? "Galaxia" : "Galaxy",
-        blackholes: es ? "Agujero negro" : "Black hole", pulsars: es ? "Púlsar" : "Pulsar",
-        messier: es ? "Objeto Messier" : "Messier object", meteors: es ? "Lluvia de meteoros" : "Meteor shower",
-        comets: es ? "Cometa" : "Comet", probes: es ? "Sonda / telescopio" : "Probe / telescope",
-        exoplanets: es ? "Exoplaneta" : "Exoplanet", solar: es ? "Sistema solar" : "Solar system",
-      }[selObj.layer] || "";
-      let distStr = "";
-      if (selObj.dist_ly != null && selObj.dist_ly > 0) distStr = fmtDist(selObj.dist_ly, lang);
-      else if (selObj.dist_au != null) distStr = selObj.dist_au >= 1 ? `${selObj.dist_au} UA` : `${(selObj.dist_au * 149597870.7 / 1e6).toFixed(2)} M km`;
+      const live = selObj.layer === "solar" ? { ...selObj, ...(bodiesRef.current.find(b => b.name === selObj.name) || {}) } : selObj;
+      const info = describeObject(live, lang, TC[lang], false);
+      const TYPE = info.type;
+      const distStr = info.facts[0] && info.facts[0].label === TC[lang].fDistance ? info.facts[0].value : "";
       const descFont = `${Math.round(H * 0.026)}px Georgia, serif`;
       const desc = (wiki && wiki.extract) ? wiki.extract : "";
       const descLines = desc ? wrap(desc, W - pad * 2, descFont).slice(0, 3) : [];
@@ -1073,7 +1377,7 @@ export default function Constellations({ lang = "es" }) {
       for (let i = descLines.length - 1; i >= 0; i--) { ctx.fillText(descLines[i], pad, y); y -= Math.round(H * 0.034); }
       if (distStr || TYPE) { ctx.fillStyle = "#c9b8ff"; ctx.font = `${Math.round(H * 0.028)}px 'JetBrains Mono', monospace`; ctx.fillText([TYPE, distStr].filter(Boolean).join("  ·  "), pad, y); y -= Math.round(H * 0.050); }
       ctx.fillStyle = "#ffffff"; ctx.font = `${Math.round(H * 0.055)}px Georgia, 'Times New Roman', serif`;
-      ctx.fillText(selObj.name, pad, y);
+      ctx.fillText(info.name, pad, y);
     } else {
       let y = H - pad;
       ctx.fillStyle = "rgba(201,184,255,0.85)"; ctx.font = `${Math.round(H * 0.024)}px Georgia, serif`;
@@ -1091,525 +1395,297 @@ export default function Constellations({ lang = "es" }) {
   }, [selObj, lang, wiki]);
 
   const useMyLocation = useCallback(() => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) { setGeo("unsupported"); return; }
+    setGeo("asking");
     navigator.geolocation.getCurrentPosition(
-      (pos) => { setLat(+pos.coords.latitude.toFixed(4)); setLon(+pos.coords.longitude.toFixed(4)); setLocalMode(true); },
-      () => {}, { enableHighAccuracy: false, timeout: 8000 }
+      (pos) => {
+        setLat(+pos.coords.latitude.toFixed(4)); setLon(+pos.coords.longitude.toFixed(4));
+        setPlaceKind("me"); setLocalMode(true); setGeo("ok"); setSel(null);
+        if (!isWideRef.current) setPanel(null);
+      },
+      (err) => setGeo(err && err.code === 1 ? "denied" : err && err.code === 3 ? "timeout" : "unavailable"),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
     );
   }, []);
+  const pickPlace = useCallback((p) => {
+    setLat(p.lat); setLon(p.lon); setPlaceKind(p.name); setLocalMode(true); setGeo("idle"); setSel(null);
+    if (!isWideRef.current) setPanel(null);
+  }, []);
+  const setManualPlace = useCallback((a, o) => {
+    setLat(+a.toFixed(4)); setLon(+o.toFixed(4)); setPlaceKind("custom"); setLocalMode(true); setGeo("idle"); setSel(null);
+    if (!isWideRef.current) setPanel(null);
+  }, []);
+  // un panel a la vez; en móvil la ficha y los paneles comparten la parte baja
+  const openPanel = useCallback((id) => {
+    setPanel(p => (p === id ? null : id));
+    if (!isWideRef.current) setSelObj(null);
+  }, []);
+  const toggleLayer = useCallback((key) => {
+    setLayerError(p => (p[key] ? { ...p, [key]: false } : p));
+    setEnabled(e => ({ ...e, [key]: !e[key] }));
+  }, []);
+  const onStageKey = useCallback((e) => {
+    if (e.key !== "Escape" || e.defaultPrevented) return;
+    if (panel) setPanel(null); else if (selObj) setSelObj(null); else if (full) setFull(false);
+  }, [panel, selObj, full]);
 
   // click para identificar un objeto (raycast)
   useEffect(() => {
     const ref = sceneRef.current;
     if (!ref || !ref.renderer) return;
     const el = ref.renderer.domElement;
-    const rc = new THREE.Raycaster(); rc.params.Points.threshold = 14;
-    const v = new THREE.Vector2();
     const vtmp = new THREE.Vector3();
     let downX = 0, downY = 0;
     const onDown = (e) => { downX = e.clientX; downY = e.clientY; };
     const onUp = (e) => {
-      if (Math.abs(e.clientX - downX) > 5 || Math.abs(e.clientY - downY) > 5) return; // fue arrastre
+      if (Math.abs(e.clientX - downX) > 6 || Math.abs(e.clientY - downY) > 6) return; // fue arrastre
       const r = el.getBoundingClientRect();
       const px = e.clientX - r.left, py = e.clientY - r.top;
-      v.x = (px / r.width) * 2 - 1;
-      v.y = -(py / r.height) * 2 + 1;
-      rc.setFromCamera(v, ref.camera);
-      const layers = (ref.layerObjs || []).filter(o => o.points.visible);
-      const hits = layers.length ? rc.intersectObjects(layers.map(o => o.points), false) : [];
-      if (hits.length) {
-        // el más cercano al rayo (selección precisa)
-        hits.sort((a, b) => (a.distanceToRay ?? 1e9) - (b.distanceToRay ?? 1e9));
-        const h = hits[0];
-        setSelObj({ ...h.object.userData.objs[h.index], layer: h.object.userData.layer });
-        return;
-      }
-      // respaldo: el objeto visible más cercano al clic en pantalla (más fácil de atinar)
-      let best = null, bestD = 26; // px
-      for (const o of layers) {
+      const touch = e.pointerType === "touch" ? 8 : 0;          // el dedo es menos preciso que el ratón
+      // el más cercano al toque en pantalla, entre todo lo visible
+      let best = null, bestD = Infinity;
+      const consider = (x, y, z, maxD, make) => {
+        vtmp.set(x, y, z);
+        if (ref.localQuat) vtmp.applyQuaternion(ref.localQuat);
+        vtmp.project(ref.camera);
+        if (vtmp.z > 1 || vtmp.z < -1) return;                   // detrás de la cámara
+        const d = Math.hypot((vtmp.x * 0.5 + 0.5) * r.width - px, (-vtmp.y * 0.5 + 0.5) * r.height - py);
+        if (d < maxD + touch && d - maxD < bestD) { bestD = d - maxD; best = make; }
+      };
+      if (ref.showSolar) for (const b of (ref.bodies || [])) consider(b.nx * 860, b.ny * 860, b.nz * 860, 30, () => ({ ...b, layer: "solar" }));
+      for (const o of (ref.layerObjs || [])) {
+        if (!o.points.visible) continue;
         const objs = o.points.userData.objs || [];
-        for (let i = 0; i < objs.length; i++) {
-          const ob = objs[i];
-          vtmp.set(ob.nx * 870, ob.ny * 870, ob.nz * 870);
-          o.points.localToWorld(vtmp);
-          vtmp.project(ref.camera);
-          if (vtmp.z > 1) continue; // detrás de la cámara
-          const sx = (vtmp.x * 0.5 + 0.5) * r.width, sy = (-vtmp.y * 0.5 + 0.5) * r.height;
-          const d = Math.hypot(sx - px, sy - py);
-          if (d < bestD) { bestD = d; best = { obj: ob, layer: o.key }; }
-        }
+        for (let i = 0; i < objs.length; i++) { const ob = objs[i]; consider(ob.nx * 870, ob.ny * 870, ob.nz * 870, 24, () => ({ ...ob, layer: o.key })); }
       }
-      if (best) setSelObj({ ...best.obj, layer: best.layer });
-      else setSelObj(null);
+      const pa = ref.posAttr.array, stars = sky.stars;
+      for (let i = 0; i < stars.length; i++) {
+        if (!stars[i][7]) continue;                              // solo estrellas con nombre propio
+        consider(pa[i * 3], pa[i * 3 + 1], pa[i * 3 + 2], 16, () => starObj(stars[i], i));
+      }
+      if (best) setSelObj(best());
+      else { setSelObj(null); if (!isWideRef.current) setPanel(null); }
     };
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointerup", onUp);
     return () => { el.removeEventListener("pointerdown", onDown); el.removeEventListener("pointerup", onUp); };
-  }, [ready]);
+  }, [ready, sky]);
 
   const onPick = useCallback((e) => {
     const v = e.target.value;
     setSel(v === "__all__" ? null : v);
     setDepth(0);   // siempre arranca en 'plano' y el usuario revela la profundidad
+    setSelObj(null); setLocalMode(false);
+    if (!isWideRef.current) setPanel(null);
   }, []);
+
+  // ── disposición: el visor ocupa todo el ancho de la ventana y el alto que queda ──
+  useEffect(() => {
+    const wrap = wrapRef.current; if (!wrap) return;
+    const measure = () => {
+      const r = wrap.getBoundingClientRect();
+      const vw = document.documentElement.clientWidth;
+      const wide = vw >= 900;
+      const gutter = wide ? 16 : 0;
+      wrap.style.setProperty("--sk-ml", `${gutter - r.left}px`);
+      wrap.style.setProperty("--sk-w", `${vw - gutter * 2}px`);
+      wrap.style.setProperty("--sk-top", `${Math.round(r.top + window.scrollY) + gutter}px`);
+      // si la página muestra un aviso fijo abajo (cookies), los controles suben para no quedar tapados
+      const ck = document.getElementById("yd-cookies");
+      const stage = wrap.firstElementChild;
+      let safe = 0;
+      if (ck && stage && window.scrollY < 4) {
+        const cr = ck.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+        if (cr.height > 0) safe = Math.max(0, Math.min(sr.bottom, window.innerHeight) - cr.top);
+      }
+      wrap.style.setProperty("--sk-safe", `${Math.round(safe)}px`);
+      setIsWide(wide);
+    };
+    const mo = typeof MutationObserver !== "undefined" ? new MutationObserver(measure) : null;
+    if (mo) mo.observe(document.body, { childList: true });
+    measure();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    if (ro) { ro.observe(wrap); ro.observe(document.body); }
+    window.addEventListener("resize", measure);
+    const tm = setTimeout(measure, 600);          // tras cargar fuentes la cabecera puede cambiar de alto
+    return () => { if (ro) ro.disconnect(); if (mo) mo.disconnect(); window.removeEventListener("resize", measure); clearTimeout(tm); };
+  }, []);
+
+  // ── encuadre: deja el objeto a la vista junto a la ficha / el panel abierto ──
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref) return;
+    let x = 0, yf = 0;
+    if (isWide) { if (selObj) x += 208; if (panel) x -= 198; }
+    else if (selObj) yf = 0.24;
+    else if (panel) yf = 0.3;
+    else if (tourActive) yf = 0.14;
+    else if (sel && !localMode) yf = 0.12;      // tarjeta de profundidad sobre el dock
+    ref.viewShift.x = x; ref.viewShift.yf = yf;
+  }, [selObj, panel, tourActive, isWide, ready, sel, localMode]);
+
+  // atajos del buscador vacío
+  const quick = useMemo(() => {
+    if (!sky) return [];
+    const out = [];
+    const body = (key) => { const b = bodies.find(x => x.name === key); if (b) out.push({ label: bodyName(key, lang), onPick: () => onResult({ type: "solar", body: b }) }); };
+    body("Saturno"); body("Luna"); body("Júpiter"); body("Marte");
+    const ori = sky.constellations.find(c => c.ab === "Ori");
+    if (ori) out.push({ label: lang === "es" ? "Orión" : "Orion", onPick: () => onResult({ type: "con", ab: "Ori" }) });
+    const m42 = datasets.messier && datasets.messier.objects.find(o => o.m === 42);
+    if (m42) out.push({ label: lang === "es" ? "Nebulosa de Orión" : "Orion Nebula", onPick: () => onResult({ type: "layer", layer: "messier", obj: m42 }) });
+    const si = sky.stars.findIndex(s => s[7] === "Sirius");
+    if (si >= 0) out.push({ label: lang === "es" ? "Sirio" : "Sirius", onPick: () => onResult({ type: "star", st: sky.stars[si], si }) });
+    const sgr = datasets.blackholes && datasets.blackholes.objects.find(o => o.name === "Sgr A*");
+    if (sgr) out.push({ label: "Sgr A*", onPick: () => onResult({ type: "layer", layer: "blackholes", obj: sgr }) });
+    return out;
+  }, [sky, bodies, datasets.messier, datasets.blackholes, lang, onResult]);
 
   const selMeta = sky && sel ? sky.constellations.find(c => c.ab === sel) : null;
   const stats = selMeta ? constellationStats(selMeta, sky) : null;
-
-  const timeBtn = { fontFamily: "Inter,system-ui", fontSize: 12, padding: "3px 7px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.72)", cursor: "pointer", background: "transparent" };
-
-  // capas cuya carga falló (JSON estático, backend o NASA): aviso bajo el visor
+  const sortedCons = useMemo(() => (sky ? [...sky.constellations].sort((a, b) => a.la.localeCompare(b.la)) : []), [sky]);
   const failedLayers = LAYERS.filter(c => layerError[c.key]);
+  const layersOn = LAYERS.filter(c => enabled[c.key]).length;
+  // el objeto del sistema solar se refresca con las efemérides del momento elegido
+  const liveObj = useMemo(() => {
+    if (!selObj) return null;
+    if (selObj.layer === "solar") { const b = bodies.find(x => x.name === selObj.name); return b ? { ...selObj, ...b } : selObj; }
+    return selObj;
+  }, [selObj, bodies]);
+  const when = new Date(whenStr);
+  const placeLabel = placeKind === "me" ? t.myLocation : placeKind === "custom" ? t.customPlace : placeKind;
+  const tourReady = !!(ready && datasets.messier && datasets.blackholes);
+  const covered = !isWide && (!!selObj || !!panel);
+  const showDepth = !!(sky && selMeta && !localMode && !tourActive);
+  const showOnboard = !!(showHint && sky && !selObj && !panel && !tourActive && !showDepth);
+  const stageClass = "sk-stage" + (full ? " is-full" : "") + (covered ? " is-covered" : "") + (selObj ? " has-sheet" : "")
+    + (tourActive ? " has-tour" : "") + (showDepth ? " has-depth" : "");
 
   return (
-    <>
-    <div className="relative w-full h-[460px] md:h-[600px]">
-      <div ref={mountRef} className="absolute inset-0 rounded-2xl overflow-hidden"
-        role="application" tabIndex={0} onKeyDown={onCanvasKey}
-        aria-label={lang === "es"
-          ? "Mapa del cielo en 3D: estrellas, constelaciones y objetos a su distancia real. Flechas para girar, + y − para acercar, Escape para cerrar la ficha."
-          : "3D sky map: stars, constellations and objects at their real distance. Arrows to rotate, + and − to zoom, Escape to close the panel."}
-        style={{ background: "radial-gradient(ellipse at center, #0a1020 0%, #04080f 80%)", border: "1px solid rgba(124,58,237,0.18)", outline: "none" }} />
-
-      {/* punto de observación distinto de la Tierra */}
-      {viewFrom && (
-        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto z-20 flex items-center gap-2 rounded-full px-3 py-1.5"
-          style={{ top: 10, background: "rgba(124,58,237,0.22)", border: "1px solid rgba(124,58,237,0.6)", backdropFilter: "blur(4px)" }}>
-          <span style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "#e6ddff" }}>
-            {lang === "es" ? "Cielo desde " : "Sky from "}<strong>{viewFrom.name}</strong>
-          </span>
-          <button onClick={() => setViewFrom(null)}
-            style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer", color: "#c9b8ff",
-              background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 999, padding: "2px 8px" }}>
-            {lang === "es" ? "↩ volver a la Tierra" : "↩ back to Earth"}
-          </button>
-        </div>
-      )}
-
-      {/* controles de zoom / centrado */}
-      <div className="absolute right-3 pointer-events-auto z-20 flex flex-col gap-1.5" style={{ top: "50%", transform: "translateY(-50%)" }}>
-        {[
-          { t: "+", f: () => zoomBy(0.8), lbl: lang === "es" ? "Acercar" : "Zoom in" },
-          { t: "−", f: () => zoomBy(1.25), lbl: lang === "es" ? "Alejar" : "Zoom out" },
-          { t: "◎", f: recenter, lbl: selObj ? (lang === "es" ? "Centrar en el objeto" : "Center on object") : (lang === "es" ? "Centrar vista" : "Center view") },
-          { t: "📷", f: savePostcard, lbl: lang === "es" ? "Guardar postal del cielo (PNG)" : "Save sky postcard (PNG)" },
-        ].map((b) => (
-          <button key={b.t} onClick={b.f} aria-label={b.lbl} title={b.lbl}
-            style={{ width: 40, height: 40, borderRadius: 10, cursor: "pointer",
-              fontFamily: "Inter,system-ui", fontSize: b.t === "◎" ? 16 : b.t === "📷" ? 15 : 20, lineHeight: 1,
-              color: b.t === "◎" && selObj ? "#A78BFA" : "rgba(255,255,255,0.75)",
-              background: "rgba(9,14,28,0.85)", border: "1px solid rgba(124,58,237,0.35)" }}>
-            {b.t}
-          </button>
-        ))}
-      </div>
-
-      {/* pista de bienvenida (una sola vez) */}
-      {showHint && sky && (
-        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto z-20 rounded-xl px-3.5 py-2.5"
-          style={{ bottom: 96, maxWidth: 340, background: "rgba(9,14,28,0.94)", border: "1px solid rgba(124,58,237,0.5)", boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
-          <div style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "rgba(255,255,255,0.82)", lineHeight: 1.5 }}>
-            {lang === "es"
-              ? "Mueve el control de abajo para revelar la profundidad real del cielo. Busca cualquier objeto (Marte, Sgr A*, pulsar) y, al tocar una estrella, mira el cielo desde allí."
-              : "Drag the control below to reveal the sky's real depth. Search any object (Mars, Sgr A*, pulsar) and, tapping a star, view the sky from there."}
-          </div>
-          <button onClick={dismissHint}
-            className="mt-1.5"
-            style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer", color: "#c9b8ff", background: "rgba(124,58,237,0.2)", border: "1px solid rgba(124,58,237,0.5)", borderRadius: 999, padding: "3px 12px" }}>
-            {lang === "es" ? "Entendido" : "Got it"}
-          </button>
-        </div>
-      )}
+    <div ref={wrapRef} className="sk-wrap">
+    <div className={stageClass} onKeyDown={onStageKey}>
+      <div ref={mountRef} className="sk-canvas" role="application" tabIndex={0} onKeyDown={onCanvasKey} aria-label={t.canvasAria} />
+      <SkyLabels apiRef={labelsApiRef} colors={LABEL_COLOR} unit={t.lightyears} locale={lang === "es" ? "es" : "en-US"} />
 
       {!sky && !skyError && (
-        <div role="status" className="absolute inset-0 flex items-center justify-center text-white/60 animate-pulse"
-          style={{ fontFamily: "Inter,system-ui", fontSize: 13 }}>{t.loading}</div>
+        <div role="status" className="sk-loading"><i className="sk-spin" />{t.loading}</div>
       )}
       {!sky && skyError && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center p-4">
+        <div className="sk-error">
           <ErrorNotice className="max-w-sm w-full" message={t.skyError} retryLabel={t.retry} onRetry={loadSky} />
         </div>
       )}
+      {/* para lectores de pantalla: capas que no cargaron (el detalle y el reintento están en Capas) */}
+      <p className="sk-sr" role="status">
+        {failedLayers.length > 0 ? `${t.layersError} ${failedLayers.map(c => c[lang] || c.es).join(", ")}.` : ""}
+      </p>
 
-      {/* labels LOD */}
-      {labels.map(l => (
-        <div key={l.key} className="absolute pointer-events-none"
-          style={{ left: l.x, top: l.y, transform: "translate(6px,-50%)", whiteSpace: "nowrap" }}>
-          <div style={{
-            fontFamily: "Cormorant Garamond,Georgia,serif",
-            color: LABEL_COLOR[l.cls] || "#fff",
-            fontSize: l.cls === "con" ? 12 : 10.5,
-            letterSpacing: l.cls === "con" ? "0.1em" : "0",
-            textTransform: l.cls === "con" ? "uppercase" : "none",
-            lineHeight: 1, textShadow: "0 1px 6px #000",
-          }}>{l.name}</div>
-          {l.sub != null && (
-            <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 12, textShadow: "0 1px 6px #000" }}>
-              {l.sub.toLocaleString()} {t.lightyears.split("-").join(" ")}
+      {sky && (
+        <div className="sk-top">
+          <SearchBox t={t} query={query} setQuery={setQuery} results={results} onResult={onResult} quick={quick} />
+          {(viewFrom || localMode) && (
+            <div className="sk-chips">
+              {viewFrom && (
+                <div className="sk-chip tone-violet">
+                  <span>{t.skyFrom} <b>{viewFrom.name}</b></span>
+                  <button type="button" onClick={() => setViewFrom(null)}>{t.backToEarth}</button>
+                </div>
+              )}
+              {localMode && lat != null && (
+                <div className="sk-chip tone-blue">
+                  <button type="button" className="chip-main" onClick={() => openPanel("location")} aria-label={`${t.changePlace}: ${placeLabel}`}>
+                    <Icon name="pin" size={16} /><span>{placeLabel}</span>
+                  </button>
+                  <button type="button" onClick={() => setLocalMode(false)} aria-label={t.leaveMySky}><Icon name="close" size={15} /></button>
+                </div>
+              )}
             </div>
           )}
         </div>
-      ))}
+      )}
 
-      {/* top controls */}
       {sky && (
-        <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none">
-          <div className="pointer-events-auto">
-            <select value={sel || "__all__"} onChange={onPick}
-              aria-label={lang === "es" ? "Elegir constelación" : "Choose constellation"}
-              className="px-3 py-2 rounded-xl text-white text-sm outline-none"
-              style={{ background: "rgba(9,14,28,0.9)", border: "1px solid rgba(124,58,237,0.4)", fontFamily: "Inter,system-ui", maxWidth: 200 }}>
-              <option value="__all__">✦ {t.all}</option>
-              {[...sky.constellations].sort((a,b)=>a.la.localeCompare(b.la)).map(c => (
-                <option key={c.ab} value={c.ab}>{c.la} · {c.en}</option>
-              ))}
-            </select>
-          </div>
-          <div className="pointer-events-auto" style={{ width: 172, position: "relative", zIndex: 40 }}>
-            <input value={query} onChange={e => setQuery(e.target.value)}
-              aria-label={lang === "es" ? "Buscar objeto" : "Search object"}
-              placeholder={lang === "es" ? "Buscar: Marte, Sgr A*, pulsar…" : "Search: Mars, Sgr A*, pulsar…"}
-              style={{ width: "100%", background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.4)", borderRadius: 10, color: "#fff", padding: "6px 10px", fontFamily: "Inter,system-ui", fontSize: 12, outline: "none" }} />
-            {results.length > 0 && (
-              <div style={{ marginTop: 4, background: "#090e1c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden", boxShadow: "0 16px 40px rgba(0,0,0,0.7)" }}>
-                {results.map((r, i) => (
-                  <button key={i} onClick={() => onResult(r)}
-                    style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", color: "rgba(255,255,255,0.78)", fontFamily: "Inter,system-ui", fontSize: 12, borderBottom: "1px solid rgba(255,255,255,0.05)", background: "transparent", cursor: "pointer" }}>
-                    {r.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+        <div className="sk-rail">
+          <button type="button" onClick={() => zoomBy(0.8)} aria-label={t.zoomIn} title={t.zoomIn}><Icon name="plus" size={22} /></button>
+          <button type="button" onClick={() => zoomBy(1.25)} aria-label={t.zoomOut} title={t.zoomOut}><Icon name="minus" size={22} /></button>
+          <span className="sk-rail-gap is-extra" aria-hidden="true" />
+          <button type="button" className={`is-extra${selObj ? " is-on" : ""}`} onClick={recenter} aria-label={selObj ? t.centerObj : t.centerView} title={selObj ? t.centerObj : t.centerView}><Icon name="target" size={20} /></button>
+          <button type="button" className="is-extra" onClick={savePostcard} aria-label={t.postcardAria} title={t.postcardAria}><Icon name="camera" size={20} /></button>
+          <button type="button" className={`is-extra${full ? " is-on" : ""}`} onClick={() => setFull(f => !f)} aria-pressed={full} aria-label={full ? t.fullOff : t.fullOn} title={full ? t.fullOff : t.fullOn}><Icon name={full ? "shrink" : "expand"} size={20} /></button>
         </div>
       )}
 
-      {/* toggles de capas de objetos */}
-      {sky && (
-        <div className="absolute left-3 right-3 flex flex-wrap gap-1.5" style={{ top: 56 }}>
-          <button
-            onClick={() => { setLocalMode(v => { const nv = !v; if (nv && lat == null) { setLat(-0.18); setLon(-78.47); } return nv; }); }}
-            className="px-2.5 py-1 rounded-full transition-all"
-            style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer",
-              background: localMode ? "rgba(96,165,250,0.18)" : "rgba(9,14,28,0.82)",
-              border: `1px solid ${localMode ? "#60A5FA" : "rgba(255,255,255,0.12)"}`,
-              color: localMode ? "#60A5FA" : "rgba(255,255,255,0.72)" }}>
-            🌍 {lang === "es" ? "Mi cielo" : "My sky"}
-          </button>
-          <button
-            onClick={() => setShowSolar(v => !v)}
-            aria-pressed={showSolar} aria-label={lang === "es" ? "Sistema solar" : "Solar system"}
-            className="px-2.5 py-1 rounded-full transition-all"
-            style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer",
-              background: showSolar ? "rgba(255,210,63,0.16)" : "rgba(9,14,28,0.82)",
-              border: `1px solid ${showSolar ? "#ffd23f" : "rgba(255,255,255,0.12)"}`,
-              color: showSolar ? "#ffd23f" : "rgba(255,255,255,0.72)" }}>
-            ☉ {lang === "es" ? "Sistema solar" : "Solar system"}
-          </button>
-          <button
-            onClick={startTour}
-            disabled={!datasets.messier || !datasets.blackholes}
-            className="px-2.5 py-1 rounded-full transition-all"
-            style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: (datasets.messier && datasets.blackholes) ? "pointer" : "default",
-              background: tourActive ? "rgba(167,139,250,0.2)" : "rgba(9,14,28,0.82)",
-              border: `1px solid ${tourActive ? "#A78BFA" : "rgba(255,255,255,0.12)"}`,
-              color: tourActive ? "#A78BFA" : ((datasets.messier && datasets.blackholes) ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0.6)") }}>
-            🎬 {lang === "es" ? "Tour" : "Tour"}
-          </button>
-          {LAYERS.map(cfg => {
-            const on = !!enabled[cfg.key];
-            const hex = "#" + cfg.color.toString(16).padStart(6, "0");
-            const has = (cfg.api || cfg.lazy) ? true : !!datasets[cfg.key];
-            return (
-              <button key={cfg.key} disabled={!has}
-                onClick={() => { setLayerError(p => p[cfg.key] ? { ...p, [cfg.key]: false } : p); setEnabled(e => ({ ...e, [cfg.key]: !e[cfg.key] })); }}
-                aria-pressed={on} aria-label={`${on ? (lang === "es" ? "Ocultar" : "Hide") : (lang === "es" ? "Mostrar" : "Show")} ${cfg[lang] || cfg.es}`}
-                className="px-2.5 py-1 rounded-full transition-all"
-                style={{
-                  fontFamily: "Inter,system-ui", fontSize: 12,
-                  background: on ? hex + "22" : "rgba(9,14,28,0.82)",
-                  border: `1px solid ${on ? hex : "rgba(255,255,255,0.12)"}`,
-                  color: on ? hex : (has ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0.6)"),
-                  cursor: has ? "pointer" : "default",
-                }}>
-                ● {cfg[lang] || cfg.es}
-                {(cfg.api || cfg.lazy)
-                  ? (datasets[cfg.key]
-                      ? ` (${datasets[cfg.key].count ?? (datasets[cfg.key].objects || []).length})`
-                      : loadingLayer[cfg.key] ? " …" : layerError[cfg.key] ? " ⚠" : "")
-                  : (datasets[cfg.key] ? "" : loadingLayer[cfg.key] ? " …" : layerError[cfg.key] ? " ⚠" : "")}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* depth slider */}
-      {sky && sel && !localMode && (
-        <div className="absolute left-3 right-3 pointer-events-auto" style={{ bottom: 56 }}>
-          <div className="rounded-xl px-4 py-3" style={{ background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.3)" }}>
-            <div className="flex items-center justify-between mb-1.5">
-              <span style={{ color: depth < 0.5 ? "#60A5FA" : "rgba(255,255,255,0.62)", fontFamily: "Inter,system-ui", fontSize: 12 }}>{t.flat}</span>
-              <span style={{ color: depth >= 0.5 ? "#A78BFA" : "rgba(255,255,255,0.62)", fontFamily: "Inter,system-ui", fontSize: 12 }}>{t.depth}</span>
+      {showDepth && (
+        <section className="sk-depth" aria-label={t.depthTitle(selMeta.la)}>
+          <div className="sk-depth-head">
+            <h2>{t.depthTitle(selMeta.la)}</h2>
+            <button type="button" className="sk-iconbtn" onClick={() => { setSel(null); setDepth(0); }} aria-label={t.wholeSky} title={t.wholeSky}><Icon name="close" size={18} /></button>
+          </div>
+          <input type="range" min="0" max="1" step="0.01" value={depth}
+            onChange={e => setDepth(parseFloat(e.target.value))}
+            aria-label={t.depthAria} aria-valuetext={depth < 0.5 ? t.flat : t.depth} />
+          <div className="sk-depth-ends">
+            <span className={depth < 0.5 ? "on" : ""}>{t.flat}</span>
+            <span className={depth >= 0.5 ? "on" : ""}>{t.depth}</span>
+          </div>
+          {stats && stats.far.d > 0 && (
+            <div className="sk-depth-stats">
+              <span>{t.nearest}: <b>{stats.near.name || "—"}</b> {stats.near.d.toLocaleString(lang === "es" ? "es" : "en-US")} {t.lightyears}</span>
+              <span>{t.farthest}: <b>{stats.far.name || "—"}</b> {stats.far.d.toLocaleString(lang === "es" ? "es" : "en-US")} {t.lightyears}</span>
             </div>
-            <input type="range" min="0" max="1" step="0.01" value={depth}
-              onChange={e => setDepth(parseFloat(e.target.value))}
-              aria-label={lang === "es" ? "Profundidad: de vista plana a profundidad real" : "Depth: from flat view to real depth"}
-              aria-valuetext={depth < 0.5 ? t.flat : t.depth}
-              className="w-full" style={{ accentColor: "#7C3AED" }} />
-            {stats && (
-              <div className="flex items-center justify-between mt-1.5" style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 12, color: "rgba(255,255,255,0.62)" }}>
-                <span>{t.nearest}: {stats.near.name||"—"} {stats.near.d.toLocaleString()} {t.lightyears}</span>
-                <span>{t.farthest}: {stats.far.name||"—"} {stats.far.d.toLocaleString()} {t.lightyears}</span>
-              </div>
-            )}
-          </div>
-        </div>
+          )}
+        </section>
       )}
 
       {sky && !tourActive && (
-        <div className="absolute left-3 right-3 pointer-events-auto flex items-center gap-1 rounded-xl px-2 py-1.5"
-          style={{ bottom: 12, background: "rgba(9,14,28,0.92)", border: "1px solid rgba(124,58,237,0.25)" }}>
-          <button onClick={() => setLabelDensity(d => d === "pocas" ? "normal" : d === "normal" ? "muchas" : "pocas")} style={timeBtn} title="densidad de nombres" aria-label={lang === "es" ? "Densidad de nombres" : "Label density"}>
-            {labelDensity === "pocas" ? "Aa·" : labelDensity === "muchas" ? "Aa···" : "Aa··"}
-          </button>
-          <button onClick={() => shiftMin(-1440)} style={timeBtn}>−1d</button>
-          <button onClick={() => shiftMin(-60)} style={timeBtn}>−1h</button>
-          <button onClick={() => setPlaying(pl => !pl)} aria-pressed={playing} aria-label={lang === "es" ? (playing ? "Pausar animación del tiempo" : "Animar el tiempo") : (playing ? "Pause time animation" : "Animate time")} style={{ ...timeBtn, color: playing ? "#A78BFA" : "rgba(255,255,255,0.72)", borderColor: playing ? "#7C3AED" : "rgba(255,255,255,0.12)" }}>{playing ? "⏸" : "▶"}</button>
-          <span style={{ flex: 1, textAlign: "center", fontFamily: "JetBrains Mono,monospace", fontSize: 12, color: "rgba(255,255,255,0.62)" }}>
-            {new Date(whenStr).toLocaleString(lang === "es" ? "es-EC" : "en-US", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-          </span>
-          <button onClick={() => shiftMin(60)} style={timeBtn}>+1h</button>
-          <button onClick={() => shiftMin(1440)} style={timeBtn}>+1d</button>
-          <button onClick={() => { setPlaying(false); setWhenStr(nowLocalInput()); }} style={timeBtn}>{lang === "es" ? "ahora" : "now"}</button>
-        </div>
-      )}
-
-      {sky && localMode && (
-        <div className="absolute left-3 right-3 pointer-events-auto rounded-xl px-4 py-2.5"
-          style={{ bottom: 56, background: "rgba(9,14,28,0.93)", border: "1px solid rgba(96,165,250,0.3)" }}>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "#60A5FA" }}>
-              {lat != null ? `${lat}°, ${lon}°` : (lang === "es" ? "sin ubicación" : "no location")}
-            </span>
-            <button onClick={useMyLocation}
-              className="px-2.5 py-1 rounded-full"
-              style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer",
-                background: "rgba(96,165,250,0.15)", border: "1px solid rgba(96,165,250,0.4)", color: "#60A5FA" }}>
-              {lang === "es" ? "Usar mi ubicación" : "Use my location"}
-            </button>
-          </div>
-          <p style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "rgba(255,255,255,0.62)", marginTop: 4 }}>
-            {lang === "es" ? "Horizonte y brújula N-E-S-O según tu lugar y hora." : "Horizon & N-E-S-W compass for your place and time."}
-          </p>
-        </div>
+        <Dock t={t} panel={panel} onPanel={openPanel} localMode={localMode} tourReady={tourReady} onTour={startTour}
+          timeLabel={timeMoved ? fmtWhenShort(when, lang) : t.now} isNow={!timeMoved} playing={playing}
+          layersOn={layersOn} layersWarn={failedLayers.length > 0} />
       )}
 
       {sky && tourActive && (
-        <div className="absolute left-3 right-3 pointer-events-auto rounded-xl px-4 py-3"
-          style={{ bottom: 12, background: "rgba(9,14,28,0.96)", border: "1px solid rgba(124,58,237,0.4)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)" }}>
-          <div className="flex items-center justify-between mb-1.5">
-            <span style={{ fontFamily: "Cormorant Garamond,Georgia,serif", color: "#fff", fontSize: 16 }}>{tourTitle}</span>
-            <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 12, color: "rgba(255,255,255,0.62)" }}>{tourIndex + 1}/{TOUR.length}</span>
-          </div>
-          <p aria-live="polite" style={{ fontFamily: "Cormorant Garamond,Georgia,serif", fontStyle: "italic", color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.45, minHeight: 42, margin: 0 }}>
-            {tourText === null ? (lang === "es" ? "narrando…" : "narrating…") : (tourText ? `"${tourText}"` : t.tourNoText)}
-            {tourText === "" && (
-              <button type="button" onClick={() => setTourTry(n => n + 1)} style={{ ...timeBtn, fontStyle: "normal", marginLeft: 8 }}>↻ {t.retry}</button>
-            )}
-          </p>
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex gap-1.5">
-              <button onClick={() => setTourIndex(i => (i - 1 + TOUR.length) % TOUR.length)} style={timeBtn}>‹ {lang === "es" ? "ant." : "prev"}</button>
-              <button onClick={() => setTourAuto(a => !a)} style={{ ...timeBtn, color: tourAuto ? "#A78BFA" : "rgba(255,255,255,0.72)", borderColor: tourAuto ? "#7C3AED" : "rgba(255,255,255,0.12)" }}>{tourAuto ? "⏸ auto" : "▶ auto"}</button>
-              <button onClick={() => setTourIndex(i => (i + 1) % TOUR.length)} style={timeBtn}>{lang === "es" ? "sig." : "next"} ›</button>
-            </div>
-            <button onClick={() => setTourActive(false)} style={{ ...timeBtn, color: "rgba(255,140,140,0.85)" }}>{lang === "es" ? "salir" : "exit"}</button>
-          </div>
-        </div>
+        <TourCard t={t} title={tourTitle} fact={tourFact} index={tourIndex} total={TOUR.length} text={tourText} auto={tourAuto}
+          onPrev={() => setTourIndex(i => (i - 1 + TOUR.length) % TOUR.length)}
+          onNext={() => setTourIndex(i => (i + 1) % TOUR.length)}
+          onToggleAuto={() => setTourAuto(a => !a)}
+          onExit={() => setTourActive(false)}
+          onRetry={() => setTourTry(n => n + 1)} />
       )}
 
-      {selObj && (
-        <div className="absolute pointer-events-auto rounded-xl p-3.5"
-          style={{ top: 60, right: 12, width: 252, maxHeight: 388, overflowY: "auto", background: "rgba(9,14,28,0.96)", border: "1px solid rgba(124,58,237,0.4)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)" }}>
-          <div className="flex items-start justify-between gap-2 mb-1.5">
-            <div style={{ fontFamily: "Cormorant Garamond,Georgia,serif", color: "#fff", fontSize: 18, lineHeight: 1.1 }}>{selObj.name}</div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button onClick={shareLink} aria-label={lang === "es" ? "Copiar enlace a este objeto" : "Copy link to this object"} title={lang === "es" ? "Copiar enlace" : "Copy link"}
-                className="text-white/70 hover:text-white/90" style={{ fontSize: 13 }}>
-                {copied ? (lang === "es" ? "✓ copiado" : "✓ copied") : "🔗"}
-              </button>
-              <button onClick={() => setSelObj(null)} aria-label={lang === "es" ? "Cerrar ficha" : "Close panel"} className="text-white/60 hover:text-white/90" style={{ fontSize: 13 }}>✕</button>
-            </div>
-          </div>
-          {wiki && wiki.thumb && (
-            <div style={{ marginBottom: 8 }}>
-              <img src={wiki.thumb} alt={selObj.name} loading="lazy"
-                style={{ width: "100%", borderRadius: 8, marginBottom: 2, display: "block" }} />
-              <div style={{ fontFamily: "Inter,system-ui", fontSize: 12, color: "rgba(255,255,255,0.62)" }}>
-                {selObj.layer === "exoplanets"
-                  ? (lang === "es" ? "Ilustración — concepto artístico · Wikipedia" : "Illustration — artist's concept · Wikipedia")
-                  : (lang === "es" ? "Imagen · Wikipedia (CC)" : "Image · Wikipedia (CC)")}
-              </div>
-            </div>
-          )}
-          {selObj.dist_ly != null && (
-            <div style={{ fontFamily: "JetBrains Mono,monospace", color: "#A78BFA", fontSize: 12 }}>{fmtDist(selObj.dist_ly, lang)}</div>
-          )}
-          {selObj.layer === "star" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
-              {lang === "es" ? "Estrella" : "Star"}
-              {selObj.dist_ly > 0 && (
-                <button
-                  onClick={() => {
-                    const d = selObj.dist_ly;
-                    setViewFrom({ name: selObj.name, pos: [selObj.nx * d, selObj.ny * d, selObj.nz * d] });
-                    setSel(null); setSelObj(null);
-                  }}
-                  className="mt-2 w-full rounded-lg px-2 py-1.5 transition-all"
-                  style={{ display: "block", fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer",
-                    background: "rgba(124,58,237,0.18)", border: "1px solid rgba(124,58,237,0.5)", color: "#c9b8ff" }}>
-                  {lang === "es" ? "🪐 Ver el cielo desde aquí" : "🪐 View the sky from here"}
-                </button>
-              )}
-            </div>
-          )}
-          {selObj.layer === "solar" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
-              {selObj.name === "Sol" ? (lang === "es" ? "El Sol — estrella" : "The Sun — star")
-                : selObj.name === "Luna" ? (lang === "es" ? "La Luna — satélite" : "The Moon — satellite")
-                : (lang === "es" ? "Planeta" : "Planet")}
-              {selObj.dist_au != null ? ` · ${selObj.dist_au.toFixed(3)} UA` : ""}
-              {selObj.illum != null ? ` · ${lang === "es" ? "fase" : "phase"} ${Math.round(selObj.illum * 100)}% ${selObj.waxing ? (lang === "es" ? "crec." : "wax") : (lang === "es" ? "meng." : "wan")}` : ""}
-            </div>
-          )}
+      {showOnboard && <Onboarding t={t} onDone={dismissHint} onTour={startTour} tourReady={tourReady} />}
 
-          {selObj.layer === "messier" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
-              {TYPE_ES[selObj.type] || "Objeto"}{selObj.cn ? ` · ${selObj.cn}` : ""}{selObj.ngc ? ` · ${selObj.ngc}` : ""}
-              {selObj.const_es ? <><br/><span style={{ color: "rgba(255,255,255,0.62)" }}>{lang === "es" ? "en " : "in "}{lang === "es" ? selObj.const_es : selObj.const}</span></> : null}
-            </div>
-          )}
-          {selObj.layer === "pulsars" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
-              {lang === "es" ? "Púlsar" : "Pulsar"}{selObj.period_ms != null ? ` · ${lang === "es" ? "período" : "period"} ${selObj.period_ms} ms` : ""}
-              {selObj.note ? <><br/><span style={{ color: "rgba(255,255,255,0.62)" }}>{selObj.note}</span></> : null}
-            </div>
-          )}
-          {selObj.layer === "galaxies" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
-              {lang === "es" ? "Galaxia" : "Galaxy"}{selObj.hubble ? ` · ${selObj.hubble}` : ""}{selObj.cat && selObj.cat !== selObj.name ? ` · ${selObj.cat}` : ""}
-              {selObj.const_es ? <><br/><span style={{ color: "rgba(255,255,255,0.62)" }}>{lang === "es" ? "en " : "in "}{lang === "es" ? selObj.const_es : selObj.const} · {lang === "es" ? "distancia por redshift (aprox.)" : "redshift distance (approx.)"}</span></> : <><br/><span style={{ color: "rgba(255,255,255,0.62)" }}>{lang === "es" ? "distancia por redshift (aprox.)" : "redshift distance (approx.)"}</span></>}
-            </div>
-          )}
-          {selObj.layer === "blackholes" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
-              {lang === "es" ? "Agujero negro" : "Black hole"} {selObj.kind} · {fmtMass(selObj.mass_sun)} M☉<br/>
-              <span style={{ color: "rgba(255,255,255,0.62)" }}>{selObj.note}</span>
-            </div>
-          )}
-          {selObj.layer === "meteors" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
-              {(() => { const active = meteorActive(selObj); return (
-                <>
-                  <span style={{ color: active ? "#ffd27a" : "rgba(255,255,255,0.72)", fontWeight: active ? 600 : 400 }}>
-                    {active ? (lang === "es" ? "● activa ahora" : "● active now") : (lang === "es" ? "lluvia de meteoros" : "meteor shower")}
-                  </span>
-                  <div style={{ color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
-                    {lang === "es" ? "máximo" : "peak"} {fmtMD(selObj.peak, lang)} · {lang === "es" ? "activa" : "active"} {fmtMD(selObj.start, lang)}–{fmtMD(selObj.end, lang)} · ZHR ~{selObj.zhr}
-                  </div>
-                  <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>
-                    {lang === "es" ? "origen" : "parent"}: {selObj.parent}
-                  </div>
-                  <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 4, fontSize: 12 }}>
-                    {lang === "es"
-                      ? "El radiante es la dirección de donde parecen venir; no es un objeto lejano."
-                      : "The radiant is the direction they appear to come from; not a distant object."}
-                  </div>
-                </>
-              ); })()}
-            </div>
-          )}
-          {selObj.layer === "comets" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
-              <span style={{ color: "#8be0ff" }}>{lang === "es" ? "Cometa" : "Comet"}</span>
-              {selObj.dist_au != null ? ` · ${selObj.dist_au} ${lang === "es" ? "UA de la Tierra" : "AU from Earth"}` : ""}
-              {selObj.light_min != null ? ` · ${lang === "es" ? "luz" : "light"} ${selObj.light_min < 60 ? `${selObj.light_min} min` : `${(selObj.light_min/60).toFixed(1)} h`}` : ""}
-              <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>
-                {selObj.approaching ? (lang === "es" ? "acercándose a la Tierra" : "approaching Earth") : (lang === "es" ? "alejándose de la Tierra" : "receding from Earth")}
-                {" · "}{lang === "es" ? "posición real de hoy (NASA Horizons)" : "today's real position (NASA Horizons)"}
-              </div>
-            </div>
-          )}
-          {selObj.layer === "probes" && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 6 }}>
-              <span style={{ color: "#e6ebff" }}>{lang === "es" ? "Sonda / telescopio" : "Probe / telescope"}</span>
-              {selObj.dist_au != null ? ` · ${selObj.dist_au >= 1 ? selObj.dist_au + " UA" : (selObj.dist_au * 149597870.7 / 1e6).toFixed(2) + " M km"}` : ""}
-              {selObj.light_min != null ? ` · ${lang === "es" ? "luz" : "light"} ${selObj.light_min < 120 ? selObj.light_min + " min" : (selObj.light_min / 60).toFixed(1) + " h"}` : ""}
-              {(selObj.note_es || selObj.note_en) && (
-                <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>{lang === "es" ? selObj.note_es : selObj.note_en}</div>
-              )}
-              <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 2, fontSize: 12 }}>
-                {lang === "es" ? "posición real de hoy (NASA Horizons)" : "today's real position (NASA Horizons)"}
-              </div>
-            </div>
-          )}
-          {selObj.layer === "exoplanets" && (
-            <div style={{ fontFamily: "Inter,system-ui", fontSize: 12, marginTop: 6 }}>
-              <span style={{ color: selObj.hab ? "#aaff7a" : "rgba(255,255,255,0.72)" }}>
-                {selObj.hab ? (lang === "es" ? "● potencialmente habitable" : "● potentially habitable") : (lang === "es" ? "no habitable" : "not habitable")}
-              </span>
-              <div style={{ color: "rgba(255,255,255,0.72)", marginTop: 3, lineHeight: 1.5 }}>
-                {(() => {
-                  const bits = [];
-                  if (selObj.rade) bits.push(`${lang === "es" ? "radio" : "radius"} ${selObj.rade} R⊕`);
-                  if (selObj.mass_e) bits.push(`${lang === "es" ? "masa" : "mass"} ${selObj.mass_e} M⊕`);
-                  if (selObj.period_d) bits.push(`${lang === "es" ? "año" : "year"} ${selObj.period_d < 1 ? (selObj.period_d * 24).toFixed(1) + " h" : selObj.period_d.toFixed(selObj.period_d < 10 ? 1 : 0) + " d"}`);
-                  if (selObj.eqt_k) bits.push(`${selObj.eqt_k} K (${Math.round(selObj.eqt_k - 273)} °C)`);
-                  return bits.join(" · ");
-                })()}
-              </div>
-              <div style={{ color: "rgba(255,255,255,0.62)", marginTop: 2 }}>
-                {lang === "es" ? "estrella" : "host"} {selObj.host}{selObj.spectype ? ` (${selObj.spectype})` : ""}
-                {selObj.disc_year ? ` · ${lang === "es" ? "descubierto" : "found"} ${selObj.disc_year}${selObj.method ? " · " + selObj.method : ""}` : ""}
-              </div>
-            </div>
-          )}
+      {sky && panel === "layers" && (
+        <LayersPanel t={t} lang={lang} layers={LAYERS} datasets={datasets} enabled={enabled} loadingLayer={loadingLayer} layerError={layerError}
+          onToggle={toggleLayer} onRetry={loadLayer} showSolar={showSolar} onToggleSolar={() => setShowSolar(v => !v)}
+          constellations={sortedCons} sel={sel} onPick={onPick} labelDensity={labelDensity} onDensity={setLabelDensity}
+          onClose={() => setPanel(null)} />
+      )}
+      {sky && panel === "location" && (
+        <LocationPanel t={t} localMode={localMode} lat={lat} lon={lon} placeName={placeLabel} geo={geo}
+          onUseMyLocation={useMyLocation} places={PLACES} onPlace={pickPlace} onManual={setManualPlace}
+          onExit={() => setLocalMode(false)} onClose={() => setPanel(null)} />
+      )}
+      {sky && panel === "time" && (
+        <TimePanel t={t} lang={lang} when={when} whenStr={whenStr} isNow={!timeMoved} playing={playing}
+          onShift={shiftMin} onTogglePlay={() => { setTimeMoved(true); setPlaying(pl => !pl); }}
+          onNow={() => { setPlaying(false); setTimeMoved(false); setWhenStr(nowLocalInput()); }}
+          onSet={(v) => { setPlaying(false); setTimeMoved(true); setWhenStr(v); }}
+          onClose={() => setPanel(null)} />
+      )}
 
-          {selObj.dist_ly > 0 && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(96,165,250,0.85)", fontSize: 12, marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.08)", lineHeight: 1.4 }}>
-              {lang === "es"
-                ? `Su luz tardó ${fmtYears(selObj.dist_ly, lang)} en llegar: lo ves como era entonces.`
-                : `Its light took ${fmtYears(selObj.dist_ly, lang)} to arrive: you see it as it was then.`}
-            </div>
-          )}
-          {selObj.dist_ly > 0 && (
-            <div style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.62)", fontSize: 12, marginTop: 5 }}>
-              {lang === "es"
-                ? `En la Voyager 1 tardarías ${fmtYears(selObj.dist_ly * 17575, lang)}.`
-                : `In Voyager 1 you'd take ${fmtYears(selObj.dist_ly * 17575, lang)}.`}
-            </div>
-          )}
-          {wiki && wiki.extract && (
-            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-              <p style={{ fontFamily: "Inter,system-ui", color: "rgba(255,255,255,0.72)", fontSize: 12, lineHeight: 1.45, margin: 0 }}>
-                {wiki.extract.length > 240 ? wiki.extract.slice(0, 240) + "…" : wiki.extract}
-              </p>
-              <a href={wiki.url} target="_blank" rel="noopener noreferrer"
-                style={{ fontFamily: "Inter,system-ui", color: "#60A5FA", fontSize: 12, display: "inline-block", marginTop: 5 }}>
-                Wikipedia ↗
-              </a>
-            </div>
-          )}
-        </div>
+      {liveObj && (
+        <ObjectSheet obj={liveObj} lang={lang} t={t} wiki={wiki} wikiState={wikiState}
+          meteorActive={liveObj.layer === "meteors" && meteorActive(liveObj)}
+          onClose={() => setSelObj(null)} onShare={shareLink} shareState={shareState}
+          onPostcard={savePostcard} onCenter={recenter}
+          canViewFrom={liveObj.layer === "star" && liveObj.dist_ly > 0}
+          onViewFrom={() => {
+            const d = liveObj.dist_ly;
+            setViewFrom({ name: liveObj.name, pos: [liveObj.nx * d, liveObj.ny * d, liveObj.nz * d] });
+            setSel(null); setSelObj(null);
+          }} />
       )}
     </div>
-    {failedLayers.length > 0 && (
-      <ErrorNotice className="mt-3"
-        message={`${t.layersError} ${failedLayers.map(c => c[lang] || c.es).join(", ")}.`}
-        retryLabel={t.retry} onRetry={() => failedLayers.forEach(loadLayer)} />
-    )}
-    </>
+    </div>
   );
 }
 

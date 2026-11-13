@@ -1,5 +1,5 @@
 // Teseo service worker — soporte offline
-const CACHE = "teseo-v1";
+const CACHE = "teseo-v2";
 const CORE = [
   "/", "/index.html", "/favicon.svg", "/manifest.webmanifest",
   "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png", "/sky.json",
@@ -40,12 +40,15 @@ self.addEventListener("fetch", (e) => {
     caches.match(req).then((cached) =>
       cached ||
       fetch(req).then((r) => {
-        if (r.ok && (r.type === "basic" || r.type === "default")) {
+        // No guardar el index.html que Vercel devuelve (200) para un asset
+        // inexistente: dejaría una imagen/JSON "rota" en caché para siempre.
+        const isHtml = (r.headers.get("content-type") || "").includes("text/html");
+        if (r.ok && !isHtml && (r.type === "basic" || r.type === "default")) {
           const copy = r.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));
         }
         return r;
-      }).catch(() => cached)
+      }).catch(() => cached || Response.error())
     )
   );
 });
