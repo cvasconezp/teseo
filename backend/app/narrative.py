@@ -58,6 +58,47 @@ Reglas estrictas:
 """
 
 
+_MESES_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+             "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+_MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July",
+              "August", "September", "October", "November", "December"]
+_NOMBRES_ES = {"mercury": "Mercurio", "venus": "Venus", "earth": "la Tierra", "mars": "Marte",
+               "jupiter": "Júpiter", "saturn": "Saturno", "uranus": "Urano", "neptune": "Neptuno"}
+
+
+def _human_date(iso: str, lang: str) -> str:
+    """'2026-11-13T02:14:17.064033' -> '13 de noviembre de 2026' / 'November 13, 2026'.
+    Solo cambia el FORMATO de la fecha ya calculada; no altera el dato."""
+    from datetime import datetime
+    try:
+        d = datetime.fromisoformat(str(iso))
+    except ValueError:
+        return str(iso)
+    if lang == "es":
+        return f"{d.day} de {_MESES_ES[d.month - 1]} de {d.year}"
+    return f"{_MONTHS_EN[d.month - 1]} {d.day}, {d.year}"
+
+
+def _body_name(body: str, lang: str) -> str:
+    if lang == "es":
+        return _NOMBRES_ES.get(body, body)
+    return ("Earth" if body == "earth" else body.capitalize())
+
+
+def _complete_text(completion) -> str:
+    """Texto de la respuesta; si el modelo se quedó sin tokens a media frase,
+    se recorta en el último punto para no mostrar una frase cortada."""
+    choice = completion.choices[0]
+    text = (choice.message.content or "").strip()
+    if getattr(choice, "finish_reason", None) == "length":
+        cut = max(text.rfind(". "), text.rfind(".\n"))
+        if text.endswith("."):
+            return text
+        if cut > 40:
+            return text[: cut + 1]
+    return text
+
+
 def generate_travel_narrative(hohmann_data: dict, lang: str = "es") -> str:
     """
     Convierte el resultado numérico de una transferencia de Hohmann en una
@@ -70,16 +111,17 @@ def generate_travel_narrative(hohmann_data: dict, lang: str = "es") -> str:
 
     user_prompt = f"""
 Datos reales de este viaje (ya calculados, no los modifiques):
-- Origen: {hohmann_data['origin']}
-- Destino: {hohmann_data['destination']}
-- Fecha de salida: {hohmann_data['departure_date']}
-- Fecha de llegada: {hohmann_data['arrival_date']}
-- Duración del viaje: {hohmann_data['transfer_time_days']} días
-- Delta-v total requerido: {hohmann_data['delta_v_total_km_s']} km/s
+- Origen: {_body_name(hohmann_data['origin'], lang)}
+- Destino: {_body_name(hohmann_data['destination'], lang)}
+- Fecha de salida: {_human_date(hohmann_data['departure_date'], lang)}
+- Fecha de llegada: {_human_date(hohmann_data['arrival_date'], lang)}
+- Duración del viaje: {round(float(hohmann_data['transfer_time_days']))} días
+- Delta-v total requerido: {round(float(hohmann_data['delta_v_total_km_s']), 1)} km/s
 - Método: transferencia de Hohmann
 
 {lang_instruction}
 Escribe una narrativa breve y asombrosa de este viaje, usando estos datos exactos.
+Escribe las fechas tal como se te dan (sin horas) y termina siempre la última frase.
 """
 
     completion = client.chat.completions.create(
@@ -89,10 +131,10 @@ Escribe una narrativa breve y asombrosa de este viaje, usando estos datos exacto
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.7,
-        max_tokens=200,
+        max_tokens=900,
     )
 
-    return completion.choices[0].message.content.strip()
+    return _complete_text(completion)
 
 
 def explain_concept(concept: str, lang: str = "es") -> str:
@@ -115,7 +157,7 @@ def explain_concept(concept: str, lang: str = "es") -> str:
             },
         ],
         temperature=0.5,
-        max_tokens=150,
+        max_tokens=700,
     )
 
-    return completion.choices[0].message.content.strip()
+    return _complete_text(completion)

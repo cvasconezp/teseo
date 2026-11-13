@@ -32,6 +32,9 @@ copia; nuestro render 3D es propio, con Three.js.)
 | Púlsares | ATNF Pulsar Catalogue (CSIRO) | citar Manchester et al. 2005 |
 | Posiciones de planetas | NASA JPL Horizons | dominio público (US gov) |
 | Exoplanetas | NASA Exoplanet Archive (Caltech/IPAC) | dominio público (US gov) |
+| Texturas del Sol, Tierra, Júpiter, Saturno (y anillos), Urano y Neptuno (`public/textures/`) | [Solar System Scope](https://www.solarsystemscope.com/textures/) (basadas en datos de NASA) | CC BY 4.0 |
+| Textura de Mercurio | NASA / JHUAPL / Carnegie Institution (MESSENGER) | dominio público (US gov) |
+| Textura de la Luna | NASA Scientific Visualization Studio (CGI Moon Kit) | dominio público (US gov) |
 | Narrativa | Groq (modelos Llama) | — servicio |
 | Render 3D | Three.js | MIT |
 
