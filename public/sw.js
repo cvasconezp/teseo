@@ -1,5 +1,5 @@
 // Teseo service worker — soporte offline
-const CACHE = "teseo-v2";
+const CACHE = "teseo-v3";
 const CORE = [
   "/", "/index.html", "/favicon.svg", "/manifest.webmanifest",
   "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png", "/sky.json",

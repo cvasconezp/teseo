@@ -87,7 +87,7 @@ export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkS
           <h2 id="sk-share-title">{t.shareTitle}</h2>
           <button type="button" className="sk-iconbtn" onClick={onClose} aria-label={t.close}><Icon name="close" size={18} /></button>
         </header>
-        <div className={`sk-share-preview is-${state}`} data-hero={report ? report.hero : undefined} data-overflow={report ? String(report.overflow) : undefined} data-truncated={report ? String(report.truncated) : undefined}>
+        <div className={`sk-share-preview is-${state}`} data-hero={report ? report.hero : undefined} data-hero-source={report ? report.heroSource : undefined} data-overflow={report ? String(report.overflow) : undefined} data-truncated={report ? String(report.truncated) : undefined}>
           {state === "making" && <p role="status"><i className="sk-spin" />{t.shareMaking}</p>}
           {state === "failed" && <p role="alert"><Icon name="warn" size={18} />{t.shareFailed}</p>}
           {state === "ready" && <img src={url} alt={name ? t.shareAlt(name) : t.shareAltSky} width="1080" height="1350" />}

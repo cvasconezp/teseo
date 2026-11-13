@@ -14,6 +14,9 @@
 import { drawArt, artKind, artOptions, drawSphere } from "./art.js";
 import { BODIES, textureUrl, makeFallbackCanvas, bodyName } from "./bodies.js";
 import { altAz } from "./guide.js";
+import { nasaImageFor, nasaKindKey, imageOrder, nasaStatus } from "./nasaImages.js";
+/** ¿Se pueden dibujar en la postal las imágenes de images-assets.nasa.gov? (ver fromNasa en heroFor) */
+export const NASA_CANVAS_OK = false;
 import { compassPoint8 } from "./deviceOrientation.js";
 
 export const PC_W = 1080, PC_H = 1350;
@@ -100,12 +103,12 @@ export function zenithDir(lat, lon, date) {
 }
 
 // ── utilidades de lienzo ─────────────────────────────────────────────────
-function loadImage(src, cors) {
+function loadImage(src, cors, ms = 9000) {
   return new Promise((resolve) => {
     const img = new Image();
     if (cors) img.crossOrigin = "anonymous";
     const done = (v) => { clearTimeout(tm); resolve(v); };
-    const tm = setTimeout(() => done(null), 9000);
+    const tm = setTimeout(() => done(null), ms);
     img.onload = () => done(img.naturalWidth > 0 ? img : null);
     img.onerror = () => done(null);
     img.src = src;
@@ -158,7 +161,7 @@ function drawChart(ctx, o) {
   for (const s of sky.stars) {
     const p = proj.project([s[1], s[2], s[3]]);
     if (!inView(p)) continue;
-    const mag = s[4], r = Math.max(1, 6.2 - mag * 0.82), [cr, cg, cb] = hexRgb(s[5]);
+    const mag = s[4], r = Math.max(1, 6.2 - mag * 0.82), [cr, cg, cb] = hexRgb(o.starHex ? o.starHex(s) : s[5]);
     if (mag < 2.6) {
       const gl = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], r * 3.6);
       gl.addColorStop(0, `rgba(${cr},${cg},${cb},0.5)`); gl.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
@@ -258,6 +261,9 @@ function drawReticle(ctx, x, y, r = 30) {
 // ── el visual protagonista ───────────────────────────────────────────────
 async function heroFor(obj, wiki, credit, t) {
   if (!obj) return null;
+  // la Luna siempre va con el modelo: muestra su fase de ese momento, que una foto de archivo no da
+  const nasa = obj.layer === "solar" && obj.name === "Luna" ? null : nasaImageFor(obj);
+  let model = null;
   if (obj.layer === "solar") {
     const b = BODIES[obj.name];
     if (b) {
@@ -267,15 +273,37 @@ async function heroFor(obj, wiki, credit, t) {
       const x = c.getContext("2d"); x.drawImage(src, 0, 0, 720, 360);
       let tex = null;
       try { tex = x.getImageData(0, 0, 720, 360); } catch { tex = null; }
-      if (tex) return { kind: "model", tex, body: b, key: obj.name, phase: obj.name === "Luna" && obj.illum != null ? { illum: obj.illum, waxing: obj.waxing } : null,
+      if (tex) model = { kind: "model", tex, body: b, key: obj.name, phase: obj.name === "Luna" && obj.illum != null ? { illum: obj.illum, waxing: obj.waxing } : null,
         label: img ? t.pcModel(t.texCredit[b.credit] || t.texCredit.sss) : t.pcModelFallback };
     }
   }
-  if (wiki && wiki.thumb && obj.layer !== "solar") {
+  const fromWiki = async () => {
+    if (!(wiki && wiki.thumb)) return null;
     const img = await loadImage(wiki.thumb, true);
-    if (img && isClean(img)) {
-      const label = credit && (credit.artist || credit.license) ? t.pcPhoto([credit.artist, credit.license].filter(Boolean).join(" · ")) : t.pcPhotoGeneric;
-      return { kind: "photo", img, label };
+    if (!(img && isClean(img))) return null;
+    const label = credit && (credit.artist || credit.license) ? t.pcPhoto([credit.artist, credit.license].filter(Boolean).join(" · ")) : t.pcPhotoGeneric;
+    return { kind: "photo", img, label, source: "wiki" };
+  };
+  // Imagen curada de la NASA: SOLO si el servidor de imágenes permitiera leerla desde el lienzo (CORS).
+  // Comprobado el 13-nov-2026 con peticiones reales (cabecera Origin) a images-assets.nasa.gov: la API
+  // (images-api.nasa.gov) sí responde "Access-Control-Allow-Origin: *", pero las imágenes casi nunca
+  // (0 de 9 en la última prueba; 14 de 72 en otra, según la copia que tenga la CDN en caché). Con una
+  // respuesta así de irregular la postal no puede depender de ellas: queda desactivado y la postal usa
+  // Wikipedia o la representación propia. La ficha sí muestra la imagen de la NASA (un <img> no necesita CORS).
+  const fromNasa = async () => {
+    if (!NASA_CANVAS_OK || !nasa || nasaStatus(nasa.id) === "fail") return null;
+    const img = await loadImage(nasa.srcBig + "?cors=1", true, 6000);
+    if (!(img && isClean(img))) return null;
+    return { kind: "photo", img, label: t.pcNasa(t.nasaKind[nasaKindKey(nasa)], nasa.credit), source: "nasa", nasaKind: nasa.kind };
+  };
+  if (obj.layer === "solar") {
+    const h = await fromNasa();
+    if (h) return h;
+    if (model) return model;
+  } else {
+    for (const src of imageOrder(obj)) {
+      const h = src === "nasa" ? await fromNasa() : await fromWiki();
+      if (h) return h;
     }
   }
   if (obj.layer === "note") return null;
@@ -412,11 +440,11 @@ export async function buildPostcard(p) {
   const proj = makeProjection(centerDir, upHint, pxPerRad, cx, retY);
   const heroBox = hero ? { x: cx - (hero.kind === "model" ? 300 : 345), y: heroTop - 14, w: hero.kind === "model" ? 600 : 690, h: heroMaxH + capH + 44 } : null;
   const avoid = (x0, y0, x1, y1) => (y1 > blockTop - 36) || (heroBox && x1 > heroBox.x && x0 < heroBox.x + heroBox.w && y1 > heroBox.y && y0 < heroBox.y + heroBox.h) || (Math.abs((x0 + x1) / 2 - cx) < 70 + (x1 - x0) / 2 && Math.abs((y0 + y1) / 2 - retY) < 62 && !con);
-  drawChart(ctx, { sky, conDirs, proj, avoid, bodies: p.showSolar === false ? [] : bodies, highlight: con ? con.ab : null, lang, local, cx, cy: retY, labelStars: con ? con.stars : null });
+  drawChart(ctx, { sky, conDirs, proj, avoid, bodies: p.showSolar === false ? [] : bodies, highlight: con ? con.ab : null, lang, local, cx, cy: retY, labelStars: con ? con.stars : null, starHex: p.starHex });
 
   if (hero) {
     const box = drawHero(ctx, hero, cx, heroTop, 690, heroMaxH);
-    report.hero = hero.kind; report.heroLabel = hero.label; report.heroBox = box;
+    report.hero = hero.kind; report.heroLabel = hero.label; report.heroSource = hero.source || hero.kind; report.heroBox = box;
     // rótulo honesto bajo el visual
     ctx.font = capFont(cap.size); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = "rgba(226,230,246,0.92)";
     ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 8;
