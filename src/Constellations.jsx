@@ -7,7 +7,9 @@ import { fetchJson, isAbort, TIMEOUT_MS } from "./net.js";
 import { BODIES, BODY_NAMES, bodyName, textureUrl, drawBodySprite, SPRITE_PX } from "./sky/bodies.js";
 import { fmtDist, fmtYears, fmtWhenShort } from "./sky/format.js";
 import Icon from "./sky/icons.jsx";
-import { SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TimePanel, TourCard, Onboarding } from "./sky/panels.jsx";
+import { SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TimePanel, TourCard, Onboarding, PointingBar } from "./sky/panels.jsx";
+import { cameraQuat, lookFromQuat } from "./sky/deviceOrientation.js";
+import { createPointing, pointingSupported } from "./sky/pointing.js";
 import ObjectSheet, { describeObject } from "./sky/ObjectSheet.jsx";
 import "./sky/sky.css";
 
@@ -32,6 +34,10 @@ const PLACES = [
   { name: "Guayaquil", lat: -2.1894, lon: -79.8891 },
   { name: "Cuenca", lat: -2.9001, lon: -79.0059 },
 ];
+// Modo "Apuntar al cielo": desfase manual de azimut (grados). Solo en memoria:
+// dura lo que dura la sesión de la página y no se guarda en ningún sitio.
+let pointAzOffset = 0;
+const POINT_SPAN = 75;              // grados de cielo que abarca el lado largo de la pantalla al empezar
 const HINT_KEY = "teseo_hint_v2";   // primeros pasos vistos (v1 era el párrafo antiguo)
 
 // Términos genéricos de categoría: al buscar "pulsar" o "agujero negro" se
@@ -236,6 +242,21 @@ const TC = {
     coordsBad: "Use numbers: latitude from −90 to 90, longitude from −180 to 180.",
     coordsHint: "South and west are negative. Quito: −0.22, −78.51.",
     customPlace: "Custom coordinates", exitMySky: "Leave",
+    // ── apuntar al cielo ──
+    pointSky: "Point at the sky", experimental: "experimental",
+    pointLead: "Hold your phone up and the sky turns with you. No camera: it uses your phone's compass and gyroscope.",
+    pointPickPlace: "One more step: pick your location below. As soon as you do, the sky will follow your phone.",
+    pointActive: "Pointing at the sky", pointExit: "Exit", pointExitAria: "Exit Point at the sky",
+    pointStarting: "Waking the sensors…", pointStartingSub: "move your phone a little",
+    pointDir: (d) => `Looking ${d}`, pointDirs: ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"],
+    pointAbove: (a) => `${a}° above the horizon`, pointUnder: (a) => `${a}° below the horizon · under your feet`,
+    pointZenith: "Looking at the zenith", pointZenithSub: "straight above your head",
+    pointNadir: "Looking at the ground", pointNadirSub: "straight under your feet",
+    pointHint: "Doesn't match? Drag sideways to line it up with a star or planet you recognise.",
+    pointHintRel: "Your phone isn't reporting where north is. Drag the sky sideways until it matches a star or planet you recognise.",
+    pointReset: "Reset alignment",
+    pointDenied: "Motion sensors aren't allowed. To try again, close this tab, open Teseo again and tap “Allow” when your phone asks about motion and orientation.",
+    pointNoSensor: "This device isn't sending orientation data (gyroscope or compass). You can still explore the sky with your finger.",
     latLon: (a, o) => `${Math.abs(a).toFixed(2)}° ${a >= 0 ? "N" : "S"}, ${Math.abs(o).toFixed(2)}° ${o >= 0 ? "E" : "W"}`,
     // ── tiempo ──
     timeTitle: "Time", isNow: "Right now", backToNow: "Back to now",
@@ -357,6 +378,21 @@ const TC = {
     coordsBad: "Usa números: latitud entre −90 y 90, longitud entre −180 y 180.",
     coordsHint: "Sur y oeste van en negativo. Quito: −0.22, −78.51.",
     customPlace: "Coordenadas propias", exitMySky: "Salir",
+    // ── apuntar al cielo ──
+    pointSky: "Apuntar al cielo", experimental: "experimental",
+    pointLead: "Levanta el teléfono y el cielo girará contigo. Sin cámara: usa la brújula y el giroscopio de tu teléfono.",
+    pointPickPlace: "Falta un paso: elige tu ubicación aquí abajo. En cuanto la tengas, el cielo seguirá a tu teléfono.",
+    pointActive: "Apuntando al cielo", pointExit: "Salir", pointExitAria: "Salir de Apuntar al cielo",
+    pointStarting: "Activando los sensores…", pointStartingSub: "mueve un poco el teléfono",
+    pointDir: (d) => `Mirando al ${d}`, pointDirs: ["norte", "noreste", "este", "sureste", "sur", "suroeste", "oeste", "noroeste"],
+    pointAbove: (a) => `${a}° sobre el horizonte`, pointUnder: (a) => `${a}° bajo el horizonte · bajo tus pies`,
+    pointZenith: "Mirando al cenit", pointZenithSub: "justo sobre tu cabeza",
+    pointNadir: "Mirando al suelo", pointNadirSub: "justo bajo tus pies",
+    pointHint: "¿No coincide? Arrastra hacia los lados para alinear con una estrella o planeta que reconozcas.",
+    pointHintRel: "Tu teléfono no indica dónde está el norte. Arrastra el cielo hacia los lados hasta que coincida con una estrella o planeta que reconozcas.",
+    pointReset: "Reiniciar alineación",
+    pointDenied: "No hay permiso para los sensores de movimiento. Para reintentarlo, cierra esta pestaña, vuelve a abrir Teseo y toca «Permitir» cuando el teléfono pregunte por movimiento y orientación.",
+    pointNoSensor: "Este dispositivo no envía datos de orientación (giroscopio o brújula). Puedes seguir explorando el cielo con el dedo.",
     latLon: (a, o) => `${Math.abs(a).toFixed(2)}° ${a >= 0 ? "N" : "S"}, ${Math.abs(o).toFixed(2)}° ${o >= 0 ? "E" : "O"}`,
     // ── tiempo ──
     timeTitle: "Tiempo", isNow: "Ahora mismo", backToNow: "Volver a ahora",
@@ -479,6 +515,22 @@ export default function Constellations({ lang = "es" }) {
   const isWideRef = useRef(isWide);
   const datasetsRef = useRef(datasets);
   const bodiesRef = useRef(bodies);
+  // ── apuntar al cielo (sensores de orientación; solo dentro de Mi cielo) ──
+  const [arCapable] = useState(pointingSupported);    // táctil + sensores + HTTPS
+  const [ar, setAr] = useState("off");                // off | pending (falta ubicación) | on
+  const [arSrc, setArSrc] = useState(null);           // null (esperando datos) | "absolute" | "relative"
+  const [arError, setArError] = useState(null);       // null | "denied" | "nosensor"
+  const [arAligned, setArAligned] = useState(() => pointAzOffset !== 0);
+  const arHudRef = useRef(null);                      // setter del indicador (vive en <PointingBar>)
+  const pointRef = useRef(null);
+  if (!pointRef.current) {
+    pointRef.current = createPointing((s) => {
+      if (s === "denied" || s === "nosensor") { setAr("off"); setArSrc(null); setArError(s); }
+      else setArSrc(s === "absolute" || s === "relative" ? s : null);
+    });
+  }
+  const selObjRef = useRef(null);
+  useEffect(() => { selObjRef.current = selObj; }, [selObj]);
   const langRef = useRef(lang);
   useEffect(() => { isWideRef.current = isWide; }, [isWide]);
   useEffect(() => { datasetsRef.current = datasets; }, [datasets]);
@@ -739,15 +791,16 @@ export default function Constellations({ lang = "es" }) {
     sGeo.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
     const starTex = makeStarTexture();
     const sMat = new THREE.ShaderMaterial({
-      uniforms: { map: { value: starTex } },
+      uniforms: { map: { value: starTex }, uScale: { value: 1 } },   // uScale: estrellas más grandes al apuntar al cielo
       vertexShader: [
+        "uniform float uScale;",
         "attribute float size;",
         "attribute vec3 scolor;",
         "varying vec3 vColor;",
         "void main(){",
         "  vColor = scolor;",
         "  vec4 mv = modelViewMatrix * vec4(position,1.0);",
-        "  gl_PointSize = clamp(size * (520.0 / -mv.z), 0.6, 16.0);",
+        "  gl_PointSize = clamp(size * uScale * (520.0 / -mv.z), 0.6, 16.0);",
         "  gl_Position = projectionMatrix * mv;",
         "}",
       ].join("\n"),
@@ -846,6 +899,14 @@ export default function Constellations({ lang = "es" }) {
       for (const nm in solarSprites) { const v = solarSprites[nm].userData.px * k; solarSprites[nm].scale.set(v, v, 1); }
     };
     sizeSolar();
+    // modo apuntar: el zoom es el campo de visión. `span` = grados que abarca el lado largo.
+    const applyArFov = () => {
+      const st = sceneRef.current && sceneRef.current.ar; if (!st) return;
+      const half = Math.tan(THREE.MathUtils.degToRad(st.span / 2));
+      camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(camera.aspect >= 1 ? half / camera.aspect : half));
+      camera.updateProjectionMatrix();
+      sizeSolar();
+    };
     const redrawMoon = (phase) => {
       drawBodySprite(solarCanvas["Luna"], "Luna", solarImg["Luna"] || null, phase);
       solarTex["Luna"].needsUpdate = true;
@@ -896,7 +957,9 @@ export default function Constellations({ lang = "es" }) {
     sceneRef.current = { scene, camera, renderer, controls, points, lines,
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, bodies: [], showSolar: true,
-      sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, lang: langRef.current,
+      sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, lang: langRef.current, sizeSolar, applyArFov, ground,
+      // apuntar al cielo: objetos fijos que el bucle reutiliza (nada se crea por frame)
+      ar: { on: false, has: false, t: 0, n: 0, span: POINT_SPAN, savedFov: 55, alt: 0, cur: new THREE.Quaternion(), tgt: new THREE.Quaternion(), arr: [0, 0, 0, 1], look: { alt: 0, az: 0 } },
       viewShift: { x: 0, yf: 0, cx: 0, cy: 0, dirty: false } };
     setReady(true);
 
@@ -906,6 +969,7 @@ export default function Constellations({ lang = "es" }) {
       camera.aspect = w / h; camera.updateProjectionMatrix();
       renderer.setSize(w, h);
       sizeSolar();
+      if (sceneRef.current && sceneRef.current.ar.on) applyArFov();   // p. ej. al girar el teléfono
       if (sceneRef.current) sceneRef.current.viewShift.dirty = true;
     };
     window.addEventListener("resize", onResize);
@@ -951,7 +1015,34 @@ export default function Constellations({ lang = "es" }) {
         ref.lines.geometry.attributes.color.needsUpdate = true;
         ref._lastDpt = dpt; ref._lastSel = selAb; ref._dirty = false;
       }
-      ref.controls.update();
+      const ar = ref.ar;
+      if (ar.on) {
+        // Apuntar al cielo: la cámara se pone en el observador y toma la orientación
+        // del teléfono, suavizada con slerp (sin saltos en 0/360 ni objetos nuevos).
+        const p = pointRef.current.pose;
+        const now = performance.now();
+        const dt = ar.t ? Math.min(0.1, (now - ar.t) / 1000) : 0.016; ar.t = now;
+        if (p.fresh) {
+          cameraQuat(ar.arr, p.alpha, p.beta, p.gamma, p.screen, pointAzOffset);
+          ar.tgt.set(ar.arr[0], ar.arr[1], ar.arr[2], ar.arr[3]);
+          if (!ar.has) { ar.cur.copy(ar.tgt); ar.has = true; }
+          else {
+            // filtro adaptativo: el temblor pequeño (< 4°) se amortigua más; un giro real se sigue casi al instante
+            const ang = ar.cur.angleTo(ar.tgt);
+            const tau = ang >= 0.07 ? 0.05 : 0.05 + 0.2 * (1 - ang / 0.07);
+            ar.cur.slerp(ar.tgt, 1 - Math.exp(-dt / tau));
+          }
+        }
+        ref.camera.position.set(0, 0, 0);
+        ref.camera.quaternion.copy(ar.cur);
+        if (ar.has && (ar.n++ % 6 === 0)) {
+          lookFromQuat(ar.cur.x, ar.cur.y, ar.cur.z, ar.cur.w, ar.look);
+          ar.alt = ar.look.alt;
+          if (arHudRef.current) arHudRef.current(ar.look.az, ar.look.alt);
+        }
+      } else {
+        ref.controls.update();
+      }
       // encuadre: desplaza el centro de la vista para que el objeto no quede bajo
       // la ficha o un panel (x en px a la izquierda, yf = fracción del alto hacia arriba)
       const vs = ref.viewShift;
@@ -976,6 +1067,8 @@ export default function Constellations({ lang = "es" }) {
         const push = (x, y, z, name, cls, sub, dx) => {
           tmp.set(x, y, z);
           if (ref.localQuat) tmp.applyQuaternion(ref.localQuat);
+          // apuntando: bajo el horizonte solo se nombran el Sol, la Luna y los planetas (están "bajo tus pies")
+          if (ar.on && cls !== "solar" && tmp.y < -12) return;
           tmp.project(ref.camera);
           if (tmp.z >= 1 || tmp.x < -1.05 || tmp.x > 1.05 || tmp.y < -1.05 || tmp.y > 1.05) return;
           const sx = (tmp.x * 0.5 + 0.5) * W, sy = (-tmp.y * 0.5 + 0.5) * H;
@@ -997,9 +1090,18 @@ export default function Constellations({ lang = "es" }) {
             const n = c.idxs.length; push(cx/n, cy/n, cz/n, c.name, "con");
           }
         } else {
+          if (ar.on) {
+            // mirando desde dentro: nombres de constelaciones además de las estrellas brillantes
+            for (const ab in ref.conCentroid) {
+              const c = ref.conCentroid[ab]; if (!c.idxs.length) continue;
+              let cx=0, cy=0, cz=0;
+              for (const i of c.idxs) { cx += pa[i*3]; cy += pa[i*3+1]; cz += pa[i*3+2]; }
+              const n = c.idxs.length; push(cx/n, cy/n, cz/n, c.name, "con");
+            }
+          }
           const dens = ref.labelDensity || "normal";
           const magBoost = dens === "pocas" ? -1.2 : dens === "muchas" ? 1.3 : 0;
-          const magT = 1.0 + (820 - camDist) / 770 * 5.2 + magBoost;
+          const magT = ar.on ? 2.6 + magBoost : 1.0 + (820 - camDist) / 770 * 5.2 + magBoost;
           const cand = ref.namedStars.filter(s => s.mag <= magT).sort((a, b) => a.mag - b.mag).slice(0, dens === "muchas" ? 70 : 38);
           for (const s of cand) push(pa[s.i*3], pa[s.i*3+1], pa[s.i*3+2], s.name, "star");
         }
@@ -1147,6 +1249,7 @@ export default function Constellations({ lang = "es" }) {
     if (selObj.layer === "star" && selObj.si != null) v.set(ref.posFlat[selObj.si*3], ref.posFlat[selObj.si*3+1], ref.posFlat[selObj.si*3+2]);
     if (ref.localQuat) v.applyQuaternion(ref.localQuat);
     v.normalize();
+    if (ref.ar.on) return;                 // apuntando: la cámara la lleva el teléfono, no la selección
     ref.controls.autoRotate = false;
     ref.controls.target.copy(v.clone().multiplyScalar(870));
     ref.camera.position.copy(v.clone().multiplyScalar(540));
@@ -1289,6 +1392,11 @@ export default function Constellations({ lang = "es" }) {
   const zoomBy = useCallback((f) => {
     const ref = sceneRef.current; if (!ref) return;
     const { camera, controls } = ref;
+    if (ref.ar.on) {                       // apuntando: acercar = estrechar el campo de visión
+      ref.ar.span = Math.max(22, Math.min(110, ref.ar.span * f));
+      ref.applyArFov();
+      return;
+    }
     controls.autoRotate = false;
     const dir = camera.position.clone().sub(controls.target);
     let len = dir.length() * f;
@@ -1298,7 +1406,7 @@ export default function Constellations({ lang = "es" }) {
   }, []);
   // centrar en el objeto seleccionado (o volver al centro si no hay ninguno)
   const recenter = useCallback(() => {
-    const ref = sceneRef.current; if (!ref) return;
+    const ref = sceneRef.current; if (!ref || ref.ar.on) return;
     if (selObj && selObj.nx != null) {
       const v = new THREE.Vector3(selObj.nx, selObj.ny, selObj.nz);
       if (ref.localQuat) v.applyQuaternion(ref.localQuat);
@@ -1314,6 +1422,10 @@ export default function Constellations({ lang = "es" }) {
   // rotar la vista con el teclado (accesibilidad)
   const orbitBy = useCallback((dAz, dPol) => {
     const ref = sceneRef.current; if (!ref) return;
+    if (ref.ar.on) {                       // apuntando: las flechas ajustan la alineación (2° por pulsación)
+      if (dAz) { pointAzOffset += dAz > 0 ? 2 : -2; setArAligned(true); }
+      return;
+    }
     const { camera, controls } = ref; controls.autoRotate = false;
     const off = camera.position.clone().sub(controls.target);
     const sph = new THREE.Spherical().setFromVector3(off);
@@ -1415,6 +1527,122 @@ export default function Constellations({ lang = "es" }) {
     setLat(+a.toFixed(4)); setLon(+o.toFixed(4)); setPlaceKind("custom"); setLocalMode(true); setGeo("idle"); setSel(null);
     if (!isWideRef.current) setPanel(null);
   }, []);
+  // ── apuntar al cielo ──
+  const stopAr = useCallback(() => { pointRef.current.stop(); setAr("off"); setArSrc(null); }, []);
+  // Se llama desde el toque en el botón: iOS solo muestra el permiso de sensores dentro del gesto.
+  const startAr = useCallback(() => {
+    setArError(null);
+    pointRef.current.start();
+    if (lat != null && lon != null) {
+      setLocalMode(true); setSel(null); setAr("on");
+      if (!isWideRef.current) setPanel(null);
+    } else {
+      // aún sin ubicación: primero el lugar (mismo panel), luego se entra solo
+      setAr("pending"); setPanel("location");
+      if (!isWideRef.current) setSelObj(null);
+    }
+  }, [lat, lon]);
+  const resetArAlign = useCallback(() => { pointAzOffset = 0; setArAligned(false); }, []);
+  // con la ubicación ya elegida, el modo pendiente pasa a activo
+  useEffect(() => {
+    if (ar === "pending" && localMode && lat != null && lon != null) setAr("on");
+  }, [ar, localMode, lat, lon]);
+  // el modo solo vive dentro de Mi cielo: salir de él, empezar el tour o cerrar el panel a medias lo apaga
+  useEffect(() => {
+    if (ar === "on" && (!localMode || lat == null || tourActive)) stopAr();
+    else if (ar === "pending" && panel !== "location" && !(localMode && lat != null)) stopAr();
+  }, [ar, localMode, lat, tourActive, panel, stopAr]);
+  // al desmontar la vista: fuera listeners y bloqueo de pantalla
+  useEffect(() => () => { pointRef.current.stop(); }, []);
+  // entrar / salir: la cámara pasa a manos del teléfono y OrbitControls se desactiva
+  const arOn = ar === "on";
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || !arOn) return;
+    const { camera, controls } = ref, st = ref.ar;
+    st.on = true; st.has = false; st.t = 0; st.n = 0; st.cur.identity(); st.savedFov = camera.fov;
+    controls.enabled = false; controls.autoRotate = false;
+    ref.earth.visible = false;             // el observador está en el centro: la Tierra en miniatura estorbaría
+    ref.points.material.uniforms.uScale.value = 1.9;   // visto desde dentro, las estrellas se dibujan más grandes
+    ref.ground.material.opacity = 0.86;    // el suelo casi opaco: lo que queda debajo está "bajo tus pies"
+    ref.applyArFov();
+    return () => {
+      st.on = false;
+      const r = sceneRef.current; if (!r) return;      // la escena ya se destruyó
+      controls.enabled = true;
+      r.points.material.uniforms.uScale.value = 1;
+      r.ground.material.opacity = 0.55;
+      camera.fov = st.savedFov; camera.updateProjectionMatrix(); r.sizeSolar();
+      r.earth.visible = !r.sunSprite.visible;
+      // la cámara vuelve a un estado coherente: el objeto abierto, el cielo local o la vista general
+      const so = selObjRef.current;
+      if (so && so.nx != null) {
+        const v = new THREE.Vector3(so.nx, so.ny, so.nz);
+        if (r.localQuat) v.applyQuaternion(r.localQuat);
+        v.normalize();
+        controls.target.copy(v.clone().multiplyScalar(870)); camera.position.copy(v.multiplyScalar(540));
+      } else if (r.localModeOn) {
+        const tall = camera.aspect < 1 ? 1.5 : 1;
+        controls.target.set(0, 120, 0); camera.position.set(0, 560 * tall, 1500 * tall);
+      } else {
+        controls.target.set(0, 0, 0); camera.position.set(0, 0, 1700);
+      }
+      camera.up.set(0, 1, 0);
+      controls.update();
+    };
+  }, [arOn, ready]);
+  // gestos mientras se apunta: arrastre horizontal = alinear el azimut; pellizco = campo de visión.
+  // El toque corto sigue abriendo la ficha (lo gestiona el efecto de selección de abajo).
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || !arOn) return;
+    const el = ref.renderer.domElement, st = ref.ar;
+    const pts = new Map();
+    let dragging = false, startX = 0, startY = 0, lastX = 0, pinch0 = 0, span0 = 0;
+    const dist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+    const onDown = (e) => {
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      try { el.setPointerCapture(e.pointerId); } catch { /* puntero ya liberado */ }
+      dragging = false;
+      if (pts.size === 1) { startX = lastX = e.clientX; startY = e.clientY; }
+      else if (pts.size === 2) { pinch0 = dist(); span0 = st.span; }
+    };
+    const onMove = (e) => {
+      const p = pts.get(e.pointerId); if (!p) return;
+      p.x = e.clientX; p.y = e.clientY;
+      if (pts.size === 2) {
+        const d = dist();
+        if (pinch0 > 0 && d > 0) { st.span = Math.max(22, Math.min(110, span0 * pinch0 / d)); ref.applyArFov(); }
+      } else if (pts.size === 1) {
+        if (!dragging && Math.abs(e.clientX - startX) > 10 && Math.abs(e.clientX - startX) > Math.abs(e.clientY - startY)) { dragging = true; lastX = e.clientX; }
+        if (dragging) {
+          // el cielo sigue al dedo: grados por píxel en el centro de la vista (más rápido cerca del cenit)
+          const cam = ref.camera, w = el.clientWidth || 1;
+          const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * cam.aspect) * 180 / Math.PI;
+          const k = hfov / w / Math.max(0.25, Math.cos(st.alt * Math.PI / 180));
+          pointAzOffset = ((pointAzOffset - (e.clientX - lastX) * k) % 360 + 540) % 360 - 180;
+          lastX = e.clientX;
+        }
+      }
+    };
+    const onEnd = (e) => {
+      if (!pts.delete(e.pointerId)) return;
+      if (dragging) setArAligned(Math.abs(pointAzOffset) > 0.05);
+      dragging = false; pinch0 = 0;
+      if (pts.size === 1) { const r = [...pts.values()][0]; startX = lastX = r.x; startY = r.y; }
+    };
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onEnd);
+    el.addEventListener("pointercancel", onEnd);
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onEnd);
+      el.removeEventListener("pointercancel", onEnd);
+    };
+  }, [arOn, ready]);
+
   // un panel a la vez; en móvil la ficha y los paneles comparten la parte baja
   const openPanel = useCallback((id) => {
     setPanel(p => (p === id ? null : id));
@@ -1556,9 +1784,14 @@ export default function Constellations({ lang = "es" }) {
   const tourReady = !!(ready && datasets.messier && datasets.blackholes);
   const covered = !isWide && (!!selObj || !!panel);
   const showDepth = !!(sky && selMeta && !localMode && !tourActive);
-  const showOnboard = !!(showHint && sky && !selObj && !panel && !tourActive && !showDepth);
+  const showOnboard = !!(showHint && sky && !selObj && !panel && !tourActive && !showDepth && !arOn);
+  // barra de "Apuntar al cielo": invitación (dentro de Mi cielo), indicador activo o aviso de error
+  const arBar = !sky || tourActive ? null
+    : arOn ? "on"
+    : arError ? "error"
+    : (arCapable && ar === "off" && localMode && lat != null && !covered && !showOnboard) ? "cta" : null;
   const stageClass = "sk-stage" + (full ? " is-full" : "") + (covered ? " is-covered" : "") + (selObj ? " has-sheet" : "")
-    + (tourActive ? " has-tour" : "") + (showDepth ? " has-depth" : "");
+    + (tourActive ? " has-tour" : "") + (showDepth ? " has-depth" : "") + (arOn ? " is-ar" : "");
 
   return (
     <div ref={wrapRef} className="sk-wrap">
@@ -1651,6 +1884,11 @@ export default function Constellations({ lang = "es" }) {
           onRetry={() => setTourTry(n => n + 1)} />
       )}
 
+      {arBar && (
+        <PointingBar t={t} mode={arBar} source={arSrc} error={arError} aligned={arAligned} apiRef={arHudRef}
+          onStart={startAr} onExit={stopAr} onReset={resetArAlign} onDismiss={() => setArError(null)} canRetry={arCapable} />
+      )}
+
       {showOnboard && <Onboarding t={t} onDone={dismissHint} onTour={startTour} tourReady={tourReady} />}
 
       {sky && panel === "layers" && (
@@ -1662,7 +1900,8 @@ export default function Constellations({ lang = "es" }) {
       {sky && panel === "location" && (
         <LocationPanel t={t} localMode={localMode} lat={lat} lon={lon} placeName={placeLabel} geo={geo}
           onUseMyLocation={useMyLocation} places={PLACES} onPlace={pickPlace} onManual={setManualPlace}
-          onExit={() => setLocalMode(false)} onClose={() => setPanel(null)} />
+          onExit={() => setLocalMode(false)} onClose={() => setPanel(null)}
+          pointing={arCapable ? { state: ar, onStart: ar === "off" ? startAr : stopAr } : null} />
       )}
       {sky && panel === "time" && (
         <TimePanel t={t} lang={lang} when={when} whenStr={whenStr} isNow={!timeMoved} playing={playing}

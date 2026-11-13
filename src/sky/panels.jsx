@@ -4,6 +4,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { fmtWhenLong } from "./format.js";
+import { compassPoint8 } from "./deviceOrientation.js";
 
 // ── Etiquetas proyectadas ────────────────────────────────────────────────
 // Tienen su propio estado: el bucle de render las actualiza ~12 veces/s sin
@@ -192,7 +193,7 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
 }
 
 // ── Mi cielo (ubicación) ─────────────────────────────────────────────────
-export function LocationPanel({ t, localMode, lat, lon, placeName, geo, onUseMyLocation, places, onPlace, onManual, onExit, onClose }) {
+export function LocationPanel({ t, localMode, lat, lon, placeName, geo, onUseMyLocation, places, onPlace, onManual, onExit, onClose, pointing }) {
   const [mLat, setMLat] = useState(lat != null ? String(lat) : "");
   const [mLon, setMLon] = useState(lon != null ? String(lon) : "");
   const [bad, setBad] = useState(false);
@@ -222,6 +223,15 @@ export function LocationPanel({ t, localMode, lat, lon, placeName, geo, onUseMyL
       {geoMsg && (
         <p className={`sk-geo-msg${geo === "asking" ? "" : " is-error"}`} role={geo === "asking" ? "status" : "alert"}>{geoMsg}</p>
       )}
+      {/* solo en teléfonos y tabletas con sensores de orientación */}
+      {pointing && (
+        <div className={`sk-point-card${pointing.state !== "off" ? " is-armed" : ""}`}>
+          <button type="button" className="sk-btn wide sk-point-btn" onClick={pointing.onStart} aria-pressed={pointing.state !== "off"}>
+            <Icon name="point" size={20} /><span>{t.pointSky}</span><em className="sk-exp">{t.experimental}</em>
+          </button>
+          <p role="status">{pointing.state === "pending" ? t.pointPickPlace : pointing.state === "on" ? t.pointActive : t.pointLead}</p>
+        </div>
+      )}
       <div className="sk-group">
         <h3>{t.orPickPlace}</h3>
         <div className="sk-quick">
@@ -243,6 +253,65 @@ export function LocationPanel({ t, localMode, lat, lon, placeName, geo, onUseMyL
     </PanelShell>
   );
 }
+
+// ── Apuntar al cielo ─────────────────────────────────────────────────────
+// Tres caras de la misma barra: invitación ("cta"), indicador del modo activo
+// ("on") y aviso de error ("error"). El rumbo y la altitud tienen estado propio:
+// el bucle de render los actualiza sin volver a renderizar toda la vista.
+export const PointingBar = memo(function PointingBar({ t, mode, source, error, aligned, apiRef, onStart, onExit, onReset, onDismiss, canRetry }) {
+  const [look, setLook] = useState(null);   // { p: punto cardinal 0-7, a: altitud en grados enteros }
+  useEffect(() => {
+    apiRef.current = (az, alt) => {
+      const a = Math.round(alt), p = compassPoint8(az);
+      setLook((l) => (l && l.a === a && l.p === p ? l : { a, p }));
+    };
+    return () => { apiRef.current = null; };
+  }, [apiRef]);
+  useEffect(() => { if (mode !== "on") setLook(null); }, [mode]);
+
+  if (mode === "cta") {
+    return (
+      <div className="sk-ar is-cta">
+        <button type="button" className="sk-ar-cta" onClick={onStart}>
+          <Icon name="point" size={21} /><span>{t.pointSky}</span><em className="sk-exp">{t.experimental}</em>
+        </button>
+      </div>
+    );
+  }
+  if (mode === "error") {
+    return (
+      <div className="sk-ar is-error" role="alert">
+        <p><Icon name="warn" size={18} /><span>{error === "denied" ? t.pointDenied : t.pointNoSensor}</span></p>
+        <div className="sk-ar-row">
+          {canRetry && error === "denied" && <button type="button" className="sk-btn" onClick={onStart}><Icon name="retry" size={16} />{t.retry}</button>}
+          <button type="button" className="sk-btn" onClick={onDismiss}>{t.close}</button>
+        </div>
+      </div>
+    );
+  }
+  const waiting = !look || !source;
+  const below = !waiting && look.a < 0;
+  const main = waiting ? t.pointStarting : look.a >= 80 ? t.pointZenith : look.a <= -80 ? t.pointNadir : t.pointDir(t.pointDirs[look.p]);
+  const sub = waiting ? t.pointStartingSub : look.a >= 80 ? t.pointZenithSub : look.a <= -80 ? t.pointNadirSub : below ? t.pointUnder(-look.a) : t.pointAbove(look.a);
+  return (
+    <section className={`sk-ar is-on${below ? " is-below" : ""}`} aria-label={t.pointActive}>
+      <div className="sk-ar-main">
+        <span className="sk-ar-icon" aria-hidden="true">{waiting ? <i className="sk-spin" /> : <Icon name="point" size={22} />}</span>
+        <div className="sk-ar-read">
+          <strong>{main}</strong>
+          <span>{sub}</span>
+        </div>
+        <button type="button" className="sk-btn primary sk-ar-exit" onClick={onExit} aria-label={t.pointExitAria}>
+          <Icon name="close" size={17} />{t.pointExit}
+        </button>
+      </div>
+      <div className="sk-ar-help">
+        <p>{source === "relative" ? t.pointHintRel : t.pointHint}</p>
+        {aligned && <button type="button" className="sk-btn" onClick={onReset}><Icon name="retry" size={15} />{t.pointReset}</button>}
+      </div>
+    </section>
+  );
+});
 
 // ── Tiempo ───────────────────────────────────────────────────────────────
 export function TimePanel({ t, lang, when, whenStr, isNow, playing, onShift, onTogglePlay, onNow, onSet, onClose }) {

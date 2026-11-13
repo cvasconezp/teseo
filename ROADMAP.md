@@ -82,6 +82,8 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 - [x] Horizons en cola (una petición a la vez) + reintentos + caché por día + último dato válido si la NASA cae
 - [x] Error boundaries y errores visibles con reintento en el frontend
 - [x] Deep-links, postal del cielo y onboarding
+- [x] Rediseño UI/UX (nov-2026): pestañas fijas, mapa tocable, texturas reales y modelos 3D
+- [~] "Apuntar al cielo" (experimental, giroscopio/brújula): falta validar en Android e iPhone reales
 
 ## 🧪 Ideas para explorar
 - [ ] Más culturas de constelaciones (no solo la moderna/occidental)
