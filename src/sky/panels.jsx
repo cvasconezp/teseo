@@ -6,6 +6,7 @@ import Icon from "./icons.jsx";
 import { fmtWhenLong } from "./format.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import { bodyName } from "./bodies.js";
+import { useDialogFocus } from "./focus.js";
 
 // ── Etiquetas proyectadas ────────────────────────────────────────────────
 // Tienen su propio estado: el bucle de render las actualiza ~12 veces/s sin
@@ -112,8 +113,10 @@ export function Dock({ t, panel, onPanel, localMode, tourReady, onTour, timeLabe
 }
 
 function PanelShell({ title, onClose, t, children, className = "", labelledBy }) {
+  const boxRef = useRef(null);
+  useDialogFocus(boxRef, { trap: true });
   return (
-    <section className={`sk-panel ${className}`} role="dialog" aria-labelledby={labelledBy}>
+    <section ref={boxRef} className={`sk-panel ${className}`} role="dialog" aria-labelledby={labelledBy}>
       <header className="sk-panel-head">
         <h2 id={labelledBy}>{title}</h2>
         <button type="button" className="sk-iconbtn" onClick={onClose} aria-label={t.close}><Icon name="close" size={18} /></button>
@@ -293,7 +296,7 @@ export function SkyActions({ t, onTonight, onPoint }) {
 }
 
 export const PointingBar = memo(function PointingBar({ t, mode, source, error, aligned, apiRef, onStart, onExit, onReset, onDismiss, canRetry,
-  ctl, onCtl, help, onZoom, onLayers, onTonight, onSearch }) {
+  ctl, onCtl, help, onZoom, onLayers, onTonight, onSearch, north }) {
   const [look, setLook] = useState(null);   // { p: punto cardinal 0-7, a: altitud en grados enteros }
   useEffect(() => {
     apiRef.current = (az, alt) => {
@@ -320,10 +323,12 @@ export const PointingBar = memo(function PointingBar({ t, mode, source, error, a
   const text = waiting ? t.pointPillWait : look.a >= 80 ? t.pointPillZenith : look.a <= -80 ? t.pointPillNadir : t.pointPill(look.p, look.a);
   const aria = waiting ? t.pointStarting : look.a >= 80 ? t.pointZenith : look.a <= -80 ? t.pointNadir : t.pointPillAria(look.p, look.a);
   const hint = source === "relative" ? t.pointHintRel : t.pointHint;
+  // norte geográfico: la declinación magnética solo se aplica cuando el norte viene de la brújula
+  const northLine = source === "absolute" && north ? north : null;
   return (
     <>
       {/* ayuda de alineación: sola los primeros segundos; después, dentro de "Controles" */}
-      {help && !ctl && <p className="sk-arhelp" role="status">{hint}</p>}
+      {help && !ctl && <p className="sk-arhelp" role="status">{hint}{northLine ? ` · ${northLine}` : ""}</p>}
       {ctl && (
         <div className="sk-artray" role="group" aria-label={t.pointTray}>
           <div className="sk-artray-row">
@@ -335,6 +340,7 @@ export const PointingBar = memo(function PointingBar({ t, mode, source, error, a
           </div>
           <div className="sk-artray-help">
             <p>{hint}</p>
+            {northLine && <p className="sk-artray-north" title={t.declWhy}><Icon name="target" size={14} />{northLine}</p>}
             {aligned && <button type="button" className="sk-btn" onClick={onReset}><Icon name="retry" size={15} />{t.pointReset}</button>}
           </div>
         </div>

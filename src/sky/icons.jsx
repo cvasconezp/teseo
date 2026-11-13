@@ -32,6 +32,9 @@ const P = {
   planet: <><circle cx="12" cy="12" r="4.6" /><ellipse cx="12" cy="12" rx="10" ry="3.4" transform="rotate(-20 12 12)" /></>,
   meteor: <><path d="m20 4-9.5 9.5" /><path d="M20 9.5 14.5 15" strokeWidth="1.3" /><path d="M14.5 4 9 9.5" strokeWidth="1.3" /><circle cx="7" cy="17" r="3" /></>,
   sparkle: <><path d="M12 3.5c.6 4.400 2.100 5.900 6.5 6.5-4.400.6-5.900 2.100-6.5 6.5-.6-4.400-2.100-5.900-6.5-6.5 4.400-.6 5.900-2.100 6.5-6.5Z" /><path d="M18.5 16v4M16.5 18h4" strokeWidth="1.3" /></>,
+  download: <><path d="M12 4v11" /><path d="m7.5 10.5 4.500 4.500 4.500-4.500" /><path d="M5 19.500h14" /></>,
+  link: <><path d="M10 14a4 4 0 0 0 5.700 0l3-3a4 4 0 0 0-5.700-5.700l-1 1" /><path d="M14 10a4 4 0 0 0-5.700 0l-3 3a4 4 0 0 0 5.700 5.700l1-1" /></>,
+  info: <><circle cx="12" cy="12" r="8.500" /><path d="M12 11v5.500M12 7.600v.2" /></>,
   constellation: <><circle cx="5" cy="7" r="1.4" fill="currentColor" /><circle cx="11" cy="11" r="1.4" fill="currentColor" /><circle cx="18" cy="6" r="1.4" fill="currentColor" /><circle cx="15" cy="18" r="1.4" fill="currentColor" /><path d="m5 7 6 4 7-5M11 11l4 7" strokeWidth="1.1" /></>,
 };
 

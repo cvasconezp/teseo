@@ -113,24 +113,37 @@ export function sepDirs(ax, ay, az, bx, by, bz) {
 }
 
 /**
- * Próxima salida sobre el horizonte. `dirAt(date)` devuelve [nx, ny, nz] del astro en
- * ese instante (fijo para una estrella, variable para la Luna). Busca a pasos de
- * `stepMin` minutos hasta `maxHours` y afina por interpolación lineal.
- * Devuelve { date, az } o null si no sale en ese intervalo (o ya está arriba).
+ * Próximo cruce del horizonte en el sentido pedido (`dir` = +1 salida, −1 puesta;
+ * hacia atrás en el tiempo con `stepMin` negativo). `dirAt(date)` devuelve [nx, ny, nz]
+ * del astro en ese instante (fijo para una estrella, variable para la Luna). Busca a
+ * pasos de `stepMin` minutos hasta `maxHours` y afina por interpolación lineal.
+ * Devuelve { date, az } o null si no hay cruce en ese intervalo.
  */
-export function nextRise(dirAt, latDeg, lonDeg, from, maxHours = 14, stepMin = 10, minAlt = 0) {
+export function nextCrossing(dirAt, latDeg, lonDeg, from, { dir = 1, maxHours = 14, stepMin = 10, minAlt = 0 } = {}) {
   const altAt = (ms) => { const d = new Date(ms); const v = dirAt(d); return altAz(v[0], v[1], v[2], latDeg, lonDeg, d); };
   let t0 = from.getTime(), a0 = altAt(t0).alt;
-  if (a0 > minAlt) return null;
-  const step = stepMin * 60000, end = t0 + maxHours * 3600000;
-  for (let t1 = t0 + step; t1 <= end; t1 += step) {
-    const p = altAt(t1);
-    if (p.alt > minAlt) {
-      const f = (minAlt - a0) / (p.alt - a0 || 1e-9);
+  const step = stepMin * 60000, n = Math.floor(maxHours * 60 / Math.abs(stepMin));
+  // "antes" y "después" se miran en orden cronológico aunque se camine hacia atrás
+  const crosses = (aPrev, aNext) => (step > 0 ? (dir > 0 ? aPrev <= minAlt && aNext > minAlt : aPrev > minAlt && aNext <= minAlt)
+    : (dir > 0 ? aNext <= minAlt && aPrev > minAlt : aNext > minAlt && aPrev <= minAlt));
+  for (let k = 1; k <= n; k++) {
+    const t1 = t0 + step, a1 = altAt(t1).alt;
+    if (crosses(a0, a1)) {
+      const f = (minAlt - a0) / (a1 - a0 || 1e-9);
       const ms = t0 + f * step;
       return { date: new Date(ms), az: altAt(ms).az };
     }
-    t0 = t1; a0 = p.alt;
+    t0 = t1; a0 = a1;
   }
   return null;
+}
+
+/**
+ * Próxima salida sobre el horizonte. Devuelve { date, az } o null si no sale en ese
+ * intervalo (o ya está arriba).
+ */
+export function nextRise(dirAt, latDeg, lonDeg, from, maxHours = 14, stepMin = 10, minAlt = 0) {
+  const v = dirAt(from);
+  if (altAz(v[0], v[1], v[2], latDeg, lonDeg, from).alt > minAlt) return null;
+  return nextCrossing(dirAt, latDeg, lonDeg, from, { dir: 1, maxHours, stepMin, minAlt });
 }
