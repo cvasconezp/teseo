@@ -9,10 +9,11 @@ La IA no inventa nada: los números vienen del archivo oficial de la NASA.
 """
 
 import math
-import time
 from typing import Optional
 
 import httpx
+
+from app.cache import Resource, provider_headers
 
 TAP_URL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
 QUERY = (
@@ -22,7 +23,6 @@ QUERY = (
 )
 
 PC_TO_LY = 3.2615638
-_cache = {"data": None, "ts": 0.0}
 _TTL = 86400  # 24 h
 
 
@@ -33,12 +33,10 @@ def _is_habitable(rade: Optional[float], insol: Optional[float]) -> bool:
     return 0.5 <= rade <= 1.8 and 0.32 <= insol <= 1.55
 
 
-async def get_exoplanets() -> dict:
-    now = time.time()
-    if _cache["data"] and now - _cache["ts"] < _TTL:
-        return _cache["data"]
-
-    async with httpx.AsyncClient(timeout=90.0) as client:
+async def _fetch() -> dict:
+    # La tabla completa tarda: la descarga puede durar hasta 90 s, pero corre
+    # en segundo plano (ver app/cache.py); el visitante espera como mucho 22 s.
+    async with httpx.AsyncClient(timeout=90.0, headers=provider_headers()) as client:
         resp = await client.get(TAP_URL, params={"query": QUERY, "format": "json"})
         resp.raise_for_status()
         rows = resp.json()
@@ -93,6 +91,14 @@ async def get_exoplanets() -> dict:
         "source": "NASA Exoplanet Archive (pscomppars). Habitabilidad: heurística de zona habitable.",
         "objects": out,
     }
-    _cache["data"] = result
-    _cache["ts"] = now
     return result
+
+
+resource = Resource("exoplanets", _fetch, ttl=_TTL, wait=22.0, retry_after=120.0)
+
+
+async def get_exoplanets() -> dict:
+    """Catálogo cacheado 24 h. Si el archivo de la NASA falla y hay un
+    catálogo anterior, se sirve ese con `stale: true`."""
+    data, stale = await resource.get()
+    return {**data, "stale": True} if stale else data
