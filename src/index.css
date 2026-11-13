@@ -123,8 +123,17 @@ strong { font-weight: 600; color: #fff; }
   transform: scaleX(0); transition: transform .28s cubic-bezier(.22,.61,.36,1);
 }
 .tabs__tab.is-active::after { transform: scaleX(1); }
+/* Cinco pestañas: en teléfonos estrechos la etiqueta baja un punto para que
+   "Preguntas" quepa entera; a partir de 1024 px vuelve el tamaño amplio. */
+@media (max-width: 419px) {
+  .tabs__inner { padding-inline: 4px; }
+  .tabs__tab { font-size: 12px; letter-spacing: -0.01em; }
+}
 @media (min-width: 640px) {
-  .tabs__tab { flex-direction: row; gap: 9px; font-size: 15px; min-height: 54px; }
+  .tabs__tab { flex-direction: row; gap: 7px; font-size: 14px; min-height: 54px; }
+}
+@media (min-width: 1024px) {
+  .tabs__tab { gap: 9px; font-size: 15px; }
 }
 
 /* ─── Rejilla navegador (mapa + resultado) ───────────────────────────────── */

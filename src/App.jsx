@@ -3,6 +3,10 @@ import { useState, useEffect, useRef, useCallback, useMemo, useId, lazy, Suspens
 // memoriza un import fallido, así que "Reintentar" necesita un lazy nuevo.
 const loadSky = () => import("./Constellations.jsx");
 const Constellations = lazy(loadSky);
+// Pestaña "Preguntas": también en su propio chunk (no engorda el arranque).
+const loadQuestions = () => import("./questions/Questions.jsx");
+const QuestionsLazy = lazy(loadQuestions);
+import QuestionsBoundary from "./questions/Boundary.jsx";
 import CosmicScale from "./CosmicScale.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
@@ -42,6 +46,10 @@ const T = {
     windows:        "Windows",
     sky:            "Sky",
     scale:          "Scale",
+    questions:      "Questions",
+    loadingQuestions: "Loading questions…",
+    questionsErrTitle: "This section could not be shown",
+    questionsErrBody: "The Questions tab failed to load. Check your connection and try again; the rest of Teseo keeps working.",
     au:             "AU",
     days:           "days",
 
@@ -182,6 +190,10 @@ const T = {
     windows:        "Ventanas",
     sky:            "Cielo",
     scale:          "Escala",
+    questions:      "Preguntas",
+    loadingQuestions: "Cargando preguntas…",
+    questionsErrTitle: "No se pudo mostrar esta sección",
+    questionsErrBody: "La pestaña Preguntas no terminó de cargar. Revisa tu conexión y vuelve a intentarlo; el resto de Teseo sigue funcionando.",
     au:             "UA",
     days:           "días",
 
@@ -1072,12 +1084,27 @@ function LaunchWindows({ from, to, lang, attempt, onError, notice }) {
 
 // ─── PESTAÑAS ────────────────────────────────────────────────────────────────
 
+// Icono de la pestaña Preguntas: un signo de interrogación en órbita.
+function IconQuestions(props) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" {...props}>
+      <path d="M9.2 9.3a2.9 2.9 0 1 1 4.3 2.5c-.9.6-1.5 1.1-1.5 2.2" />
+      <circle cx="12" cy="17" r="0.7" fill="currentColor" />
+      <path d="M19.6 7.2A9 9 0 1 1 16.5 4.2" strokeDasharray="0.1 3.1" strokeWidth="2" />
+    </svg>
+  );
+}
+
 const TABS = [
   { id:"route",   Icon:IconRoute },
   { id:"windows", Icon:IconWindows },
   { id:"sky",     Icon:IconSky },
   { id:"scale",   Icon:IconScale },
+  { id:"questions", Icon:IconQuestions },
 ];
+// Enlaces profundos de la pestaña Preguntas: #preguntas… (ES) o #questions… (EN)
+const QUESTIONS_HASH = /^#(preguntas|questions)\b/;
 
 function Tabs({ tab, onChange, lang }) {
   const t = T[lang];
@@ -1157,6 +1184,13 @@ export default function Teseo() {
   const [tab,      setTab]      = useState("route");
   // abrir en la pestaña Cielo si el enlace compartido lo indica (#sky...)
   useEffect(() => { try { if ((window.location.hash || "").startsWith("#sky")) setTab("sky"); } catch { /* no-op */ } }, []);
+  // …o en Preguntas (#preguntas / #questions), también si el hash cambia con la app abierta
+  useEffect(() => {
+    const check = () => { try { if (QUESTIONS_HASH.test(window.location.hash || "")) setTab("questions"); } catch { /* no-op */ } };
+    check();
+    window.addEventListener("hashchange", check);
+    return () => window.removeEventListener("hashchange", check);
+  }, []);
   const [backend,  setBackend]  = useState(null);
   const [loadingB, setLoadingB] = useState(false);
   const [realPos,  setRealPos]  = useState({});    // NASA real positions {id: {x_au,y_au,...}}
@@ -1173,6 +1207,9 @@ export default function Teseo() {
   // Vista 3D: componente lazy recreable si falló la carga del chunk
   const [SkyView, setSkyView] = useState(()=>Constellations);
   const retrySky = useCallback(()=>setSkyView(()=>lazy(loadSky)),[]);
+  // Preguntas: mismo patrón (lazy recreable)
+  const [QuestionsView, setQuestionsView] = useState(()=>QuestionsLazy);
+  const retryQuestions = useCallback(()=>setQuestionsView(()=>lazy(loadQuestions)),[]);
 
   const t = T[lang];
   const onDone = useCallback(()=>setIntro(false),[]);
@@ -1274,6 +1311,12 @@ export default function Teseo() {
     setTab(id);
     try { if (window.scrollY > 120) window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" }); } catch { /* no-op */ }
   },[]);
+  // Desde Preguntas: abrir el Cielo con la capa de exoplanetas activada
+  // (Constellations lee `L=` del hash al montarse).
+  const seeExoplanetsInSky = useCallback(()=>{
+    try { window.history.replaceState(null, "", "#sky?L=exoplanets"); } catch { /* no-op */ }
+    changeTab("sky");
+  },[changeTab]);
   const pickPlanet = useCallback(p=>{
     if (p.id === to.id) return;
     if (p.id === from.id) { setFrom(to); setTo(from); return; }
@@ -1371,6 +1414,15 @@ export default function Teseo() {
 
               {tab==="scale"&&(
                 <CosmicScale lang={lang}/>
+              )}
+
+              {tab==="questions"&&(
+                <QuestionsBoundary onReset={retryQuestions} title={t.questionsErrTitle}
+                  message={t.questionsErrBody} retryLabel={t.retry}>
+                  <Suspense fallback={<p role="status" className="loading">{t.loadingQuestions}</p>}>
+                    <QuestionsView lang={lang} onSeeSky={seeExoplanetsInSky}/>
+                  </Suspense>
+                </QuestionsBoundary>
               )}
             </div>
           </main>
