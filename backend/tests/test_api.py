@@ -135,3 +135,27 @@ def test_horizons_requests_never_overlap(monkeypatch):
     assert len(res) == 8 and state["n"] == 8 and state["max"] == 1
     nh._position_cache.clear(); nh._last_good_position.clear(); nh._horizons_lock = None
     nh._position_cache.clear(); nh._last_good_position.clear()
+
+
+def test_narrative_prompt_uses_human_dates(monkeypatch):
+    """La narrativa recibe fechas legibles (sin microsegundos) y nunca
+    devuelve una frase cortada si el modelo se queda sin tokens."""
+    from types import SimpleNamespace as NS
+    from app import narrative
+
+    seen = {}
+
+    class FakeCompletions:
+        def create(self, **kw):
+            seen["prompt"] = kw["messages"][1]["content"]
+            msg = NS(content="Partimos de la Tierra el 13 de noviembre de 2026 rumbo a Marte. El viaje dura 259 días y culmina el 30 de julio de 2027 a las 00")
+            return NS(choices=[NS(message=msg, finish_reason="length")])
+
+    monkeypatch.setattr(narrative, "_get_client", lambda: NS(chat=NS(completions=FakeCompletions())))
+    out = narrative.generate_travel_narrative({
+        "origin": "earth", "destination": "mars",
+        "departure_date": "2026-11-13T02:14:17.064033", "arrival_date": "2027-07-30T00:19:01.5",
+        "transfer_time_days": 258.92, "delta_v_total_km_s": 5.596}, lang="es")
+    assert "13 de noviembre de 2026" in seen["prompt"] and "064033" not in seen["prompt"]
+    assert "la Tierra" in seen["prompt"] and "259 días" in seen["prompt"]
+    assert out.endswith("Marte.")
