@@ -131,7 +131,9 @@ export function launchWindowsLocal(origin, destination, start = new Date(), coun
         window_number: windows.length + 1,
         departure_date: dep.toISOString(),
         arrival_date: new Date(+dep + ref.transfer_time_days * DAY_MS).toISOString(),
-        transfer_time_days: +ref.transfer_time_days.toFixed(1),
+        // mismo redondeo (2 decimales) que hohmannLocal y que el backend: así Ruta y
+        // Ventanas muestran siempre el mismo número de días
+        transfer_time_days: +ref.transfer_time_days.toFixed(2),
         delta_v_km_s: ref.delta_v_total_km_s,
         days_from_start: +tw.toFixed(1),
       });
