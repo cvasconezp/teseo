@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
-const Constellations = lazy(() => import("./Constellations.jsx"));
+// loadSky separado para poder recrear el componente lazy al reintentar: React.lazy
+// memoriza un import fallido, así que "Reintentar" necesita un lazy nuevo.
+const loadSky = () => import("./Constellations.jsx");
+const Constellations = lazy(loadSky);
 import CosmicScale from "./CosmicScale.jsx";
+import ErrorBoundary, { ErrorNotice } from "./ErrorBoundary.jsx";
+import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 
@@ -49,6 +54,14 @@ const T = {
     voyager:        "Voyager 1",
     rocket:         "Apollo rocket",
     plane:          "Airplane",
+    retry:          "Retry",
+    loadingSky:     "Loading the 3D sky…",
+    posLoading:     "loading real positions…",
+    posError:       "Not all real positions could be loaded from NASA JPL. The map shows approximate positions where they are missing.",
+    distLoading:    "fetching the real distance…",
+    distError:      "Real distance unavailable (NASA JPL did not respond): the figure above is an approximation.",
+    routeError:     "The Hohmann transfer could not be computed: the server did not respond. The constant-speed estimate above is still valid.",
+    windowsError:   "Launch windows could not be loaded: the server did not respond.",
   },
   es: {
     tagline:        "Navegación Interplanetaria",
@@ -86,6 +99,14 @@ const T = {
     voyager:        "Voyager 1",
     rocket:         "Cohete Apollo",
     plane:          "Avión",
+    retry:          "Reintentar",
+    loadingSky:     "Cargando el cielo en 3D…",
+    posLoading:     "cargando posiciones reales…",
+    posError:       "No se pudieron cargar todas las posiciones reales de NASA JPL. El mapa muestra posiciones aproximadas donde faltan.",
+    distLoading:    "consultando la distancia real…",
+    distError:      "Distancia real no disponible (NASA JPL no respondió): la cifra de arriba es una aproximación.",
+    routeError:     "No se pudo calcular la transferencia de Hohmann: el servidor no respondió. La estimación a velocidad constante de arriba sigue siendo válida.",
+    windowsError:   "No se pudieron cargar las ventanas de lanzamiento: el servidor no respondió.",
   },
 };
 
@@ -467,7 +488,7 @@ function PlanetSelector({ value, onChange, exclude, label, accentColor, lang }) 
 
 // ─── ROUTE RESULT ────────────────────────────────────────────────────────────
 
-function RouteResult({ from, to, lang, backendData, loading, realDist }) {
+function RouteResult({ from, to, lang, backendData, loading, realDist, distStatus, onRetryDist, routeError, onRetryRoute }) {
   const [vehicle, setVehicle] = useState(VEHICLES[2]);
   const t = T[lang];
 
@@ -493,6 +514,11 @@ function RouteResult({ from, to, lang, backendData, loading, realDist }) {
           {(distKm/1e6).toFixed(2)}M km · {(distKm/AU_KM).toFixed(3)} AU
           {realDist&&<span className="text-green-400 ml-2">· NASA ✓</span>}
         </p>
+        {distStatus==="loading"&&!realDist&&(
+          <p role="status" className="text-white/60 animate-pulse" style={{fontFamily:"Inter,system-ui",fontSize: 12,marginTop:3}}>
+            {t.distLoading}
+          </p>
+        )}
         <p className="text-white/60" style={{fontFamily:"Inter,system-ui",fontSize: 12,marginTop:3}}>
           {lang==="es"?"a esta velocidad llegarías el":"at this speed you'd arrive"} {vehicleArrival.toLocaleDateString(lang==="es"?"es-EC":"en-US",{year:"numeric",month:"short",day:"numeric"})}
         </p>
@@ -514,10 +540,16 @@ function RouteResult({ from, to, lang, backendData, loading, realDist }) {
           </div>
         )}
         {loading&&(
-          <p className="text-purple-300 mt-2 animate-pulse"
+          <p role="status" className="text-purple-300 mt-2 animate-pulse"
             style={{fontFamily:"Inter,system-ui",fontSize: 12}}>{t.realPhysics}</p>
         )}
-        {!backendData&&!loading&&(
+        {distStatus==="error"&&!realDist&&(
+          <ErrorNotice className="mt-3" message={t.distError} retryLabel={t.retry} onRetry={onRetryDist}/>
+        )}
+        {routeError&&!backendData&&!loading&&(
+          <ErrorNotice className="mt-3" message={t.routeError} retryLabel={t.retry} onRetry={onRetryRoute}/>
+        )}
+        {!backendData&&!loading&&!routeError&&(
           <p className="text-white/60 mt-2" style={{fontFamily:"Inter,system-ui",fontSize: 12}}>
             {t.noBackend}
           </p>
@@ -571,16 +603,26 @@ function RouteResult({ from, to, lang, backendData, loading, realDist }) {
 
 function LaunchWindows({ from, to, lang }) {
   const [data, setData] = useState(null);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);   // sube al pulsar "Reintentar"
   const t = T[lang];
 
   useEffect(()=>{
-    setData(null);
-    fetch(`${API}/api/launch-windows/${from.id}/${to.id}?count=4`)
-      .then(r=>r.json()).then(setData).catch(()=>{});
-  },[from,to]);
+    setData(null); setError(false);
+    const ctrl = new AbortController();
+    let alive = true;
+    fetchJson(`${API}/api/launch-windows/${from.id}/${to.id}?count=4`,{signal:ctrl.signal})
+      .then(d=>{ if(alive) setData(d); })
+      .catch(e=>{ if(alive&&!isAbort(e)) setError(true); });
+    return ()=>{ alive=false; ctrl.abort(); };
+  },[from,to,attempt]);
+
+  if(error) return (
+    <ErrorNotice message={t.windowsError} retryLabel={t.retry} onRetry={()=>setAttempt(a=>a+1)}/>
+  );
 
   if(!data) return (
-    <p className="text-center text-white/60 py-8 animate-pulse"
+    <p role="status" className="text-center text-white/60 py-8 animate-pulse"
       style={{fontFamily:"Inter,system-ui",fontSize:12}}>{t.computing}</p>
   );
 
@@ -646,6 +688,16 @@ export default function Teseo() {
   const [loadingB, setLoadingB] = useState(false);
   const [realPos,  setRealPos]  = useState({});    // NASA real positions {id: {x_au,y_au,...}}
   const [realDist, setRealDist] = useState(null);  // km between from and to, real NASA data
+  // Estado visible de cada petición + contador de reintentos (sube con "Reintentar")
+  const [posStatus,  setPosStatus]  = useState("idle");   // idle | loading | ok | error
+  const [posTry,     setPosTry]     = useState(0);
+  const [distStatus, setDistStatus] = useState("idle");
+  const [distTry,    setDistTry]    = useState(0);
+  const [routeError, setRouteError] = useState(false);
+  const [routeTry,   setRouteTry]   = useState(0);
+  // Vista 3D: componente lazy recreable si falló la carga del chunk
+  const [SkyView, setSkyView] = useState(()=>Constellations);
+  const retrySky = useCallback(()=>setSkyView(()=>lazy(loadSky)),[]);
 
   const t = T[lang];
   const onDone = useCallback(()=>setIntro(false),[]);
@@ -661,37 +713,67 @@ export default function Teseo() {
   useEffect(()=>{
     if(!API) return;
     const today = new Date().toISOString().split("T")[0];
+    const ctrl = new AbortController();
+    let alive = true;
+    setPosStatus("loading");
     Promise.all(PLANETS.map(p=>
-      fetch(`${API}/api/position/${p.id}?date=${today}`)
-        .then(r=>r.json()).catch(()=>null)
+      fetchJson(`${API}/api/position/${p.id}?date=${today}`,{signal:ctrl.signal})
+        .catch(()=>null)
     )).then(results=>{
+      if(!alive) return;
       const pos = {};
       results.forEach((r,i)=>{ if(r&&r.x_au!==undefined) pos[PLANETS[i].id]=r; });
-      setRealPos(pos);
+      // conserva lo ya obtenido: un reintento solo añade/actualiza planetas
+      setRealPos(prev=>({...prev,...pos}));
+      setPosStatus(Object.keys(pos).length===PLANETS.length?"ok":"error");
     });
-  },[]);
+    return ()=>{ alive=false; ctrl.abort(); };
+  },[posTry]);
 
   // Fetch real distance between selected bodies
   useEffect(()=>{
     if(!API||from.id===to.id) return;
     const today = new Date().toISOString().split("T")[0];
-    fetch(`${API}/api/distance/${from.id}/${to.id}?date=${today}`)
-      .then(r=>r.json())
-      .then(d=>{ if(d.distance_km) setRealDist(d.distance_km); })
-      .catch(()=>{});
-  },[from,to]);
+    const ctrl = new AbortController();
+    let alive = true;
+    setDistStatus("loading");
+    fetchJson(`${API}/api/distance/${from.id}/${to.id}?date=${today}`,{signal:ctrl.signal})
+      .then(d=>{
+        if(!alive) return;
+        if(d&&d.distance_km){ setRealDist(d.distance_km); setDistStatus("ok"); }
+        else setDistStatus("error");
+      })
+      .catch(e=>{ if(alive&&!isAbort(e)) setDistStatus("error"); });
+    return ()=>{ alive=false; ctrl.abort(); };
+  },[from,to,distTry]);
 
   // Fetch Hohmann route from backend
   useEffect(()=>{
     if(!API||from.id===to.id) return;
-    setLoadingB(true);
-    fetch(`${API}/api/route`,{
+    const ctrl = new AbortController();
+    let alive = true;
+    setLoadingB(true); setRouteError(false);
+    const post = (include_narrative,timeout)=>fetchJson(`${API}/api/route`,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({origin:from.id,destination:to.id,lang,include_narrative:true}),
-    }).then(r=>r.json()).then(d=>{setBackend(d);setLoadingB(false);})
-      .catch(()=>setLoadingB(false));
-  },[from,to,lang]);
+      body:JSON.stringify({origin:from.id,destination:to.id,lang,include_narrative}),
+      signal:ctrl.signal, timeout,
+    });
+    // 1) Los números (física pura, sin IA): nunca esperan a la narración.
+    post(false,TIMEOUT_MS).then(d=>{
+      if(!alive) return;
+      setBackend(d); setLoadingB(false);
+      // 2) La narración (Groq) llega después y es opcional: si falla o tarda,
+      //    falla en silencio y los números ya están en pantalla.
+      post(true,TIMEOUT_AI_MS)
+        .then(n=>{ if(alive&&n&&n.narrative) setBackend(b=>b?{...b,narrative:n.narrative}:b); })
+        .catch(()=>{});
+    }).catch(e=>{
+      if(!alive||isAbort(e)) return;
+      setRouteError(true); setLoadingB(false);
+    });
+    return ()=>{ alive=false; ctrl.abort(); };
+  },[from,to,lang,routeTry]);
 
   const hasRealPos = Object.keys(realPos).length > 0;
 
@@ -717,6 +799,12 @@ export default function Teseo() {
                 style={{fontFamily:"Inter,system-ui",fontSize: 12}}>{t.tagline}</p>
             </div>
             <div className="flex items-center gap-2">
+              {posStatus==="loading"&&!hasRealPos&&(
+                <span role="status" className="text-white/60 tracking-widest uppercase animate-pulse"
+                  style={{fontFamily:"Inter,system-ui",fontSize: 12}}>
+                  ○ {t.posLoading}
+                </span>
+              )}
               {hasRealPos&&(
                 <span className="text-green-400 tracking-widest uppercase"
                   style={{fontFamily:"Inter,system-ui",fontSize: 12}}>
@@ -737,6 +825,11 @@ export default function Teseo() {
             style={{background:"rgba(255,255,255,0.015)"}}>
             <OrbitMap from={from} to={to} realPositions={realPos} threadProgress={thread}/>
           </div>
+
+          {posStatus==="error"&&(
+            <ErrorNotice className="mb-3" message={t.posError} retryLabel={t.retry}
+              onRetry={()=>setPosTry(n=>n+1)}/>
+          )}
 
           {/* Planet selectors */}
           <div className="grid grid-cols-2 gap-2.5 mb-3">
@@ -765,7 +858,9 @@ export default function Teseo() {
 
           {tab==="route"&&(
             <RouteResult from={from} to={to} lang={lang}
-              backendData={backend} loading={loadingB} realDist={realDist}/>
+              backendData={backend} loading={loadingB} realDist={realDist}
+              distStatus={distStatus} onRetryDist={()=>setDistTry(n=>n+1)}
+              routeError={routeError} onRetryRoute={()=>setRouteTry(n=>n+1)}/>
           )}
 
           {tab==="windows"&&(
@@ -773,9 +868,11 @@ export default function Teseo() {
           )}
 
           {tab==="sky"&&(
-            <Suspense fallback={<div className="text-center text-white/60 py-12" style={{fontFamily:"Inter,system-ui",fontSize:12}}>...</div>}>
-              <Constellations lang={lang}/>
-            </Suspense>
+            <ErrorBoundary variant="sky" lang={lang} onReset={retrySky}>
+              <Suspense fallback={<div role="status" className="text-center text-white/60 py-12 animate-pulse" style={{fontFamily:"Inter,system-ui",fontSize:12}}>{t.loadingSky}</div>}>
+                <SkyView lang={lang}/>
+              </Suspense>
+            </ErrorBoundary>
           )}
 
           {tab==="scale"&&(

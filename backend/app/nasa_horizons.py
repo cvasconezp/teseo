@@ -11,6 +11,9 @@ import re
 from datetime import datetime, timedelta
 from typing import Optional
 
+import asyncio
+import time
+
 import httpx
 
 HORIZONS_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
@@ -59,6 +62,45 @@ HORIZONS_CODES = {
 }
 
 
+# ─── Acceso serializado a Horizons ────────────────────────────────────────
+# JPL Horizons rechaza peticiones simultáneas desde una misma IP. Antes, el
+# frontend pedía los 8 planetas a la vez y la mayoría volvía con error 502.
+# Todas las consultas pasan ahora por una única cola (una a la vez) y se
+# reintentan si la NASA responde "ocupado".
+_horizons_lock: Optional[asyncio.Lock] = None
+
+
+def _get_lock() -> asyncio.Lock:
+    global _horizons_lock
+    if _horizons_lock is None:
+        _horizons_lock = asyncio.Lock()
+    return _horizons_lock
+
+
+async def _horizons_request(client: httpx.AsyncClient, params: dict):
+    """GET a Horizons, de a una petición a la vez, con reintentos."""
+    last_exc: Optional[Exception] = None
+    for attempt in range(3):
+        try:
+            async with _get_lock():
+                resp = await client.get(HORIZONS_URL, params=params)
+            if getattr(resp, "status_code", 200) in (429, 500, 502, 503, 504):
+                raise RuntimeError(f"NASA Horizons ocupado (HTTP {resp.status_code})")
+            resp.raise_for_status()
+            return resp
+        except Exception as e:  # red, timeout o servidor ocupado
+            last_exc = e
+            if attempt < 2:
+                await asyncio.sleep(0.6 * (attempt + 1))
+    raise last_exc
+
+
+# Caché de posiciones planetarias: (cuerpo, día) -> vector real de Horizons
+_position_cache: dict = {}
+_last_good_position: dict = {}
+_POSITION_TTL = 6 * 3600  # 6 h
+
+
 async def get_body_position(body: str, date: Optional[datetime] = None) -> dict:
     """
     Obtiene la posición heliocéntrica real de un cuerpo en una fecha dada,
@@ -78,6 +120,15 @@ async def get_body_position(body: str, date: Optional[datetime] = None) -> dict:
     start = date.strftime("%Y-%m-%d")
     stop = (date + timedelta(days=1)).strftime("%Y-%m-%d")
 
+    # Caché: Horizons se consulta con resolución de 1 día, así que la misma
+    # (cuerpo, día) siempre da el mismo vector. Evita límites de tasa de la
+    # NASA y hace que la app responda al instante en usos repetidos.
+    key = (body, start)
+    now = time.monotonic()
+    hit = _position_cache.get(key)
+    if hit and now - hit["ts"] < _POSITION_TTL:
+        return {**hit["data"], "date": date.isoformat()}
+
     params = {
         "format": "json",
         "COMMAND": f"'{HORIZONS_CODES[body]}'",
@@ -93,17 +144,27 @@ async def get_body_position(body: str, date: Optional[datetime] = None) -> dict:
         "REF_PLANE": "'ECLIPTIC'",
     }
 
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        resp = await client.get(HORIZONS_URL, params=params)
-        resp.raise_for_status()
-        data = resp.json()
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await _horizons_request(client, params)
+            data = resp.json()
+        position = _parse_vector_block(data.get("result", ""))
+    except Exception:
+        # Si la NASA no responde, devolvemos el último vector real conocido
+        # de ese cuerpo, marcado claramente como dato no actualizado.
+        last = _last_good_position.get(body)
+        if last is not None:
+            return {**last, "date": date.isoformat(), "stale": True}
+        raise
 
-    result_text = data.get("result", "")
-    position = _parse_vector_block(result_text)
     position["body"] = body
-    position["date"] = date.isoformat()
     position["source"] = "NASA JPL Horizons"
-    return position
+    position["data_date"] = start
+    if len(_position_cache) > 2000:
+        _position_cache.clear()
+    _position_cache[key] = {"ts": now, "data": position}
+    _last_good_position[body] = position
+    return {**position, "date": date.isoformat()}
 
 
 def _parse_vector_block(text: str) -> dict:
@@ -160,8 +221,7 @@ async def _comet_ephem(client: httpx.AsyncClient, command: str, date: datetime) 
         "QUANTITIES": "'1,20'", "ANG_FORMAT": "'DEG'",
     }
     try:
-        resp = await client.get(HORIZONS_URL, params=params)
-        resp.raise_for_status()
+        resp = await _horizons_request(client, params)
         text = resp.json().get("result", "")
         if "$$SOE" not in text:
             return None
@@ -251,8 +311,9 @@ async def get_distance_between_bodies(body_a: str, body_b: str, date: Optional[d
     Calcula la distancia real entre dos cuerpos en una fecha dada,
     usando sus posiciones heliocéntricas reales de NASA Horizons.
     """
-    pos_a = await get_body_position(body_a, date)
-    pos_b = await get_body_position(body_b, date)
+    pos_a, pos_b = await asyncio.gather(
+        get_body_position(body_a, date), get_body_position(body_b, date)
+    )
 
     dx = pos_a["x_au"] - pos_b["x_au"]
     dy = pos_a["y_au"] - pos_b["y_au"]

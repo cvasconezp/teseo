@@ -13,6 +13,7 @@ from typing import Optional
 import numpy as np
 from astropy import units as u
 from astropy.time import Time
+from astropy.coordinates import get_body_barycentric, solar_system_ephemeris
 from hapsira.bodies import Sun, Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune
 from hapsira.twobody import Orbit
 from hapsira.maneuver import Maneuver
@@ -188,16 +189,47 @@ def find_synodic_period_days(origin: str, destination: str) -> float:
     return t_syn
 
 
+def _heliocentric_longitudes_rad(body: str, jds: np.ndarray) -> np.ndarray:
+    """
+    Longitud eclíptica heliocéntrica REAL de un planeta (radianes) en cada
+    fecha juliana dada. Usa las efemérides analíticas integradas en astropy
+    (ERFA plan94/epv00: sin red, precisión de minutos de arco entre 1900 y
+    2100, y degradación suave fuera de ese rango).
+    """
+    t = Time(jds, format="jd", scale="tdb")
+    with solar_system_ephemeris.set("builtin"):
+        planet = get_body_barycentric(body, t)
+        sun = get_body_barycentric("sun", t)
+    x = (planet.x - sun.x).to_value(u.AU)
+    y = (planet.y - sun.y).to_value(u.AU)
+    z = (planet.z - sun.z).to_value(u.AU)
+    # Ecuatorial (ICRS) -> eclíptica J2000: rotación por la oblicuidad
+    eps = np.deg2rad(23.4392911)
+    y_ecl = y * np.cos(eps) + z * np.sin(eps)
+    return np.arctan2(y_ecl, x)
+
+
+def _wrap_pi(a):
+    """Lleva un ángulo (o array) al intervalo (-pi, pi]."""
+    return (a + np.pi) % (2 * np.pi) - np.pi
+
+
 def find_launch_windows(
     origin: str, destination: str, start_date: Optional[datetime] = None, count: int = 3
 ) -> list[dict]:
     """
-    Encuentra las próximas ventanas de lanzamiento óptimas entre origen y
-    destino, basándose en el período sinódico real entre ambos planetas.
+    Encuentra las próximas ventanas de lanzamiento entre origen y destino
+    a partir de la ALINEACIÓN REAL de los planetas.
 
+    Una transferencia de Hohmann solo funciona si, al salir, el destino va
+    "adelantado" respecto al origen un ángulo de fase concreto:
+
+        fase_requerida = 180° − (movimiento medio del destino × tiempo de vuelo)
+
+    de modo que la nave y el planeta lleguen juntos al punto de encuentro.
+    Aquí se calcula la longitud heliocéntrica real de ambos planetas día a
+    día y se buscan las fechas en que su separación coincide con esa fase.
     Esto NO es una IA adivinando — es geometría orbital determinística.
-    Cada ventana se repite cada T_sinódico días, dentro de un margen de
-    +/- unos días que es la "ventana" práctica de lanzamiento.
     """
     origin = origin.lower()
     destination = destination.lower()
@@ -205,37 +237,68 @@ def find_launch_windows(
     if start_date is None:
         start_date = datetime.utcnow()
 
+    # Valida cuerpos y obtiene el tiempo de vuelo de la transferencia
+    reference = compute_hohmann_transfer(origin, destination, start_date)
     synodic_days = find_synodic_period_days(origin, destination)
 
-    # Calculamos el delta-v en la fecha de referencia para usar como ancla;
-    # las ventanas reales requieren un escaneo fino de alineación
-    # heliocéntrica. Para el MVP usamos el período sinódico como el
-    # intervalo entre ventanas óptimas sucesivas, anclado a una transferencia
-    # de referencia calculada en start_date.
+    n_dest = 2 * np.pi / ORBITAL_PERIOD_DAYS[destination]  # rad/día
+    required_phase = _wrap_pi(np.pi - n_dest * reference.transfer_time_days)
+
+    # Escaneo: la alineación se repite ~cada período sinódico, así que
+    # cubrimos (count + 1) períodos con un paso fino respecto a ese período.
+    jd0 = Time(start_date.isoformat(), scale="tdb").jd
+    step = max(synodic_days / 400.0, 0.25)
+    span = synodic_days * (count + 1.2)
+    jds = jd0 + np.arange(0.0, span + step, step)
+
+    def misalignment(j):
+        j = np.atleast_1d(np.asarray(j, dtype=float))
+        phase = _heliocentric_longitudes_rad(destination, j) - _heliocentric_longitudes_rad(origin, j)
+        return _wrap_pi(phase - required_phase)
+
+    f = misalignment(jds)
     windows = []
-    for i in range(count):
-        window_date = start_date + timedelta(days=synodic_days * i)
-        transfer = compute_hohmann_transfer(origin, destination, window_date)
-        windows.append(
-            {
-                "window_number": i + 1,
-                "departure_date": window_date.isoformat(),
-                "arrival_date": transfer.arrival_date.isoformat(),
-                "transfer_time_days": round(transfer.transfer_time_days, 1),
-                "delta_v_km_s": round(transfer.delta_v_total_km_s, 3),
-            }
-        )
+    for i in range(len(jds) - 1):
+        a, b = f[i], f[i + 1]
+        # Cruce real por cero (se descarta el salto artificial en ±180°)
+        if a == 0.0 or (a * b < 0 and abs(a - b) < np.pi):
+            lo, hi, flo = jds[i], jds[i + 1], a
+            for _ in range(30):  # bisección: precisión muy por debajo de 1 min
+                mid = 0.5 * (lo + hi)
+                fm = float(misalignment(mid)[0])
+                if flo * fm <= 0:
+                    hi = mid
+                else:
+                    lo, flo = mid, fm
+            jd_win = 0.5 * (lo + hi)
+            window_date = start_date + timedelta(days=float(jd_win - jd0))
+            transfer = compute_hohmann_transfer(origin, destination, window_date)
+            windows.append(
+                {
+                    "window_number": len(windows) + 1,
+                    "departure_date": window_date.isoformat(),
+                    "arrival_date": transfer.arrival_date.isoformat(),
+                    "transfer_time_days": round(transfer.transfer_time_days, 1),
+                    "delta_v_km_s": round(transfer.delta_v_total_km_s, 3),
+                    "days_from_start": round(float(jd_win - jd0), 1),
+                }
+            )
+            if len(windows) >= count:
+                break
 
     return {
         "origin": origin,
         "destination": destination,
         "synodic_period_days": round(synodic_days, 1),
         "synodic_period_years": round(synodic_days / 365.25, 2),
+        "required_phase_angle_deg": round(float(np.degrees(required_phase)), 1),
         "windows": windows,
+        "method": "Real planetary alignment (heliocentric phase angle) + Hohmann transfer",
         "note": (
-            "Las ventanas se calculan a partir del período sinódico real "
-            "entre ambos planetas. La fecha exacta óptima dentro de cada "
-            "ventana puede variar algunos días por la excentricidad orbital "
-            "real (aquí aproximada como circular)."
+            "Cada ventana es la fecha en que la posición real de ambos "
+            "planetas cumple el ángulo de fase que exige una transferencia "
+            "de Hohmann. El tiempo de vuelo y el delta-v asumen órbitas "
+            "circulares y coplanares, por lo que la fecha óptima de una "
+            "misión real puede diferir algunos días o semanas."
         ),
     }

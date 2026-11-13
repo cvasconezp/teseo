@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { ephemeris } from "./ephemeris.js";
+import { ErrorNotice } from "./ErrorBoundary.jsx";
+import { fetchJson, isAbort, TIMEOUT_MS } from "./net.js";
 
 const API = import.meta.env.VITE_API_URL || "";
 const LAYERS = [
@@ -12,7 +14,8 @@ const LAYERS = [
   { key: "meteors",    file: "/meteorshowers.json", es: "Lluvias de meteoros", en: "Meteor showers", color: 0xffd27a, size: 9 },
   { key: "comets",     api: true, endpoint: "/api/comets", es: "Cometas", en: "Comets", color: 0x8be0ff, size: 9 },
   { key: "probes",     api: true, endpoint: "/api/probes", es: "Sondas y telescopios", en: "Probes & telescopes", color: 0xe6ebff, size: 10 },
-  { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6 },
+  // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
+  { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
 const LABEL_COLOR = { con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", solar:"#ffe9a8" };
 
@@ -138,7 +141,8 @@ async function fetchWiki(title, lang) {
   const host = lang === "es" ? "es.wikipedia.org" : "en.wikipedia.org";
   const url = `https://${host}/w/api.php?action=query&prop=pageimages%7Cextracts&exintro&explaintext&redirects=1&piprop=thumbnail&pithumbsize=360&format=json&origin=*&titles=${encodeURIComponent(title)}`;
   try {
-    const r = await fetch(url); const d = await r.json();
+    // enriquecimiento opcional de la ficha: timeout corto y fallo silencioso
+    const d = await fetchJson(url, { timeout: 10000 });
     const pg = Object.values(d.query.pages)[0];
     const res = { title: pg.title, thumb: (pg.thumbnail || {}).source || null, extract: pg.extract || "", url: `https://${host}/wiki/${encodeURIComponent(pg.title)}`, missing: pg.missing !== undefined };
     wikiCache[key] = res; return res;
@@ -189,6 +193,11 @@ const TC = {
     dragHint: "Drag to orbit · scroll to zoom",
     note: "Star positions & distances: real (HYG / Hipparcos). 3D depth uses a logarithmic scale of the real distance so it stays viewable — the distances shown are the real ones.",
     loading: "Loading the real sky…",
+    retry: "Retry",
+    skyError: "The star catalogue could not be loaded. Check the connection and try again.",
+    layersError: "These layers could not be loaded:",
+    layerFailed: "Could not load",
+    tourNoText: "Narration unavailable right now — the tour goes on.",
     nearest: "Nearest", farthest: "Farthest", spread: "Depth spread",
   },
   es: {
@@ -204,6 +213,11 @@ const TC = {
     dragHint: "Arrastra para girar · rueda para acercar",
     note: "Posiciones y distancias estelares: reales (HYG / Hipparcos). La profundidad 3D usa una escala logarítmica de la distancia real para que sea visualizable — las distancias mostradas son las reales.",
     loading: "Cargando el cielo real…",
+    retry: "Reintentar",
+    skyError: "No se pudo cargar el catálogo de estrellas. Revisa la conexión y vuelve a intentarlo.",
+    layersError: "No se pudieron cargar estas capas:",
+    layerFailed: "No se pudo cargar",
+    tourNoText: "Narración no disponible ahora — el recorrido continúa.",
     nearest: "Más cercana", farthest: "Más lejana", spread: "Rango de profundidad",
   },
 };
@@ -254,6 +268,10 @@ export default function Constellations({ lang = "es" }) {
   const [tourAuto, setTourAuto] = useState(true);
   const [tourTitle, setTourTitle] = useState("");
   const [tourText, setTourText] = useState(null);
+  const [tourTry, setTourTry] = useState(0);          // sube al reintentar la narración
+  const [loadingLayer, setLoadingLayer] = useState({});
+  const [layerError, setLayerError] = useState({});   // key -> true si falló la carga
+  const [skyError, setSkyError] = useState(false);
   // abreviatura IAU (p.ej. "Sgr") -> nombre de constelación, para que buscar
   // "sagit(tarius)" encuentre objetos cuyo nombre usa la abreviatura ("Sgr A*").
   const abbrevExpand = useMemo(() => {
@@ -285,6 +303,7 @@ export default function Constellations({ lang = "es" }) {
       const ds = datasets[catMatch.key];
       const layerName = LAYERS.find(l => l.key === catMatch.key)?.[lang] || catMatch.key;
       if (!ds || !ds.objects) {
+        if (layerError[catMatch.key]) return [{ type: "loading", label: `⚠ ${TC[lang].layerFailed} ${layerName}` }];
         return [{ type: "loading", label: (lang === "es" ? "Cargando " : "Loading ") + layerName + "…" }];
       }
       return ds.objects.slice(0, 14).map(o => ({ type: "layer", layer: catMatch.key, obj: o, label: labelForObj(catMatch.key, o) }));
@@ -328,39 +347,45 @@ export default function Constellations({ lang = "es" }) {
     }
     r.sort((a, b) => score(a.label) - score(b.label));
     return r.slice(0, 8);
-  }, [query, sky, datasets, bodies, abbrevExpand, catMatch, lang]);
+  }, [query, sky, datasets, bodies, abbrevExpand, catMatch, lang, layerError]);
   const depthRef = useRef(0);
   const selRef = useRef(null);
 
   useEffect(() => { depthRef.current = depth; }, [depth]);
   useEffect(() => { selRef.current = sel; }, [sel]);
 
-  const [loadingLayer, setLoadingLayer] = useState({});
   // Carga inicial: solo la base + catálogos pequeños (Messier/agujeros negros, ~20 KB).
   // Los catálogos grandes (púlsares ~500KB, galaxias ~320KB) y los del backend
   // (exoplanetas ~780KB) se cargan solo al activar su capa.
-  useEffect(() => {
-    fetch("/sky.json").then(r => r.json()).then(setSky).catch(() => {});
-    LAYERS.filter(c => !c.api && !c.lazy).forEach((cfg) => {
-      fetch(cfg.file).then(r => r.json())
-        .then(d => setDatasets(prev => ({ ...prev, [cfg.key]: d })))
-        .catch(() => {});
-    });
+  const loadSky = useCallback(() => {
+    setSkyError(false);
+    fetchJson("/sky.json").then(setSky).catch(() => setSkyError(true));
   }, []);
+  // Una capa (fichero estático o backend). El error se marca ANTES de quitar el
+  // estado de carga: así el efecto de "bajo demanda" nunca ve una capa fallida
+  // como pendiente y no la vuelve a pedir en bucle; solo "Reintentar" lo hace.
+  const loadLayer = useCallback((cfg) => {
+    const url = cfg.api ? `${API}${cfg.endpoint}` : cfg.file;
+    setLoadingLayer(p => ({ ...p, [cfg.key]: true }));
+    setLayerError(p => ({ ...p, [cfg.key]: false }));
+    fetchJson(url, { timeout: cfg.timeout || TIMEOUT_MS })
+      .then(d => setDatasets(prev => ({ ...prev, [cfg.key]: d })))
+      .catch(() => setLayerError(p => ({ ...p, [cfg.key]: true })))
+      .finally(() => setLoadingLayer(p => ({ ...p, [cfg.key]: false })));
+  }, []);
+  useEffect(() => {
+    loadSky();
+    LAYERS.filter(c => !c.api && !c.lazy).forEach(loadLayer);
+  }, [loadSky, loadLayer]);
   // Capas pesadas: bajo demanda. Fichero estático (lazy) o backend (api).
   useEffect(() => {
     LAYERS.filter(c => c.api || c.lazy).forEach((cfg) => {
-      if (enabled[cfg.key] && !datasets[cfg.key] && !loadingLayer[cfg.key]) {
+      if (enabled[cfg.key] && !datasets[cfg.key] && !loadingLayer[cfg.key] && !layerError[cfg.key]) {
         if (cfg.api && !API) return;
-        setLoadingLayer(p => ({ ...p, [cfg.key]: true }));
-        const url = cfg.api ? `${API}${cfg.endpoint}` : cfg.file;
-        fetch(url).then(r => r.json())
-          .then(d => setDatasets(prev => ({ ...prev, [cfg.key]: d })))
-          .catch(() => {})
-          .finally(() => setLoadingLayer(p => ({ ...p, [cfg.key]: false })));
+        loadLayer(cfg);
       }
     });
-  }, [enabled, datasets, loadingLayer]);
+  }, [enabled, datasets, loadingLayer, layerError, loadLayer]);
 
   // ── deep-links: leer el estado del hash al montar ──
   useEffect(() => {
@@ -925,10 +950,13 @@ export default function Constellations({ lang = "es" }) {
     const tw = r.type === "con" ? (lang === "es" ? "la constelación de" : "the constellation") : r.type === "star" ? (lang === "es" ? "la estrella" : "the star") : "";
     const concept = `${tw} ${title}${r.dist ? `, ${lang === "es" ? "a" : "at"} ${fmtDist(r.dist, lang)} ${lang === "es" ? "de la Tierra" : "from Earth"}` : ""}`.trim();
     let cancel = false;
-    fetch(`${API}/api/explain`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ concept, lang }) })
-      .then(r => r.json()).then(d => { if (!cancel) setTourText(d.explanation || ""); }).catch(() => { if (!cancel) setTourText(""); });
-    return () => { cancel = true; };
-  }, [tourActive, tourIndex, sky, datasets, lang, focusDir]);
+    const ctrl = new AbortController();
+    // 12 s: menos que el avance automático (15 s), para que la parada nunca se quede en "narrando…"
+    fetchJson(`${API}/api/explain`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ concept, lang }), signal: ctrl.signal, timeout: 12000 })
+      .then(d => { if (!cancel) setTourText((d && d.explanation) || ""); })
+      .catch(e => { if (!cancel && !isAbort(e)) setTourText(""); });
+    return () => { cancel = true; ctrl.abort(); };
+  }, [tourActive, tourIndex, sky, datasets, lang, focusDir, tourTry]);
   useEffect(() => {
     if (!tourActive || !tourAuto) return;
     const id = setTimeout(() => setTourIndex(i => (i + 1) % TOUR.length), 15000);
@@ -1130,7 +1158,11 @@ export default function Constellations({ lang = "es" }) {
 
   const timeBtn = { fontFamily: "Inter,system-ui", fontSize: 12, padding: "3px 7px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.72)", cursor: "pointer", background: "transparent" };
 
+  // capas cuya carga falló (JSON estático, backend o NASA): aviso bajo el visor
+  const failedLayers = LAYERS.filter(c => layerError[c.key]);
+
   return (
+    <>
     <div className="relative w-full h-[460px] md:h-[600px]">
       <div ref={mountRef} className="absolute inset-0 rounded-2xl overflow-hidden"
         role="application" tabIndex={0} onKeyDown={onCanvasKey}
@@ -1189,9 +1221,14 @@ export default function Constellations({ lang = "es" }) {
         </div>
       )}
 
-      {!sky && (
-        <div className="absolute inset-0 flex items-center justify-center text-white/60"
+      {!sky && !skyError && (
+        <div role="status" className="absolute inset-0 flex items-center justify-center text-white/60 animate-pulse"
           style={{ fontFamily: "Inter,system-ui", fontSize: 13 }}>{t.loading}</div>
+      )}
+      {!sky && skyError && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center p-4">
+          <ErrorNotice className="max-w-sm w-full" message={t.skyError} retryLabel={t.retry} onRetry={loadSky} />
+        </div>
       )}
 
       {/* labels LOD */}
@@ -1285,7 +1322,7 @@ export default function Constellations({ lang = "es" }) {
             const has = (cfg.api || cfg.lazy) ? true : !!datasets[cfg.key];
             return (
               <button key={cfg.key} disabled={!has}
-                onClick={() => setEnabled(e => ({ ...e, [cfg.key]: !e[cfg.key] }))}
+                onClick={() => { setLayerError(p => p[cfg.key] ? { ...p, [cfg.key]: false } : p); setEnabled(e => ({ ...e, [cfg.key]: !e[cfg.key] })); }}
                 aria-pressed={on} aria-label={`${on ? (lang === "es" ? "Ocultar" : "Hide") : (lang === "es" ? "Mostrar" : "Show")} ${cfg[lang] || cfg.es}`}
                 className="px-2.5 py-1 rounded-full transition-all"
                 style={{
@@ -1299,8 +1336,8 @@ export default function Constellations({ lang = "es" }) {
                 {(cfg.api || cfg.lazy)
                   ? (datasets[cfg.key]
                       ? ` (${datasets[cfg.key].count ?? (datasets[cfg.key].objects || []).length})`
-                      : loadingLayer[cfg.key] ? " …" : "")
-                  : ""}
+                      : loadingLayer[cfg.key] ? " …" : layerError[cfg.key] ? " ⚠" : "")
+                  : (datasets[cfg.key] ? "" : loadingLayer[cfg.key] ? " …" : layerError[cfg.key] ? " ⚠" : "")}
               </button>
             );
           })}
@@ -1375,8 +1412,11 @@ export default function Constellations({ lang = "es" }) {
             <span style={{ fontFamily: "Cormorant Garamond,Georgia,serif", color: "#fff", fontSize: 16 }}>{tourTitle}</span>
             <span style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 12, color: "rgba(255,255,255,0.62)" }}>{tourIndex + 1}/{TOUR.length}</span>
           </div>
-          <p style={{ fontFamily: "Cormorant Garamond,Georgia,serif", fontStyle: "italic", color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.45, minHeight: 42, margin: 0 }}>
-            {tourText === null ? (lang === "es" ? "narrando…" : "narrating…") : (tourText ? `"${tourText}"` : "—")}
+          <p aria-live="polite" style={{ fontFamily: "Cormorant Garamond,Georgia,serif", fontStyle: "italic", color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.45, minHeight: 42, margin: 0 }}>
+            {tourText === null ? (lang === "es" ? "narrando…" : "narrating…") : (tourText ? `"${tourText}"` : t.tourNoText)}
+            {tourText === "" && (
+              <button type="button" onClick={() => setTourTry(n => n + 1)} style={{ ...timeBtn, fontStyle: "normal", marginLeft: 8 }}>↻ {t.retry}</button>
+            )}
           </p>
           <div className="flex items-center justify-between mt-2">
             <div className="flex gap-1.5">
@@ -1564,6 +1604,12 @@ export default function Constellations({ lang = "es" }) {
         </div>
       )}
     </div>
+    {failedLayers.length > 0 && (
+      <ErrorNotice className="mt-3"
+        message={`${t.layersError} ${failedLayers.map(c => c[lang] || c.es).join(", ")}.`}
+        retryLabel={t.retry} onRetry={() => failedLayers.forEach(loadLayer)} />
+    )}
+    </>
   );
 }
 
