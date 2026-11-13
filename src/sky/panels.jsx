@@ -11,6 +11,32 @@ import { useDialogFocus } from "./focus.js";
 // ── Etiquetas proyectadas ────────────────────────────────────────────────
 // Tienen su propio estado: el bucle de render las actualiza ~12 veces/s sin
 // volver a renderizar toda la vista.
+// Medidor de rendimiento opcional (#sky?...&fps=1): se actualiza dos veces por segundo desde el bucle
+// de animación escribiendo directamente en el DOM (no provoca renders de React).
+export const PerfMeter = memo(function PerfMeter({ t, lang, apiRef }) {
+  const box = useRef(null);
+  useEffect(() => {
+    const n = (v, d = 0) => Number(v).toLocaleString(lang === "es" ? "es" : "en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+    apiRef.current = (s) => {
+      const el = box.current; if (!el) return;
+      const set = (k, v) => { const x = el.querySelector(`[data-k="${k}"]`); if (x && x.textContent !== v) x.textContent = v; };
+      set("fps", s.n ? n(s.fps) : "–"); set("low", s.n ? n(s.low1) : "–");
+      set("js", s.n ? `${n(s.jsMean, 1)} ms (p95 ${n(s.jsP95, 1)})` : "–");
+      set("drawn", n(s.drawnPerS) + (s.idle ? ` · ${t.perfIdle}` : ""));
+      set("objs", n(s.objs)); set("labels", n(s.labels));
+      set("res", `${s.w}×${s.h} · ×${n(s.ratio, 2)}${s.ratio < s.base ? ` (↓ ${n(s.base, 2)})` : ""}${s.dpr > s.base ? ` · dpr ${n(s.dpr, 2)}` : ""}`);
+      el.dataset.idle = String(!!s.idle); el.dataset.ratio = String(s.ratio);
+    };
+    return () => { apiRef.current = null; };
+  }, [apiRef, lang, t]);
+  const row = (k, label) => <div><dt>{label}</dt><dd data-k={k}>–</dd></div>;
+  return (
+    <dl className="sk-perf" ref={box} aria-label={t.perfAria}>
+      {row("fps", t.perfFps)}{row("low", t.perfLow)}{row("js", t.perfJs)}{row("drawn", t.perfFrames)}{row("objs", t.perfObjs)}{row("labels", t.perfLabels)}{row("res", t.perfRes)}
+    </dl>
+  );
+});
+
 export const SkyLabels = memo(function SkyLabels({ apiRef, colors, unit, locale, onNote, noteAria }) {
   const [labels, setLabels] = useState([]);
   useEffect(() => { apiRef.current = setLabels; return () => { apiRef.current = null; }; }, [apiRef]);
@@ -132,7 +158,7 @@ const GROUPS = [
   { id: "deep", keys: ["messier", "galaxies", "blackholes", "pulsars", "exoplanets"] },
 ];
 export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, layerError, onToggle, onRetry,
-  showSolar, onToggleSolar, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote }) {
+  showSolar, onToggleSolar, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid }) {
   // patrón llamativo de la capa (contado en los datos cargados): una línea y un botón para verlo
   const noteLine = (key) => {
     const n = enabled[key] && notes.find((x) => x.layer === key);
@@ -210,6 +236,15 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
             ))}
           </div>
         </div>
+        {onVivid && (
+          <div className="sk-layer">
+            <button type="button" role="switch" aria-checked={vivid} className="sk-layer-main" onClick={onVivid}>
+              <i className="sk-dot" style={{ background: "linear-gradient(90deg,#a8c0ff,#fff1ea 50%,#ffbd78)" }} />
+              <span className="sk-layer-txt"><b>{t.vividStars}</b><small>{t.vividHint}</small></span>
+              <i className="sk-switch" />
+            </button>
+          </div>
+        )}
       </div>
       <p className="sk-panel-foot">{t.scaleNote}<br />{t.baseSources}</p>
     </PanelShell>

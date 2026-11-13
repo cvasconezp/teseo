@@ -129,8 +129,21 @@ console.log("Constelaciones");
   console.log(`        Orión: ${d.near.name} a ${d.near.dist} a. l. · ${d.far.name} a ${d.far.dist} a. l.`);
 }
 
+console.log("sky.json: esquema");
+{
+  // esquema 2: [hip, x, y, z, mag, color, dist_ly, nombre, B−V|null, espectro]. Los 8 primeros no cambian de
+  // posición ni de significado: el código antiguo (y un sky.json antiguo en caché) siguen funcionando.
+  ok(sky.meta && sky.meta.schema === 2 && sky.meta.star_fields.slice(0, 8).join() === "hip,x,y,z,mag,color,dist_ly,name", "meta.schema = 2 y los 8 primeros campos de siempre", JSON.stringify(sky.meta && sky.meta.star_fields));
+  ok(sky.stars.length === 5044 && sky.stars.every((s) => s.length === 10), "5.044 estrellas de 10 campos");
+  ok(sky.stars.every((s) => Number.isInteger(s[0]) && s[0] > 0 && typeof s[4] === "number" && typeof s[6] === "number" && s[6] > 0 && typeof s[7] === "string"), "HIP, magnitud, distancia y nombre con su tipo");
+  ok(sky.stars.filter((s) => s[8] != null).length >= 5040 && sky.stars.filter((s) => s[9]).length === sky.stars.length, "casi todas con B−V y todas con tipo espectral (HYG v4.1)");
+  ok(/build_sky\.py/.test(sky.meta.generator) && /CC BY-SA 4\.0/.test(sky.meta.stars_source), "generador y licencia declarados");
+}
+
 console.log("Participa (ciencia ciudadana)");
 {
+  ok(citizenFor({ layer: "meteors" })[0].url === "https://www.imo.net/observations/fireballs/fireball-report-program/" && /diez noches cada mes/.test(CITIZEN.find((p) => p.id === "globe-at-night").es) && /ten-night campaigns every month/.test(CITIZEN.find((p) => p.id === "globe-at-night").en), "IMO: página del programa de bólidos; Globe at Night: campañas mensuales de diez noches (verificado 13-nov-2026)");
+  ok(!CITIZEN.some((p) => /no se pudo confirmar|could not be confirmed/i.test(p.es + p.en)), "ningún texto dice que no se pudo confirmar");
   ok(/^\d{4}-\d{2}-\d{2}$/.test(CITIZEN_VERIFIED), "hay fecha de verificación");
   ok(CITIZEN.every((p) => /^https:\/\//.test(p.url) && p.es && p.en && p.name && p.org && ["fetch", "search"].includes(p.how) && TX.es.joinNeeds[p.needs] && TX.en.joinNeeds[p.needs]), "cada proyecto: URL https, textos ES/EN, cómo se comprobó y qué hace falta");
   ok(new Set(CITIZEN.map((p) => p.id)).size === CITIZEN.length, "sin duplicados");

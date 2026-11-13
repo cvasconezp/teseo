@@ -25,7 +25,10 @@ copia; nuestro render 3D es propio, con Three.js.)
 ## Fuentes de datos
 | Dato | Fuente | Licencia |
 |---|---|---|
-| Posiciones/distancias de estrellas | HYG Database v4.1 (astronexus) | CC BY-SA 4.0 |
+| Posiciones/distancias de estrellas, índice de color B−V y tipo espectral | [HYG Database v4.1](https://github.com/astronexus/HYG-Database) (astronexus) — regenerado con `scripts/build_sky.py` | CC BY-SA 4.0 |
+| Temperatura estelar a partir de B−V (fórmula) | Ballesteros, F. J. (2012), *EPL* 97, 34008 ([arXiv:1201.1809](https://arxiv.org/abs/1201.1809)), ec. 14 | cita bibliográfica |
+| Color de cuerpo negro (fórmula) | Kim et al., lugar de Planck en CIE 1931 (US 7024034; Kang et al. 2002, *J. Korean Phys. Soc.* 41, 865) + matriz sRGB IEC 61966-2-1 | cita bibliográfica |
+| Imágenes curadas de naves, cometas, Sol, Luna, planetas y cielo profundo (`src/sky/nasaImages.js`) | [NASA Image and Video Library](https://images.nasa.gov/) (API `images-api.nasa.gov`) | material de la NASA: en general sin copyright; crédito tal como lo da la NASA (ver abajo) |
 | Líneas de constelaciones | Stellarium "western/modern skyculture" + IAU | CC BY-SA (datos; atribución) |
 | Cúmulos/nebulosas/galaxias (Messier/NGC) | OpenNGC (M. Verga) | CC-BY-SA-4.0 |
 | Distancias Messier | SEDS / valores publicados | dominio público (hechos) |
@@ -94,3 +97,30 @@ contra los propios servicios.
 - Las descripciones de misión se sirven en inglés, tal cual las da el
   proveedor (no se traducen con IA).
 
+
+### NASA Image and Video Library (imágenes en la ficha)
+- Fuente: <https://images.nasa.gov/> · API documentada en
+  <https://images.nasa.gov/docs/images.nasa.gov_api_docs.pdf> (`/search`,
+  `/asset/{nasa_id}`, sin clave). Verificado el 13-nov-2026.
+- Condiciones (NASA Images and Media Usage Guidelines,
+  <https://www.nasa.gov/nasa-brand-center/images-and-media/>): el material de la
+  NASA «generally [is] not subject to copyright in the United States» y puede
+  usarse con fines educativos e informativos, incluidas páginas web, **sin
+  sugerir respaldo de la NASA** y **reconociendo a la NASA como fuente**.
+  Excepciones que respetamos: el logotipo/insignia de la NASA no es de dominio
+  público (no se usa ninguna imagen cuyo motivo sea el logotipo); las personas
+  identificables requieren permiso para usos comerciales (no se eligió ninguna
+  imagen de personas); el material de terceros con copyright va marcado con su
+  titular (se descartaron las imágenes «© ESA»).
+- Cada imagen es una elección manual (no el primer resultado de una búsqueda):
+  `nasa_id`, título, crédito y fecha tal como los da la API, y su tipo:
+  **fotografía**, **observación real procesada** (infrarrojo, ultravioleta,
+  colores falsos), **ilustración artística** o **imagen generada por
+  computadora**. La ficha lo rotula siempre y enlaza a
+  `https://images.nasa.gov/details/{nasa_id}`. Comprobación contra la API real:
+  `node scripts/test_sky_nasa.mjs --red`.
+- **CORS:** la API responde `Access-Control-Allow-Origin: *`, pero las imágenes
+  de `images-assets.nasa.gov` casi nunca (depende de la copia en caché de su
+  CDN). Por eso la imagen de la NASA solo se muestra en la ficha; la postal
+  (que se dibuja en un lienzo y se exporta) usa Wikipedia o la representación
+  propia (`NASA_CANVAS_OK = false` en `src/sky/postcard.js`).

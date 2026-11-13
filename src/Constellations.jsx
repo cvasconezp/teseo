@@ -7,7 +7,7 @@ import { fetchJson, isAbort, TIMEOUT_MS } from "./net.js";
 import { BODIES, BODY_NAMES, bodyName, textureUrl, drawBodySprite, SPRITE_PX } from "./sky/bodies.js";
 import { fmtDist, fmtYears, fmtWhenShort, fmtKm, fmtDuration } from "./sky/format.js";
 import Icon from "./sky/icons.jsx";
-import { SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TimePanel, TourCard, Onboarding, PointingBar, SkyActions, GuideHud, TonightPanel } from "./sky/panels.jsx";
+import { PerfMeter, SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TimePanel, TourCard, Onboarding, PointingBar, SkyActions, GuideHud, TonightPanel } from "./sky/panels.jsx";
 import { cameraQuat, lookFromQuat } from "./sky/deviceOrientation.js";
 import { guideArrow, turnHint, altAz } from "./sky/guide.js";
 import { computeTonight } from "./sky/tonight.js";
@@ -18,6 +18,8 @@ import ObjectSheet, { describeObject, visibilityOf } from "./sky/ObjectSheet.jsx
 import ConstellationSheet from "./sky/ConstellationSheet.jsx";
 import ShareDialog from "./sky/ShareDialog.jsx";
 import { buildPostcard } from "./sky/postcard.js";
+import { starHex } from "./sky/starColor.js";
+import { perfFlag, createFrameStats, createAdaptive } from "./sky/perf.js";
 import { fetchWikiFor, fetchImageCredit } from "./sky/wiki.js";
 import { constellationData, conNameEs } from "./sky/constellations.js";
 import { declination } from "./sky/geomag.js";
@@ -62,6 +64,12 @@ const PLACES = [
 let pointAzOffset = 0;
 const POINT_SPAN = 75;              // grados de cielo que abarca el lado largo de la pantalla al empezar
 const HINT_KEY = "teseo_hint_v2";   // primeros pasos vistos (v1 era el párrafo antiguo)
+// medidor de rendimiento: #sky?...&fps=1 o ?perf=1 (se lee una vez, al cargar)
+const PERF_ON = typeof window !== "undefined" && perfFlag(window.location.hash, window.location.search);
+// &adapt=0: resolución fija (sin bajada adaptativa), para comparar mediciones
+const ADAPT_OFF = typeof window !== "undefined" && /[?&]adapt=0\b/.test(window.location.hash + "&" + window.location.search);
+const IDLE_EVERY = 6;                 // con el cielo quieto se dibuja 1 de cada 6 cuadros (la Tierra en miniatura sigue girando)
+const VIVID_KEY = "teseo_star_vivid";   // "resaltar colores de las estrellas" (1/0)
 
 // Términos genéricos de categoría: al buscar "pulsar" o "agujero negro" se
 // lista la capa entera en vez de exigir el nombre exacto de cada objeto.
@@ -82,8 +90,12 @@ function labelForObj(key, o, lang) {
   return o.name;
 }
 // estrella del catálogo ([hip, nx, ny, nz, mag, color, dist_ly, nombre]) -> objeto seleccionable
+// + [8] B−V y [9] tipo espectral desde el esquema 2 de sky.json; con un sky.json antiguo en caché faltan y
+// la estrella conserva el color del catálogo, sin temperatura.
+const STAR_MODE = { vivid: false };   // "resaltar colores": lo sincroniza el componente
+const starTint = (st) => starHex(st[8], STAR_MODE.vivid, st[5]);
 function starObj(st, si) {
-  return { name: st[7], nx: st[1], ny: st[2], nz: st[3], dist_ly: st[6], mag: st[4], hex: st[5], si, layer: "star" };
+  return { name: st[7], nx: st[1], ny: st[2], nz: st[3], dist_ly: st[6], mag: st[4], hex: starTint(st), bv: st[8] === undefined ? undefined : st[8], spect: st[9] || "", si, layer: "star" };
 }
 
 // Una lluvia está activa si hoy (MM-DD) cae en [start, end]; la ventana puede
@@ -468,6 +480,7 @@ export default function Constellations({ lang = "es" }) {
   const [depth, setDepth] = useState(0);     // 0..1
   const wrapRef = useRef(null);          // hueco en el flujo de la página; el visor se ensancha desde él
   const labelsApiRef = useRef(null);     // setter de etiquetas (viven en <SkyLabels>)
+  const perfApiRef = useRef(null);       // setter del medidor de rendimiento (vive en <PerfMeter>)
   const [ready, setReady] = useState(false);
   const [datasets, setDatasets] = useState({}); // key -> {objects}
   const [enabled, setEnabled] = useState({});   // key -> bool
@@ -492,6 +505,9 @@ export default function Constellations({ lang = "es" }) {
   const pendingObjRef = useRef(null);   // objeto a restaurar desde la URL
   const hydratedRef = useRef(false);     // no escribir el hash antes de leerlo
   const [labelDensity, setLabelDensity] = useState("normal");
+  // colores de las estrellas: realistas (suaves) por defecto; "resaltar" usa el color de cuerpo negro entero
+  const [vividStars, setVividStars] = useState(() => { try { return localStorage.getItem(VIVID_KEY) === "1"; } catch { return false; } });
+  STAR_MODE.vivid = vividStars;
   const [tourActive, setTourActive] = useState(false);
   const [tourIndex, setTourIndex] = useState(0);
   const [tourAuto, setTourAuto] = useState(true);
@@ -760,6 +776,8 @@ export default function Constellations({ lang = "es" }) {
       if (on.length) p.set("L", on.join(","));
       if (sel) p.set("c", sel);
       if (viewFrom) p.set("v", encodeURIComponent(viewFrom.name) + "~" + viewFrom.pos.map(n => n.toFixed(3)).join("~"));
+      if (PERF_ON) p.set("fps", "1");
+      if (ADAPT_OFF) p.set("adapt", "0");           // el medidor sobrevive a la reescritura del enlace
       if (selObj && selObj.name && selObj.layer !== "note") p.set("o", selObj.layer + "~" + encodeURIComponent(selObj.layer === "con" ? selObj.ab : selObj.name));
       else if (pendingObjRef.current) p.set("o", pendingObjRef.current);   // aún restaurándose: no se pierde del enlace
       const qs = p.toString();
@@ -805,7 +823,12 @@ export default function Constellations({ lang = "es" }) {
     // sin preserveDrawingBuffer: la postal vuelve a renderizar justo antes de copiar el lienzo
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(W, H);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // densidad de píxeles: como mucho 2 (por encima la GPU pinta 2–3× más píxeles sin ganancia visible) y,
+    // si los FPS caen de forma sostenida, baja por escalones y se restaura al mejorar (src/sky/perf.js)
+    const basePR = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(basePR);
+    const adaptive = createAdaptive({ max: basePR });
+    const frameStats = createFrameStats(600);
     mount.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -830,6 +853,7 @@ export default function Constellations({ lang = "es" }) {
     const posDeep = new Float32Array(N * 3);
     const colors = new Float32Array(N * 3);
     const sizes = new Float32Array(N);
+    const starBright = new Float32Array(N);
     const hipIndex = new Map();
     sky.stars.forEach((s, i) => {
       const [hip, nx, ny, nz, mag, hex, dist] = s;
@@ -837,11 +861,12 @@ export default function Constellations({ lang = "es" }) {
       const rf = FLAT_R, rd = depthRadius(dist);
       posFlat[i*3] = nx*rf; posFlat[i*3+1] = ny*rf; posFlat[i*3+2] = nz*rf;
       posDeep[i*3] = nx*rd; posDeep[i*3+1] = ny*rd; posDeep[i*3+2] = nz*rd;
-      let [r,g,b] = hexToRgb(hex);
+      let [r,g,b] = hexToRgb(starTint(s));
       const isAster = asterHips.has(hip);
       let bright = Math.max(0.16, Math.min(1, 1.5 - mag * 0.16));
       if (isAster) bright = Math.max(bright, 0.85);
       colors[i*3]=r*bright; colors[i*3+1]=g*bright; colors[i*3+2]=b*bright;
+      starBright[i] = bright;
       sizes[i] = isAster ? Math.max(3.0, 9.5 - mag * 0.8) : Math.max(0.8, 5.2 - mag * 0.62);
     });
     // precálculo para etiquetas LOD
@@ -862,16 +887,19 @@ export default function Constellations({ lang = "es" }) {
     sGeo.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
     const starTex = makeStarTexture();
     const sMat = new THREE.ShaderMaterial({
-      uniforms: { map: { value: starTex }, uScale: { value: 1 } },   // uScale: estrellas más grandes al apuntar al cielo
+      // uScale: estrellas más grandes al apuntar al cielo; uPx: 1 a la resolución base y < 1 cuando la
+      // resolución adaptativa la baja, para que las estrellas conserven su tamaño aparente
+      uniforms: { map: { value: starTex }, uScale: { value: 1 }, uPx: { value: 1 } },
       vertexShader: [
         "uniform float uScale;",
+        "uniform float uPx;",
         "attribute float size;",
         "attribute vec3 scolor;",
         "varying vec3 vColor;",
         "void main(){",
         "  vColor = scolor;",
         "  vec4 mv = modelViewMatrix * vec4(position,1.0);",
-        "  gl_PointSize = clamp(size * uScale * (520.0 / -mv.z), 0.6, 16.0);",
+        "  gl_PointSize = clamp(size * uScale * (520.0 / -mv.z), 0.6, 16.0) * uPx;",
         "  gl_Position = projectionMatrix * mv;",
         "}",
       ].join("\n"),
@@ -1027,11 +1055,17 @@ export default function Constellations({ lang = "es" }) {
 
     sceneRef.current = { scene, camera, renderer, controls, points, lines,
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
+      // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
+      recolorStars: () => {
+        sky.stars.forEach((s, i) => { const [r, g, b] = hexToRgb(starTint(s)), k = starBright[i]; colors[i*3] = r*k; colors[i*3+1] = g*k; colors[i*3+2] = b*k; });
+        sGeo.attributes.scolor.needsUpdate = true;
+      },
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, lang: langRef.current, sizeSolar, applyArFov, ground,
       // apuntar al cielo: objetos fijos que el bucle reutiliza (nada se crea por frame)
       ar: { on: false, has: false, t: 0, n: 0, decl: 0, north: false, span: POINT_SPAN, savedFov: 55, alt: 0, cur: new THREE.Quaternion(), tgt: new THREE.Quaternion(), arr: [0, 0, 0, 1], look: { alt: 0, az: 0 }, g: {}, look2: {} },
       guide: null, fly: null, _labels: [], notes: [], noteTags: {}, when: new Date(), occl: [], _occN: 0,
+      wake: () => { wakeUntil = performance.now() + 500; }, perf: { stats: frameStats, adaptive, basePR, idle: false, drawn: 0 },
       viewShift: { x: 0, yf: 0, cx: 0, cy: 0, dirty: false } };
     setReady(true);
 
@@ -1051,11 +1085,22 @@ export default function Constellations({ lang = "es" }) {
 
     // animation
     let raf;
+    // Dibujar solo cuando hace falta: si la cámara no se movió y nada cambió, se dibuja 1 de cada
+    // IDLE_EVERY cuadros. Cualquier interacción o cambio de estado "despierta" el bucle medio segundo.
+    let wakeUntil = performance.now() + 2000, idleN = 0, lastT = 0, prevDrawn = false;
+    let adaptN = 0, adaptMs = 0, perfTick = 0, drawnN = 0, drawnT0 = performance.now();
+    const sceneT0 = performance.now();
+    const lastCam = { px: NaN, py: NaN, pz: NaN, qx: NaN, qy: NaN, qz: NaN, qw: NaN, fov: NaN, vx: NaN, vy: NaN, us: NaN };
+    const wakeEv = () => { wakeUntil = performance.now() + 500; };
+    for (const ev of ["pointerdown", "pointermove", "wheel", "touchstart", "keydown"]) renderer.domElement.addEventListener(ev, wakeEv, { passive: true });
+    const onVisible = () => { lastT = 0; prevDrawn = false; wakeEv(); };          // al volver a la pestaña no se cuenta la pausa como un cuadro lento
+    document.addEventListener("visibilitychange", onVisible);
     const tmp = new THREE.Vector3(), flyV = new THREE.Vector3(), flyQ = new THREE.Quaternion();
     const cullQ = new THREE.Quaternion(), cullF = new THREE.Vector3(), cullP = new THREE.Vector3();
     const animate = () => {
       raf = requestAnimationFrame(animate);
       const ref = sceneRef.current; if (!ref) return;
+      const tStart = performance.now(), dtFrame = lastT ? tStart - lastT : 0; lastT = tStart;
       if (ref.earth) ref.earth.rotation.y += 0.0006;
       const dpt = depthRef.current;
       const selAb = selRef.current;
@@ -1141,7 +1186,40 @@ export default function Constellations({ lang = "es" }) {
         else ref.camera.setViewOffset(vw, vh, vs.cx, vs.cy, vw, vh);
         vs.dirty = false;
       }
-      ref.renderer.render(ref.scene, ref.camera);
+      // ¿cambió algo desde el último cuadro dibujado?
+      const cp = ref.camera.position, cq = ref.camera.quaternion, us = ref.points.material.uniforms.uScale.value;
+      // (con tolerancia: el amortiguado de OrbitControls sigue moviendo la cámara millonésimas durante segundos;
+      // se compara con el último cuadro DIBUJADO, así que una deriva lenta acaba dibujándose igual)
+      const far = (a, b, e) => !(Math.abs(a - b) <= e);
+      const moved = rebuild || ar.on || !!ref.fly || tStart < wakeUntil || far(cp.x, lastCam.px, 0.01) || far(cp.y, lastCam.py, 0.01) || far(cp.z, lastCam.pz, 0.01)
+        || far(cq.x, lastCam.qx, 1e-6) || far(cq.y, lastCam.qy, 1e-6) || far(cq.z, lastCam.qz, 1e-6) || far(cq.w, lastCam.qw, 1e-6) || ref.camera.fov !== lastCam.fov || far(vs.cx, lastCam.vx, 0.25) || far(vs.cy, lastCam.vy, 0.25) || us !== lastCam.us;
+      const draw = moved || (++idleN % IDLE_EVERY === 0);
+      if (moved) idleN = 0;
+      if (draw) {
+        lastCam.px = cp.x; lastCam.py = cp.y; lastCam.pz = cp.z; lastCam.qx = cq.x; lastCam.qy = cq.y; lastCam.qz = cq.z; lastCam.qw = cq.w; lastCam.fov = ref.camera.fov; lastCam.vx = vs.cx; lastCam.vy = vs.cy; lastCam.us = us;
+        ref.renderer.render(ref.scene, ref.camera);
+        drawnN++;
+      }
+      ref.perf.idle = !moved;
+      // estadísticas y resolución adaptativa: solo con cuadros dibujados seguidos (en reposo no se mide)
+      const jsMs = performance.now() - tStart;
+      if (draw && moved && prevDrawn && frameStats.push(dtFrame, jsMs)) {
+        adaptN++; adaptMs += dtFrame;
+        if (adaptMs >= 500) {
+          // los primeros segundos (carga de catálogos y texturas) no cuentan: son lentos en cualquier equipo
+          const nr = !ADAPT_OFF && tStart - sceneT0 > 8000 ? adaptive.update(1000 * adaptN / adaptMs, adaptMs) : null; adaptN = 0; adaptMs = 0;
+          if (nr != null) { ref.renderer.setPixelRatio(nr); ref.points.material.uniforms.uPx.value = nr / basePR; wakeEv(); }
+        }
+      } else if (!moved) { adaptN = 0; adaptMs = 0; }
+      prevDrawn = draw && moved;
+      if (PERF_ON && perfApiRef.current && tStart - perfTick > 500) {
+        const el = (tStart - drawnT0) / 1000; perfTick = tStart;
+        let objs = ref.N + (ref.showSolar ? (ref.bodies || []).length : 0);
+        for (const o of (ref.layerObjs || [])) if (o.points.visible) objs += (o.points.userData.objs || []).length;
+        const sz = ref.renderer.domElement;
+        perfApiRef.current({ ...frameStats.summary(), idle: !moved, drawnPerS: el > 0 ? drawnN / el : 0, objs, labels: (ref._labels || []).length, ratio: adaptive.ratio, base: basePR, dpr: window.devicePixelRatio || 1, w: sz.width, h: sz.height });
+        drawnN = 0; drawnT0 = tStart;
+      }
       // ── flecha guía: dónde queda el objetivo respecto a la mirada del teléfono ──
       const gd = ref.guide;
       if (ar.on && ar.has && gd && guideApiRef.current) {
@@ -1163,8 +1241,9 @@ export default function Constellations({ lang = "es" }) {
         }
       }
       // ── etiquetas con nivel de detalle (LOD) ──
-      ref._lf = (ref._lf || 0) + 1;
-      if (ref._lf < 4 || ref._lf % 5 === 0) {
+      // (en reposo no se recalculan: si nada se movió, los nombres siguen donde estaban)
+      if (draw) ref._lf = (ref._lf || 0) + 1;
+      if (draw && (ref._lf < 4 || ref._lf % 5 === 0)) {
         const W = mount.clientWidth, H = mount.clientHeight;
         const camDist = ref.camera.position.length();
         const out = [];
@@ -1315,6 +1394,7 @@ export default function Constellations({ lang = "es" }) {
     return () => {
       sceneDead = true;
       cancelAnimationFrame(raf);
+      document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("resize", onResize);
       if (ro) ro.disconnect();
       controls.dispose();
@@ -1535,6 +1615,16 @@ export default function Constellations({ lang = "es" }) {
   }, [notes, enabled, lang, ready]);
   const shiftMin = useCallback((m) => { setTimeMoved(true); setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + m * 60000))); }, []);
   useEffect(() => { if (sceneRef.current) sceneRef.current.labelDensity = labelDensity; }, [labelDensity, ready]);
+  // tras cada render de React (capas, selección, hora, idioma…) el bucle dibuja a ritmo completo medio segundo
+  useEffect(() => { const r = sceneRef.current; if (r && r.wake) r.wake(); });
+  useEffect(() => {
+    STAR_MODE.vivid = vividStars;
+    try { localStorage.setItem(VIVID_KEY, vividStars ? "1" : "0"); } catch { /* no-op */ }
+    const ref = sceneRef.current;
+    if (ref && ref.recolorStars) { ref.recolorStars(); if (ref.wake) ref.wake(); }
+    // la ficha y la postal de la estrella abierta siguen el mismo color
+    setSelObj((o) => (o && o.layer === "star" && o.si != null && sky ? { ...o, hex: starTint(sky.stars[o.si]) } : o));
+  }, [vividStars, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
   // idioma: nombres de las etiquetas y punto cardinal Oeste (O / W)
   useEffect(() => {
     langRef.current = lang;
@@ -1685,7 +1775,7 @@ export default function Constellations({ lang = "es" }) {
       dist: (d) => fmtDist(d, lang), years: (y) => fmtYears(y, lang), km: (k) => fmtKm(k, lang), dur: (x) => fmtDuration(x, lang),
       when: (d) => d.toLocaleString(loc, lang === "es" ? { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }),
     };
-    const base = { lang, t: TC[lang], fmt, sky, conDirs, bodies: bodiesRef.current, local, showSolar: showSolar && !viewFrom };
+    const base = { lang, t: TC[lang], fmt, sky, conDirs, bodies: bodiesRef.current, local, showSolar: showSolar && !viewFrom, starHex: starTint };
     const so = selObj;
     const conAb = so && so.layer === "con" ? so.ab : (!so && sel ? sel : null);
     if (conAb) {
@@ -1711,7 +1801,7 @@ export default function Constellations({ lang = "es" }) {
       center = [v.x, v.y, v.z];
     }
     return buildPostcard({ ...base, center });
-  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom]);
+  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars]);
   const openShare = useCallback(() => { setShareState(null); setShare(true); }, []);
 
   const useMyLocation = useCallback(() => {
@@ -2117,6 +2207,7 @@ export default function Constellations({ lang = "es" }) {
     <div ref={wrapRef} className="sk-wrap">
     <div ref={stageRef} className={stageClass} onKeyDown={onStageKey} onPointerDownCapture={bumpCtl}>
       <div ref={mountRef} className="sk-canvas" role="application" tabIndex={0} onKeyDown={onCanvasKey} aria-label={t.canvasAria} />
+      {PERF_ON && <PerfMeter t={t} lang={lang} apiRef={perfApiRef} />}
       <SkyLabels apiRef={labelsApiRef} colors={LABEL_COLOR} unit={t.lightyears} locale={lang === "es" ? "es" : "en-US"} onNote={openNote} noteAria={t.noteAria} />
 
       {!sky && !skyError && (
@@ -2225,6 +2316,7 @@ export default function Constellations({ lang = "es" }) {
         <LayersPanel t={t} lang={lang} layers={LAYERS} datasets={datasets} enabled={enabled} loadingLayer={loadingLayer} layerError={layerError}
           onToggle={toggleLayer} onRetry={loadLayer} showSolar={showSolar} onToggleSolar={() => setShowSolar(v => !v)}
           constellations={sortedCons} sel={sel} onPick={onPick} labelDensity={labelDensity} onDensity={setLabelDensity}
+          vivid={vividStars} onVivid={() => setVividStars(v => !v)}
           onClose={() => setPanel(null)} notes={notes} onNote={openNote} />
       )}
       {sky && panel === "location" && (

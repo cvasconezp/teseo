@@ -95,7 +95,9 @@ Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 
 ## 🧪 Ideas para explorar
 - [ ] Más culturas de constelaciones (no solo la moderna/occidental; p. ej. andina)
-- [ ] Color de las estrellas por temperatura real (falta B−V o tipo espectral en sky.json)
+- [x] Color de las estrellas por temperatura real (B−V de HYG v4.1, Ballesteros 2012) y tipo espectral explicado
+- [x] Imágenes curadas de la NASA Image and Video Library, rotuladas foto / ilustración
+- [x] Medidor de rendimiento (#sky?...&fps=1) y resolución adaptativa
 - [ ] Rutas con órbitas reales y asistencias gravitatorias; pasos visibles de la ISS
 - [x] Lluvias de meteoros ("activa ahora"), cometas y sondas/telescopios en vivo (NASA Horizons)
 - [ ] Satélites en vivo (TLE de Celestrak + SGP4)

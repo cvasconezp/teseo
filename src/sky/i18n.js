@@ -96,7 +96,7 @@ export const TX = {
       pulsars: "Estrellas muertas que giran hasta cientos de veces por segundo. Fuente: catálogo ATNF.",
       exoplanets: "Planetas de otras estrellas. Fuente: NASA Exoplanet Archive, en vivo.",
     },
-    baseSources: "Estrellas: catálogo HYG v4.1 (Hipparcos, Yale, Gliese). Figuras de las constelaciones: Stellarium, cultura occidental moderna (IAU).",
+    baseSources: "Estrellas: catálogo HYG v4.1 (Hipparcos, Yale, Gliese). Figuras de las constelaciones: Stellarium, cultura occidental moderna (IAU). Color de las estrellas: su temperatura estimada a partir del índice B−V. Imágenes: NASA Image and Video Library y Wikipedia/Wikimedia Commons.",
     // ── ficha: fuente y aproximaciones ──
     approx: "aprox.",
     srcSolar: "Posición: efemérides de Paul Schlyter (elementos orbitales). Datos físicos: NASA Planetary Fact Sheet.",
@@ -284,7 +284,7 @@ export const TX = {
       pulsars: "Dead stars spinning up to hundreds of times a second. Source: ATNF catalogue.",
       exoplanets: "Planets around other stars. Source: NASA Exoplanet Archive, live.",
     },
-    baseSources: "Stars: HYG v4.1 catalogue (Hipparcos, Yale, Gliese). Constellation figures: Stellarium, modern western sky culture (IAU).",
+    baseSources: "Stars: HYG v4.1 catalogue (Hipparcos, Yale, Gliese). Constellation figures: Stellarium, modern western sky culture (IAU). Star colours: temperature estimated from the B−V index. Images: NASA Image and Video Library and Wikipedia/Wikimedia Commons.",
     approx: "approx.",
     srcSolar: "Position: Paul Schlyter's ephemerides (orbital elements). Physical data: NASA Planetary Fact Sheet.",
     srcStar: "HYG v4.1 (Hipparcos / Yale / Gliese)",
@@ -390,4 +390,5 @@ export const DIR_NAMES = DIRS;
 
 // textos de la ronda 3 (src/sky/i18n-r3.js): mismas claves en ES y EN
 import { R3 } from "./i18n-r3.js";
-for (const k of ["es", "en"]) Object.assign(TX[k], R3[k]);
+import { R4 } from "./i18n-r4.js";
+for (const k of ["es", "en"]) Object.assign(TX[k], R3[k], R4[k]);
