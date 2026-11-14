@@ -1,0 +1,79 @@
+/* composition.css — «¿De qué está hecho?» y «Su vida y su final» en la ficha del Cielo.
+   Sigue las variables y medidas de sky.css (--line-soft, --mute, --violet, --blue, --gold…).
+   En visión nocturna la capa roja multiplica todo: aquí no se fuerza ningún color. */
+
+.sk-comp { border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+.sk-comp + .sk-comp { border-top: 0; margin-top: -14px; }
+.sk-comp summary { display: flex; align-items: center; justify-content: space-between; min-height: 48px; cursor: pointer; list-style: none; color: var(--text); }
+.sk-comp summary::-webkit-details-marker { display: none; }
+.sk-comp summary h3 { margin: 0; font-family: var(--serif); font-size: 19px; font-weight: 600; line-height: 1.15; color: #fff; }
+.sk-comp summary svg { flex: none; transition: transform 0.2s; color: var(--mute); }
+.sk-comp[open] summary svg { transform: rotate(180deg); }
+.sk-comp summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 6px; }
+.sk-comp-body { display: grid; gap: 10px; padding-bottom: 14px; max-width: 62ch; }
+.sk-comp-body p { margin: 0; color: rgba(238, 240, 250, 0.9); font-size: 14px; line-height: 1.45; }
+.sk-comp-body h4 { margin: 2px 0 -2px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: #cfc4ff; }
+.sk-comp-note { padding-left: 12px; border-left: 2px solid var(--line-soft); }
+.sk-comp-finger { padding-left: 12px; border-left: 2px solid var(--gold); color: #f6e7c4 !important; }
+.sk-comp-hint, .sk-comp-src { display: block; font-size: 12px; line-height: 1.35; color: var(--mute); }
+.sk-comp-src { font-size: 11.5px; }
+
+/* barras de porcentaje */
+.sk-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.sk-bars li { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 10px; font-size: 13px; }
+.sk-bars-name { color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.sk-bars-val { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.sk-bars-track { grid-column: 1 / -1; height: 8px; border-radius: 99px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.sk-bars-track i { display: block; height: 100%; border-radius: 99px; background: var(--bar, var(--violet)); }
+.sk-bars [data-gas="H2"], .sk-bars [data-gas="H"] { --bar: #7db4ff; }
+.sk-bars [data-gas="He"] { --bar: #f2c66d; }
+.sk-bars [data-gas="CO2"] { --bar: #ff9d6b; }
+.sk-bars [data-gas="N2"] { --bar: #a78bfa; }
+.sk-bars [data-gas="O2"] { --bar: #67e8c8; }
+.sk-bars [data-gas="Ar"] { --bar: #c9b8ff; }
+.sk-bars [data-gas="CH4"] { --bar: #6fd3f0; }
+.sk-bars [data-gas="CO"] { --bar: #d8dde8; }
+.sk-bars [data-gas="Z"] { --bar: #ff8ad8; }
+
+/* espectro (Spectrum.jsx) */
+.sk-spec { margin: 2px 0 0; display: grid; gap: 8px; }
+.sk-spec-svg { display: block; width: 100%; height: auto; max-width: 560px; overflow: visible; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line-soft); }
+.sk-spec-svg text { font-family: var(--sans); font-size: 9px; fill: var(--mute); }
+.sk-spec-curve { fill: none; stroke: #eef0fa; stroke-width: 1.6; stroke-linejoin: round; }
+.sk-spec-base { stroke: rgba(255, 255, 255, 0.18); stroke-width: 1; }
+.sk-spec-guide { stroke: rgba(255, 255, 255, 0.22); stroke-width: 0.7; stroke-dasharray: 2 2; }
+.sk-spec-abs { fill: #05070d; }
+.sk-spec-svg .sk-spec-lbl { fill: #e3ddff; font-weight: 600; }
+.sk-spec-peak line { stroke: var(--gold); stroke-width: 1; stroke-dasharray: 3 2; }
+.sk-spec-peak .is-tip { fill: var(--gold); }
+.sk-spec-svg .sk-spec-peak text { fill: var(--gold); font-weight: 600; }
+.sk-spec-tick line { stroke: rgba(255, 255, 255, 0.35); stroke-width: 1; }
+.sk-spec-svg .sk-spec-axis { font-size: 8.5px; }
+.sk-spec figcaption { font-size: 12px; line-height: 1.4; color: var(--mute); }
+.sk-spec-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--text); }
+.sk-spec-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.sk-spec-legend i { width: 3px; height: 13px; border-radius: 1px; background: #eef0fa; }
+.sk-spec-legend [data-s="1"] i { width: 1px; opacity: 0.6; }
+.sk-spec-legend [data-s="2"] i { width: 2px; opacity: 0.85; }
+.sk-spec-legend small { color: var(--mute); font-size: 11.5px; }
+
+/* su vida y su final */
+.sk-life-facts { margin: 0; display: grid; gap: 0; border-radius: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line-soft); }
+.sk-life-facts > div { display: grid; grid-template-columns: minmax(104px, 38%) 1fr; gap: 10px; padding: 9px 12px; min-width: 0; }
+.sk-life-facts > div + div { border-top: 1px solid var(--line-soft); }
+.sk-life-facts dt { font-size: 12.5px; color: var(--mute); line-height: 1.3; }
+.sk-life-facts dd { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.3; color: #fff; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.sk-life-facts dd small { display: block; font-size: 11.5px; font-weight: 400; color: var(--mute); margin-top: 3px; line-height: 1.3; }
+
+.sk-tl { list-style: none; margin: 4px 0 2px; padding: 0; display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); position: relative; }
+.sk-tl::before { content: ""; position: absolute; left: calc(50% / var(--n, 4)); right: calc(50% / var(--n, 4)); top: 7px; height: 2px; background: rgba(255, 255, 255, 0.16); }
+.sk-tl li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0 3px; text-align: center; min-width: 0; }
+.sk-tl li > i { width: 16px; height: 16px; border-radius: 50%; background: var(--ink-solid, #0a0f1e); border: 2px solid rgba(255, 255, 255, 0.4); position: relative; z-index: 1; }
+.sk-tl li.is-past > i { background: rgba(255, 255, 255, 0.35); border-color: rgba(255, 255, 255, 0.35); }
+.sk-tl li.is-here > i { background: var(--gold); border-color: #fff; box-shadow: 0 0 0 4px rgba(242, 198, 109, 0.25); }
+.sk-tl li > span { font-size: 11.5px; line-height: 1.2; color: var(--mute); overflow-wrap: anywhere; hyphens: auto; }
+.sk-tl li.is-here > span { color: #fff; font-weight: 600; }
+.sk-tl li > em { font-style: normal; font-size: 10.5px; font-weight: 600; color: #1a1205; background: var(--gold); border-radius: 99px; padding: 1px 7px; white-space: nowrap; }
+.sk-life-ex { display: grid; gap: 4px; font-size: 13px !important; }
+.sk-life-ex a { color: var(--blue); text-decoration: underline; text-underline-offset: 2px; }
+.sk-life-ex a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
