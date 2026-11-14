@@ -158,7 +158,7 @@ const GROUPS = [
   { id: "deep", keys: ["messier", "galaxies", "blackholes", "pulsars", "exoplanets"] },
 ];
 export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, layerError, onToggle, onRetry,
-  showSolar, onToggleSolar, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid, outside = false, onOutside }) {
+  showSolar, onToggleSolar, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid, outside = false, onOutside , atmosphere}) {
   // patrón llamativo de la capa (contado en los datos cargados): una línea y un botón para verlo
   const noteLine = (key) => {
     const n = enabled[key] && notes.find((x) => x.layer === key);
@@ -220,6 +220,7 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
       ))}
       <div className="sk-group">
         <h3>{t.groups.view}</h3>
+        {atmosphere}
         <label className="sk-field">
           <span>{t.constellation3d}</span>
           <select value={sel || "__all__"} onChange={onPick}>

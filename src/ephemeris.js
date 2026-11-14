@@ -62,7 +62,9 @@ export function ephemeris(date) {
     const yh = r * (sind(p.N) * cosd(lon) + cosd(p.N) * sind(lon) * cosd(p.i));
     const zh = r * (sind(lon) * sind(p.i));
     const xg = xh + sun.x, yg = yh + sun.y, zg = zh;
-    out.push({ name: nameES(key), body: "planet", planet: key, ...dirObj(eclToEq(xg, yg, zg, ecl)), dist_au: Math.sqrt(xg*xg+yg*yg+zg*zg) });
+    // r_au, hel y geo (eclíptica de la fecha, UA): para la magnitud aparente (src/sky/planetMag.js)
+    out.push({ name: nameES(key), body: "planet", planet: key, ...dirObj(eclToEq(xg, yg, zg, ecl)), dist_au: Math.sqrt(xg*xg+yg*yg+zg*zg),
+      r_au: Math.sqrt(xh*xh+yh*yh+zh*zh), hel: [xh, yh, zh], geo: [xg, yg, zg] });
   }
 
   // Luna (geocéntrica) + perturbaciones principales

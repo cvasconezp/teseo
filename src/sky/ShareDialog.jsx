@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { canvasBlob } from "./postcard.js";
+import { track } from "../ui/track.js";
 
 export const fileNameFor = (name) => `teseo-${String(name || "cielo").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w-]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase() || "cielo"}.png`;
 
@@ -28,13 +29,13 @@ export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkS
         const { canvas, report } = await build();
         const blob = await canvasBlob(canvas);
         if (dead) return;
-        if (!blob) { setState("failed"); return; }
+        if (!blob) { setState("failed"); track("sky_postcard", { state: "fail" }); return; }
         const file = new File([blob], fileNameFor(name), { type: "image/png" });
         fileRef.current = file; reportRef.current = report;
         objectUrl = URL.createObjectURL(blob);
         setShareable(canShareFile(file));
-        setUrl(objectUrl); setState("ready");
-      } catch { if (!dead) setState("failed"); }
+        setUrl(objectUrl); setState("ready"); track("sky_postcard", { state: "ok" });
+      } catch { if (!dead) { setState("failed"); track("sky_postcard", { state: "fail" }); } }
     })();
     return () => { dead = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
