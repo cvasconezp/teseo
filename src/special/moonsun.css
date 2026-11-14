@@ -1,0 +1,85 @@
+/* "¿Y la Luna? ¿Y el Sol?" — Teseo. Todo bajo .ms-* y con los tokens de
+   index.css, mismo lenguaje visual que src/now/now.css (tarjetas oscuras,
+   títulos en serif). El dorado sigue reservado al hilo de Ariadna. */
+
+.ms { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line-strong); scroll-margin-top: 70px; }
+.ms__title { font-family: var(--serif); font-weight: 600; font-size: 30px; line-height: 1.1; color: #fff; text-wrap: balance; outline: none; }
+.ms__title:focus-visible { outline: 2px solid var(--violet); outline-offset: 4px; border-radius: 6px; }
+.ms__intro { margin-top: 10px; font-size: 15px; line-height: 1.55; color: var(--soft); }
+.ms__dv { margin-top: 10px; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.45; color: var(--soft); background: rgba(167, 139, 250, 0.08); border: 1px solid rgba(167, 139, 250, 0.28); }
+.ms__dv strong { font-weight: 700; color: #fff; }
+
+.ms-grid { margin-top: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+
+.ms-card { min-width: 0; padding: 18px 16px 14px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); }
+@media (min-width: 380px) { .ms-card { padding-inline: 18px; } }
+.ms-card--sun { background: linear-gradient(170deg, rgba(253, 186, 59, 0.07), rgba(255, 255, 255, 0.03) 45%); }
+.ms-card__head { display: flex; align-items: center; gap: 12px; }
+.ms-card__sphere { flex: none; line-height: 0; }
+.ms-card__title { font-family: var(--serif); font-weight: 600; font-size: 26px; line-height: 1.1; color: #fff; }
+.ms-card__tag { margin-top: 2px; font-size: 12.5px; color: var(--muted); }
+.ms-card__foot { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ms-card__foot .ms-fine + .ms-fine { margin-top: 6px; }
+
+.ms-big { margin-top: 16px; display: flex; flex-direction: column; }
+.ms-big__pre { font-size: 14px; color: var(--muted); }
+.ms-big__val { font-family: var(--serif); font-weight: 700; font-size: clamp(34px, 10vw, 44px); line-height: 1.05; color: #fff; }
+.ms-lead { margin-top: 6px; font-size: 14.5px; line-height: 1.5; color: var(--soft); }
+.ms-p { margin-top: 10px; font-size: 14.5px; line-height: 1.55; color: var(--soft); }
+.ms-p--fact { padding: 10px 12px; border-radius: 12px; color: #fff; background: rgba(110, 231, 168, 0.07); border: 1px solid rgba(110, 231, 168, 0.3); }
+.ms-fine { margin-top: 10px; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.ms-sub { margin-top: 20px; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 21px; line-height: 1.2; color: var(--violet); }
+
+/* Datos: etiqueta a la izquierda, cifra a la derecha; en pantallas muy estrechas, apiladas */
+.ms-facts { margin-top: 14px; display: grid; gap: 10px; }
+.ms-facts > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ms-facts > div:first-child { padding-top: 0; border-top: 0; }
+@media (min-width: 360px) { .ms-facts > div { grid-template-columns: minmax(0, 8.2em) minmax(0, 1fr); gap: 12px; align-items: baseline; } }
+.ms-facts dt { font-size: 13.5px; line-height: 1.35; color: var(--muted); }
+.ms-facts dd { font-family: var(--serif); font-weight: 600; font-size: 21px; line-height: 1.2; color: #fff; font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+.ms-facts__sub { display: block; margin-top: 2px; font-family: var(--sans); font-weight: 400; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.ms-facts--today dd { font-size: 19px; }
+
+.ms-note { margin-top: 16px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line); font-size: 14px; line-height: 1.55; color: var(--soft); }
+.ms-note__h { font-family: var(--serif); font-weight: 600; font-size: 19px; line-height: 1.2; color: #fff; margin-bottom: 4px; }
+
+.ms-today { margin-top: 18px; padding: 14px; border-radius: 16px; background: linear-gradient(160deg, rgba(124, 58, 237, 0.16), rgba(37, 99, 235, 0.06) 60%, rgba(255, 255, 255, 0.02)); border: 1px solid rgba(167, 139, 250, 0.3); }
+.ms-today__h { font-family: var(--serif); font-weight: 600; font-size: 21px; line-height: 1.2; color: #fff; }
+.ms-today .ms-facts { margin-top: 10px; }
+
+/* Barras de Δv (escala lineal: la longitud es proporcional al Δv) */
+.ms-bars { margin-top: 16px; }
+.ms-bars__title { font-size: 13.5px; font-weight: 600; color: var(--soft); }
+.ms-bars ul { list-style: none; margin-top: 8px; display: grid; gap: 10px; }
+.ms-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: baseline; }
+.ms-bar__label { font-size: 14px; color: var(--text); }
+.ms-bar__val { font-family: var(--serif); font-weight: 700; font-size: 20px; color: #fff; font-variant-numeric: lining-nums tabular-nums; }
+.ms-bar__track { grid-column: 1 / -1; height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.ms-bar__track > span { display: block; height: 100%; border-radius: 5px; }
+.ms-bar--mars .ms-bar__track > span { background: linear-gradient(90deg, #C1502B, #F0A070); }
+.ms-bar--escape .ms-bar__track > span { background: linear-gradient(90deg, #2563EB, #7DB9FF); }
+.ms-bar--sun .ms-bar__track > span { background: linear-gradient(90deg, #E8590C, #FDBA3B); }
+
+.ms-venus { margin-top: 14px; }
+.ms-venus__btn { width: 100%; }
+@media (min-width: 480px) { .ms-venus__btn { width: auto; } }
+.ms-venus__hint { margin-top: 6px; }
+
+/* Enlace desde Ruta (mismo aire que el acceso a "Ahora en el espacio") */
+.ms-link {
+  width: 100%; display: flex; align-items: center; gap: 14px; text-align: left; text-decoration: none;
+  padding: 12px 16px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line);
+  transition: background .2s, border-color .2s;
+}
+.ms-link:hover { background: var(--panel-strong); border-color: var(--line-strong); }
+.ms-link:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.ms-link__spheres { flex: none; display: inline-flex; align-items: center; gap: 4px; line-height: 0; }
+.ms-link__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ms-link__title { font-family: var(--serif); font-weight: 600; font-size: 21px; line-height: 1.15; color: #fff; }
+.ms-link__sub { margin-top: 2px; font-size: 13.5px; color: #C4B5FD; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.ms-link__arrow { flex: none; color: var(--violet); }
+
+@media (min-width: 1024px) {
+  .ms__title { font-size: 34px; }
+}
+@media (prefers-reduced-motion: reduce) { .ms-link { transition: none; } }
