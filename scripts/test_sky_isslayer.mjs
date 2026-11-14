@@ -6,8 +6,9 @@
 // allí para no duplicar el JSON) y su `truth_overhead`: posiciones SGP4 cada 7 s de la pasada casi cenital,
 // en instantes que no son puntos de la trayectoria.
 // Referencias independientes:
-//   · el marco: localSkyQuat de look.js (lo que gira las estrellas en «Mi cielo») aplicado a la dirección
-//     ecuatorial de cada punto (altAzToEquatorial) debe dar el mismo vector que la capa dibuja;
+//   · el marco: localSkyQuat de look.js aplicado a la dirección ecuatorial de la fecha de cada punto
+//     (altAzToEquatorial) debe dar el mismo vector que la capa dibuja; y también localSkyQuatJ2000 (lo que
+//     gira las estrellas en «Mi cielo») aplicado a esa dirección precesada a J2000;
 //   · la culminación del servidor (`max`) frente a los vértices de las geometrías (drawnCheck);
 //   · SGP4 (truth_overhead) frente a la polilínea dibujada.
 import * as THREE from "three";
@@ -18,7 +19,8 @@ import {
 } from "../src/sky/issLayer.js";
 import { altAzToLocal, altAzToEquatorial, issPositionAt, passSpan } from "../src/sky/issSky.js";
 import { normalizePasses, formatClock } from "../src/sky/issPasses.js";
-import { localSkyQuat } from "../src/sky/look.js";
+import { localSkyQuat, localSkyQuatJ2000 } from "../src/sky/look.js";
+import { dateToJ2000 } from "../src/sky/frames.js";
 
 let failed = 0, passed = 0;
 const ok = (cond, name, detail = "") => { if (cond) { passed++; console.log(`  ok    ${name}`); } else { failed++; console.log(`  FALLA ${name} ${detail}`); } };
@@ -49,6 +51,18 @@ console.log("Marco: la ISS en el mismo marco que las estrellas");
     }
   }
   ok(worst < 1e-5, `los ${n} puntos caen donde caería una estrella con esa altura/azimut (peor ${worst.toExponential(1)}°)`);
+  // la escena está en J2000 y «Mi cielo» la gira con localSkyQuatJ2000 (precesión + tiempo sidéreo): una estrella
+  // del catálogo en la dirección de cada punto (fecha → J2000) cae también exactamente sobre la ISS dibujada
+  let worstJ = 0;
+  for (const [p, [lat, lon]] of [[over, MADRID], [shadow, MADRID], [day, QUITO]]) {
+    for (const q of p.track) {
+      const date = new Date(Date.parse(q.t));
+      const j2 = dateToJ2000(altAzToEquatorial(q.alt, q.az, lat, lon, date), date);
+      const w = new THREE.Vector3(j2[0], j2[1], j2[2]).applyQuaternion(localSkyQuatJ2000(lat, lon, date));
+      worstJ = Math.max(worstJ, ang([w.x, w.y, w.z], altAzToLocal(q.alt, q.az)));
+    }
+  }
+  ok(worstJ < 1e-5, `… y con la escena en J2000 (localSkyQuatJ2000, la que usa el Cielo) también (peor ${worstJ.toExponential(1)}°)`);
   const aa = localToAltAz(...altAzToLocal(37.5, 211.25));
   ok(near(aa.alt, 37.5, 1e-9) && near(aa.az, 211.25, 1e-9), "localToAltAz deshace altAzToLocal");
 }

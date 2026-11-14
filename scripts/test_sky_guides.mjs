@@ -4,8 +4,9 @@
 //
 // Referencias independientes: el Sol, la Luna y los planetas de src/ephemeris.js; Polaris
 // (HIP 11767) de public/sky.json; Sgr A* de public/blackholes.json; la matriz A_G de Hipparcos
-// (ESA 1997, vol. 1, §1.5.3, ec. 1.5.11) y localSkyQuat de src/sky/look.js, que es lo que gira
-// las estrellas en "Mi cielo". Altura y azimut se recalculan con la fórmula clásica del ángulo
+// (ESA 1997, vol. 1, §1.5.3, ec. 1.5.11) y localSkyQuat de src/sky/look.js (el giro con el tiempo
+// sidéreo de la fecha; en "Mi cielo" las estrellas J2000 se giran con localSkyQuatJ2000 = localSkyQuat ·
+// precesión, ver scripts/test_sky_frames.mjs). Altura y azimut se recalculan con la fórmula clásica del ángulo
 // horario y el tiempo sidéreo de Meeus (Astronomical Algorithms, ec. 12.4).
 import * as THREE from "three";
 import { readFileSync } from "node:fs";
@@ -19,6 +20,7 @@ import {
 import { GuidesLayer, GUIDE_LABEL_COLOR } from "../src/sky/guidesLayer.js";
 import { GUIDES } from "../src/sky/i18n-guides.js";
 import { ephemeris } from "../src/ephemeris.js";
+import { skyBodies } from "../src/sky/frames.js";
 import { localSkyQuat, lookFrame, dirToYawPitch, lookQuat, spanToFov, SPAN_DEF } from "../src/sky/look.js";
 
 let failed = 0, passed = 0;
@@ -114,6 +116,10 @@ console.log("Eclíptica frente al Sol, la Luna y los planetas de src/ephemeris.j
     if (moon) worstMoon = Math.max(worstMoon, Math.abs(eqToEcl([moon.nx, moon.ny, moon.nz]).lat));
   }
   ok(worstSun < 0.5, `el Sol está a < 0,5° de la eclíptica en ${dates.length} fechas (2000–2050)`, `peor ${f4(worstSun)}°`);
+  // el Sol tal como se dibuja: precesado a J2000 (src/sky/frames.js → skyBodies), el marco de la eclíptica dibujada
+  let worstDrawn = 0;
+  for (const d of dates) { const dd = new Date(d), s = skyBodies(ephemeris(dd), dd, null).find((b) => b.name === "Sol"); worstDrawn = Math.max(worstDrawn, distToGreatCircleDeg([s.nx, s.ny, s.nz], ECL_NORTH_POLE)); }
+  ok(worstDrawn < 0.01, "el Sol dibujado (precesado a J2000) está a < 0,01° de la eclíptica J2000 en las mismas fechas", `peor ${f4(worstDrawn)}°`);
   ok(worstPts < 0.5, "… y a < 0,5° de la línea dibujada (polilínea de 360 puntos)", `peor ${f4(worstPts)}°`);
   ok(worstPl < 8, "los planetas quedan a < 8° de la eclíptica (Mercurio y Venus llegan a ~7°)", `peor ${f4(worstPl)}° (${plName})`);
   ok(worstMoon < 5.5, "la Luna queda a < 5,5° de la eclíptica (inclinación 5,1°)", `peor ${f4(worstMoon)}°`);

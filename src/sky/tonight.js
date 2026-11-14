@@ -3,6 +3,8 @@
 // de lluvias, Messier y centroides de constelaciones). Sin DOM: solo datos; el
 // texto lo pone la interfaz. Lo que no se puede calcular, no se devuelve.
 import { altAz, nextRise } from "./guide.js";
+import { j2000ToDate, topocentric } from "./frames.js";
+import { moonH0 } from "./riseset.js";
 
 const NAKED = ["Venus", "Júpiter", "Marte", "Saturno", "Mercurio"];   // orden habitual de brillo
 const SCOPE = ["Urano", "Neptuno"];                                    // necesitan binoculares o telescopio
@@ -43,8 +45,9 @@ export function moonPhaseKey(illum, waxing) {
  *   ephemeris(date)           efemérides de Teseo (src/ephemeris.js)
  *   showers, messier          arrays de objetos de public/*.json (pueden faltar)
  *   constellations            [{ ab, name, dir: [nx, ny, nz] }] (puede faltar)
+ *   elev                      altitud del lugar en metros (opcional; solo afina la paralaje de la Luna)
  */
-export function computeTonight({ date, lat, lon, ephemeris, showers, messier, constellations }) {
+export function computeTonight({ date, lat, lon, ephemeris, showers, messier, constellations, elev = 0 }) {
   const sunAltAt = (d) => { const s = ephemeris(d).find((b) => b.name === "Sol"); return altAz(s.nx, s.ny, s.nz, lat, lon, d).alt; };
   const sunAlt = sunAltAt(date);
   // de día: se calcula para cuando oscurezca (primer paso de 10 min con el Sol bajo −12°)
@@ -57,20 +60,28 @@ export function computeTonight({ date, lat, lon, ephemeris, showers, messier, co
     if (!shifted) return { evalDate: date, shifted: false, sunAlt, noNight: true, items: [] };   // p. ej. verano polar
   }
   const bodies = ephemeris(evalDate);
+  // marcos (frames.js): los cuerpos de ephemeris() ya están en la fecha; lluvias, Messier y
+  // constelaciones vienen del catálogo J2000 y se precesan a la fecha antes de pasar a altura/azimut
   const pos = (o) => altAz(o.nx, o.ny, o.nz, lat, lon, evalDate);
+  const toDate = (v) => j2000ToDate(v, evalDate);
+  const posJ2000 = (v) => { const w = toDate(v); return altAz(w[0], w[1], w[2], lat, lon, evalDate); };
   // una salida solo cuenta si ocurre todavía de noche
-  const riseOf = (dirAt) => {
-    const r = nextRise(dirAt, lat, lon, evalDate, 12, 10, 0);
+  const riseOf = (dirAt, minAlt = 0) => {
+    const r = nextRise(dirAt, lat, lon, evalDate, 12, 10, minAlt);
     return r && sunAltAt(r.date) < NIGHT_SUN_ALT ? r : null;
   };
   const bodyDirAt = (name) => (d) => { const b = ephemeris(d).find((x) => x.name === name); return [b.nx, b.ny, b.nz]; };
   const items = [];
 
-  // Luna
+  // Luna: arriba y salida con el horizonte convencional de Meeus (cap. 15) sobre la altura geocéntrica,
+  // h0 = 0,7275·π − 0,5667° (borde superior visto desde la superficie, con refracción): riseset.js → moonH0
   const moon = bodies.find((b) => b.name === "Luna");
   if (moon) {
-    const p = pos(moon), up = p.alt > 0;
-    const rise = up ? null : riseOf(bodyDirAt("Luna"));
+    const moonH0At = (ms) => moonH0(ephemeris(new Date(ms)).find((x) => x.name === "Luna").dist_km);
+    // altura y azimut que se muestran: topocéntricos, los que dibuja el Cielo (hasta ~1° menos que la geocéntrica)
+    const tp = topocentric([moon.nx, moon.ny, moon.nz], moon.dist_km, lat, lon, elev || 0, evalDate).dir;
+    const p = altAz(tp[0], tp[1], tp[2], lat, lon, evalDate), up = pos(moon).alt > moonH0(moon.dist_km);
+    const rise = up ? null : riseOf(bodyDirAt("Luna"), moonH0At);
     // si ni está arriba ni sale durante la noche, también se dice: cielo sin Luna
     items.push({ id: "moon", kind: "moon", key: "Luna", alt: p.alt, az: p.az, up, rise, illum: moon.illum, waxing: moon.waxing, phase: moonPhaseKey(moon.illum, moon.waxing) });
   }
@@ -87,8 +98,8 @@ export function computeTonight({ date, lat, lon, ephemeris, showers, messier, co
 
   // lluvias de meteoros activas
   const act = (showers || []).filter((o) => showerActive(o, evalDate)).map((o) => {
-    const p = pos(o), up = p.alt > 0;
-    return { id: "s-" + o.name, kind: "shower", key: o.name, obj: o, alt: p.alt, az: p.az, up, rise: up ? null : riseOf(() => [o.nx, o.ny, o.nz]), zhr: o.zhr, toPeak: daysToPeak(o, evalDate) };
+    const v = toDate([o.nx, o.ny, o.nz]), p = altAz(v[0], v[1], v[2], lat, lon, evalDate), up = p.alt > 0;
+    return { id: "s-" + o.name, kind: "shower", key: o.name, obj: o, alt: p.alt, az: p.az, up, rise: up ? null : riseOf(() => v), zhr: o.zhr, toPeak: daysToPeak(o, evalDate) };
   });
   act.sort((a, b) => Math.abs(a.toPeak) - Math.abs(b.toPeak) || b.zhr - a.zhr);
   items.push(...act.slice(0, 2));
@@ -97,14 +108,14 @@ export function computeTonight({ date, lat, lon, ephemeris, showers, messier, co
   const cons = [];
   for (const ab of FAMOUS) {
     const c = (constellations || []).find((x) => x.ab === ab); if (!c) continue;
-    const p = altAz(c.dir[0], c.dir[1], c.dir[2], lat, lon, evalDate);
+    const p = posJ2000(c.dir);
     if (p.alt >= 30) cons.push({ id: "c-" + ab, kind: "con", key: ab, name: c.name, dir: c.dir, alt: p.alt, az: p.az, up: true, rise: null });
     if (cons.length === 3) break;
   }
   items.push(...cons);
 
   // cielo profundo: Messier brillantes y altos
-  const deep = (messier || []).filter((o) => o.mag != null && o.mag <= 6.5).map((o) => ({ o, p: pos(o) }))
+  const deep = (messier || []).filter((o) => o.mag != null && o.mag <= 6.5).map((o) => ({ o, p: posJ2000([o.nx, o.ny, o.nz]) }))
     .filter((x) => x.p.alt >= 25).sort((a, b) => a.o.mag - b.o.mag).slice(0, 2)
     .map(({ o, p }) => ({ id: "m-" + o.name, kind: "deep", key: o.name, obj: o, alt: p.alt, az: p.az, up: true, rise: null, naked: o.mag <= 4.5 }));
   items.push(...deep);

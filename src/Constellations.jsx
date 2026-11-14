@@ -26,8 +26,9 @@ import { constellationData, conNameEs } from "./sky/constellations.js";
 import { declination } from "./sky/geomag.js";
 import { compassPoint8 } from "./sky/deviceOrientation.js";
 import { useStageLayout } from "./sky/viewport.js";
-import { localSkyQuat, lookFrame, dirToYawPitch, yawPitchToDir, lookQuat, spanToFov, shortToSpan, dragDelta, clampPitch, clampSpan,
+import { localSkyQuat, localSkyQuatJ2000, precessionQuat, lookFrame, dirToYawPitch, yawPitchToDir, lookQuat, spanToFov, shortToSpan, dragDelta, clampPitch, clampSpan,
   localDefaultAz, starScaleFor, screenOf, rankHits, SPAN_DEF, PITCH_MIN_LOCAL, PITCH_MIN_FREE, PITCH_MAX, LOCAL_ALT_DEF } from "./sky/look.js";
+import { skyBodies, altAzJ2000 } from "./sky/frames.js";
 import { skyState, visibility, starsHidden, countVisibleNow, moonMagV, phaseAngleFromIllum, altAzToDir } from "./sky/atmosphere.js";
 import { createAtmosphereLayer } from "./sky/atmosphereLayer.js";
 import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
@@ -561,7 +562,12 @@ export default function Constellations({ lang = "es" }) {
   const [whenStr, setWhenStr] = useState(nowLocalInput());
   const [playing, setPlaying] = useState(false);
   const [showSolar, setShowSolar] = useState(true);
-  const bodies = useMemo(() => withMags(ephemeris(new Date(whenStr))), [whenStr]);
+  // Sol, Luna y planetas para la escena (src/sky/frames.js): ephemeris() da la fecha y el centro de la
+  // Tierra; aquí se pasan a J2000, el marco de las estrellas, y en «Mi cielo» se ven desde el observador
+  // (paralaje: la Luna hasta ~1°). nx/ny/nz = J2000 (dibujo, toques, encuadre); eqDate = fecha (altura/azimut).
+  const bodiesEph = useMemo(() => withMags(ephemeris(new Date(whenStr))), [whenStr]);
+  const topoKey = localMode && lat != null && lon != null ? `${lat}|${lon}|${elev || 0}` : "";
+  const bodies = useMemo(() => skyBodies(bodiesEph, new Date(whenStr), topoKey ? { lat, lon, elev: elev || 0 } : null), [bodiesEph, topoKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [query, setQuery] = useState("");
   const [shareState, setShareState] = useState(null);   // null | "ok" | "fail"
   const [share, setShare] = useState(false);            // diálogo de compartir (vista previa de la postal)
@@ -1957,11 +1963,16 @@ export default function Constellations({ lang = "es" }) {
     if (!ref || !ref.points) return;
     const active = localMode && lat != null && lon != null;
     const prevQ = ref.localQuat.clone();
-    const q = active ? localSkyQuat(lat, lon, new Date(whenStr)) : new THREE.Quaternion();
+    // la escena está en J2000 (las estrellas del catálogo): en «Mi cielo» se precesa a la fecha y se gira
+    // con el tiempo sidéreo de la fecha (look.js → localSkyQuatJ2000; antes faltaba la precesión, ~0,37°)
+    const dNow = new Date(whenStr);
+    const q = active ? localSkyQuatJ2000(lat, lon, dNow) : new THREE.Quaternion();
+    // ecuador, cuadrícula AR/Dec y polos: los de la fecha (guidesLayer.js)
+    const qDate = active ? localSkyQuat(lat, lon, dNow) : precessionQuat(dNow).invert();
     ref.localQuat = q; ref.localModeOn = active; ref.localLat = active ? lat : null;
     ref.points.quaternion.copy(q);
     ref.lines.quaternion.copy(q);
-    if (ref.guides) ref.guides.setLocalFrame(active ? q : null);
+    if (ref.guides) ref.guides.setLocalFrame(active ? q : null, qDate);
     if (ref.issLayer) ref.issLayer.setLocalFrame(active ? q : null);   // la ISS solo existe sobre un horizonte
     (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));
     if (ref.solarGroup) ref.solarGroup.quaternion.copy(q);
@@ -1999,7 +2010,7 @@ export default function Constellations({ lang = "es" }) {
     try {
       const d = new Date(whenStr);
       const sun = bodies.find((b) => b.name === "Sol"), moon = bodies.find((b) => b.name === "Luna");
-      const aa = (b) => { const r = altAz(b.nx, b.ny, b.nz, lat, lon, d); return { alt: r.alt, az: r.az }; };
+      const aa = (b) => { const v = b.eqDate, r = altAz(v[0], v[1], v[2], lat, lon, d); return { alt: r.alt, az: r.az }; };   // topocéntrica, de la fecha
       return skyState(aa(sun), moon ? { ...aa(moon), illum: moon.illum } : null, bortle,
         { elevation_m: elev || 0, latDeg: lat, month: d.getMonth() + 1 });
     } catch { return null; }   // nunca debe romper la vista: sin estado, cielo sin atmósfera
@@ -2481,13 +2492,13 @@ export default function Constellations({ lang = "es" }) {
     flyTo(live.nx, live.ny, live.nz);
     let text = tt.findShown(label);
     if (localMode && lat != null && lon != null && !viewFrom) {
-      const when = new Date(whenStr), vis = visibilityOf(live, { lat, lon }, when);
+      const when = new Date(whenStr), vis = visibilityOf(live, { lat, lon, elev: elev || 0 }, when);
       const hm = (d) => d.toLocaleTimeString(lang === "es" ? "es-EC" : "en-US", lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { hour: "numeric", minute: "2-digit" });
       if (vis.now.alt > 0) text = tt.findShownUp(label, Math.round(vis.now.alt), compassPoint8(vis.now.az));
       else text = vis.rts.rise ? tt.findBelow(label, hm(vis.rts.rise.date)) : tt.findBelowNever(label);
     }
     setToast({ text, id: Date.now() });
-  }, [lang, flyTo, localMode, lat, lon, whenStr, viewFrom]);
+  }, [lang, flyTo, localMode, lat, lon, elev, whenStr, viewFrom]);
   useEffect(() => {
     if (!toast) return undefined;
     const id = setTimeout(() => setToast(null), 9000);
@@ -2878,7 +2889,7 @@ export default function Constellations({ lang = "es" }) {
     // con atmósfera: ¿se ve ahora a simple vista? (solo para lo que tiene magnitud; bajo el horizonte lo dice la ficha)
     if (atmState && o.nx != null && o.mag != null && o.name !== "Sol" && (o.layer === "solar" || o.layer === "star" || MAG_LAYERS.has(o.layer))) {
       try {
-        const a = altAz(o.nx, o.ny, o.nz, lat, lon, new Date(whenStr));
+        const a = altAzJ2000(o.nx, o.ny, o.nz, lat, lon, new Date(whenStr));   // o.nx…: J2000, como la escena
         if (a.alt > 0) o = { ...o, atmVis: visibility({ mag: o.mag + (MAG_LAYERS.has(o.layer) ? extPenalty(o.layer, o) : 0), alt: a.alt, az: a.az }, atmState).visible };
       } catch { /* no-op */ }
     }
@@ -2898,7 +2909,7 @@ export default function Constellations({ lang = "es" }) {
   // "Esta noche": solo se calcula con el panel abierto
   const tonight = useMemo(() => {
     if (panel !== "tonight" || !localMode || lat == null || lon == null) return null;
-    const res = computeTonight({ date: new Date(whenStr), lat, lon, ephemeris,
+    const res = computeTonight({ date: new Date(whenStr), lat, lon, elev: elev || 0, ephemeris,
       showers: datasets.meteors && datasets.meteors.objects, messier: datasets.messier && datasets.messier.objects, constellations: conDirs });
     // con atmósfera, "Esta noche" no propone objetos de cielo profundo que no se verían con esa contaminación lumínica
     if (atmOn && res && res.items && res.items.length) {
@@ -2917,7 +2928,7 @@ export default function Constellations({ lang = "es" }) {
   const dayPlanets = useMemo(() => {
     if (!dayWarn) return null;
     const d = new Date(whenStr);
-    return bodies.filter((b) => b.body === "planet" && b.mag != null).filter((b) => { const a = altAz(b.nx, b.ny, b.nz, lat, lon, d); return a.alt > 0 && visibility({ mag: b.mag, alt: a.alt, az: a.az }, atmState).visible; }).map((b) => bodyName(b.name, lang));
+    return bodies.filter((b) => b.body === "planet" && b.mag != null).filter((b) => { const a = altAz(b.eqDate[0], b.eqDate[1], b.eqDate[2], lat, lon, d); return a.alt > 0 && visibility({ mag: b.mag, alt: a.alt, az: a.az }, atmState).visible; }).map((b) => bodyName(b.name, lang));
   }, [dayWarn, bodies, whenStr, lat, lon, atmState, lang]);
   const goNightfall = useCallback(() => {
     const d0 = new Date(whenStr);
@@ -2940,7 +2951,8 @@ export default function Constellations({ lang = "es" }) {
     // de día la lista es la del anochecer: el cielo se lleva a esa hora para que coincida
     if (tonight && tonight.shifted) { setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(tonight.evalDate)); }
     if (it.kind === "planet" || it.kind === "moon") {
-      const b = ephemeris(tonight ? tonight.evalDate : new Date(whenStr)).find(x => x.name === it.key);
+      const d = tonight ? tonight.evalDate : new Date(whenStr);
+      const b = skyBodies(ephemeris(d), d, { lat, lon, elev: elev || 0 }).find(x => x.name === it.key);   // en J2000, como la escena
       if (b) { setShowSolar(true); setSelObj({ ...b, layer: "solar" }); }
     } else if (it.kind === "shower") { setEnabled(e => ({ ...e, meteors: true })); setSelObj({ ...it.obj, layer: "meteors" }); }
     else if (it.kind === "deep") { setEnabled(e => ({ ...e, messier: true })); setSelObj({ ...it.obj, layer: "messier" }); }
@@ -2961,7 +2973,7 @@ export default function Constellations({ lang = "es" }) {
   // con sensores (y en Mi cielo) la flecha guía; sin ellos, la cámara vuela al objeto
   const findByPointing = !arError && (arOn || (arCapable && inMySky));
   const canFind = !!liveObj && liveObj.layer !== "note" && liveObj.nx != null && !viewFrom;
-  const localInfo = inMySky ? { lat, lon, place: placeLabel } : null;
+  const localInfo = inMySky ? { lat, lon, elev: elev || 0, place: placeLabel } : null;
   const northText = !decl ? null : !decl.valid ? t.declOff : decl.zone === "ok" ? t.declOn(decl.decl) : t.declCaution;
   const selCon = liveObj && liveObj.layer === "con" && sky ? sky.constellations.find(c => c.ab === liveObj.ab) : null;
   const conData = useMemo(() => (selCon ? constellationData(selCon, sky.stars) : null), [selCon, sky]);

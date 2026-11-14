@@ -13,6 +13,7 @@
 // el "este" (E = N × U, base diestra); pitch 0 = "horizonte", +90° = "cenit".
 // Todo es puro (three, sin DOM): lo comprueban scripts/test_sky_look.mjs.
 import * as THREE from "three";
+import { precessionMatrix } from "./frames.js";
 
 export const SPAN_MIN = 5;        // grados de cielo que abarca el lado largo de la pantalla (zoom máximo)
 export const SPAN_MAX = 120;      // … y con el zoom mínimo (más allá la perspectiva deforma demasiado)
@@ -46,6 +47,19 @@ export function localSkyQuat(latDeg, lonDeg, date) {
   const B = new THREE.Matrix4().makeBasis(east, up, north.clone().multiplyScalar(-1));
   B.transpose();
   return new THREE.Quaternion().setFromRotationMatrix(B);
+}
+// Cuaternión de la precesión J2000 → ecuador y equinoccio de la fecha (matriz P de frames.js, IAU 1976).
+export function precessionQuat(date) {
+  const P = precessionMatrix(date);
+  const M = new THREE.Matrix4().set(P[0][0], P[0][1], P[0][2], 0, P[1][0], P[1][1], P[1][2], 0, P[2][0], P[2][1], P[2][2], 0, 0, 0, 0, 1);
+  return new THREE.Quaternion().setFromRotationMatrix(M);
+}
+// "Mi cielo": cuaternión que lleva la ESCENA (ecuatorial J2000, el marco de las estrellas del catálogo) al
+// horizonte local. Primero precesa a la fecha y después gira con el tiempo sidéreo de la fecha
+// (localSkyQuat): las dos rotaciones en el mismo equinoccio. Es el que gira estrellas, figuras, capas,
+// cuerpos (ya precesados a J2000, frames.js → skyBodies) y la eclíptica y el plano galáctico.
+export function localSkyQuatJ2000(latDeg, lonDeg, date) {
+  return localSkyQuat(latDeg, lonDeg, date).multiply(precessionQuat(date));
 }
 
 // ── marcos de la mirada ──

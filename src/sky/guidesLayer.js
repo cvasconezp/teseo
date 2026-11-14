@@ -3,13 +3,20 @@
 //   const guides = new GuidesLayer({ radius: 900, lang: "es" });
 //   scene.add(guides.group);
 //   guides.setVisible("ecliptic", true);
-//   guides.setLocalFrame(localQuat | null);   // "Mi cielo": el cuaternión de localSkyQuat; sin ubicación: null
+//   guides.setLocalFrame(qJ2000 | null, qDate);   // ver setLocalFrame: cuaterniones J2000 → mundo y fecha → mundo
 //   guides.setFov(camera.fov);                 // densidad de las cuadrículas según el zoom
 //   const labels = guides.labelsForView(camera, { w, h });   // [{ key, name, cls, x, y, prio, guide, flip }]
 //   guides.dispose();
 //
-// Estructura: group ─┬─ eq    (marco ecuatorial J2000; se gira con localQuat como las estrellas)
-//                    └─ local (marco del horizonte: +X este, +Y cenit, −Z norte; solo en "Mi cielo")
+// Estructura: group ─┬─ eq     (ecuatorial J2000: eclíptica y plano galáctico; se gira como las estrellas)
+//                    ├─ eqDate (ecuador, cuadrícula AR/Dec y polos celestes DE LA FECHA: el polo alrededor
+//                    │          del que gira el cielo esa noche, a ~0,15° del de J2000 en 2026)
+//                    └─ local  (marco del horizonte: +X este, +Y cenit, −Z norte; solo en "Mi cielo")
+// La eclíptica y el plano galáctico están fijos a las estrellas del catálogo (J2000; la eclíptica de la
+// fecha se separa de la de J2000 < 0,01° en este siglo). El ecuador, la cuadrícula y los polos son los de
+// la fecha (como la cuadrícula ecuatorial por defecto de Stellarium): así el meridiano local pasa por el
+// polo dibujado, el cenit queda en Dec = latitud y la AR rotulada es la de la fecha (la de la ficha de los
+// planetas). Ver src/sky/frames.js.
 // Las geometrías se crean una vez (las de cuadrícula fina, la primera vez que hacen falta) y
 // nunca por fotograma. Materiales finos, sin escribir profundidad y con renderOrder −1: se
 // dibujan antes que las estrellas (aditivas), las figuras y el suelo, y las etiquetas HTML
@@ -71,6 +78,9 @@ function marker(dir, R, material) {
   return segments(lines, R, material);
 }
 
+// guías ecuatoriales que se dibujan en el ecuador DE LA FECHA (grupo eqDate)
+export const DATE_GUIDES = new Set(["equator", "eqGrid", "poles"]);
+
 const _vp = new THREE.Matrix4(), _cp = new THREE.Vector3(), _f = new THREE.Vector3(), _h = new THREE.Vector3();
 
 export class GuidesLayer {
@@ -82,8 +92,9 @@ export class GuidesLayer {
     this.level = 0;
     this.group = new THREE.Group(); this.group.name = "guides";
     this.eq = new THREE.Group(); this.eq.name = "guides-eq";
+    this.eqDate = new THREE.Group(); this.eqDate.name = "guides-eq-date";
     this.local = new THREE.Group(); this.local.name = "guides-local";
-    this.group.add(this.eq, this.local);
+    this.group.add(this.eq, this.eqDate, this.local);
     this.mats = {
       ecliptic: mat(GUIDE_COLORS.ecliptic, OPACITY.ecliptic),
       equator: mat(GUIDE_COLORS.equator, OPACITY.equator),
@@ -104,7 +115,8 @@ export class GuidesLayer {
     };
     this.objs.polesEq.add(marker(NCP, R, this.mats.poles), marker(SCP, R, this.mats.poles));
     this.objs.polesLocal.add(marker(ZENITH, R, this.mats.poles), marker(NADIR, R, this.mats.poles));
-    this.eq.add(this.objs.eqGrid, this.objs.equator, this.objs.galactic, this.objs.ecliptic, this.objs.polesEq);
+    this.eq.add(this.objs.galactic, this.objs.ecliptic);
+    this.eqDate.add(this.objs.eqGrid, this.objs.equator, this.objs.polesEq);
     this.local.add(this.objs.altAzGrid, this.objs.meridian, this.objs.polesLocal);
     this.gridLevels = { eqGrid: [], altAzGrid: [] };   // por nivel: { major, minor } (se crean al necesitarse)
     this.group.traverse((o) => { o.renderOrder = -1; o.frustumCulled = false; });
@@ -152,7 +164,8 @@ export class GuidesLayer {
       if (this.level > 0) this._ensureLevel(kind, this.level);
       this.gridLevels[kind].forEach((L, i) => { if (L && L.minor) L.minor.visible = i === this.level; });
     }
-    this.eq.visible = s.ecliptic || s.equator || s.galactic || s.eqGrid || s.poles;
+    this.eq.visible = s.ecliptic || s.galactic;
+    this.eqDate.visible = s.equator || s.eqGrid || s.poles;
   }
 
   /** Enciende o apaga una guía ("ecliptic", "equator", "galactic", "eqGrid", "altAzGrid", "meridian", "poles"). */
@@ -166,10 +179,18 @@ export class GuidesLayer {
   isVisible(key) { return !!this.state[key] && (!LOCAL_ONLY.has(key) || this.localOn); }
   anyVisible() { return GUIDE_KEYS.some((k) => this.isVisible(k)); }
 
-  /** "Mi cielo": q = cuaternión ecuatorial → local (localSkyQuat). null = sin ubicación (marco ecuatorial). */
-  setLocalFrame(q) {
+  /**
+   * Marco de las guías.
+   *   q      "Mi cielo": cuaternión J2000 → local, el mismo que gira las estrellas (localSkyQuatJ2000).
+   *          null = sin ubicación: el mundo es el propio J2000 (identidad) y no hay guías locales.
+   *   qDate  cuaternión ecuador de la fecha → mundo, para ecuador, cuadrícula y polos: en "Mi cielo",
+   *          localSkyQuat (look.js); sin ubicación, la precesión inversa (precessionQuat(date).invert()).
+   *          Si falta, el de q (o la identidad): todas las guías en J2000.
+   */
+  setLocalFrame(q, qDate) {
     if (q) { this.eq.quaternion.copy(q); this.localOn = true; }
     else { this.eq.quaternion.identity(); this.localOn = false; }
+    if (qDate) this.eqDate.quaternion.copy(qDate); else this.eqDate.quaternion.copy(this.eq.quaternion);
     this.group.updateMatrixWorld(true);
     this._apply();
   }
@@ -213,7 +234,7 @@ export class GuidesLayer {
     camera.getWorldPosition(_cp);
     const outside = _cp.length() > R * 0.25;
     const specs = this._labelSpecs();
-    const mEq = this.eq.matrixWorld.elements, mLo = this.local.matrixWorld.elements;
+    const mEq = this.eq.matrixWorld.elements, mEqD = this.eqDate.matrixWorld.elements, mLo = this.local.matrixWorld.elements;
     let sx = 0, sy = 0;
     // proyecta la muestra i de pts en el marco m; deja la posición en sx, sy. false si no se ve.
     const proj = (pts, i, m, below) => {
@@ -253,7 +274,7 @@ export class GuidesLayer {
       for (const sp of specs) {
         const mode = sp.mode === "point" || sp.mode === "center" ? sp.mode : "cross";
         if (mode !== pass || !this.isVisible(sp.guide) || (sp.localOnly && !this.localOn)) continue;
-        const m = sp.frame === "local" ? mLo : mEq, pts = sp.pts, n = pts.length / 3;
+        const m = sp.frame === "local" ? mLo : DATE_GUIDES.has(sp.guide) ? mEqD : mEq, pts = sp.pts, n = pts.length / 3;
         const below = sp.frame === "local";
         const cls = "guide_" + sp.guide;
         if (mode === "point") {
