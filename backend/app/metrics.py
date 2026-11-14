@@ -90,6 +90,7 @@ SKY_SETTINGS = {"atmosphere", "light_pollution", "labels", "lines", "art", "grid
 STATES = {"on", "off", "ok", "fail", "start", "done", "skip"}
 ISS_KINDS = {"view", "show", "retry"}
 ISS_STATES = {"ok", "empty", "stale", "fail"}
+PUSH_KINDS = {"on", "off", "test", "denied", "unsupported", "ios_install"}
 
 EVENTS: Dict[str, Dict[str, Any]] = {
     # sesión y navegación
@@ -142,6 +143,9 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     # ISS: pasadas sobre mi lugar (src/sky/IssPassesCard.jsx). kind: ver la tarjeta,
     # "Verla en el cielo", reintentar. state: resultado de la consulta.
     "iss_passes":         {"kind": ISS_KINDS, "state": ISS_STATES},
+    # «Recordarme» del Calendario del cielo (src/now/calendar/push.js): solo qué pasó, nunca la
+    # suscripción ni su endpoint ni el evento elegido.
+    "push_remind":        {"kind": PUSH_KINDS},
 }
 
 # Pares que interesa contar juntos (además de por separado)

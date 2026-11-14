@@ -48,6 +48,7 @@ from app import exoplanets
 from app import launches
 from app import asteroids
 from app import iss
+from app import push
 from app import metrics
 from app import lambert
 from app.cache import ProviderError, iso_utc
@@ -205,6 +206,7 @@ def api_health():
         },
         # Solo el estado del almacén: nunca los recuentos.
         "metrics": _safe_metrics_status(),
+        "push": push.status(),  # recordatorios push: claves y almacén (app/push.py), sin recuentos
     }
 
 
@@ -300,6 +302,9 @@ async def _metrics_flusher():
             except Exception:
                 pass
     app.state.metrics_task = asyncio.create_task(loop())
+
+
+app.include_router(push.router)  # «Recordarme»: /api/push/* y su bucle de envío (arranque/parada en app/push.py)
 
 
 @app.on_event("shutdown")

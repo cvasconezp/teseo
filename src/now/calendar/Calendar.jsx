@@ -11,10 +11,218 @@ import { buildSkyEvents, buildFeedEvents, sortEvents, groupByMonth, readPlace, T
 import { TC, describeEvent } from "./i18n.js";
 import { downloadIcs } from "./ics.js";
 import { loadIssPasses } from "./issLoader.js";
+import {
+  detectPush, browserEnv, permission, loadPublicKey, localReminders, leadOptions, reminderTimes, canRemind,
+  addReminder, removeReminder, sendTest, PUSH_EVENT, STORE_KEY,
+} from "./push.js";
 import "./calendar.css";
 
 const DAY = 86400000;
 const loc = lang => (lang === "es" ? "es-EC" : "en-US");
+
+// ─── «Recordarme» (avisos push; ver push.js) ─────────────────────────────────
+/**
+ * Estado compartido por todos los eventos: clave VAPID del servidor (sin ella no se muestra nada), soporte del
+ * navegador, permiso y qué eventos tienen recordatorio (localStorage). NO pide permiso: eso solo pasa al tocar
+ * «Activar aviso» o «Probar notificación».
+ */
+function usePush(api) {
+  const [key, setKey] = useState(null);
+  const env = useMemo(() => { try { return detectPush(browserEnv()); } catch { return { state: "unsupported", reason: "no_api" }; } }, []);
+  const [reminders, setReminders] = useState(() => { try { return localReminders(); } catch { return {}; } });
+  const [perm, setPerm] = useState(() => permission());
+  useEffect(() => {
+    let alive = true;
+    loadPublicKey(api).then(k => { if (alive) setKey(k); }).catch(() => { if (alive) setKey(null); });
+    return () => { alive = false; };
+  }, [api]);
+  useEffect(() => {
+    const refresh = () => { try { setReminders(localReminders()); } catch { /* no-op */ } setPerm(permission()); };
+    const onStorage = (e) => { if (!e || !e.key || e.key === STORE_KEY) refresh(); };
+    window.addEventListener(PUSH_EVENT, refresh); window.addEventListener("storage", onStorage);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { window.removeEventListener(PUSH_EVENT, refresh); window.removeEventListener("storage", onStorage); document.removeEventListener("visibilitychange", refresh); };
+  }, []);
+  return useMemo(() => ({ key, available: !!key, env, reminders, perm, refreshPerm: () => setPerm(permission()) }), [key, env, reminders, perm]);
+}
+
+/** Por qué no se puede activar aquí (o null): "ios_install" | "unsupported" | "denied". */
+const pushBlock = (push) => (push.env.state === "ios_install" ? "ios_install" : push.env.state !== "ok" ? "unsupported" : push.perm === "denied" ? "denied" : null);
+const blockText = (block, push, P) => (block === "ios_install" ? P.iosInstall : block === "denied" ? P.denied : push.env.reason === "ios_old" ? P.iosOld : P.unsupported);
+const FALLBACK_CODES = new Set(["denied", "dismissed", "subscribe_failed", "sw", "unsupported", "ios_install"]);
+function pushErrorText(e, P) {
+  const code = e && e.code;
+  if (code === "denied") return P.denied;
+  if (code === "dismissed") return P.dismissed;
+  if (code === "subscribe_failed" || code === "sw") return P.subscribeFailed;
+  if (code === "ios_install") return P.iosInstall;
+  if (code === "unsupported") return P.unsupported;
+  return P.err[code] || P.err.generic;
+}
+const fmtWhen = (ms, lang) => new Date(ms).toLocaleString(loc(lang), { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+const BellIcon = ({ off = false }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z" /><path d="M10 21h4" />
+    {off ? <path d="M3.5 3.5l17 17" /> : null}
+  </svg>
+);
+const CalIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4M12 13v4M10 15h4" /></svg>
+);
+
+/** Botón «Recordarme» / «Quitar recordatorio», su panel (explicación previa + antelación) y la línea de estado. */
+function useReminder({ ev, title, lang, api, push, t, onIcs }) {
+  const P = t.push;
+  const panelId = useId();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);           // { text, tone: "on" | "info" | "warn", ics? }
+  const btnRef = useRef(null), panelRef = useRef(null);
+  // el panel va después de la fila de botones: al abrirlo, el foco pasa a él; al cerrarlo, vuelve al botón
+  useEffect(() => { if (open && panelRef.current) panelRef.current.focus(); }, [open]);
+  const close = () => { setOpen(false); setTimeout(() => { if (btnRef.current) btnRef.current.focus(); }, 0); };
+  const opts = leadOptions(ev);
+  // antelaciones cuyo aviso aún no ha pasado; si ninguna, la primera (avisa enseguida)
+  const natural = (l) => { const r = reminderTimes(ev, l); return !!r && r.eventAt - r.leadMin * 60000 > Date.now(); };
+  const enabled = opts.filter(natural);
+  const okOpts = enabled.length ? enabled : opts.slice(0, 1);
+  const [lead, setLead] = useState(okOpts[0]);
+  const choice = okOpts.includes(lead) ? lead : okOpts[0];
+
+  if (!push || !push.available) return { button: null, panel: null };
+  const active = !!push.reminders[ev.id];
+  if (!active && !canRemind(ev)) return { button: null, panel: null };
+  const block = pushBlock(push);
+
+  const onButton = async () => {
+    setMsg(null);
+    if (active) {
+      setBusy(true);
+      try { await removeReminder({ api, eventId: ev.id }); track("push_remind", { kind: "off" }); setMsg({ text: P.removed, tone: "info" }); }
+      catch (e) { setMsg({ text: pushErrorText(e, P), tone: "warn" }); }
+      finally { setBusy(false); }
+      return;
+    }
+    if (!open && block) track("push_remind", { kind: block });
+    setOpen(o => !o);
+  };
+  const onActivate = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const { notifyAt } = await addReminder({ api, publicKey: push.key, ev, title, lead: choice, lang });
+      track("push_remind", { kind: "on" });
+      close();
+      setMsg({ text: P.on(fmtWhen(notifyAt, lang)), tone: "on" });
+    } catch (e) {
+      if (e && e.code === "denied") track("push_remind", { kind: "denied" });
+      setMsg({ text: pushErrorText(e, P), tone: "warn", ics: !!(e && FALLBACK_CODES.has(e.code)) });
+      if (e && FALLBACK_CODES.has(e.code)) close();
+    } finally { setBusy(false); push.refreshPerm(); }
+  };
+
+  const button = (
+    <button ref={btnRef} type="button" className={`btn btn--ghost cal-btn cal-remind-btn${active ? " is-on" : ""}`} onClick={onButton} disabled={busy}
+      aria-expanded={active ? undefined : open} aria-controls={active ? undefined : panelId}
+      aria-label={active ? P.removeFor(title) : P.remindFor(title)}>
+      <BellIcon off={active} />{active ? P.remove : P.remind}
+    </button>
+  );
+  const statusText = msg ? msg.text : active ? P.on(fmtWhen(push.reminders[ev.id], lang)) : "";
+  const panel = (
+    <>
+      {open && !active && (
+        <div id={panelId} ref={panelRef} tabIndex={-1} className="cal-remind" role="group" aria-labelledby={`${panelId}-h`}>
+          <p id={`${panelId}-h`} className="cal-remind__h"><BellIcon />{P.panelTitle}</p>
+          {block ? (
+            <>
+              <p className="cal-remind__p cal-remind__p--warn">{blockText(block, push, P)}</p>
+              <p className="cal-remind__p">{P.fallback}</p>
+              <div className="cal-remind__actions">
+                <button type="button" className="btn btn--primary cal-btn" onClick={onIcs}><CalIcon />{t.addCal}</button>
+                <button type="button" className="btn btn--ghost cal-btn" onClick={close}>{P.close}</button>
+              </div>
+            </>
+          ) : (
+            <>
+              {push.perm !== "granted" && <p className="cal-remind__p">{P.explain}</p>}
+              {opts.length > 1 ? (
+                <fieldset className="cal-remind__leads">
+                  <legend>{P.when}</legend>
+                  {opts.map(l => (
+                    <label key={l} className={`cal-remind__lead${okOpts.includes(l) ? "" : " is-off"}`}>
+                      <input type="radio" name={`${panelId}-lead`} value={l} checked={choice === l} disabled={!okOpts.includes(l) || busy} onChange={() => setLead(l)} />
+                      <span>{P.lead[l]}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              ) : <p className="cal-remind__p">{P.eveOnly}</p>}
+              <p className="cal-remind__fine">{P.privacy}</p>
+              <div className="cal-remind__actions">
+                <button type="button" className="btn btn--primary cal-btn" onClick={onActivate} disabled={busy} aria-busy={busy}><BellIcon />{busy ? P.working : P.activate}</button>
+                <button type="button" className="btn btn--ghost cal-btn" onClick={close} disabled={busy}>{P.cancel}</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      <p className={`cal-remind__status${(msg ? msg.tone === "on" : active) ? " is-on" : msg && msg.tone === "warn" ? " is-warn" : ""}`} role="status" aria-live="polite">
+        {statusText && <><BellIcon off={!!msg && msg.tone !== "on"} />{statusText}</>}
+      </p>
+      {msg && msg.ics && (
+        <div className="cal-remind__actions cal-remind__actions--fallback">
+          <span className="cal-remind__p">{P.fallback}</span>
+          <button type="button" className="btn btn--ghost cal-btn" onClick={onIcs}><CalIcon />{t.addCal}</button>
+        </div>
+      )}
+    </>
+  );
+  return { button, panel };
+}
+
+/** Enlace pequeño «Probar notificación» de la cabecera. El servidor no guarda nada de la prueba. */
+function PushTest({ api, lang, t, push }) {
+  const P = t.push;
+  const id = useId();
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);            // { text, tone }
+  const linkRef = useRef(null);
+  const cancel = () => { setConfirm(false); setTimeout(() => { if (linkRef.current) linkRef.current.focus(); }, 0); };
+  if (!push.available) return null;
+  const block = pushBlock(push);
+  const run = async () => {
+    setBusy(true); setMsg(null);
+    try { await sendTest({ api, publicKey: push.key, lang }); track("push_remind", { kind: "test" }); setConfirm(false); setMsg({ text: P.testSent, tone: "on" }); }
+    catch (e) { if (e && e.code === "denied") track("push_remind", { kind: "denied" }); setConfirm(false); setMsg({ text: pushErrorText(e, P), tone: "warn" }); }
+    finally { setBusy(false); push.refreshPerm(); }
+  };
+  const onClick = () => {
+    setMsg(null);
+    if (block) { track("push_remind", { kind: block }); setMsg({ text: `${blockText(block, push, P)} ${P.fallback}`, tone: "warn" }); return; }
+    if (push.perm !== "granted") { setConfirm(c => !c); return; }
+    run();
+  };
+  const needsConfirm = !block && push.perm !== "granted";
+  return (
+    <div className="cal-test">
+      <button ref={linkRef} type="button" className="cal-test__link" onClick={onClick} disabled={busy}
+        aria-expanded={needsConfirm ? confirm : undefined} aria-controls={needsConfirm ? id : undefined}>
+        <BellIcon />{busy ? P.working : P.test}
+      </button>
+      {confirm && needsConfirm && (
+        <div id={id} className="cal-remind cal-remind--test">
+          <p className="cal-remind__p">{P.testExplain}</p>
+          <div className="cal-remind__actions">
+            <button type="button" className="btn btn--primary cal-btn" onClick={run} disabled={busy}><BellIcon />{P.testGo}</button>
+            <button type="button" className="btn btn--ghost cal-btn" onClick={cancel} disabled={busy}>{P.cancel}</button>
+          </div>
+        </div>
+      )}
+      <p className={`cal-remind__status${msg ? ` is-${msg.tone}` : ""}`} role="status" aria-live="polite">{msg && <><BellIcon off={msg.tone === "warn"} />{msg.text}</>}</p>
+    </div>
+  );
+}
 
 // ─── Iconos (SVG en línea, trazo currentColor) ───────────────────────────────
 const Svg = ({ children }) => (
@@ -65,7 +273,7 @@ const monthLabel = (key, lang) => {
 const isoOf = ev => (ev.allDay ? new Date(ev.t).toISOString().slice(0, 10) : new Date(ev.t).toISOString());
 
 // ─── Un evento ───────────────────────────────────────────────────────────────
-function EventItem({ ev, lang, fmt, t }) {
+function EventItem({ ev, lang, fmt, t, api, push }) {
   const info = useMemo(() => describeEvent(ev, lang, fmt), [ev, lang, fmt]);
   const vis = info.vis;
   const visLabel = vis ? (vis.state === true ? t.visYes : vis.state === "partial" ? t.visPartial : t.visNo) : null;
@@ -77,6 +285,7 @@ function EventItem({ ev, lang, fmt, t }) {
     });
   };
   const extra = info.region || info.desc;
+  const remind = useReminder({ ev, title: info.title, lang, api, push, t, onIcs });
   return (
     <li className={`cal-ev cal-ev--${ev.type}${vis && vis.state === false ? " is-off" : ""}`}>
       <span className="cal-ev__icon" aria-hidden="true">{ICONS[ev.type] ? ICONS[ev.type]() : null}</span>
@@ -104,6 +313,7 @@ function EventItem({ ev, lang, fmt, t }) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4M12 13v4M10 15h4" /></svg>
             {t.addCal}
           </button>
+          {remind.button}
           {info.sky && (
             <a className="btn btn--ghost cal-btn" href={info.sky} aria-label={t.seeSkyFor(info.title)} title={t.seeSkyNote}
               onClick={() => track("now_item", { card: "calendar", kind: "sky" })}>
@@ -115,6 +325,7 @@ function EventItem({ ev, lang, fmt, t }) {
             <a key={k.href} className="now-link cal-link" href={k.href} target="_blank" rel="noopener noreferrer">{k.label}<span className="now-sr"> ({t.opensNew})</span></a>
           ))}
         </div>
+        {remind.panel}
       </div>
     </li>
   );
@@ -152,6 +363,7 @@ export default function Calendar({ lang = "es", api = "" }) {
   const hid = useId(), listId = useId();
   const fmt = useMemo(() => makeFmt(lang), [lang]);
   const place = usePlace();
+  const push = usePush(api);
   const [from] = useState(() => Math.floor(Date.now() / 60000) * 60000);
   const [more, setMore] = useState(false);
   const [filter, setFilter] = useState("all");
@@ -216,6 +428,7 @@ export default function Calendar({ lang = "es", api = "" }) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.4" /></svg>
           <span><strong>{t.forPlace(placeName)}</strong> · <a className="now-link" href="#sky">{t.changeInSky}</a></span>
         </p>
+        <PushTest api={api} lang={lang} t={t} push={push} />
       </header>
 
       <div className="cal-filters" role="group" aria-label={t.filters}>
@@ -237,7 +450,7 @@ export default function Calendar({ lang = "es", api = "" }) {
         {ready && groups.map(g => (
           <div key={g.key} className="cal-month">
             <h4 className="now-sub cal-month__h">{monthLabel(g.key, lang)}</h4>
-            <ol className="cal-list">{g.items.map(ev => <EventItem key={ev.id} ev={ev} lang={lang} fmt={fmt} t={t} />)}</ol>
+            <ol className="cal-list">{g.items.map(ev => <EventItem key={ev.id} ev={ev} lang={lang} fmt={fmt} t={t} api={api} push={push} />)}</ol>
           </div>
         ))}
       </div>
