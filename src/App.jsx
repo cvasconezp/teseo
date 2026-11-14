@@ -42,6 +42,8 @@ const T = {
     skip:           "Skip",
     skipIntro:      "Skip intro",
     switchLang:     "Cambiar a español",
+    nightOn:        "Night vision (red light)",
+    nightOff:       "Turn off night vision",
     sections:       "Sections",
     origin:         "From",
     destination:    "To",
@@ -198,6 +200,8 @@ const T = {
     skip:           "Saltar",
     skipIntro:      "Saltar la introducción",
     switchLang:     "Switch to English",
+    nightOn:        "Visión nocturna (luz roja)",
+    nightOff:       "Quitar la visión nocturna",
     sections:       "Secciones",
     origin:         "Origen",
     destination:    "Destino",
@@ -1480,6 +1484,15 @@ export default function Teseo() {
     if (firstPair.current) { firstPair.current = false; return; }
     track("destination_change", { origin: from.id, destination: to.id });
   },[from.id, to.id]);
+  // Visión nocturna: todo en rojo tenue para no perder la adaptación del ojo a
+  // la oscuridad (los bastones de la retina casi no reaccionan a la luz roja).
+  const [night, setNight] = useState(()=>{ try { return localStorage.getItem("teseo-night")==="1"; } catch { return false; } });
+  useEffect(()=>{
+    try { localStorage.setItem("teseo-night", night ? "1" : "0"); } catch { /* no-op */ }
+    document.documentElement.classList.toggle("night-vision", night);
+    const m = document.querySelector('meta[name="theme-color"]');
+    if (m) { if (!m.dataset.day) m.dataset.day = m.content; m.content = night ? "#1a0000" : m.dataset.day; }
+  },[night]);
   const toggleLang = useCallback(()=>{
     const n = lang === "en" ? "es" : "en";
     track("language_change", { lang: n });
@@ -1504,6 +1517,7 @@ export default function Teseo() {
   return (
     <>
       {intro && <Intro lang={lang} onDone={onDone}/>}
+      {night && <div className="night-vision-layer" aria-hidden="true"/>}
 
       <div className={`app app--${tab}`}>
         <SpaceTravel/>
@@ -1519,10 +1533,17 @@ export default function Teseo() {
               <h1 className="wordmark" style={{fontSize:30}}>Teseo</h1>
               <p className="tagline">{t.tagline}</p>
             </div>
+            <div className="flex items-center gap-2">
+            <button type="button" className={`night-btn${night ? " is-on" : ""}`} aria-pressed={night}
+              aria-label={night ? t.nightOff : t.nightOn} title={night ? t.nightOff : t.nightOn}
+              onClick={()=>{ track("night_vision", { state: night ? "off" : "on" }); setNight(v=>!v); }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
+            </button>
             <button type="button" className="lang" aria-label={t.switchLang} onClick={toggleLang}>
               <span className={lang==="es" ? "is-on" : ""} aria-hidden="true">ES</span>
               <span className={lang==="en" ? "is-on" : ""} aria-hidden="true">EN</span>
             </button>
+            </div>
           </header>
 
           {/* Navegación principal: siempre visible */}
