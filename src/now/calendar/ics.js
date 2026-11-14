@@ -12,7 +12,7 @@ export function icsUtc(ms) {
 const icsDate = (ms) => icsUtc(ms).slice(0, 8);
 
 /** Escapa texto (RFC 5545 §3.3.11): \ ; , y saltos de línea. */
-export const icsEscape = (s) => String(s ?? "").replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+export const icsEscape = (s) => String(s ?? "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 
 /** Pliega una línea a 75 octetos UTF-8 (continuación: CRLF + espacio), sin partir caracteres. */
 export function foldLine(line) {
@@ -44,7 +44,12 @@ export function buildIcs(ev, { now = Date.now(), prodId = "-//Teseo//Calendario 
   lines.push(`SUMMARY:${icsEscape(ev.title)}`);
   if (ev.description) lines.push(`DESCRIPTION:${icsEscape(ev.description)}`);
   if (ev.url) lines.push(`URL:${ev.url}`);
-  lines.push("TRANSP:TRANSPARENT", "END:VEVENT", "END:VCALENDAR");
+  lines.push("TRANSP:TRANSPARENT");
+  // Aviso del propio calendario del teléfono: 30 min antes; en eventos de día completo, la víspera a
+  // las 18:00 (6 h antes de la medianoche de inicio). Así «Añadir a mi calendario» trae notificación.
+  lines.push("BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEscape(ev.title)}`,
+    `TRIGGER:${ev.allDay ? "-PT6H" : "-PT30M"}`, "END:VALARM");
+  lines.push("END:VEVENT", "END:VCALENDAR");
   return lines.map(foldLine).join("\r\n") + "\r\n";
 }
 
