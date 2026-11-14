@@ -11,6 +11,9 @@ import QuestionsBoundary from "./questions/Boundary.jsx";
 const loadNow = () => import("./now/Now.jsx");
 const NowLazy = lazy(loadNow);
 import SectionBoundary from "./ui/SectionBoundary.jsx";
+// "¿Y la Luna? ¿Y el Sol?": cálculo en el cliente, aparte de Ruta y Ventanas (src/special/)
+import MoonSun, { MoonSunLink, MOONSUN_ID, followSection } from "./special/MoonSun.jsx";
+import { TS } from "./special/i18n.js";
 import CosmicScale from "./CosmicScale.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
@@ -1521,6 +1524,24 @@ export default function Teseo() {
     try { window.history.replaceState(null, "", "#sky?L=exoplanets"); } catch { /* no-op */ }
     changeTab("sky");
   },[changeTab]);
+  // "¿Y la Luna? ¿Y el Sol?": desde Ruta se va a Ventanas y se baja hasta la sección
+  const [msFocus, setMsFocus] = useState(0);
+  const seeMoonSun = useCallback(()=>{
+    track("special_dest", { kind: "link" });
+    changeTab("windows");
+    setMsFocus(n=>n+1);
+  },[changeTab]);
+  // Solo depende del contador: volver a Ventanas más tarde no vuelve a bajar la vista
+  useEffect(()=>{
+    if (!msFocus || tabRef.current !== "windows") return;
+    return followSection(()=>document.getElementById(MOONSUN_ID), !reducedMotion());
+  },[msFocus]);
+  // Botón "Ver ventanas a Venus" (tarjeta del Sol): Tierra → Venus y arriba, a la cuenta atrás
+  const seeVenusWindows = useCallback(()=>{
+    track("special_dest", { destination: "sun", kind: "venus" });
+    setFrom(PLANETS[2]); setTo(PLANETS[1]);
+    try { window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" }); } catch { /* no-op */ }
+  },[]);
   const pickPlanet = useCallback(p=>{
     if (p.id === to.id) return;
     if (p.id === from.id) { setFrom(to); setTo(from); return; }
@@ -1612,12 +1633,16 @@ export default function Teseo() {
                       <NowTeaser lang={lang} onOpen={()=>openNow("route")}/>
 
                       <VehicleCompare from={from} to={to} lang={lang} distKm={distKm}/>
+                      <MoonSunLink lang={lang} onOpen={seeMoonSun}/>
                       <TechDetails lang={lang} route={route} distKm={distKm} distReal={!!realDist}/>
                     </>)}
 
-                    {tab==="windows" && (
+                    {tab==="windows" && (<>
                       <LaunchWindows from={from} to={to} lang={lang} attempt={winTry} onError={setWinError} notice={notice}/>
-                    )}
+                      <SectionBoundary name="Luna y Sol" title={TS[lang].errTitle} message={TS[lang].errBody} retryLabel={TS[lang].retry}>
+                        <MoonSun lang={lang} onVenus={seeVenusWindows}/>
+                      </SectionBoundary>
+                    </>)}
                   </div>
 
                 </div>

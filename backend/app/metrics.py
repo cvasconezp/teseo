@@ -73,6 +73,8 @@ TOURS = {"drake", "bh", "expansion", "dm"}
 NOW_CARDS = {"mars", "launches", "asteroids"}
 NOW_KINDS = {"details", "webcast", "info", "show_all", "select", "ld_help", "cneos"}
 NOW_SOURCES = {"link", "windows", "route", "header", "teaser"}
+SPECIAL_DESTS = {"moon", "sun"}
+SPECIAL_KINDS = {"view", "link", "venus"}
 ENDPOINTS = {
     "missions_mars", "launches", "asteroids", "launch_windows", "position", "distance", "route",
     "exoplanets", "comets", "probes", "blackholes_json", "other",
@@ -103,6 +105,9 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "now_card_view":      {"card": NOW_CARDS},
     "now_item":           {"card": NOW_CARDS, "kind": NOW_KINDS},
     "now_retry":          {"card": NOW_CARDS},
+    # ¿Y la Luna? ¿Y el Sol? (src/special/): vista de cada tarjeta, enlace desde
+    # Ruta y botón "Ver ventanas a Venus"
+    "special_dest":       {"destination": SPECIAL_DESTS, "kind": SPECIAL_KINDS},
     # Preguntas
     "q_index":            {},
     "q_open":             {"q": TOURS},

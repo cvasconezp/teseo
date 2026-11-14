@@ -66,6 +66,14 @@ def test_whitelist_events_and_params():
     assert metrics.clean_event({"e": "night_vision", "p": {"state": True}})["p"] == {"state": "on"}
 
 
+def test_special_dest_moon_sun():
+    # ¿Y la Luna? ¿Y el Sol?: solo moon/sun y tres tipos cerrados
+    assert metrics.clean_event({"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}) == {"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}
+    assert metrics.clean_event({"e": "special_dest", "p": {"destination": "sun", "kind": "venus"}})["p"] == {"destination": "sun", "kind": "venus"}
+    assert metrics.clean_event({"e": "special_dest", "p": {"kind": "link"}})["p"] == {"kind": "link"}
+    assert metrics.clean_event({"e": "special_dest", "p": {"destination": "mars", "kind": "hack", "dest": "moon"}})["p"] == {}
+
+
 def test_parse_body_shapes():
     one = json.dumps({"e": "q_open", "p": {"q": "bh"}}).encode()
     assert len(metrics.parse_body(one)) == 1
