@@ -70,6 +70,14 @@ def test_whitelist_events_and_params():
     assert metrics.clean_event({"e": "q_open", "p": {"q": "masa"}})["p"] == {}
 
 
+def test_tour_time_en_lista_blanca():
+    # «¿Se puede viajar en el tiempo?»: mismo q_open / q_preset que los demás recorridos
+    assert "time" in metrics.TOURS
+    assert metrics.clean_event({"e": "q_open", "p": {"q": "time"}}) == {"e": "q_open", "p": {"q": "time"}}
+    assert metrics.clean_event({"e": "q_preset", "p": {"q": "time", "preset": "iss"}})["p"] == {"q": "time", "preset": "iss"}
+    assert metrics.clean_event({"e": "q_open", "p": {"q": "tiempo"}})["p"] == {}
+
+
 def test_special_dest_moon_sun():
     # ¿Y la Luna? ¿Y el Sol?: solo moon/sun y tres tipos cerrados
     assert metrics.clean_event({"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}) == {"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}
