@@ -14,6 +14,9 @@ import SectionBoundary from "./ui/SectionBoundary.jsx";
 // "¿Y la Luna? ¿Y el Sol?": cálculo en el cliente, aparte de Ruta y Ventanas (src/special/)
 import MoonSun from "./special/MoonSun.jsx";
 import { TS } from "./special/i18n.js";
+// «Trayectoria realista (Lambert)»: tarjeta aparte bajo los detalles técnicos de Ruta (src/route/)
+import RealTrajectory from "./route/RealTrajectory.jsx";
+import { TR } from "./route/i18n.js";
 import CosmicScale from "./CosmicScale.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
@@ -1671,6 +1674,9 @@ export default function Teseo() {
 
                       <VehicleCompare from={from} to={to} lang={lang} distKm={distKm}/>
                       <TechDetails lang={lang} route={route} distKm={distKm} distReal={!!realDist}/>
+                      <SectionBoundary name="Trayectoria realista" title={TR[lang].boundaryTitle} message={TR[lang].boundaryBody} retryLabel={TR[lang].retry}>
+                        <RealTrajectory from={from} to={to} lang={lang}/>
+                      </SectionBoundary>
                     </>)}
 
                     {!special && tab==="windows" && (

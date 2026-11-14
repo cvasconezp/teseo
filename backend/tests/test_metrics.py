@@ -362,3 +362,12 @@ def test_cors_with_restricted_origins():
     assert r.status_code == 200 and r.headers["access-control-allow-origin"] == "https://teseo.yachaydeep.com"
     r = c.options("/api/m", headers={"Origin": "https://otro.example", "Access-Control-Request-Method": "POST"})
     assert r.status_code == 400
+
+
+def test_trajectory_card_lista_blanca():
+    # Tarjeta «Trayectoria realista»: cuerpos y estado de un conjunto cerrado
+    ev = metrics.clean_event({"e": "trajectory_card", "p": {"origin": "earth", "destination": "mars", "state": "ok"}})
+    assert ev == {"e": "trajectory_card", "p": {"origin": "earth", "destination": "mars", "state": "ok"}}
+    assert metrics.clean_event({"e": "trajectory_card", "p": {"state": "fail"}})["p"] == {"state": "fail"}
+    assert metrics.clean_event({"e": "trajectory_card", "p": {"destination": "pluton", "state": "hack", "lat": 1}})["p"] == {}
+    assert metrics.clean_event({"e": "net_error", "p": {"endpoint": "trajectory", "kind": "timeout"}})["p"] == {"endpoint": "trajectory", "kind": "timeout"}
