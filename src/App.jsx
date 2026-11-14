@@ -734,7 +734,7 @@ function layoutLabels(pts, w, names, activeIds) {
   return out;
 }
 
-function SolarMap({ from, to, positions, lang, onPick, special = null }) {
+function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun = null }) {
   const ref = useRef(null);
   const w = useWidth(ref, 340);
   const t = T[lang];
@@ -796,9 +796,13 @@ function SolarMap({ from, to, positions, lang, onPick, special = null }) {
         </g>
       </svg>
 
-      <span className="map__sun" title={t.sun}>
+      {/* El Sol también se toca: es un destino especial (siempre desde la Tierra) */}
+      <button type="button" className={`map__sun ${special === "sun" ? "is-dest" : ""}`}
+        aria-label={special === "sun" ? t.mapIsDest(t.sun) : t.mapPick(t.sun)}
+        aria-current={special === "sun" ? "true" : undefined}
+        onClick={()=>onPickSun && onPickSun()}>
         <PlanetSphere id="sun" size={(w * SUN_SIZE) / 100}/>
-      </span>
+      </button>
 
       {pts.map(q=>{
         const { p } = q;
@@ -1640,7 +1644,8 @@ export default function Teseo() {
                     </div>
 
                   <div className="nav-grid__map">
-                    <SolarMap from={from} to={to} positions={positions} lang={lang} onPick={pickPlanet} special={special?.id || null}/>
+                    <SolarMap from={from} to={to} positions={positions} lang={lang} onPick={pickPlanet} special={special?.id || null}
+                      onPickSun={()=>{ if (special?.id !== "sun") pickSpecial(SPECIALS[1]); }}/>
 
                     <p className="map-caption">
                       <span className={`map-caption__src ${allReal ? "is-real" : ""}`}
