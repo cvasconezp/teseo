@@ -535,7 +535,7 @@ export function TonightPanel({ t, lang, data, placeName, onGo, onFind, onGoTime,
             <div className="sk-group"><h3>{t.tonightLater}</h3><ul className="sk-tn-list">{later.map(row)}</ul></div>
           )}
           {/* Pasadas de la ISS sobre este lugar (CelesTrak + SGP4, en el servidor) */}
-          {iss && <IssPassesCard lang={lang} lat={iss.lat} lon={iss.lon} altM={iss.altM || 0} />}
+          {iss && <IssPassesCard lang={lang} lat={iss.lat} lon={iss.lon} altM={iss.altM || 0} onShow={iss.onShow} />}
           <p className="sk-panel-foot">{t.tonightFoot}</p>
         </>
       )}
@@ -544,7 +544,8 @@ export function TonightPanel({ t, lang, data, placeName, onGo, onFind, onGoTime,
 }
 
 // ── Tiempo ───────────────────────────────────────────────────────────────
-export function TimePanel({ t, lang, when, whenStr, isNow, playing, onShift, onTogglePlay, onNow, onSet, onClose }) {
+// `extra`: controles opcionales bajo «Dejar correr el tiempo» (p. ej. la velocidad mientras se ve una pasada de la ISS)
+export function TimePanel({ t, lang, when, whenStr, isNow, playing, onShift, onTogglePlay, onNow, onSet, onClose, extra = null }) {
   const w = fmtWhenLong(when, lang);
   return (
     <PanelShell t={t} title={t.timeTitle} onClose={onClose} labelledBy="sk-time-title" className="sk-panel-time">
@@ -562,6 +563,7 @@ export function TimePanel({ t, lang, when, whenStr, isNow, playing, onShift, onT
       <button type="button" className={`sk-btn wide${playing ? " gold" : " primary"}`} onClick={onTogglePlay} aria-pressed={playing}>
         <Icon name={playing ? "pause" : "play"} size={18} />{playing ? t.pauseTime : t.playTime}
       </button>
+      {extra}
       <label className="sk-field">
         <span>{t.pickDate}</span>
         <input type="datetime-local" value={whenStr} onChange={(e) => { if (e.target.value) onSet(e.target.value); }} />

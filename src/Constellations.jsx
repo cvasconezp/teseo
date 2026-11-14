@@ -36,6 +36,13 @@ import { bodyMagnitude, SUN_MAG_V } from "./sky/planetMag.js";
 import { track } from "./ui/track.js";
 import { GuidesLayer, GUIDE_LABEL_COLOR } from "./sky/guidesLayer.js";
 import { GuidesControls, useGuides } from "./sky/GuidesControls.jsx";
+// la ISS en el Cielo: capa three.js, ficha, píldora y datos de /api/iss/passes
+import { IssLayer, ISS_COLORS, ISS_RATES, stepClock as stepIssClock } from "./sky/issLayer.js";
+import IssSheet from "./sky/IssSheet.jsx";
+import IssPill, { nextRate } from "./sky/IssPill.jsx";
+import { ISS as ISS_TX } from "./sky/i18n-iss.js";
+import { fetchIssPass, hasTrack, hiddenReason, formatClock as issClockFmt, formatDayTime as issDayTime, DEFAULT_DAYS as ISS_DAYS } from "./sky/issPasses.js";
+import { altAzToLocal } from "./sky/issSky.js";
 import "./sky/sky.css";
 
 const API = import.meta.env.VITE_API_URL || "";
@@ -50,7 +57,7 @@ const LAYERS = [
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", ...GUIDE_LABEL_COLOR };
+const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
 // Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
 // de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
 // en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
@@ -126,6 +133,7 @@ const ADAPT_OFF = typeof window !== "undefined" && /[?&]adapt=0\b/.test(window.l
 const E2E = typeof window !== "undefined" && /[?&]e2e=1\b/.test(window.location.hash + "&" + window.location.search);
 const IDLE_EVERY = 6;                 // con el cielo quieto se dibuja 1 de cada 6 cuadros (la Tierra en miniatura sigue girando)
 const VIVID_KEY = "teseo_star_vivid";   // "resaltar colores de las estrellas" (1/0)
+const ISS_RATE_DEF = 10;              // ISS: ×10 por defecto (una pasada de ~6 min se ve en ~36 s); ×1 = tiempo real
 
 // Términos genéricos de categoría: al buscar "pulsar" o "agujero negro" se
 // lista la capa entera en vez de exigir el nombre exacto de cada objeto.
@@ -585,6 +593,17 @@ export default function Constellations({ lang = "es" }) {
   const [wikiState, setWikiState] = useState("idle"); // idle | loading | done
   const [full, setFull] = useState(false);            // visor a pantalla completa
   const [timeMoved, setTimeMoved] = useState(false);  // false = se muestra "ahora"
+  // ── la ISS en el Cielo («Verla en el cielo» desde «Esta noche») ──
+  // issSel: { lat, lon, pass, data, status: "loading" | "ok" | "error" } o null. La pasada se dibuja con
+  // src/sky/issLayer.js; su hora va al segundo en issClock (whenStr solo tiene minutos): el bucle la avanza
+  // a la velocidad elegida mientras se reproduce y escribe whenStr una vez por minuto simulado.
+  const [issSel, setIssSel] = useState(null);
+  const [issSheet, setIssSheet] = useState(false);
+  const [issRate, setIssRate] = useState(ISS_RATE_DEF);
+  const issClock = useRef({ t: Date.now(), live: true, playing: false, rate: ISS_RATE_DEF, lastMin: 0, hudSec: null, endMs: null, onMinute: null, onEnd: null });
+  const issHudRef = useRef(null);        // setter de la píldora (vive en <IssPill>)
+  const issFlyRef = useRef(null);        // culminación hacia la que volar en cuanto «Mi cielo» esté activo
+  const issOn = !!(issSel && issSel.status === "ok");
   const [tourFact, setTourFact] = useState("");
   const [isWide, setIsWide] = useState(() => { try { return window.matchMedia("(min-width: 900px)").matches; } catch { return false; } });
   const isWideRef = useRef(isWide);
@@ -1087,6 +1106,11 @@ export default function Constellations({ lang = "es" }) {
     // empezar; se dibujan antes que estrellas y figuras (renderOrder −1) y el suelo las atenúa bajo el horizonte
     const guides = new GuidesLayer({ radius: FLAT_R, lang: langRef.current });
     scene.add(guides.group);
+    // la ISS (src/sky/issLayer.js): una pasada elegida en «Esta noche», en el marco local del horizonte;
+    // renderOrder 1: después de estrellas y planetas y antes que el suelo, que la atenúa bajo el horizonte
+    const issLayer = new IssLayer({ radius: 880 });
+    issLayer.setPixelRatio(basePR);
+    scene.add(issLayer.group);
     // domo de atmósfera (src/sky/atmosphereLayer.js): se dibuja primero y debajo de todo
     const atm = createAtmosphereLayer();
     scene.add(atm.mesh);
@@ -1207,7 +1231,7 @@ export default function Constellations({ lang = "es" }) {
       recolorStars: () => paintStars(),
       atm, atmAlpha, starVis, atmOn: false, lineBase: 0.55, groundMat,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, bodies: [], showSolar: true,
-      sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, guides, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
+      sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
       mode: "in",
       look: { yaw: 0, pitch: 0, span: SPAN_DEF, spanT: SPAN_DEF, vy: 0, vp: 0, drag: false, fly: null, local: false, qF: lookFrame(false), minPitch: PITCH_MIN_FREE },
@@ -1317,6 +1341,23 @@ export default function Constellations({ lang = "es" }) {
         cam: () => ({ fov: camera.fov, aspect: camera.aspect, q: camera.quaternion.toArray(), p: camera.position.toArray(), mode: r.mode, ar: r.ar.on, local: r.localModeOn, localQuat: r.localQuat.toArray(), span: lk.span, w: mount.clientWidth, h: mount.clientHeight, vx: r.viewShift.cx, vy: r.viewShift.cy, flying: !!lk.fly, pm: camera.projectionMatrix.toArray(), mwi: camera.matrixWorldInverse.toArray() }),
         bodies: () => (r.showSolar ? r.bodies : []).map((b) => ({ name: b.name, nx: b.nx, ny: b.ny, nz: b.nz, mag: b.mag })),
         atm: () => ({ on: r.atmOn, dome: r.atm.visible, counts: r.atmCounts || null, solarVis: r.solarVis || null }),
+        // la ISS: lo dibujado (vértices de la capa) frente a la respuesta del servidor, y dónde cae en pantalla
+        iss: () => {
+          const il = r.issLayer, ck = issClock.current;
+          if (!il || !il.pass) return { active: false, t: ck.t, live: ck.live };
+          const p = il.pass, w = il.dotWorld(new THREE.Vector3());
+          camera.updateMatrixWorld();
+          const scr = (v) => { const s = v && screenOf(camera, v, mount.clientWidth, mount.clientHeight, "in"); return s ? { x: s.x, y: s.y } : null; };
+          const lm = altAzToLocal(p.max.alt, p.max.az), chk = il.drawnCheck(p.max.alt, p.max.az);
+          return { active: il.active, t: ck.t, live: ck.live, playing: ck.playing, rate: ck.rate, start: p.start.t, end: p.end.t, max: p.max, visible: p.visible, why: p.why_not_visible, nTrack: p.track.length,
+            pos: il.pos && { alt: il.pos.alt, az: il.pos.az, lit: il.pos.lit, visible: il.pos.visible, state: il.pos.state }, dot: scr(w),
+            maxScreen: scr(new THREE.Vector3(lm[0], lm[1], lm[2]).multiplyScalar(880)), peakAlt: chk && chk.peakAlt, distToMax: chk && chk.distDeg,
+            labels: (r._labels || []).filter((l) => l.cls === "iss" || l.cls === "iss_t").map((l) => ({ name: l.name, cls: l.cls, x: l.x, y: l.y })) };
+        },
+        // mirar a una altura/azimut del lugar (pruebas y capturas; solo en «Mi cielo»)
+        lookAltAz: (alt, az, span) => { const v = altAzToLocal(alt, az); r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), span, true); r.wake(); },
+        // mueve el reloj de la ISS (pruebas): al segundo, y whenStr con él
+        issSeek: (ms) => { const ck = issClock.current; ck.t = ms; ck.live = false; ck.lastMin = Math.floor(ms / 60000); if (ck.onMinute) ck.onMinute(ms); r.wake(); },
         stars: () => { const u = r.points.material.uniforms, c = r.points.geometry.attributes.scolor.array; let mx = 0; for (let i = 0; i < c.length; i++) mx = Math.max(mx, c[i]); return { uScale: u.uScale.value, uPx: u.uPx.value, uDpr: u.uDpr.value, pr: renderer.getPixelRatio(), maxColor: mx, visible: r.points.visible, op: r.points.material.opacity }; },
       };
     }
@@ -1469,12 +1510,23 @@ export default function Constellations({ lang = "es" }) {
         else ref.camera.setViewOffset(vw, vh, vs.cx, vs.cy, vw, vh);
         vs.dirty = false;
       }
+      // ── la ISS: su reloj al segundo (avanza a ×1/×10/×60 al reproducir; en «ahora», el del sistema) ──
+      let issMoved = false;
+      const il = ref.issLayer;
+      if (il && il.active) {
+        const ck = issClock.current, st = stepIssClock(ck, dtFrame);   // (dt recortado: tras una pausa no da saltos)
+        if (st.minute && ck.onMinute) ck.onMinute(ck.t);                // whenStr, una vez por minuto simulado
+        if (st.ended && ck.onEnd) ck.onEnd();                           // se para al acabar la pasada
+        issMoved = il.update(ck.t);
+        const sec = Math.floor(ck.t / 1000);
+        if (issHudRef.current && (sec !== ck.hudSec || issMoved)) { ck.hudSec = sec; issHudRef.current(ck.t, il.pos); }
+      }
       // ¿cambió algo desde el último cuadro dibujado?
       const cp = ref.camera.position, cq = ref.camera.quaternion, us = ref.points.material.uniforms.uScale.value;
       // (con tolerancia: el amortiguado de OrbitControls sigue moviendo la cámara millonésimas durante segundos;
       // se compara con el último cuadro DIBUJADO, así que una deriva lenta acaba dibujándose igual)
       const far = (a, b, e) => !(Math.abs(a - b) <= e);
-      const moved = rebuild || ar.on || !!ref.look.fly || tStart < wakeUntil || far(cp.x, lastCam.px, 0.01) || far(cp.y, lastCam.py, 0.01) || far(cp.z, lastCam.pz, 0.01)
+      const moved = rebuild || ar.on || issMoved || !!ref.look.fly || tStart < wakeUntil || far(cp.x, lastCam.px, 0.01) || far(cp.y, lastCam.py, 0.01) || far(cp.z, lastCam.pz, 0.01)
         || far(cq.x, lastCam.qx, 1e-6) || far(cq.y, lastCam.qy, 1e-6) || far(cq.z, lastCam.qz, 1e-6) || far(cq.w, lastCam.qw, 1e-6) || ref.camera.fov !== lastCam.fov || far(vs.cx, lastCam.vx, 0.25) || far(vs.cy, lastCam.vy, 0.25) || us !== lastCam.us;
       const draw = moved || (++idleN % IDLE_EVERY === 0);
       if (moved) idleN = 0;
@@ -1492,7 +1544,7 @@ export default function Constellations({ lang = "es" }) {
         if (adaptMs >= 500) {
           // los primeros segundos (carga de catálogos y texturas) no cuentan: son lentos en cualquier equipo
           const nr = !ADAPT_OFF && tStart - sceneT0 > 8000 ? adaptive.update(1000 * adaptN / adaptMs, adaptMs) : null; adaptN = 0; adaptMs = 0;
-          if (nr != null) { ref.renderer.setPixelRatio(nr); ref.points.material.uniforms.uPx.value = nr / basePR; wakeEv(); }
+          if (nr != null) { ref.renderer.setPixelRatio(nr); ref.points.material.uniforms.uPx.value = nr / basePR; ref.issLayer.setPixelRatio(nr); wakeEv(); }
         }
       } else if (!moved) { adaptN = 0; adaptMs = 0; }
       prevDrawn = draw && moved;
@@ -1621,6 +1673,10 @@ export default function Constellations({ lang = "es" }) {
             boxes.push(sx - w / 2, sy - 10, sx + w / 2, sy + 10);
             out.push({ key: "card:" + k, name: nm, cls: k === 0 ? "cardn" : "card", sub: null, x: sx, y: sy, dx: 0, flip: false });
           }
+        }
+        // la ISS: «ISS» junto al punto, inicio, fin y la hora de cada minuto (pocas: issLayer las aclara)
+        if (inside && ref.issLayer && ref.issLayer.active) {
+          for (const g of ref.issLayer.labelsForView(ref.camera, { w: W, h: H }, { clock: ref.issFmt || undefined })) place(g.x, g.y, g.name, g.cls, null, g.dx, g.pk ? { key: g.key, pk: g.pk } : { key: g.key });
         }
         // primero el sistema solar: sus nombres tienen prioridad en el anti-solape
         if (ref.showSolar) for (const b of (ref.bodies || [])) {
@@ -1906,6 +1962,7 @@ export default function Constellations({ lang = "es" }) {
     ref.points.quaternion.copy(q);
     ref.lines.quaternion.copy(q);
     if (ref.guides) ref.guides.setLocalFrame(active ? q : null);
+    if (ref.issLayer) ref.issLayer.setLocalFrame(active ? q : null);   // la ISS solo existe sobre un horizonte
     (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));
     if (ref.solarGroup) ref.solarGroup.quaternion.copy(q);
     if (ref.horizon) ref.horizon.visible = active;
@@ -2021,11 +2078,28 @@ export default function Constellations({ lang = "es" }) {
   }, [atmState, ready, datasets, enabled, bodies, showSolar, localActive, viewFrom]);
 
   // animar el tiempo (play)
+  // (con una pasada de la ISS en el cielo, el tiempo lo lleva su reloj, al segundo y a ×1/×10/×60: ver el bucle)
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || issOn) return;
     const id = setInterval(() => setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + 10 * 60000))), 120);
     return () => clearInterval(id);
-  }, [playing]);
+  }, [playing, issOn]);
+  // reloj de la ISS: sigue al reloj del sistema en «ahora»; si whenStr cambió por otro control (±1 h, fecha,
+  // «ahora»), salta al principio de ese minuto; si lo escribió el propio reloj (mismo minuto), conserva los segundos
+  useEffect(() => {
+    const ck = issClock.current;
+    ck.live = !timeMoved && !playing;
+    if (ck.live) ck.t = Date.now();
+    else if (fmtInput(new Date(ck.t)) !== whenStr) ck.t = new Date(whenStr).getTime();
+    ck.lastMin = Math.floor(ck.t / 60000);
+    if (sceneRef.current && sceneRef.current.wake) sceneRef.current.wake();
+  }, [whenStr, timeMoved, playing]);
+  useEffect(() => {
+    const ck = issClock.current;
+    ck.playing = playing && issOn; ck.rate = issRate;
+    ck.onMinute = (ms) => setWhenStr(fmtInput(new Date(ms)));
+    ck.onEnd = () => { ck.playing = false; setPlaying(false); };
+  }, [playing, issOn, issRate]);
   // sin tocar el control de tiempo, "ahora" sigue al reloj (el cielo gira 15° por hora)
   useEffect(() => {
     if (timeMoved || playing) return;
@@ -2055,6 +2129,7 @@ export default function Constellations({ lang = "es" }) {
     langRef.current = lang;
     const ref = sceneRef.current; if (!ref) return;
     ref.lang = lang;
+    ref.issFmt = (ms) => issClockFmt(ms, { lang });     // hora de las marcas de la ISS (zona del dispositivo)
     ref.cardNames = TC[lang].cardinals;
     if (ref.guides) ref.guides.setLang(lang);
   }, [lang, ready]);
@@ -2078,6 +2153,96 @@ export default function Constellations({ lang = "es" }) {
     const ref = sceneRef.current; if (!ref) return;
     goLook(nx, ny, nz, Math.min(ref.look.spanT, 60));
   }, [goLook]);
+  // ── la ISS en el Cielo ──
+  // «Verla en el cielo» (tarjeta de «Esta noche»): cierra el panel, pone la hora al inicio del tramo visible
+  // (o de la pasada, si no se ve), vuela a la culminación y dibuja la pasada. Si no trae trayectoria (las no
+  // visibles), se pide solo la de esa pasada (pass_start). Solo tiene sentido sobre un horizonte: si «Mi
+  // cielo» no estaba activo se activa con el lugar actual, y se avisa.
+  const showIss = useCallback((p, data) => {
+    if (!p || lat == null || lon == null) return;
+    const x = ISS_TX[lang] || ISS_TX.es;
+    const msgs = [];
+    if (!localMode) { setLocalMode(true); setSel(null); setDepth(0); setOutside(false); msgs.push(x.issNeedMySky); }
+    setPanel(null); setSelObj(null); setPick(null); setIssSheet(false);
+    const t0 = p.visFromMs ?? p.startMs;
+    const ck = issClock.current; ck.t = t0; ck.live = false; ck.lastMin = Math.floor(t0 / 60000); ck.hudSec = null;
+    setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(new Date(t0)));
+    issFlyRef.current = { alt: p.max.alt, az: p.max.az };
+    setIssSel({ lat, lon, pass: p, data: data || null, status: hasTrack(p) ? "ok" : "loading" });
+    const why = hiddenReason(p);
+    if (why) msgs.push(x.issHiddenWhy[why]);
+    msgs.push(x.issShowing(issDayTime(p.startMs, { lang })));
+    setToast({ text: msgs.join(" "), id: Date.now() });
+  }, [lat, lon, lang, localMode]);
+  // trayectoria de una pasada no visible: solo la de esa pasada (~2 KB), cancelable
+  useEffect(() => {
+    if (!issSel || issSel.status !== "loading") return undefined;
+    const ctl = new AbortController(), want = issSel.pass;
+    const days = (issSel.data && issSel.data.window && issSel.data.window.days) || ISS_DAYS;
+    fetchIssPass({ lat: issSel.lat, lon: issSel.lon, altM: elev || 0, days, pass: want, signal: ctl.signal })
+      .then(({ pass, data }) => setIssSel((s) => (s && s.pass === want ? { ...s, pass, data: s.data || data, status: "ok" } : s)))
+      .catch((e) => {
+        if (e && e.name === "AbortError") return;
+        setIssSel((s) => (s && s.pass === want ? { ...s, status: "error" } : s));
+        setToast({ text: (ISS_TX[langRef.current] || ISS_TX.es).issTrackError, id: Date.now() });
+      });
+    return () => ctl.abort();
+  }, [issSel, elev]);
+  // la capa dibuja la pasada elegida (y nada si no hay, si aún carga o si no hay horizonte)
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref || !ref.issLayer) return;
+    ref.issLayer.setPass(issOn ? issSel.pass : null);
+    ref.issLayer.setLocalFrame(localActive ? ref.localQuat : null);
+    issClock.current.endMs = issOn ? issSel.pass.endMs : null;
+    issClock.current.hudSec = null;
+    if (ref.wake) ref.wake();
+  }, [issSel, issOn, localActive, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // vuelo a la culminación, cuando «Mi cielo» ya está activo (después del efecto que coloca su mirada inicial)
+  useEffect(() => {
+    const ref = sceneRef.current, m = issFlyRef.current;
+    if (!ref || !m || !issSel || !localActive || ref.mode !== "in") return;
+    issFlyRef.current = null;
+    const v = altAzToLocal(m.alt, m.az);
+    ref.lookAt(new THREE.Vector3(v[0], v[1], v[2]), Math.max(ref.look.spanT, SPAN_DEF));
+  }, [issSel, localActive, ready]);
+  const removeIss = useCallback((quiet) => {
+    setIssSel(null); setIssSheet(false); setPlaying(false);
+    issFlyRef.current = null;
+    if (quiet !== true) track("iss_passes", { kind: "remove", state: "ok" });
+  }, []);
+  // al cambiar de lugar (o salir de «Mi cielo») la pasada deja de valer: se quita
+  useEffect(() => {
+    if (issSel && (!localMode || lat !== issSel.lat || lon !== issSel.lon)) removeIss(true);
+  }, [lat, lon, localMode]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const openIss = useCallback(() => {
+    setSelObj(null); setPick(null); setIssSheet(true);
+    if (!isWideRef.current) setPanel(null);
+    track("iss_passes", { kind: "sheet", state: "ok" });
+  }, []);
+  const openIssRef = useRef(openIss);
+  openIssRef.current = openIss;
+  useEffect(() => { if (selObj) setIssSheet(false); }, [selObj]);
+  // centrar: en la ISS si está sobre el horizonte a esa hora; si no, en la culminación
+  const centerIss = useCallback(() => {
+    const ref = sceneRef.current; if (!ref || !issOn || ref.ar.on) return;
+    const pos = ref.issLayer.pos, m = issSel.pass.max;
+    const v = pos ? pos.local : altAzToLocal(m.alt, m.az);
+    ref.lookAt(new THREE.Vector3(v[0], v[1], v[2]), Math.min(ref.look.spanT, SPAN_DEF));
+  }, [issOn, issSel]);
+  // ▶/⏸ de la píldora: al acabar la pasada, ▶ la vuelve a empezar
+  const toggleIssPlay = useCallback(() => {
+    if (!issOn) return;
+    const ck = issClock.current, p = issSel.pass;
+    if (!playing && (ck.t > p.endMs || ck.t < p.startMs - 10 * 60000)) {
+      const t0 = p.visFromMs ?? p.startMs;
+      ck.t = t0; ck.live = false; ck.lastMin = Math.floor(t0 / 60000);
+      setWhenStr(fmtInput(new Date(t0)));
+    }
+    if (!playing) track("iss_passes", { kind: "play", state: "ok" });
+    setTimeMoved(true); setPlaying((v) => !v);
+  }, [issOn, issSel, playing]);
+  const cycleIssRate = useCallback(() => setIssRate((r) => nextRate(r)), []);
+
   const startTour = useCallback(() => { track("sky_tour", { state: "start" }); setSel(null); setOutside(false); setSelObj(null); setPanel(null); setTourAuto(true); setTourIndex(0); setTourActive(true); }, []);
   // Los datos del tour (Messier y agujeros negros) se leen por referencia: así, si
   // OTRA capa termina de cargar a mitad del recorrido, la parada actual no se
@@ -2553,7 +2718,7 @@ export default function Constellations({ lang = "es" }) {
   // un panel a la vez; en móvil la ficha y los paneles comparten la parte baja
   const openPanel = useCallback((id) => {
     setPanel(p => (p === id ? null : id));
-    if (!isWideRef.current) setSelObj(null);
+    if (!isWideRef.current) { setSelObj(null); setIssSheet(false); }
   }, []);
   const toggleLayer = useCallback((key) => {
     setLayerError(p => (p[key] ? { ...p, [key]: false } : p));
@@ -2562,8 +2727,8 @@ export default function Constellations({ lang = "es" }) {
   }, [enabled]);
   const onStageKey = useCallback((e) => {
     if (e.key !== "Escape" || e.defaultPrevented) return;
-    if (share) setShare(false); else if (railOpen) setRailOpen(false); else if (pick) setPick(null); else if (panel) setPanel(null); else if (selObj) setSelObj(null); else if (guide) setGuide(null); else if (toast) setToast(null); else if (full) setFull(false);
-  }, [panel, selObj, full, railOpen, guide, pick, toast, share]);
+    if (share) setShare(false); else if (railOpen) setRailOpen(false); else if (pick) setPick(null); else if (panel) setPanel(null); else if (selObj) setSelObj(null); else if (issSheet) setIssSheet(false); else if (guide) setGuide(null); else if (toast) setToast(null); else if (full) setFull(false);
+  }, [panel, selObj, full, railOpen, guide, pick, toast, share, issSheet]);
 
   // tocar para identificar un objeto: se proyecta en pantalla todo lo visible POR DELANTE de la cámara
   // (nunca lo que queda detrás del observador ni, desde fuera, la cara oculta de la esfera) y gana el
@@ -2606,6 +2771,9 @@ export default function Constellations({ lang = "es" }) {
         const ov = ref.atmOn ? o.points.userData.vis : null;
         for (let i = 0; i < objs.length; i++) { if (ov && !ov[i]) continue; const ob = objs[i]; consider(ob.nx * 870, ob.ny * 870, ob.nz * 870, 0, isNotable(o.key, ob, ref.when) ? 6 : 1, () => ({ ...ob, layer: o.key }), labelForObj(o.key, ob, L), kind); }
       }
+      // la ISS: su punto ya está en coordenadas del mundo (marco local), con la máxima prioridad
+      const issW = ref.issLayer && ref.issLayer.dotWorld(selW.clone());
+      if (issW && screenOf(ref.camera, issW, r.width, r.height, mode, sp)) cands.push({ sx: sp.x, sy: sp.y, r: 10, prio: 12, iss: true, make: () => ({ layer: "iss" }), label: "ISS", kind: (ISS_TX[L] || ISS_TX.es).issSheetTitle });
       const pa = ref.posAttr.array, stars = sky.stars;
       for (let i = 0; i < stars.length; i++) {
         if (!stars[i][7]) continue;                              // solo estrellas con nombre propio
@@ -2633,18 +2801,22 @@ export default function Constellations({ lang = "es" }) {
         if (lbHit.cls === "con") o = conObjRef.current(lbHit.ab);
         else if (lbHit.pk && lbHit.pk.si != null) o = starObj(stars[lbHit.pk.si], lbHit.pk.si);
         else if (lbHit.pk && lbHit.pk.layer === "solar") o = { ...lbHit.pk.ob, layer: "solar" };
+        else if (lbHit.pk && lbHit.pk.iss) o = { layer: "iss" };
         else if (lbHit.pk && lbHit.pk.ob) o = { ...lbHit.pk.ob, layer: lbHit.pk.layer };
+        if (o && o.layer === "iss") { openIssRef.current(); return; }
         if (o) { setPick(null); if (o.layer === "con") setSel(null); setSelObj(o); return; }
       }
+      // la ISS se mueve: si gana ella, su ficha directamente (sin la lista de objetos amontonados)
+      if (best && best.iss) { setPick(null); openIssRef.current(); return; }
       if (best) {
         // varios objetos prácticamente en el mismo punto (p. ej. Marte y sus orbitadores): se deja elegir
         if (same.length > 1) { setPick(same.slice(0, 8).map((h) => ({ label: h.label, kind: h.kind, make: h.make }))); setSelObj(null); if (!isWideRef.current) setPanel(null); }
-        else { setPick(null); setSelObj(best.make()); }
+        else { setPick(null); const o = best.make(); if (o.layer === "iss") openIssRef.current(); else setSelObj(o); }
         return;
       }
       setPick(null);
       if (ref.ar.on && !isWideRef.current && !selObjRef.current && !panelRef.current) setArCtl(v => !v);
-      setSelObj(null); if (!isWideRef.current) setPanel(null);
+      setSelObj(null); setIssSheet(false); if (!isWideRef.current) setPanel(null);
     };
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointerup", onUp);
@@ -2667,13 +2839,14 @@ export default function Constellations({ lang = "es" }) {
   useEffect(() => {
     const ref = sceneRef.current; if (!ref) return;
     let x = 0, yf = 0;
-    if (isWide) { if (selObj) x += 208; if (panel) x -= 198; }
-    else if (selObj) yf = 0.24;
+    const sheet = !!selObj || issSheet;
+    if (isWide) { if (sheet) x += 208; if (panel) x -= 198; }
+    else if (sheet) yf = 0.24;
     else if (panel) yf = 0.3;
     else if (tourActive) yf = 0.14;
     else if (sel && !localMode) yf = 0.12;      // tarjeta de profundidad sobre el dock
     ref.viewShift.x = x; ref.viewShift.yf = yf;
-  }, [selObj, panel, tourActive, isWide, ready, sel, localMode]);
+  }, [selObj, panel, tourActive, isWide, ready, sel, localMode, issSheet]);
 
   // atajos del buscador vacío
   const quick = useMemo(() => {
@@ -2714,9 +2887,10 @@ export default function Constellations({ lang = "es" }) {
   const when = new Date(whenStr);
   const placeLabel = placeKind === "me" ? t.myLocation : placeKind === "custom" ? t.customPlace : placeDefault ? t.placeDefault(placeKind) : placeKind;
   const tourReady = !!(ready && datasets.messier && datasets.blackholes);
-  const covered = !isWide && (!!selObj || !!panel || !!pick);
+  const issSheetOn = !!(issSheet && issSel && issSel.pass && !selObj);
+  const covered = !isWide && (!!selObj || !!panel || !!pick || issSheetOn);
   const showDepth = !!(sky && selMeta && !localMode && !tourActive);
-  const showOnboard = !!(showHint && sky && !selObj && !panel && !tourActive && !showDepth && !arOn);
+  const showOnboard = !!(showHint && sky && !selObj && !issSheetOn && !panel && !tourActive && !showDepth && !arOn);
   // barra de "Apuntar al cielo": invitación (dentro de Mi cielo), indicador activo o aviso de error
   const arBar = !sky || tourActive ? null : arOn ? "on" : ar === "paused" ? "paused" : arError ? "error" : null;
   const immersive = arOn && !isWide;          // teléfono apuntando: el cielo ocupa toda la pantalla
@@ -2738,7 +2912,8 @@ export default function Constellations({ lang = "es" }) {
     return res;
   }, [panel, localMode, lat, lon, whenStr, datasets.meteors, datasets.messier, conDirs, atmOn, bortle, elev]);
   // aviso de día: planetas que aun así se verían (p. ej. Venus) y salto a cuando oscurezca
-  const dayWarn = !!(atmActive && atmState && starsHidden(atmState) && !dayHidden && !arOn && !tourActive);
+  // (con una pasada de la ISS en el cielo no: su propio aviso ya dice si es de día, y taparía la píldora)
+  const dayWarn = !!(atmActive && atmState && starsHidden(atmState) && !dayHidden && !arOn && !tourActive && !issSel);
   const dayPlanets = useMemo(() => {
     if (!dayWarn) return null;
     const d = new Date(whenStr);
@@ -2802,8 +2977,8 @@ export default function Constellations({ lang = "es" }) {
   }, [selCon, datasets.messier, datasets.galaxies, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
   const showActions = !!(sky && !tourActive && !arOn && ar !== "paused" && !arError && inMySky && !covered && !showOnboard && !viewFrom && !showDepth);
   // compartiendo en el teléfono, el visor pasa a pantalla completa: la vista previa necesita todo el alto
-  const stageClass = "sk-stage" + (full || immersive || (share && !isWide) ? " is-full" : "") + (immersive ? " is-immersive" : "") + (arOn && arCtl ? " ar-ctl" : "") + (covered ? " is-covered" : "") + (selObj ? " has-sheet" : "")
-    + (tourActive ? " has-tour" : "") + (showDepth ? " has-depth" : "") + (arOn ? " is-ar" : "") + (panel ? " has-panel" : "");
+  const stageClass = "sk-stage" + (full || immersive || (share && !isWide) ? " is-full" : "") + (immersive ? " is-immersive" : "") + (arOn && arCtl ? " ar-ctl" : "") + (covered ? " is-covered" : "") + (selObj || issSheetOn ? " has-sheet" : "")
+    + (tourActive ? " has-tour" : "") + (showDepth ? " has-depth" : "") + (issSel ? " has-isspill" : "") + (arOn ? " is-ar" : "") + (panel ? " has-panel" : "");
   const bumpCtl = arOn && arCtl ? () => setCtlBump(n => n + 1) : undefined;
 
   return (
@@ -2831,8 +3006,12 @@ export default function Constellations({ lang = "es" }) {
           <SearchBox t={t} query={query} setQuery={setQuery} results={results} onResult={onResult} quick={quick} compact={!isWide} />
           {dayWarn && <DayWarning lang={lang} planets={dayPlanets} onNightfall={goNightfall}
             onAtmOff={() => { setAtmOn(false); track("sky_setting", { setting: "atmosphere", state: "off" }); }} onDismiss={() => setDayHidden(true)} />}
-          {(viewFrom || outside || (isWide && localMode)) && (
+          {(viewFrom || outside || (isWide && localMode) || issSel) && (
             <div className="sk-chips">
+              {issSel && (
+                <IssPill lang={lang} apiRef={issHudRef} pass={issSel.pass} loading={issSel.status === "loading"} playing={playing && issOn} rate={issRate}
+                  onOpen={issOn ? openIss : () => {}} onTogglePlay={toggleIssPlay} onRate={cycleIssRate} onRemove={() => removeIss()} />
+              )}
               {outside && (
                 <div className="sk-chip tone-violet">
                   <span>{t.outsideChip}</span>
@@ -2943,14 +3122,23 @@ export default function Constellations({ lang = "es" }) {
           onFind={arCapable ? tonightFind : null}
           onGoTime={(d) => { setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(d)); }}
           onClose={() => setPanel(null)}
-          iss={lat != null && lon != null ? { lat, lon, altM: elev || 0 } : null} />
+          iss={lat != null && lon != null ? { lat, lon, altM: elev || 0, onShow: showIss } : null} />
       )}
       {sky && panel === "time" && (
         <TimePanel t={t} lang={lang} when={when} whenStr={whenStr} isNow={!timeMoved} playing={playing}
           onShift={(m) => { track("sky_time", { kind: m > 0 ? "forward" : "back" }); shiftMin(m); }} onTogglePlay={() => { setTimeMoved(true); setPlaying(pl => !pl); }}
           onNow={() => { track("sky_time", { kind: "now" }); setPlaying(false); setTimeMoved(false); setWhenStr(nowLocalInput()); }}
           onSet={(v) => { track("sky_time", { kind: "custom" }); setPlaying(false); setTimeMoved(true); setWhenStr(v); }}
-          onClose={() => setPanel(null)} />
+          onClose={() => setPanel(null)}
+          extra={issOn ? (
+            <div className="sk-quick sk-iss-rates" role="group" aria-label={ISS_TX[lang].issSheetTitle}>
+              {ISS_RATES.map((r) => (
+                <button key={r} type="button" aria-pressed={issRate === r} onClick={() => setIssRate(r)} aria-label={ISS_TX[lang].issSpeedAria(r)}>
+                  {ISS_TX[lang].issSpeed(r)}{r === 1 ? ` · ${ISS_TX[lang].issRealTime}` : ""}
+                </button>
+              ))}
+            </div>
+          ) : null} />
       )}
 
       {liveObj && !selCon && (
@@ -2979,6 +3167,10 @@ export default function Constellations({ lang = "es" }) {
           onPickObject={(layer, o) => { setEnabled(e => ({ ...e, [layer]: true })); setSelObj({ ...o, layer }); }} />
       )}
 
+      {issSheetOn && (
+        <IssSheet t={t} lang={lang} pass={issSel.pass} data={issSel.data} onClose={() => setIssSheet(false)} onCenter={centerIss} onRemove={() => removeIss()} />
+      )}
+
       {pick && (
         <section className="sk-pick" role="dialog" aria-labelledby="sk-pick-title" ref={pickRef}>
           <header>
@@ -2988,7 +3180,7 @@ export default function Constellations({ lang = "es" }) {
           <p>{t.pickLead}</p>
           <ul>
             {pick.map((h, i) => (
-              <li key={i}><button type="button" className="sk-result" onClick={() => { const o = h.make(); setPick(null); if (o.layer === "solar") setShowSolar(true); setSelObj(o); }}>
+              <li key={i}><button type="button" className="sk-result" onClick={() => { const o = h.make(); setPick(null); if (o.layer === "iss") { openIss(); return; } if (o.layer === "solar") setShowSolar(true); setSelObj(o); }}>
                 <span className="sk-result-name">{h.label}</span><span className="sk-result-kind">{h.kind}</span>
               </button></li>
             ))}

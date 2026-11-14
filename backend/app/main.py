@@ -530,15 +530,24 @@ async def iss_passes(
     alt_m: float = Query(0.0, ge=-500.0, le=9000.0),
     days: int = Query(iss.DEFAULT_DAYS, ge=iss.MIN_DAYS, le=iss.MAX_DAYS),
     track: str = Query("visible", pattern="^(visible|all|none)$"),
+    pass_start: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$"),
 ):
     """Pasadas de la Estación Espacial Internacional sobre un lugar en los
     próximos `days` días (1–10), con física real: elementos orbitales de
     CelesTrak y propagación SGP4. Cada pasada trae inicio, culminación y fin
     (hora UTC, altura y azimut), si se ve a simple vista (ISS iluminada y Sol
     a menos de −6°) y su trayectoria (`track`: por defecto solo en las visibles;
-    `track=all` en todas, `track=none` en ninguna). No se guarda ni se registra el lugar."""
+    `track=all` en todas, `track=none` en ninguna). Con `pass_start` (hora UTC
+    del inicio de una pasada, p. ej. 2026-11-14T19:35:37Z) devuelve solo esa
+    pasada, con su trayectoria aunque no sea visible (± 2 min de holgura).
+    No se guarda ni se registra el lugar."""
+    if pass_start:
+        try:
+            iss.parse_iso_utc(pass_start)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Parámetro inválido — pass_start: fecha inexistente")
     try:
-        data = await iss.get_passes(lat, lon, alt_m, days, track)
+        data = await iss.get_passes(lat, lon, alt_m, days, track, pass_start)
     except Exception as e:
         raise _provider_http_error("CelesTrak", e)
     if data["stale"] or data["elements"]["outdated"]:

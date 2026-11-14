@@ -12,7 +12,7 @@
 import {
   issUrl, fetchIssPasses, normalizePasses, formatClock, formatDay, formatDayTime, compassLabel, fmtDuration, fmtMag,
   shownEnds, shownMaxAlt, visiblePasses, nextVisiblePass, isHappeningNow, splitWait, formatCountdown, describePass, summarize,
-  accuracyWarnings,
+  accuracyWarnings, findPass, hasTrack, fetchIssPass, hiddenReason, upcomingPasses, orbitFacts, PASS_MATCH_MS,
 } from "../src/sky/issPasses.js";
 import { issPositionAt, issTrack, issSegments, passSpan, slerp, altAzToENU, enuToAltAz, altAzToLocal, altAzToEquatorial } from "../src/sky/issSky.js";
 import { altAz, altAzOfLocal } from "../src/sky/guide.js";
@@ -190,6 +190,50 @@ console.log("Marcos de referencia");
   ok(slerp([1, 0, 0], [1, 0, 0], 0.3)[0] === 1, "slerp con vectores iguales no divide por cero");
 }
 
+console.log("Una sola pasada (pass_start) y pasadas no visibles");
+{
+  const u = issUrl({ lat: -0.22, lon: -78.51, altM: 2850, api: "", track: "all", passStart: "2026-11-14T19:35:37Z" });
+  ok(u === "/api/iss/passes?lat=-0.22&lon=-78.51&alt_m=2850&days=5&track=all&pass_start=2026-11-14T19%3A35%3A37Z", "URL con track=all y pass_start", u);
+  ok(!issUrl({ lat: 1, lon: 2, api: "", track: "visible" }).includes("track=") && !issUrl({ lat: 1, lon: 2, api: "" }).includes("pass_start"), "sin esos parámetros la URL no cambia (track=visible es el valor por defecto)");
+  ok(findPass(N.passes, day.startMs + 1000) === day && findPass(N.passes, day.startMs - PASS_MATCH_MS) === day && findPass(N.passes, day.startMs + PASS_MATCH_MS + 1) === null, "findPass: ±2 min de holgura sobre el inicio");
+  ok(hasTrack(day) && !hasTrack({ ...day, track: [] }) && !hasTrack(null), "hasTrack");
+  // servidor nuevo: devuelve solo esa pasada
+  const calls = [];
+  const fresh = async (url) => { calls.push(url); return { ok: true, status: 200, json: async () => data({ passes: [RAW.quito_day], pass_start: RAW.quito_day.start.t }) }; };
+  const hidden = { ...day, track: [] };
+  const r1 = await fetchIssPass({ lat: -0.22, lon: -78.51, altM: 2850, pass: hidden, fetchImpl: fresh, api: "" });
+  ok(calls[0].includes("pass_start=2026-11-14T19%3A35%3A37Z") && calls[0].includes("track=all") && hasTrack(r1.pass) && r1.pass.id === day.id && typeof r1.pass.startMs === "number", "fetchIssPass: pide esa pasada y la devuelve normalizada, con trayectoria");
+  // servidor anterior (no conoce pass_start): devuelve todas con track=all y se elige la buscada
+  const old = async () => ({ ok: true, status: 200, json: async () => data() });
+  const r2 = await fetchIssPass({ lat: -0.22, lon: -78.51, pass: hidden, fetchImpl: old, api: "" });
+  ok(r2.pass.id === day.id && hasTrack(r2.pass), "con un servidor anterior también funciona (toma la pasada de la lista completa)");
+  const none = async () => ({ ok: true, status: 200, json: async () => data({ passes: [] }) });
+  let err = null; try { await fetchIssPass({ lat: 1, lon: 2, pass: hidden, fetchImpl: none, api: "" }); } catch (e) { err = e; }
+  ok(err && err.status === 404, "si la pasada ya no está: error claro (404)");
+  const down = async () => ({ ok: false, status: 502, json: async () => ({}) });
+  err = null; try { await fetchIssPass({ lat: 1, lon: 2, pass: hidden, fetchImpl: down, api: "" }); } catch (e) { err = e; }
+  ok(err && err.status === 502, "HTTP 502: lanza");
+  err = null; try { await fetchIssPass({ lat: 1, lon: 2, fetchImpl: fresh, api: "" }); } catch (e) { err = e; }
+  ok(err && /sin pasada/.test(err.message), "sin pasada no hay petición");
+  ok(hiddenReason(day) === "sun_up" && hiddenReason(over) === null && hiddenReason({ visible: false, why_not_visible: "iss_in_shadow" }) === "iss_in_shadow" && hiddenReason({ visible: false, why_not_visible: "partial" }) === "partial" && hiddenReason({ visible: false }) === "partial", "hiddenReason: de día, en sombra o parcial");
+  const up = upcomingPasses(N.passes, Date.parse("2026-11-14T19:00:00Z"));
+  ok(up.length === 2 && up[0] === day && up[1] === over, "upcomingPasses: visibles y no visibles que aún no han terminado, en orden");
+}
+
+console.log("La órbita para la ficha (elements de la respuesta)");
+{
+  // elements reales de la respuesta del 14-nov-2026 (TLE de CelesTrak): período 92,9 min, 51,63°, 414–424 km
+  const f = orbitFacts({ perigee_km: 414, apogee_km: 424, period_min: 92.9, inclination_deg: 51.63 });
+  ok(f.fromElements && f.altKm === 419 && f.inclDeg === 51.63 && f.periodMin === 92.9, "toma altura, período e inclinación de los elementos");
+  ok(near(f.speedKms, 7.66, 0.01), "velocidad v = √(GM/a), con a del período (3.ª ley de Kepler): ≈ 7,66 km/s", f.speedKms.toFixed(4));
+  // a del período: 6795 km ≈ R⊕ + altura media (la altura sale de los mismos elementos por otro camino)
+  const a = Math.cbrt(398600.4418 * (92.9 * 60 / (2 * Math.PI)) ** 2);
+  ok(near(a - 6378.137, 419, 5), "coherente: el semieje del período da la misma altura (±5 km)", (a - 6378.137).toFixed(1));
+  const g = orbitFacts(null);
+  ok(!g.fromElements && g.altKm === 420 && near(g.periodMin, 92.8, 0.3) && near(g.speedKms, 7.66, 0.02) && g.inclDeg === 51.6, "sin elementos: valores típicos, rotulados como tales");
+  ok(!orbitFacts({ perigee_km: 9, apogee_km: 4, period_min: 5 }).fromElements, "elementos absurdos: se ignoran");
+}
+
 console.log("Textos ES/EN");
 {
   const kinds = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v]));
@@ -201,6 +245,14 @@ console.log("Textos ES/EN");
       t.issMag("≈ −3,5"), t.issShowAria("sáb 14 nov", "19:35"), t.issEpoch("sáb 14 nov 16:59", "13 h"), t.issEpoch("x", ""), t.issAge(0.5), t.issAge(13), t.issAge(100), t.issTimeNote("America/Guayaquil"), t.issTimeNote("")];
     ok(outs.every((s) => typeof s === "string" && s.length > 0 && !/undefined|NaN|\[object/.test(s)), `${lang}: ninguna frase sale vacía ni con undefined/NaN`, outs.find((s) => /undefined|NaN/.test(s)));
   }
+  for (const lang of ["es", "en"]) {
+    const t = ISS[lang];
+    const outs = [t.issShowing("sáb 14 nov, 19:19"), t.issSpeed(10), t.issSpeedAria(1), t.issSpeedAria(60), t.issPillAria("19:22:22", t.issState.lit), t.issAltHint("414", "424"), t.issSpeedHint("27.600"),
+      t.issPeriodHint("15,5"), t.issRowDir(44, "SE"), t.issVisibleYes("19:19:10", "19:23:48"), t.issBright("≈ −3,0"), ...Object.values(t.issHiddenTag), ...Object.values(t.issHiddenWhy), ...Object.values(t.issState)];
+    ok(outs.every((x) => typeof x === "string" && x.length > 0 && !/undefined|NaN|\[object/.test(x)), `${lang}: textos de la ISS en el Cielo sin huecos`);
+    ok(JSON.stringify(Object.keys(t.issHiddenWhy).sort()) === '["iss_in_shadow","partial","sun_up"]' && JSON.stringify(Object.keys(t.issHiddenTag).sort()) === '["iss_in_shadow","partial","sun_up"]', `${lang}: un aviso por cada razón de no verse`);
+  }
+  ok(ISS.es.issHiddenWhy.sun_up === "Esta pasada no se ve a simple vista: es de día." && ISS.es.issHiddenWhy.iss_in_shadow === "Esta pasada no se ve a simple vista: va por la sombra de la Tierra.", "los avisos del encargo, en español");
   ok(ISS.es.issAppears("SO", 64, "NE") === "Aparece por el SO, sube a 64°, se pierde por el NE", "la frase del encargo, en español");
   ok(ISS.es.issEmpty(5) === "Ninguna pasada visible en los próximos 5 días." && ISS.es.issSource === "Elementos orbitales: CelesTrak · Propagación SGP4", "estado vacío y fuente, en español");
   ok(ISS.es.issEmptyWhy(12, 7, 5) === "La ISS pasa 12 veces, pero ninguna se ve: 7 de día y 5 con la ISS dentro de la sombra de la Tierra.", "por qué no se ve ninguna", ISS.es.issEmptyWhy(12, 7, 5));
