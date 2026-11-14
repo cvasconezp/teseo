@@ -1,0 +1,83 @@
+/* gw.css — «¿Qué son las ondas gravitacionales?» (prefijo gw- / q-gw-tour).
+   Reutiliza las variables y piezas de questions.css. Las reglas de pasos,
+   supuestos y fuentes se repiten aquí acotadas a .q-gw-tour para no depender de
+   que time.css esté cargado. Nada de fondos blancos: todo son capas
+   translúcidas sobre el fondo oscuro, para que la visión nocturna (capa roja
+   multiplicada) las tiña bien. */
+
+.q-gw-tour .q-step { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
+.q-gw-tour .q-step:first-of-type { margin-top: 26px; }
+.q-gw-tour .q-step__title { margin-bottom: 8px; }
+.q-gw-tour .q-step__lead { margin-bottom: 14px; font-size: 15px; color: var(--soft); }
+.q-gw-tour .q-step__p { margin-top: 10px; font-size: 14.5px; color: var(--soft); }
+.q-gw-tour .q-step .q-card { margin-top: 14px; }
+.q-gw-tour .q-step .q-card + .q-card { margin-top: 10px; }
+.q-gw-tour .q-step .q-refs { margin-bottom: 4px; }
+.q-gw-tour .q-calc--solo { margin-top: 6px; }
+.q-gw-tour .q-calc--solo dd { font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+.q-gw-tour .q-assume__list { margin: 0; padding-left: 1.15em; }
+.q-gw-tour .q-assume__list li { margin-top: 8px; }
+.q-gw-tour .q-assume__list li::marker { color: var(--thread); }
+.q-gw-tour .q-sources { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
+.q-gw-tour .q-assume { margin-top: 30px; }
+@media (min-width: 1024px) {
+  .q-gw-tour .q-assume, .q-gw-tour .q-sources, .q-gw-tour .q-step__lead { max-width: 42rem; }
+  .q-gw-tour .q-assume, .q-gw-tour .q-sources { margin-inline: auto; }
+}
+
+/* Anillo de partículas */
+.gw-ring { margin: 14px 0 0; text-align: center; }
+.gw-ring .q-fig__title { text-align: left; }
+.gw-ring__svg { display: block; width: 100%; max-width: 280px; height: auto; margin: 4px auto 0; }
+.gw-ring__guide { fill: none; stroke: rgba(255, 255, 255, 0.4); stroke-width: 1.2; stroke-dasharray: 2 4; }
+.gw-ring__center { fill: rgba(255, 255, 255, 0.5); }
+.gw-ring__p { fill: #F2C46D; stroke: rgba(4, 8, 15, 0.7); stroke-width: 1; }
+.gw-ring__tag { margin-top: 6px; font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--q-estimated); }
+.gw-ring .q-fine { margin-top: 8px; text-align: left; }
+.gw-btn { min-height: 48px; margin-top: 10px; padding-inline: 18px; }
+.gw-fine { margin-top: 8px; padding: 0 2px; }
+.q-gw-tour .q-slide { margin-top: 16px; }
+
+.gw-scale { margin-top: 22px; }
+.gw-scale .q-h4 { margin-top: 0; }
+
+/* Laboratorio */
+.gw-lab { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+.gw-lab__controls, .gw-lab__out { min-width: 0; }
+.gw-presets { grid-template-columns: 1fr; }
+.gw-presets .q-preset { min-height: 48px; text-align: left; padding-inline: 14px; }
+@media (min-width: 560px) { .gw-presets { grid-template-columns: repeat(3, 1fr); } .gw-presets .q-preset { text-align: center; } }
+@media (min-width: 1024px) {
+  .gw-lab { display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 12fr); column-gap: 44px; align-items: start; }
+  .gw-presets { grid-template-columns: 1fr; }
+  .gw-presets .q-preset { text-align: left; }
+}
+
+.q-gw-tour .q-result--gw { margin-top: 0; padding: 14px 14px 14px; border-radius: 22px; background: linear-gradient(160deg, rgba(125, 185, 255, 0.12), rgba(124, 58, 237, 0.08) 55%, rgba(255, 255, 255, 0.02)); border: 1px solid rgba(125, 185, 255, 0.34); }
+.gw-h4 { margin-top: 0; }
+.q-result--gw .q-fine { margin-top: 10px; }
+.q-result--gw .q-cert { margin-top: 10px; }
+
+.gw-wave { margin-top: 16px; }
+.gw-wave__line { stroke: #7DB9FF; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.gw-wave__end { stroke: rgba(242, 196, 109, 0.8); stroke-width: 1.4; stroke-dasharray: 2 4; }
+
+.gw-listen { margin-top: 16px; padding: 14px; border-radius: 22px; background: var(--panel); border: 1px solid var(--line-strong); }
+.gw-btn--listen { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 0; min-height: 56px; font-size: 17px; font-weight: 700; color: #fff; background: linear-gradient(135deg, rgba(124, 58, 237, 0.75), rgba(37, 99, 235, 0.75)); border: 1px solid var(--violet); border-radius: 16px; }
+.gw-btn--listen.is-on { background: rgba(124, 58, 237, 0.3); box-shadow: inset 0 0 0 1px var(--violet); }
+.gw-listen__label { margin-top: 12px; padding: 9px 12px; border-radius: 12px; font-size: 14px; line-height: 1.45; color: #fff; background: rgba(242, 196, 109, 0.09); border: 1px dashed rgba(242, 196, 109, 0.55); }
+.gw-listen .q-fine { margin-top: 10px; }
+
+.gw-why { margin-top: 18px; }
+.gw-formulas { margin: 0; padding: 0; list-style: none; }
+.gw-formulas li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--soft); }
+.gw-formulas li:first-child { border-top: 0; }
+.gw-formula { font-size: 14px; overflow-wrap: anywhere; }
+.q-gw-tour .q-share { margin-top: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gw-btn, .gw-btn--listen { transition: none; }
+}
+
+.gw-note { margin-top: 14px; padding: 10px 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
+.gw-note .q-presets__note { margin-top: 0; }
