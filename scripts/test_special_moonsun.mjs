@@ -148,18 +148,18 @@ console.log("Métricas");
   eq(metricParams({ destination: "moon", kind: "view" }), { destination: "moon", kind: "view" }, "special_dest pasa la lista blanca del cliente (destination, kind)");
   ok(!("dest" in cleanParams({ dest: "moon" })), "la clave «dest» no está permitida: por eso se usa «destination»");
   const py = readFileSync(new URL("../backend/app/metrics.py", import.meta.url), "utf8");
-  ok(/"special_dest":\s*\{"destination": SPECIAL_DESTS, "kind": SPECIAL_KINDS\}/.test(py) && /SPECIAL_DESTS = \{"moon", "sun"\}/.test(py) && /SPECIAL_KINDS = \{"view", "link", "venus"\}/.test(py), "el backend admite special_dest con los mismos valores");
+  ok(/"special_dest":\s*\{"destination": SPECIAL_DESTS, "kind": SPECIAL_KINDS\}/.test(py) && /SPECIAL_DESTS = \{"moon", "sun"\}/.test(py) && /SPECIAL_KINDS = \{"view", "link", "venus", "pick"\}/.test(py), "el backend admite special_dest con los mismos valores");
 }
 
-console.log("Integración en App.jsx (sin tocar Ruta, Ventanas ni PLANETS)");
+console.log("Integración en App.jsx (Luna y Sol como destinos especiales)");
 {
   const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
-  const iVC = app.indexOf("<VehicleCompare from={from}"), iLink = app.indexOf("<MoonSunLink");
-  ok(iVC > 0 && iLink > iVC && iLink - iVC < 200, "el enlace va justo después de <VehicleCompare> en Ruta");
-  const iLW = app.indexOf("<LaunchWindows from={from}"), iMS = app.indexOf("<MoonSun lang={lang}");
-  ok(iLW > 0 && iMS > iLW && iMS - iLW < 400, "la sección va justo debajo de <LaunchWindows> en Ventanas");
+  ok(/const SPECIALS = \[/.test(app) && /id:"moon"/.test(app) && /id:"sun"/.test(app), "Luna y Sol están en el selector de destino (SPECIALS)");
+  ok(/special=\{special\} onSpecial=\{pickSpecial\}/.test(app), "el selector de destino ofrece los destinos especiales");
+  ok(/\{special && \(tab==="route" \|\| tab==="windows"\) && \(/.test(app) && /<MoonSun lang=\{lang\} only=\{special\.id\}/.test(app), "con Luna o Sol elegidos, Ruta y Ventanas muestran solo su tarjeta");
+  ok(/\{!special && tab==="windows" && \(\s*\n\s*<LaunchWindows/.test(app), "las ventanas de planetas no muestran la Luna ni el Sol sin elegirlos");
   ok(/const PLANETS = \[\n(\s+\{ id:"\w+".*\},\n){8}\];/.test(app), "PLANETS sigue con sus 8 planetas");
-  ok(/changeTab\("windows"\);\s*\n\s*setMsFocus/.test(app), "el enlace usa changeTab(\"windows\") y baja hasta el ancla");
+  ok(/setFrom\(PLANETS\[2\]\)/.test(app.slice(app.indexOf("const pickSpecial"), app.indexOf("const pickDest"))), "la Luna y el Sol se calculan siempre desde la Tierra");
 }
 
 function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, `→ obtuvo ${JSON.stringify(a)}, esperaba ${JSON.stringify(b)}`); }

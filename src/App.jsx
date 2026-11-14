@@ -12,7 +12,7 @@ const loadNow = () => import("./now/Now.jsx");
 const NowLazy = lazy(loadNow);
 import SectionBoundary from "./ui/SectionBoundary.jsx";
 // "¿Y la Luna? ¿Y el Sol?": cálculo en el cliente, aparte de Ruta y Ventanas (src/special/)
-import MoonSun, { MoonSunLink, MOONSUN_ID, followSection } from "./special/MoonSun.jsx";
+import MoonSun from "./special/MoonSun.jsx";
 import { TS } from "./special/i18n.js";
 import CosmicScale from "./CosmicScale.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
@@ -362,6 +362,14 @@ const PLANETS = [
   { id:"saturn",  en:"Saturn",   es:"Saturno",  color:"#DDBE82", au:9.537,  size:9.4 },
   { id:"uranus",  en:"Uranus",   es:"Urano",    color:"#8FDCE3", au:19.191, size:7.0 },
   { id:"neptune", en:"Neptune",  es:"Neptuno",  color:"#6E8DF2", au:30.069, size:6.8 },
+];
+
+// Destinos especiales: no giran alrededor del Sol como los planetas (la Luna gira alrededor de la
+// Tierra; el Sol es el centro). Se eligen en el selector de destino, siempre desde la Tierra, y
+// muestran su propio cálculo (src/special/) en lugar de la ruta de Hohmann heliocéntrica.
+const SPECIALS = [
+  { id:"moon", en:"Moon", es:"Luna", esArt:"la Luna", dist:{ es:"384.400 km", en:"384,400 km" } },
+  { id:"sun",  en:"Sun",  es:"Sol",  esArt:"el Sol",  dist:{ es:"1 UA", en:"1 AU" } },
 ];
 
 const VEHICLES = [
@@ -723,7 +731,7 @@ function layoutLabels(pts, w, names, activeIds) {
   return out;
 }
 
-function SolarMap({ from, to, positions, lang, onPick }) {
+function SolarMap({ from, to, positions, lang, onPick, special = null }) {
   const ref = useRef(null);
   const w = useWidth(ref, 340);
   const t = T[lang];
@@ -736,13 +744,17 @@ function SolarMap({ from, to, positions, lang, onPick }) {
   }),[positions]);
 
   const names = useMemo(()=>Object.fromEntries(PLANETS.map(p=>[p.id, pname(p, lang)])),[lang]);
-  const labels = useMemo(()=>layoutLabels(pts, w, names, [from.id, to.id]),[pts, w, names, from.id, to.id]);
+  const toId = special ? null : to.id;   // con la Luna o el Sol de destino no se marca ningún planeta
+  const labels = useMemo(()=>layoutLabels(pts, w, names, [from.id, toId].filter(Boolean)),[pts, w, names, from.id, toId]);
 
   // El hilo de Ariadna: sale tangente a la órbita de origen, gira en el sentido
   // en que giran los planetas y llega tangente a la de destino. Es esquemático.
   const thread = useMemo(()=>{
-    const A = pts.find(q=>q.p.id===from.id), B = pts.find(q=>q.p.id===to.id);
-    const sweep = (((B.a - A.a) % TAU) + TAU) % TAU;
+    const A = pts.find(q=>q.p.id===from.id);
+    if (special === "moon") return "";   // la Luna está pegada a la Tierra a esta escala
+    // al Sol: media vuelta cayendo hacia el centro (media elipse de Hohmann), también esquemático
+    const B = special === "sun" ? { a: A.a + Math.PI, r: 0 } : pts.find(q=>q.p.id===toId);
+    const sweep = special === "sun" ? Math.PI : (((B.a - A.a) % TAU) + TAU) % TAU;
     const N = 72;
     let d = "";
     for (let k = 0; k <= N; k++) {
@@ -752,7 +764,7 @@ function SolarMap({ from, to, positions, lang, onPick }) {
       d += `${k ? "L" : "M"}${(50 + r * Math.cos(a)).toFixed(2)} ${(50 - r * Math.sin(a)).toFixed(2)}`;
     }
     return d;
-  },[pts, from.id, to.id]);
+  },[pts, from.id, toId, special]);
 
   return (
     <div ref={ref} className="map" role="group" aria-label={t.mapLabel}>
@@ -770,12 +782,12 @@ function SolarMap({ from, to, positions, lang, onPick }) {
         </defs>
         <circle cx="50" cy="50" r="50" fill="url(#map-glow)"/>
         {PLANETS.map((p,i)=>{
-          const sel = p.id===from.id || p.id===to.id;
+          const sel = p.id===from.id || p.id===toId;
           return <circle key={p.id} cx="50" cy="50" r={ORBIT_R(i)} fill="none"
             stroke={sel ? "rgba(255,255,255,0.34)" : "rgba(255,255,255,0.13)"}
             strokeWidth={sel ? 0.34 : 0.22}/>;
         })}
-        <g key={`${from.id}-${to.id}`}>
+        <g key={`${from.id}-${special || toId}`}>
           <path d={thread} className="thread thread--glow" pathLength="1"/>
           <path d={thread} className="thread" pathLength="1" stroke="url(#thread-grad)"/>
         </g>
@@ -787,7 +799,7 @@ function SolarMap({ from, to, positions, lang, onPick }) {
 
       {pts.map(q=>{
         const { p } = q;
-        const isF = p.id===from.id, isT = p.id===to.id;
+        const isF = p.id===from.id, isT = p.id===toId;
         const px = Math.max(10, (w * p.size) / 100);
         const lab = labels[p.id];
         const name = names[p.id];
@@ -810,7 +822,7 @@ function SolarMap({ from, to, positions, lang, onPick }) {
 
 // ─── SELECTOR DE PLANETA ─────────────────────────────────────────────────────
 
-function PlanetSelect({ value, onChange, exclude, label, kind, lang, align = "left" }) {
+function PlanetSelect({ value, onChange, exclude, label, kind, lang, align = "left", special = null, onSpecial = null }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef(null);
   const listId = useId();
@@ -830,21 +842,21 @@ function PlanetSelect({ value, onChange, exclude, label, kind, lang, align = "le
     <div ref={wrap} className={`pick pick--${kind}`}>
       <button type="button" className="pick__btn" aria-haspopup="listbox" aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        aria-label={t.choose(label, pname(value, lang))}
+        aria-label={t.choose(label, pname(special || value, lang))}
         onClick={()=>setOpen(o=>!o)}>
-        <PlanetSphere id={value.id} size={36}/>
+        <PlanetSphere id={(special || value).id} size={36}/>
         <span className="pick__text">
           <span className="pick__label">{label}
             <IconChevron className={`pick__chev ${open ? "is-open" : ""}`} width={15} height={15}/>
           </span>
-          <span className="pick__name">{pname(value, lang)}</span>
+          <span className="pick__name">{pname(special || value, lang)}</span>
         </span>
       </button>
       {open && (
         <ul id={listId} role="listbox" aria-label={label} className={`pick__list pick__list--${align}`}>
           {available.map(p=>(
-            <li key={p.id} role="option" aria-selected={p.id===value.id}>
-              <button type="button" className={`pick__opt ${p.id===value.id ? "is-current" : ""}`}
+            <li key={p.id} role="option" aria-selected={!special && p.id===value.id}>
+              <button type="button" className={`pick__opt ${!special && p.id===value.id ? "is-current" : ""}`}
                 onClick={()=>{ onChange(p); setOpen(false); }}>
                 <PlanetSphere id={p.id} size={28} spin={false}/>
                 <span className="pick__optname">{pname(p, lang)}</span>
@@ -852,6 +864,19 @@ function PlanetSelect({ value, onChange, exclude, label, kind, lang, align = "le
               </button>
             </li>
           ))}
+          {onSpecial && (<>
+            <li role="presentation" className="pick__sep">{lang === "es" ? "Desde la Tierra" : "From Earth"}</li>
+            {SPECIALS.map(s=>(
+              <li key={s.id} role="option" aria-selected={special?.id===s.id}>
+                <button type="button" className={`pick__opt ${special?.id===s.id ? "is-current" : ""}`}
+                  onClick={()=>{ onSpecial(s); setOpen(false); }}>
+                  <PlanetSphere id={s.id} size={28} spin={false}/>
+                  <span className="pick__optname">{pname(s, lang)}</span>
+                  <span className="pick__au">{s.dist[lang]}</span>
+                </button>
+              </li>
+            ))}
+          </>)}
         </ul>
       )}
     </div>
@@ -1264,6 +1289,7 @@ export default function Teseo() {
   useEffect(() => { applyLangToDocument(lang); try { localStorage.setItem("teseo-lang", lang); } catch { /* no-op */ } }, [lang]);
   const [from,     setFrom]     = useState(PLANETS[2]); // Earth
   const [to,       setTo]       = useState(PLANETS[3]); // Mars
+  const [special,  setSpecial]  = useState(null);       // destino especial: SPECIALS[i] (Luna o Sol) o null
   const [tab,      setTab]      = useState("route");
   // "Ahora en el espacio": abierta o no, y un contador para llevar la vista hasta ella
   const [nowOpen,  setNowOpen]  = useState(false);
@@ -1524,30 +1550,35 @@ export default function Teseo() {
     try { window.history.replaceState(null, "", "#sky?L=exoplanets"); } catch { /* no-op */ }
     changeTab("sky");
   },[changeTab]);
-  // "¿Y la Luna? ¿Y el Sol?": desde Ruta se va a Ventanas y se baja hasta la sección
-  const [msFocus, setMsFocus] = useState(0);
-  const seeMoonSun = useCallback(()=>{
-    track("special_dest", { kind: "link" });
-    changeTab("windows");
-    setMsFocus(n=>n+1);
-  },[changeTab]);
-  // Solo depende del contador: volver a Ventanas más tarde no vuelve a bajar la vista
-  useEffect(()=>{
-    if (!msFocus || tabRef.current !== "windows") return;
-    return followSection(()=>document.getElementById(MOONSUN_ID), !reducedMotion());
-  },[msFocus]);
   // Botón "Ver ventanas a Venus" (tarjeta del Sol): Tierra → Venus y arriba, a la cuenta atrás
   const seeVenusWindows = useCallback(()=>{
     track("special_dest", { destination: "sun", kind: "venus" });
-    setFrom(PLANETS[2]); setTo(PLANETS[1]);
+    setSpecial(null); setFrom(PLANETS[2]); setTo(PLANETS[1]);
     try { window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" }); } catch { /* no-op */ }
   },[]);
+  // Luna o Sol: siempre desde la Tierra (el planeta de destino queda guardado por si se vuelve)
+  const pickSpecial = useCallback(s=>{
+    track("special_dest", { destination: s.id, kind: "pick" });
+    setSpecial(s);
+    if (from.id !== "earth") { setFrom(PLANETS[2]); if (to.id === "earth") setTo(PLANETS[3]); }
+  },[from, to]);
+  const pickDest = useCallback(p=>{ setSpecial(null); setTo(p); },[]);
+  const pickOrigin = useCallback(p=>{
+    if (p.id !== "earth") setSpecial(null);
+    if (p.id === to.id) setTo(from);   // con la Luna o el Sol, el planeta guardado podía coincidir
+    setFrom(p);
+  },[from, to]);
   const pickPlanet = useCallback(p=>{
+    if (special) {   // en el mapa, tocar un planeta lo vuelve destino normal
+      setSpecial(null);
+      if (p.id === from.id) return;
+      setTo(p); return;
+    }
     if (p.id === to.id) return;
     if (p.id === from.id) { setFrom(to); setTo(from); return; }
     setTo(p);
-  },[from, to]);
-  const swap = ()=>{ setFrom(to); setTo(from); };
+  },[from, to, special]);
+  const swap = ()=>{ if (special) return; setFrom(to); setTo(from); };
 
   const navigator_ = tab==="route" || tab==="windows";
   const notice = showNotice ? <LiveDataNotice lang={lang} onRetry={retryAll}/> : null;
@@ -1595,17 +1626,18 @@ export default function Teseo() {
                 <div className={`nav-grid nav-grid--${tab}`}>
                     {/* Origen y destino */}
                     <div className="picks nav-grid__picks">
-                      <PlanetSelect value={from} onChange={setFrom} exclude={to}
+                      <PlanetSelect value={from} onChange={pickOrigin} exclude={special ? null : to}
                         label={t.origin} kind="origin" lang={lang}/>
-                      <button type="button" className="icon-btn picks__swap" aria-label={t.swap} onClick={swap}>
+                      <button type="button" className="icon-btn picks__swap" aria-label={t.swap} onClick={swap} disabled={!!special}>
                         <IconSwap width={20} height={20}/>
                       </button>
-                      <PlanetSelect value={to} onChange={setTo} exclude={from}
-                        label={t.destination} kind="dest" lang={lang} align="right"/>
+                      <PlanetSelect value={to} onChange={pickDest} exclude={from}
+                        label={t.destination} kind="dest" lang={lang} align="right"
+                        special={special} onSpecial={pickSpecial}/>
                     </div>
 
                   <div className="nav-grid__map">
-                    <SolarMap from={from} to={to} positions={positions} lang={lang} onPick={pickPlanet}/>
+                    <SolarMap from={from} to={to} positions={positions} lang={lang} onPick={pickPlanet} special={special?.id || null}/>
 
                     <p className="map-caption">
                       <span className={`map-caption__src ${allReal ? "is-real" : ""}`}
@@ -1618,7 +1650,12 @@ export default function Teseo() {
                   </div>
 
                   <div className="nav-grid__result stack">
-                    {tab==="route" && (<>
+                    {special && (tab==="route" || tab==="windows") && (
+                      <SectionBoundary name="Luna y Sol" title={TS[lang].errTitle} message={TS[lang].errBody} retryLabel={TS[lang].retry}>
+                        <MoonSun lang={lang} only={special.id} onVenus={seeVenusWindows}/>
+                      </SectionBoundary>
+                    )}
+                    {!special && tab==="route" && (<>
                       <RouteAnswer from={from} to={to} lang={lang} route={route}
                         loading={loadingB} onSeeWindows={()=>changeTab("windows")}/>
                       {notice}
@@ -1633,16 +1670,12 @@ export default function Teseo() {
                       <NowTeaser lang={lang} onOpen={()=>openNow("route")}/>
 
                       <VehicleCompare from={from} to={to} lang={lang} distKm={distKm}/>
-                      <MoonSunLink lang={lang} onOpen={seeMoonSun}/>
                       <TechDetails lang={lang} route={route} distKm={distKm} distReal={!!realDist}/>
                     </>)}
 
-                    {tab==="windows" && (<>
+                    {!special && tab==="windows" && (
                       <LaunchWindows from={from} to={to} lang={lang} attempt={winTry} onError={setWinError} notice={notice}/>
-                      <SectionBoundary name="Luna y Sol" title={TS[lang].errTitle} message={TS[lang].errBody} retryLabel={TS[lang].retry}>
-                        <MoonSun lang={lang} onVenus={seeVenusWindows}/>
-                      </SectionBoundary>
-                    </>)}
+                    )}
                   </div>
 
                 </div>

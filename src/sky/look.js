@@ -17,7 +17,7 @@ import * as THREE from "three";
 export const SPAN_MIN = 5;        // grados de cielo que abarca el lado largo de la pantalla (zoom máximo)
 export const SPAN_MAX = 120;      // … y con el zoom mínimo (más allá la perspectiva deforma demasiado)
 export const SPAN_DEF = 100;      // al entrar: ~100° en vertical en el teléfono (≈ 58° en horizontal)
-export const PITCH_MIN_LOCAL = -15 * Math.PI / 180;   // Mi cielo: un poco por debajo del horizonte (se ve el suelo)
+export const PITCH_MIN_LOCAL = -89.9 * Math.PI / 180; // Mi cielo: hasta el nadir; el suelo es semitransparente y deja ver el cielo de abajo
 export const PITCH_MAX = 89.9 * Math.PI / 180;
 export const PITCH_MIN_FREE = -PITCH_MAX;             // esfera celeste sin horizonte: cualquier dirección
 export const LOCAL_ALT_DEF = 35;                      // Mi cielo: altura inicial de la mirada (°)

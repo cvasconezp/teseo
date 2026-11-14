@@ -74,7 +74,7 @@ NOW_CARDS = {"mars", "launches", "asteroids"}
 NOW_KINDS = {"details", "webcast", "info", "show_all", "select", "ld_help", "cneos"}
 NOW_SOURCES = {"link", "windows", "route", "header", "teaser"}
 SPECIAL_DESTS = {"moon", "sun"}
-SPECIAL_KINDS = {"view", "link", "venus"}
+SPECIAL_KINDS = {"view", "link", "venus", "pick"}
 ENDPOINTS = {
     "missions_mars", "launches", "asteroids", "launch_windows", "position", "distance", "route",
     "exoplanets", "comets", "probes", "blackholes_json", "other",

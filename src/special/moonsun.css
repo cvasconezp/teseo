@@ -83,3 +83,7 @@
   .ms__title { font-size: 34px; }
 }
 @media (prefers-reduced-motion: reduce) { .ms-link { transition: none; } }
+
+/* Luna o Sol elegidos como destino: una sola tarjeta, sin la cabecera de sección */
+.ms--only { margin-top: 0; padding-top: 0; border-top: 0; }
+.ms--only .ms-grid { grid-template-columns: minmax(0, 1fr) !important; margin-top: 12px; }

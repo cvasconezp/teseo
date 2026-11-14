@@ -6,7 +6,7 @@
 export const TS = {
   es: {
     title: "¿Y la Luna? ¿Y el Sol?",
-    intro: "Ruta y Ventanas comparan planetas que giran alrededor del Sol. La Luna gira alrededor de la Tierra y el Sol está en el centro. Por eso sus cuentas son distintas. Teseo las hace aquí, en tu dispositivo.",
+    intro: "Los planetas giran alrededor del Sol, pero la Luna gira alrededor de la Tierra y el Sol está en el centro. Por eso este viaje se calcula distinto que el de los planetas. Teseo lo hace aquí, en tu dispositivo.",
     dvTitle: "Δv",
     dvExplain: "es el cambio de velocidad que debe dar el cohete. Más Δv = más combustible.",
     model: "Modelo de Hohmann",
@@ -85,7 +85,7 @@ export const TS = {
 
   en: {
     title: "What about the Moon? And the Sun?",
-    intro: "Route and Windows compare planets that circle the Sun. The Moon circles the Earth, and the Sun sits at the center. So their math is different. Teseo works it out here, on your device.",
+    intro: "The planets circle the Sun, but the Moon circles the Earth and the Sun sits at the center. So this trip is worked out differently from the planets. Teseo does it here, on your device.",
     dvTitle: "Δv",
     dvExplain: "is the change in speed the rocket must make. More Δv = more fuel.",
     model: "Hohmann model",
