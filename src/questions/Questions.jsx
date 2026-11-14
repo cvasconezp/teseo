@@ -4,8 +4,9 @@
 //   #preguntas?drake=…  (antiguo)   → "¿Estamos solos?" (compatibilidad)
 // Se carga con React.lazy desde App.jsx; cada recorrido va en su propio chunk
 // diferido, así el índice pesa poco y solo se descarga lo que se abre.
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { parseRoute } from "./physics.js";
+import { track, trackOnce } from "../ui/track.js";
 import { Certainty } from "./shared.jsx";
 import { TQ } from "./i18n.js";
 import "./questions.css";
@@ -116,6 +117,49 @@ export default function Questions({ lang = "es", onSeeSky }) {
 
   useEffect(() => { store.id = id; }, [id]);
 
+  // ── Métricas anónimas (ver src/ui/track.js) ──────────────────────────────
+  // Abrir el índice o un recorrido; y, por delegación (sin tocar cada
+  // recorrido): preajustes (data-preset), deslizadores (una vez por recorrido
+  // y pestaña), compartir, "Para seguir" y tarjetas desplegables. Nunca viaja
+  // un valor elegido ni texto: solo qué control se usó.
+  const idRef = useRef(id);
+  idRef.current = id;
+  useEffect(() => {
+    if (id) track("q_open", { q: id }); else track("q_index");
+  }, [id]);
+  useEffect(() => {
+    const inTour = (el) => !!idRef.current && !!el && typeof el.closest === "function" && !!el.closest("section.q");
+    const onClick = (e) => {
+      const el = e.target;
+      if (!inTour(el)) return;
+      const q = idRef.current;
+      const preset = el.closest(".q-preset");
+      if (preset) { track("q_preset", { q, preset: preset.getAttribute("data-preset") || undefined }); return; }
+      if (el.closest(".q-share button")) { track("q_share", { q }); return; }
+      if (el.closest(".q-next a")) track("q_next", { q });
+    };
+    const onInput = (e) => {
+      const el = e.target;
+      if (el && el.type === "range" && inTour(el)) trackOnce(`q_slider:${idRef.current}`, "q_slider", { q: idRef.current });
+    };
+    const onToggle = (e) => {
+      const el = e.target;
+      if (el && el.open && el.classList && el.classList.contains("q-card") && el.id && inTour(el)) track("q_card", { q: idRef.current, card: el.id });
+    };
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("input", onInput, true);
+    document.addEventListener("toggle", onToggle, true);   // toggle no burbujea: fase de captura
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("input", onInput, true);
+      document.removeEventListener("toggle", onToggle, true);
+    };
+  }, []);
+  const seeSky = useCallback(() => {
+    track("q_see_sky", { q: idRef.current || undefined });
+    if (onSeeSky) onSeeSky();
+  }, [onSeeSky]);
+
   // En el índice el hash es el de la pestaña a secas (cada recorrido escribe el suyo).
   const indexHash = `#${prefix(lang)}`;
   useEffect(() => {
@@ -127,7 +171,7 @@ export default function Questions({ lang = "es", onSeeSky }) {
   const Tour = TOURS[id];
   return (
     <Suspense fallback={<p role="status" className="loading">{t.tourLoading}</p>}>
-      <Tour lang={lang} onSeeSky={onSeeSky} indexHref={indexHash} />
+      <Tour lang={lang} onSeeSky={seeSky} indexHref={indexHash} />
     </Suspense>
   );
 }

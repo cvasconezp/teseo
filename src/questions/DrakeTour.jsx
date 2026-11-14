@@ -449,10 +449,10 @@ export default function DrakeTour({ lang = "es", onSeeSky, indexHref }) {
             <p id="q-presets-label" className="q-presets__label">{t.presetsLabel}</p>
             <div className="q-presets__row">
               {PRESETS.map(p => (
-                <button key={p.id} type="button" className={`q-preset ${presetId === p.id ? "is-on" : ""}`}
+                <button key={p.id} type="button" data-preset={p.id} className={`q-preset ${presetId === p.id ? "is-on" : ""}`}
                   aria-pressed={presetId === p.id} aria-label={(p.longLabel || p.label)[lang]} onClick={() => pick(p.id)}>{p.label[lang]}</button>
               ))}
-              <button type="button" className={`q-preset ${presetId === "custom" ? "is-on" : ""}`}
+              <button type="button" data-preset="custom" className={`q-preset ${presetId === "custom" ? "is-on" : ""}`}
                 aria-pressed={presetId === "custom"} onClick={() => pick("custom")}>{t.custom}</button>
             </div>
             <div className="q-presets__note" aria-live="polite">

@@ -4,7 +4,7 @@
 import { hohmannLocal, launchWindowsLocal, helioPosition, approxDistanceKm, AU_KM, SEMI_MAJOR_AXIS_AU } from "../src/ui/orbits.js";
 import { DAY_MS, parseISO, daysUntil, durationParts, relParts, countdownParts } from "../src/ui/time.js";
 import { parseHash, hashBelongsTo, hashForTab } from "../src/ui/hash.js";
-import { track, cleanParams, hasConsent } from "../src/ui/track.js";
+import { track, cleanParams, hasConsent, metricParams, optedOut, screenCategory, createMetrics, firstInSession, trackOnce, startSession, errorKind, trackNetError } from "../src/ui/track.js";
 import {
   C_KM_S, LD_KM, EARTH_DIAMETER_KM, ldToKm, kmToLd, auToKm, signalSeconds, splitSeconds, spacecraftDistances,
   launchStatus, netPrecision, nextLaunch, sortByNet, orbitKey, diameterFromH, asteroidSize, sizeReference, SIZE_REFS,
@@ -148,6 +148,113 @@ console.log("Analítica con consentimiento (src/ui/track.js)");
   eq(cleanParams(null), {}, "sin parámetros → {}");
   const boom = { localStorage: { getItem() { throw new Error("bloqueado"); } }, gtag() { throw new Error("x"); } };
   ok(track("tab_change", {}, boom) === false && hasConsent(boom) === false, "nunca lanza, aunque localStorage o gtag fallen");
+}
+
+console.log("Métricas propias anónimas: cola, lotes y limpieza (src/ui/track.js)");
+{
+  // ventana falsa con sendBeacon y temporizadores manuales
+  const mkWin = ({ dnt, gpc, beacon = true, ss = true } = {}) => {
+    const beacons = [], fetches = [], listeners = {}, store = new Map();
+    const win = {
+      navigator: { doNotTrack: dnt, globalPrivacyControl: gpc },
+      document: { visibilityState: "visible" },
+      addEventListener: (t, fn) => { (listeners[t] = listeners[t] || []).push(fn); },
+      removeEventListener: (t, fn) => { listeners[t] = (listeners[t] || []).filter(f => f !== fn); },
+      fetch: (url, init) => { fetches.push({ url, init }); return Promise.resolve(); },
+      innerWidth: 390,
+    };
+    if (beacon) win.navigator.sendBeacon = (url, body) => { beacons.push({ url, body }); return true; };
+    if (ss) win.sessionStorage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)) };
+    return { win, beacons, fetches, listeners, store };
+  };
+  const timers = [];
+  const setTimer = (fn, ms) => { timers.push({ fn, ms }); return timers.length; };
+  const clearTimer = () => {};
+  const runTimers = () => { while (timers.length) timers.shift().fn(); };
+  const EP = "https://api.example/api/m";
+
+  let w = mkWin();
+  let m = createMetrics({ win: w.win, endpoint: EP, setTimer, clearTimer });
+  ok(m.enabled(), "activo con endpoint https y sin señal de no rastrear");
+  m.push("tab_change", { tab: "sky", lat: -0.2, email: "a@b.c" });
+  m.push("q_open", { q: "drake" });
+  ok(w.beacons.length === 0 && m.size() === 2 && timers.length === 1, "en cola: no envía al momento, programa un único envío");
+  runTimers();
+  ok(w.beacons.length === 1 && m.size() === 0, "el temporizador envía el lote");
+  eq(JSON.parse(w.beacons[0].body), { events: [{ e: "tab_change", p: { tab: "sky" } }, { e: "q_open", p: { q: "drake" } }] }, "lote {events:[{e,p}]} sin lat ni email");
+  ok(typeof w.beacons[0].body === "string" && w.beacons[0].url === EP, "sendBeacon con cadena (text/plain, sin preflight) al endpoint");
+
+  for (let i = 0; i < 45; i++) m.push("q_slider", { q: "bh" });
+  ok(w.beacons.length === 3 && m.size() === 5, "lotes de 20: con 45 eventos salen 2 lotes y quedan 5", `${w.beacons.length} / ${m.size()}`);
+  w.listeners.pagehide[0]();
+  ok(w.beacons.length === 4 && m.size() === 0, "al ocultar la página (pagehide) se vacía la cola");
+  ok(JSON.parse(w.beacons[3].body).events.length === 5, "el último lote lleva los 5 restantes");
+  w.win.document.visibilityState = "hidden"; m.push("q_index"); w.listeners.visibilitychange[0]();
+  ok(w.beacons.length === 5, "visibilitychange → hidden también envía");
+
+  eq(metricParams({ tab: "sky", state: true, id: 3, q: "  ", screen: "small", origin: { x: 1 }, preset: "x".repeat(60) }), { tab: "sky", state: "on", screen: "small", preset: "x".repeat(40) }, "al backend solo cadenas cortas; booleanos → on/off; números y objetos fuera");
+  ok(m.push("Nombre Raro!") === false && m.push("") === false, "nombres de evento no válidos se descartan");
+
+  // límite de memoria
+  timers.length = 0;
+  const w2 = mkWin(); const m2 = createMetrics({ win: w2.win, endpoint: EP, setTimer, clearTimer, batch: 1000, maxQueue: 10 });
+  for (let i = 0; i < 25; i++) m2.push("q_index");
+  ok(m2.size() === 10, "la cola nunca pasa de maxQueue");
+  m2.dispose(); ok(m2.size() === 0, "dispose vacía la cola");
+
+  // sin sendBeacon: fetch keepalive sin cabeceras
+  timers.length = 0;
+  const w3 = mkWin({ beacon: false }); const m3 = createMetrics({ win: w3.win, endpoint: EP, setTimer, clearTimer });
+  m3.push("q_index"); m3.flush();
+  ok(w3.fetches.length === 1 && w3.fetches[0].init.keepalive === true && w3.fetches[0].init.mode === "no-cors" && !w3.fetches[0].init.headers, "sin sendBeacon: fetch keepalive, no-cors y sin cabeceras propias");
+
+  // privacidad: DNT y GPC
+  ok(optedOut({ navigator: { doNotTrack: "1" } }) && optedOut({ navigator: { globalPrivacyControl: true } }) && !optedOut({ navigator: {} }), "detecta Do Not Track y Global Privacy Control");
+  for (const opt of [{ dnt: "1" }, { gpc: true }]) {
+    const wx = mkWin(opt); const mx = createMetrics({ win: wx.win, endpoint: EP, setTimer, clearTimer });
+    ok(!mx.enabled() && mx.push("tab_change", { tab: "sky" }) === false && mx.flush() === 0 && wx.beacons.length === 0, `con ${opt.dnt ? "DNT" : "GPC"} no se envía nada al backend propio`);
+  }
+  ok(!createMetrics({ win: mkWin().win, endpoint: "" }).enabled() && !createMetrics({ win: undefined, endpoint: EP }).enabled(), "sin endpoint o sin ventana: inactivo");
+
+  // nunca lanza
+  const evil = { navigator: { sendBeacon() { throw new Error("x"); } }, fetch() { throw new Error("y"); }, addEventListener() { throw new Error("z"); } };
+  let threw = false;
+  try { const me = createMetrics({ win: evil, endpoint: EP, setTimer: () => { throw new Error("t"); }, clearTimer }); me.push("q_index"); me.flush(); } catch { threw = true; }
+  ok(!threw, "nunca lanza aunque sendBeacon, fetch o los temporizadores fallen");
+
+  // track(): GA y backend propio, independientes
+  timers.length = 0;
+  const w4 = mkWin(); const m4 = createMetrics({ win: w4.win, endpoint: EP, setTimer, clearTimer });
+  const gaCalls = [];
+  const gwin = { localStorage: { getItem: () => null }, gtag: (...a) => gaCalls.push(a) };
+  ok(track("tab_change", { tab: "sky" }, gwin, m4) === false && gaCalls.length === 0 && m4.size() === 1, "sin consentimiento: GA no recibe nada, el contador anónimo sí");
+  gwin.localStorage.getItem = k => (k === "yd-consent" ? "granted" : null);
+  ok(track("tab_change", { tab: "sky" }, gwin, m4) === true && gaCalls.length === 1 && m4.size() === 2, "con consentimiento: van a los dos");
+  ok(track("session_start", { lang: "es" }, gwin, m4) === false && gaCalls.length === 1 && m4.size() === 3, "session_start (reservado en GA4) solo va al backend propio");
+
+  // una vez por pestaña
+  const w5 = mkWin();
+  ok(firstInSession("x", w5.win) === true && firstInSession("x", w5.win) === false && w5.store.get("teseo-once:x") === "1", "firstInSession usa sessionStorage (no localStorage ni cookies)");
+  timers.length = 0;
+  const m5 = createMetrics({ win: w5.win, endpoint: EP, setTimer, clearTimer });
+  trackOnce("q_slider:bh", "q_slider", { q: "bh" }, w5.win, m5); trackOnce("q_slider:bh", "q_slider", { q: "bh" }, w5.win, m5); trackOnce("q_slider:dm", "q_slider", { q: "dm" }, w5.win, m5);
+  ok(m5.size() === 2, "deslizador: una vez por recorrido y pestaña");
+  m5.flush();
+  startSession({ lang: "es", tab: "sky" }, w5.win, m5); startSession({ lang: "es", tab: "sky" }, w5.win, m5);
+  m5.flush();
+  const evs = w5.beacons.flatMap(b => JSON.parse(b.body).events).slice(2);
+  eq(evs, [{ e: "page_view", p: { tab: "sky" } }, { e: "session_start", p: { lang: "es", tab: "sky", screen: "small" } }, { e: "page_view", p: { tab: "sky" } }], "page_view en cada carga; session_start una sola vez por pestaña, con idioma y tamaño de pantalla");
+  eq([300, 640, 1023, 1440, 0, NaN].map(screenCategory), ["small", "medium", "medium", "large", undefined, undefined], "categoría de pantalla gruesa");
+
+  // errores de red agregados
+  const E = (name, message) => Object.assign(new Error(message || ""), { name });
+  eq([E("TimeoutError"), new Error("HTTP 503"), new Error("HTTP 404"), E("SyntaxError", "bad json"), new TypeError("Failed to fetch"), null].map(errorKind), ["timeout", "http5xx", "http4xx", "parse", "network", "network"], "clasifica el fallo sin guardar mensaje ni URL");
+  ok(errorKind(E("AbortError")) === null, "una cancelación no es un error");
+  timers.length = 0;
+  const m6 = createMetrics({ win: mkWin().win, endpoint: EP, setTimer, clearTimer });
+  for (let i = 0; i < 6; i++) trackNetError("launches", new Error("HTTP 502"), {}, m6);
+  ok(trackNetError("launches", E("AbortError"), {}, m6) === false && m6.size() === 3, "máx. 3 por endpoint y tipo en cada carga; las cancelaciones no cuentan");
+  ok(trackNetError("asteroids", new TypeError("Failed to fetch"), { document: { visibilityState: "hidden" } }, m6) === false && m6.size() === 3, "con la página oculta o saliendo, los cortes de red no cuentan");
 }
 
 console.log("Ahora en el espacio: distancias y señal (src/now/math.js)");

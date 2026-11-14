@@ -17,12 +17,15 @@ Endpoints:
   GET  /api/launches                  → próximos lanzamientos (Launch Library 2)
   GET  /api/asteroids                 → acercamientos a la Tierra (JPL CNEOS)
   GET  /api/missions/mars             → ventana a Marte + naves con destino Marte
+  POST /api/m  (= /api/metrics/event) → métricas de uso anónimas y agregadas (204 siempre)
+  GET  /api/metrics/summary[.csv]     → resumen de uso (token TESEO_METRICS_TOKEN; 404 sin él)
 
 Para correr localmente:
   uvicorn app.main:app --reload --port 8000
 """
 
 import asyncio
+import hmac
 import os
 import time
 from datetime import datetime
@@ -32,7 +35,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
 from app import orbital
@@ -41,6 +44,7 @@ from app import narrative
 from app import exoplanets
 from app import launches
 from app import asteroids
+from app import metrics
 from app.cache import ProviderError, iso_utc
 
 VERSION = "0.2.0"
@@ -189,8 +193,116 @@ def api_health():
             "groq_api_key": bool(os.environ.get("GROQ_API_KEY")),
             "ll2_api_key": bool(os.environ.get("LL2_API_KEY")),
             "user_agent": bool(os.environ.get("TESEO_USER_AGENT")),
+            "metrics_token": bool(os.environ.get("TESEO_METRICS_TOKEN", "").strip()),
         },
+        # Solo el estado del almacén: nunca los recuentos.
+        "metrics": _safe_metrics_status(),
     }
+
+
+# ─── Métricas de uso (anónimas y agregadas; ver app/metrics.py) ───────────
+metrics_store = metrics.MetricsStore(os.environ.get("TESEO_METRICS_DIR", "").strip() or None)
+metrics_limiter = metrics.RateLimiter()
+_NO_CONTENT = {"Cache-Control": "no-store"}
+
+
+def _safe_metrics_status() -> dict:
+    try:
+        return metrics_store.status()
+    except Exception as e:
+        return {"storage": "unknown", "error": type(e).__name__}
+
+
+async def _read_limited(request: Request, limit: int) -> bytes:
+    """Lee el cuerpo sin pasar de `limit` bytes (si se pasa, devuelve b"")."""
+    try:
+        if int(request.headers.get("content-length") or 0) > limit:
+            return b""
+    except ValueError:
+        return b""
+    buf = bytearray()
+    async for chunk in request.stream():
+        buf.extend(chunk)
+        if len(buf) > limit:
+            return b""
+    return bytes(buf)
+
+
+@app.post("/api/m", status_code=204, include_in_schema=False)
+@app.post("/api/metrics/event", status_code=204)
+async def metrics_event(request: Request):
+    """Recibe `{e, p}` o `{events: [{e, p}, …]}` (hasta 20) como JSON, también
+    en `text/plain` (sendBeacon, sin preflight). Solo incrementa contadores
+    agregados por día; no guarda IP, user-agent ni nada que identifique a
+    nadie. Responde SIEMPRE 204: la analítica nunca rompe la app."""
+    try:
+        body = await _read_limited(request, metrics.MAX_BODY_BYTES)
+        events = metrics.parse_body(body)
+        if events:
+            device = metrics.device_category(request.headers.get("user-agent"))
+            if device is not None:              # robots y navegadores sin interfaz: no cuentan
+                ip = metrics.client_ip(request.headers, request.client.host if request.client else None)
+                allowed = metrics_limiter.allow(ip, len(events))
+                metrics_store.record(events[:allowed], device)
+    except Exception:
+        pass
+    return Response(status_code=204, headers=_NO_CONTENT)
+
+
+def _metrics_auth(request: Request, token: Optional[str]) -> None:
+    expected = os.environ.get("TESEO_METRICS_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(status_code=404, detail="Not Found")
+    auth = request.headers.get("authorization") or ""
+    given = auth[7:].strip() if auth.lower().startswith("bearer ") else (token or "")
+    if not given or not hmac.compare_digest(given.encode(), expected.encode()):
+        raise HTTPException(status_code=401, detail="Token inválido o ausente",
+                            headers={"WWW-Authenticate": "Bearer", "Cache-Control": "no-store"})
+
+
+@app.get("/api/metrics/summary", include_in_schema=False)
+def metrics_summary(request: Request, days: int = Query(30, ge=1, le=metrics.RETAIN_DAYS),
+                    token: Optional[str] = Query(None)):
+    """Resumen de uso: totales por día, por evento/parámetro, top y dispositivos."""
+    _metrics_auth(request, token)
+    return JSONResponse(metrics_store.summary(days), headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
+
+
+@app.get("/api/metrics/summary.csv", include_in_schema=False)
+def metrics_summary_csv(request: Request, days: int = Query(30, ge=1, le=metrics.RETAIN_DAYS),
+                        token: Optional[str] = Query(None)):
+    """Lo mismo en CSV largo (date,event,param,value,count) para una hoja de cálculo."""
+    _metrics_auth(request, token)
+    return PlainTextResponse(
+        metrics_store.csv(days), media_type="text/csv; charset=utf-8",
+        headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex",
+                 "Content-Disposition": f'attachment; filename="teseo-metrics-{metrics.utc_day()}.csv"'},
+    )
+
+
+@app.on_event("startup")
+async def _metrics_flusher():
+    """Escribe los contadores cada ~30 s si hubo cambios."""
+    async def loop():
+        while True:
+            await asyncio.sleep(metrics_store.flush_seconds)
+            try:
+                if metrics_store.dirty:
+                    await run_in_threadpool(metrics_store.flush)
+            except Exception:
+                pass
+    app.state.metrics_task = asyncio.create_task(loop())
+
+
+@app.on_event("shutdown")
+async def _metrics_shutdown():
+    task = getattr(app.state, "metrics_task", None)
+    if task:
+        task.cancel()
+    try:
+        metrics_store.flush()
+    except Exception:
+        pass
 
 
 @app.get("/api/bodies")

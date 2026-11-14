@@ -17,6 +17,7 @@ import {
   asteroidSize, sizeReference, speedFacts, passDistance, niceMaxLd, asteroidLayout,
 } from "./math.js";
 import { TN } from "./i18n.jsx";
+import { track, trackOnce, trackNetError } from "../ui/track.js";
 import "./now.css";
 
 const ASTEROID_DAYS = 30, ASTEROID_LD = 10;
@@ -72,7 +73,7 @@ const safeUrl = u => (typeof u === "string" && /^https?:\/\//i.test(u) ? u : nul
 //   · `repoll(data)` devuelve true si la respuesta está incompleta (p. ej.
 //     `pending` > 0): se vuelve a pedir en silencio, sin borrar lo ya mostrado.
 const RETRY_MS = 5000, MAX_AUTO = 6;
-function useEndpoint(url, repoll) {
+function useEndpoint(url, repoll, name = "other") {
   const [state, setState] = useState({ status: "loading", data: null, at: null });
   const [attempt, setAttempt] = useState(0);
   const auto = useRef({ silent: false, count: 0 });
@@ -100,6 +101,7 @@ function useEndpoint(url, repoll) {
         const msg = String(e && e.message);
         if (/HTTP 503\b/.test(msg) && again(false)) return;          // sigue "consultando…"
         if (silent) { setState(s => (s.status === "ok" ? { ...s, more: false } : { status: "error", data: null, at: null })); return; }
+        trackNetError(name, e);                                       // solo endpoint y tipo de fallo
         setState({ status: /HTTP (404|501)\b/.test(msg) ? "missing" : "error", data: null, at: null });
       });
     return () => { alive = false; ctrl.abort(); if (timer) clearTimeout(timer); };
@@ -137,9 +139,9 @@ function Cert({ level, t, note }) {
   );
 }
 
-function ExtLink({ href, children, t, className = "now-link" }) {
+function ExtLink({ href, children, t, className = "now-link", onClick }) {
   return (
-    <a className={className} href={href} target="_blank" rel="noopener noreferrer">
+    <a className={className} href={href} target="_blank" rel="noopener noreferrer" onClick={onClick}>
       {children}<span className="now-sr"> ({t.opensNew})</span>
     </a>
   );
@@ -147,10 +149,21 @@ function ExtLink({ href, children, t, className = "now-link" }) {
 
 function Card({ title, cert, certNote, state, retry, t, lang, fallbackSource, area, children }) {
   const hid = useId();
+  // Métrica anónima: la tarjeta se vio (≥ 40 % en pantalla), una vez por pestaña
+  const boxRef = useRef(null);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(en => en.isIntersecting)) { trackOnce(`now_card:${area}`, "now_card_view", { card: area }); io.disconnect(); }
+    }, { threshold: 0.4 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [area]);
   const { status, data, at } = state;
   const stamp = status === "ok" ? (data.updated ? t.updated(fmtStamp(data.updated, lang, t) || String(data.updated)) : t.fetched(fmtStamp(at, lang, t))) : null;
   return (
-    <section className={`now-card now-card--${area} is-${status}`} aria-labelledby={hid} aria-busy={status === "loading"}>
+    <section ref={boxRef} className={`now-card now-card--${area} is-${status}`} aria-labelledby={hid} aria-busy={status === "loading"}>
       <header className="now-card__head">
         <h3 id={hid} className="now-card__title">{title}</h3>
         <Cert level={cert} t={t} note={certNote} />
@@ -169,7 +182,7 @@ function Card({ title, cert, certNote, state, retry, t, lang, fallbackSource, ar
         <div className="now-state now-state--off" role="status">
           <p className="now-state__title">{status === "missing" ? t.missingTitle : t.errorTitle}</p>
           <p className="now-state__body">{status === "missing" ? t.missingBody : t.errorBody}</p>
-          <button type="button" className="btn btn--ghost now-state__btn" onClick={retry}>
+          <button type="button" className="btn btn--ghost now-state__btn" onClick={() => { track("now_retry", { card: area }); retry(); }}>
             <IconRetry width={16} height={16} />{t.retry}
           </button>
         </div>
@@ -343,15 +356,15 @@ function LaunchItem({ l, lang, t, featured }) {
         {(mission || mtype) && <div><dt>{t.mission}</dt><dd>{[mission, mtype].filter(Boolean).join(" · ")}</dd></div>}
       </dl>
       {l.description && (
-        <details className="now-desc">
+        <details className="now-desc" onToggle={e => { if (e.currentTarget.open) track("now_item", { card: "launches", kind: "details" }); }}>
           <summary><span>{t.description}</span><IconChevron className="now-desc__chev" width={16} height={16} /></summary>
           <p lang="en">{l.description}</p>
         </details>
       )}
       {(webcast || info) && (
         <p className="now-launch__links">
-          {webcast && <ExtLink href={webcast} t={t} className="btn btn--ghost now-launch__btn">{t.webcast}</ExtLink>}
-          {info && <ExtLink href={info} t={t}>{t.moreInfo}</ExtLink>}
+          {webcast && <ExtLink href={webcast} t={t} className="btn btn--ghost now-launch__btn" onClick={() => track("now_item", { card: "launches", kind: "webcast" })}>{t.webcast}</ExtLink>}
+          {info && <ExtLink href={info} t={t} onClick={() => track("now_item", { card: "launches", kind: "info" })}>{t.moreInfo}</ExtLink>}
         </p>
       )}
     </li>
@@ -378,7 +391,7 @@ function LaunchesBody({ data, lang, t }) {
         {shown.map((l, i) => <LaunchItem key={l.id || `${l.name}-${i}`} l={l} lang={lang} t={t} />)}
       </ol>
       {rest.length > FOLD && (
-        <button type="button" className="btn btn--ghost now-more" aria-expanded={all} onClick={() => setAll(a => !a)}>
+        <button type="button" className="btn btn--ghost now-more" aria-expanded={all} onClick={() => { if (!all) track("now_item", { card: "launches", kind: "show_all" }); setAll(a => !a); }}>
           {all ? t.showLess : t.showAll(list.length)}
         </button>
       )}
@@ -460,6 +473,7 @@ function AsteroidsBody({ data, lang, t }) {
   const [ldOpen, setLdOpen] = useState(false);
   const ldId = useId();
   useEffect(() => { setSelected(0); }, [items]);
+  const pick = i => { if (i !== selected) track("now_item", { card: "asteroids", kind: "select" }); setSelected(i); };
 
   const days = Number(data.days) > 0 ? Number(data.days) : ASTEROID_DAYS;
   const within = Number(data.dist_ld) > 0 ? Number(data.dist_ld) : ASTEROID_LD;
@@ -476,11 +490,11 @@ function AsteroidsBody({ data, lang, t }) {
     <>
       <p className="now-lead">
         {t.astLead(nf(items.length, lang), nf(days, lang), nf(within, lang, 1))}{" "}
-        <button type="button" className="term" aria-expanded={ldOpen} aria-controls={ldId} onClick={() => setLdOpen(o => !o)}>{t.ldTerm}</button>
+        <button type="button" className="term" aria-expanded={ldOpen} aria-controls={ldId} onClick={() => { if (!ldOpen) track("now_item", { card: "asteroids", kind: "ld_help" }); setLdOpen(o => !o); }}>{t.ldTerm}</button>
         {ldOpen && <span id={ldId} role="note" className="term__note">{t.ldHelp}</span>}
       </p>
 
-      <AsteroidChart items={items} selected={selected} onSelect={setSelected} maxLd={maxLd} lang={lang} t={t} />
+      <AsteroidChart items={items} selected={selected} onSelect={pick} maxLd={maxLd} lang={lang} t={t} />
       <p className="now-chart__legend">
         <span className="now-chart__key now-chart__key--moon" aria-hidden="true" />{t.chartMoon}: 1 {lang === "es" ? "DL" : "LD"} = 384{lang === "es" ? "." : ","}400 km
       </p>
@@ -494,7 +508,7 @@ function AsteroidsBody({ data, lang, t }) {
           const on = i === selected;
           return (
             <li key={`${o.name}-${o.date || i}`} className={`now-rock ${on ? "is-on" : ""}`}>
-              <button type="button" className="now-rock__pick" aria-pressed={on} aria-label={t.showInChart(o.name)} onClick={() => setSelected(i)}>
+              <button type="button" className="now-rock__pick" aria-pressed={on} aria-label={t.showInChart(o.name)} onClick={() => pick(i)}>
                 <span className="now-rock__dot" aria-hidden="true" />
               </button>
               <div className="now-rock__body">
@@ -524,7 +538,7 @@ function AsteroidsBody({ data, lang, t }) {
         })}
       </ol>
       {items.length > FOLD && (
-        <button type="button" className="btn btn--ghost now-more" aria-expanded={all} onClick={() => setAll(a => !a)}>
+        <button type="button" className="btn btn--ghost now-more" aria-expanded={all} onClick={() => { if (!all) track("now_item", { card: "asteroids", kind: "show_all" }); setAll(a => !a); }}>
           {all ? t.showLess : t.showAll(items.length)}
         </button>
       )}
@@ -533,7 +547,7 @@ function AsteroidsBody({ data, lang, t }) {
         <p className="now-calm__title">{t.calmTitle}</p>
         <p>{t.calm(closest.name, nf(Math.round(closest.pass.km / 1000) * 1000, lang),
           t.distLd(nf(closest.pass.ld, lang, 1)), t.earths(nf(closest.pass.earths, lang, closest.pass.earths < 10 ? 1 : 0)))}</p>
-        <p><ExtLink href="https://cneos.jpl.nasa.gov/ca/" t={t}>{t.calmLink}</ExtLink></p>
+        <p><ExtLink href="https://cneos.jpl.nasa.gov/ca/" t={t} onClick={() => track("now_item", { card: "asteroids", kind: "cneos" })}>{t.calmLink}</ExtLink></p>
       </aside>
     </>
   );
@@ -543,9 +557,9 @@ function AsteroidsBody({ data, lang, t }) {
 
 export default function Now({ lang = "es", api = "" }) {
   const t = TN[lang] || TN.es;
-  const [mars, retryMars] = useEndpoint(`${api}/api/missions/mars`, marsPending);
-  const [launches, retryLaunches] = useEndpoint(`${api}/api/launches?limit=8`);
-  const [rocks, retryRocks] = useEndpoint(`${api}/api/asteroids?days=${ASTEROID_DAYS}&dist_ld=${ASTEROID_LD}`);
+  const [mars, retryMars] = useEndpoint(`${api}/api/missions/mars`, marsPending, "missions_mars");
+  const [launches, retryLaunches] = useEndpoint(`${api}/api/launches?limit=8`, undefined, "launches");
+  const [rocks, retryRocks] = useEndpoint(`${api}/api/asteroids?days=${ASTEROID_DAYS}&dist_ld=${ASTEROID_LD}`, undefined, "asteroids");
   return (
     <div className="now-grid">
       <Card title={t.marsTitle} cert="measured" certNote={t.marsCert} state={mars} retry={retryMars} t={t} lang={lang}

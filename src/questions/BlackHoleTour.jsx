@@ -193,7 +193,7 @@ export default function BlackHoleTour({ lang = "es", onSeeSky, indexHref }) {
 
   const real = presets.filter(p => p.real), hypo = presets.filter(p => !p.real);
   const chip = (p) => (
-    <button key={p.id} type="button" className={`q-preset ${active && active.id === p.id ? "is-on" : ""}`}
+    <button key={p.id} type="button" data-preset={p.id} className={`q-preset ${active && active.id === p.id ? "is-on" : ""}`}
       aria-pressed={!!active && active.id === p.id} onClick={() => setLogM(Math.log10(p.m))}>{p.label[lang]}</button>
   );
 

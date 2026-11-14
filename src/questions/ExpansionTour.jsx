@@ -239,8 +239,8 @@ export default function ExpansionTour({ lang = "es", indexHref }) {
               <Ticks marks={[{ label: "Planck", pct: tickPct(PLANCK.OL, OL_SLIDER) }]} />
             </Slider>
             <div className="q-row">
-              <button type="button" className={`q-preset ${atPlanck ? "is-on" : ""}`} aria-pressed={atPlanck} onClick={() => setOl(PLANCK.OL)}>{T.planckBtn}</button>
-              <button type="button" className={`q-preset ${ol === 0 ? "is-on" : ""}`} aria-pressed={ol === 0} onClick={() => setOl(0)}>{T.noneBtn}</button>
+              <button type="button" data-preset="planck" className={`q-preset ${atPlanck ? "is-on" : ""}`} aria-pressed={atPlanck} onClick={() => setOl(PLANCK.OL)}>{T.planckBtn}</button>
+              <button type="button" data-preset="none" className={`q-preset ${ol === 0 ? "is-on" : ""}`} aria-pressed={ol === 0} onClick={() => setOl(0)}>{T.noneBtn}</button>
             </div>
             <div className="q-readout" role="status" aria-live="polite" aria-atomic="true">
               <p className="q-readout__label">{T.modelAge}</p>

@@ -18,7 +18,7 @@ import PlanetSphere from "./ui/PlanetSphere.jsx";
 import { AU_KM, helioPosition, approxDistanceKm, hohmannLocal, launchWindowsLocal } from "./ui/orbits.js";
 import { DAY_MS, parseISO, daysUntil, durationParts, relParts } from "./ui/time.js";
 import { parseHash, hashBelongsTo, hashForTab } from "./ui/hash.js";
-import { track } from "./ui/track.js";
+import { track, startSession, trackNetError } from "./ui/track.js";
 import {
   IconRoute, IconWindows, IconSky, IconScale, IconLight, IconProbe, IconRocket, IconPlane,
   IconSwap, IconChevron, IconRetry, IconClose, IconInfo, IconArrow,
@@ -174,6 +174,7 @@ const T = {
     creditsTitle:   "Credits and data sources",
     creditsIntro:   "Teseo uses real data from official sources. MIT-licensed code.",
     creditsNote:    "Distances to deep-sky objects and pulsars are published values with uncertainty; they are shown as approximations.",
+    privacyNote:    "Privacy: Teseo also counts, anonymously and in aggregate, which features are used (daily totals only), with no cookies and no personal data. Google Analytics is used only if you accept it in the cookie notice.",
     close:          "Close",
     credits: [
       ["Stars and distances", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],
@@ -324,6 +325,7 @@ const T = {
     creditsTitle:   "Créditos y fuentes de datos",
     creditsIntro:   "Teseo usa datos reales de fuentes oficiales. Código con licencia MIT.",
     creditsNote:    "Las distancias de objetos lejanos y púlsares son valores publicados con incertidumbre; se muestran como aproximaciones.",
+    privacyNote:    "Privacidad: Teseo cuenta además, de forma anónima y agregada, qué funciones se usan (solo totales por día), sin cookies ni datos personales. Google Analytics solo se usa si lo aceptas en el aviso de cookies.",
     close:          "Cerrar",
     credits: [
       ["Estrellas y distancias", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],
@@ -1025,7 +1027,7 @@ function LaunchWindows({ from, to, lang, attempt, onError, notice }) {
         if(d&&Array.isArray(d.windows)&&d.windows.length) setData(d);
         else { setError(true); onError(true); }
       })
-      .catch(e=>{ if(alive&&!isAbort(e)) { setError(true); onError(true); } });
+      .catch(e=>{ if(alive&&!isAbort(e)) { trackNetError("launch_windows", e); setError(true); onError(true); } });
     return ()=>{ alive=false; ctrl.abort(); };
   },[from,to,attempt,onError]);
 
@@ -1194,6 +1196,7 @@ function CreditsModal({ lang, onClose }) {
           ))}
         </dl>
         <p className="modal__p modal__p--fine">{t.creditsNote}</p>
+        <p className="modal__p modal__p--fine">{t.privacyNote}</p>
       </div>
     </div>
   );
@@ -1267,20 +1270,32 @@ export default function Teseo() {
   // cargar y cada vez que cambia el hash con la app abierta. Lo que sigue al
   // nombre lo lee cada pestaña; aquí solo se elige cuál mostrar.
   useEffect(() => {
+    let initial = true;
     const check = () => {
       let target = null;
       try { target = parseHash(window.location.hash); } catch { /* no-op */ }
       if (!target) return;
+      // un enlace interno que cambia de pestaña cuenta como cambio (la carga inicial ya es page_view)
+      if (!initial && tabRef.current !== target.tab) track("tab_change", { tab: target.tab });
+      initial = false;
       setTab(target.tab);
       if (target.now) { setNowOpen(true); setNowFocus(n => n + 1); track("now_open", { source: "link" }); }
     };
     check();
+    initial = false;
     window.addEventListener("hashchange", check);
     return () => window.removeEventListener("hashchange", check);
   }, []);
+  // Métricas anónimas: una vista por carga (con la pestaña inicial) y una
+  // "visita" por pestaña del navegador (session_start, marca en sessionStorage).
+  useEffect(() => {
+    let first = "route";
+    try { const h = parseHash(window.location.hash); if (h) first = h.tab; } catch { /* no-op */ }
+    startSession({ lang, tab: first });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // El visor del Cielo abre los créditos desde su menú con este evento
   useEffect(() => {
-    const open = () => setShowCredits(true);
+    const open = () => { track("credits_open"); setShowCredits(true); };
     window.addEventListener("teseo:credits", open);
     return () => window.removeEventListener("teseo:credits", open);
   }, []);
@@ -1340,7 +1355,7 @@ export default function Teseo() {
     setPosStatus("loading");
     Promise.all(PLANETS.map(p=>
       fetchJson(`${API}/api/position/${p.id}?date=${today}`,{signal:ctrl.signal})
-        .catch(()=>null)
+        .catch(e=>{ trackNetError("position", e); return null; })
     )).then(results=>{
       if(!alive) return;
       const pos = {};
@@ -1365,7 +1380,7 @@ export default function Teseo() {
         if(d&&d.distance_km){ setRealDist(d.distance_km); setDistStatus("ok"); }
         else setDistStatus("error");
       })
-      .catch(e=>{ if(alive&&!isAbort(e)) setDistStatus("error"); });
+      .catch(e=>{ if(alive&&!isAbort(e)) { trackNetError("distance", e); setDistStatus("error"); } });
     return ()=>{ alive=false; ctrl.abort(); };
   },[from,to,distTry]);
 
@@ -1392,6 +1407,7 @@ export default function Teseo() {
         .catch(()=>{});
     }).catch(e=>{
       if(!alive||isAbort(e)) return;
+      trackNetError("route", e);
       setRouteError(true); setLoadingB(false);
     });
     return ()=>{ alive=false; ctrl.abort(); };
@@ -1412,6 +1428,7 @@ export default function Teseo() {
   const routeFailed = routeError && !backend;
   const showNotice = tab==="route" ? (posFailed||distFailed||routeFailed) : tab==="windows" ? (posFailed||winError) : false;
   const retryAll = ()=>{
+    track("data_retry", { tab });
     if (posFailed) setPosTry(n=>n+1);
     if (tab==="route") {
       if (distFailed) setDistTry(n=>n+1);
@@ -1478,7 +1495,7 @@ export default function Teseo() {
       window.removeEventListener("wheel", stop, opts); window.removeEventListener("touchstart", stop, opts); window.removeEventListener("keydown", stop);
     };
   },[nowFocus, tab]);
-  // Analítica anónima (solo con consentimiento): cambio de destino
+  // Analítica: cambio de destino (GA solo con consentimiento; métricas propias anónimas)
   const firstPair = useRef(true);
   useEffect(()=>{
     if (firstPair.current) { firstPair.current = false; return; }
@@ -1646,7 +1663,7 @@ export default function Teseo() {
                 {t.madeBy}
               </a>
               <span aria-hidden="true" className="footer__sep"/>
-              <button type="button" onClick={()=>setShowCredits(true)} className="footer__link">
+              <button type="button" onClick={()=>{ track("credits_open"); setShowCredits(true); }} className="footer__link">
                 {t.creditsLink}
               </button>
             </footer>
