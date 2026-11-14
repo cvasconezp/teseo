@@ -78,6 +78,15 @@ def test_tour_time_en_lista_blanca():
     assert metrics.clean_event({"e": "q_open", "p": {"q": "tiempo"}})["p"] == {}
 
 
+def test_tour_spectrum_en_lista_blanca():
+    # «¿Cómo sabemos de qué están hechas las estrellas?»: mismo q_open / q_preset que los demás recorridos
+    assert "spectrum" in metrics.TOURS
+    assert metrics.clean_event({"e": "q_open", "p": {"q": "spectrum"}}) == {"e": "q_open", "p": {"q": "spectrum"}}
+    assert metrics.clean_event({"e": "q_preset", "p": {"q": "spectrum", "preset": "mix-earth"}})["p"] == {"q": "spectrum", "preset": "mix-earth"}
+    assert metrics.clean_event({"e": "q_preset", "p": {"q": "spectrum", "preset": "temp-sun"}})["p"] == {"q": "spectrum", "preset": "temp-sun"}
+    assert metrics.clean_event({"e": "q_open", "p": {"q": "espectro"}})["p"] == {}
+
+
 def test_special_dest_moon_sun():
     # ¿Y la Luna? ¿Y el Sol?: solo moon/sun y tres tipos cerrados
     assert metrics.clean_event({"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}) == {"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}
