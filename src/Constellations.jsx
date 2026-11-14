@@ -137,7 +137,7 @@ const CATEGORY_TERMS = [
   { key: "meteors",    terms: ["meteoro", "meteoros", "lluvia de meteoros", "lluvias", "meteor", "meteor shower"] },
   { key: "messier",    terms: ["messier", "nebulosa", "nebulosas", "cúmulo", "cumulo", "cúmulos", "nebula", "cluster"] },
   { key: "exoplanets", terms: ["exoplaneta", "exoplanetas", "exoplanet", "exoplanets"] },
-  { key: "probes",     terms: ["sonda", "sondas", "telescopio", "telescopios", "nave", "probe", "probes", "spacecraft", "telescope", "voyager"] },
+  { key: "probes",     terms: ["sonda", "sondas", "telescopio", "telescopios", "telescopio espacial", "nave", "naves", "satélite", "satelite", "satélites", "satelites", "misión", "mision", "misiones", "probe", "probes", "spacecraft", "telescope", "telescopes", "satellite", "satellites", "mission", "missions", "voyager"] },
 ];
 function labelForObj(key, o, lang) {
   if (key === "messier") return `${o.name}${o.cn ? " · " + o.cn : ""}`;
@@ -243,7 +243,7 @@ const TC = {
     tourFactDist: (d) => `${d} from Earth`,
     // ── buscador ──
     searchAria: "Search the sky", searchPlaceholder: "Search: Saturn, Orion, a galaxy…", searchClear: "Clear search",
-    searchTry: "Try one of these", searchResults: "Search results", searchEmpty: "Nothing in the sky with that name. Try a planet, a star or a constellation.",
+    searchTry: "Try one of these", searchResults: "Search results", searchEmpty: "Nothing in the sky with that name. Try a planet, a star, a constellation or a spacecraft (Webb, Voyager, Parker…).",
     // ── dock ──
     dockAria: "Sky tools", layers: "Layers", mySky: "My sky", tour: "Tour",
     // ── capas ──
@@ -381,7 +381,7 @@ const TC = {
     tourFactDist: (d) => `A ${d} de la Tierra`,
     // ── buscador ──
     searchAria: "Buscar en el cielo", searchPlaceholder: "Busca: Saturno, Orión, una galaxia…", searchClear: "Borrar la búsqueda",
-    searchTry: "Prueba con alguno", searchResults: "Resultados de la búsqueda", searchEmpty: "No hay nada en el cielo con ese nombre. Prueba con un planeta, una estrella o una constelación.",
+    searchTry: "Prueba con alguno", searchResults: "Resultados de la búsqueda", searchEmpty: "No hay nada en el cielo con ese nombre. Prueba con un planeta, una estrella, una constelación o una sonda (Webb, Voyager, Parker…).",
     // ── dock ──
     dockAria: "Herramientas del cielo", layers: "Capas", mySky: "Mi cielo", tour: "Tour",
     // ── capas ──
@@ -644,6 +644,8 @@ export default function Constellations({ lang = "es" }) {
   const catMatch = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 3) return null;
+    // "sat" debe seguir encontrando Saturno (y "mar" Marte), no la categoría "satélites"
+    if (["sol", "sun", "luna", "moon", "mercurio", "mercury", "venus", "marte", "mars", "júpiter", "jupiter", "saturno", "saturn", "urano", "uranus", "neptuno", "neptune"].some(n => n.startsWith(q))) return null;
     return CATEGORY_TERMS.find(c => c.terms.some(t => t.startsWith(q) || t === q || t.includes(q))) || null;
   }, [query]);
 
@@ -756,6 +758,14 @@ export default function Constellations({ lang = "es" }) {
       }
     });
   }, [enabled, datasets, loadingLayer, layerError, loadLayer]);
+  // sondas y telescopios: se cargan al empezar a buscar (sin encender la capa), para que "Webb" o
+  // "Voyager" se encuentren aunque la capa esté apagada; al elegir uno, su capa se enciende
+  useEffect(() => {
+    if (query.trim().length >= 3 && !datasets.probes && !loadingLayer.probes && !layerError.probes) {
+      const cfg = LAYERS.find(l => l.key === "probes"); if (cfg) loadLayer(cfg);
+    }
+  }, [query, datasets, loadingLayer, layerError, loadLayer]);
+
 
   // ── deep-links: el estado se lee del hash al montar y cada vez que cambia con la app abierta ──
   const lastHashRef = useRef(null);       // último hash escrito por la propia vista (para no releerlo)
