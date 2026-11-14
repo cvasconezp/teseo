@@ -10,6 +10,7 @@ Endpoints:
   GET  /api/distance/{a}/{b}          → distancia real entre dos cuerpos hoy
   POST /api/route                     → ruta Hohmann completa + narrativa
   GET  /api/launch-windows/{a}/{b}    → próximas ventanas de lanzamiento
+  GET  /api/trajectory?origin&destination → trayectoria realista (Lambert) vs Hohmann
   POST /api/explain                   → explicación de un concepto (IA)
   GET  /api/exoplanets                → exoplanetas (NASA Exoplanet Archive)
   GET  /api/comets                    → cometas notables (NASA Horizons)
@@ -27,6 +28,7 @@ Para correr localmente:
 import asyncio
 import hmac
 import os
+import threading
 import time
 from datetime import datetime
 from typing import Optional
@@ -45,6 +47,7 @@ from app import exoplanets
 from app import launches
 from app import asteroids
 from app import metrics
+from app import lambert
 from app.cache import ProviderError, iso_utc
 
 VERSION = "0.2.0"
@@ -73,6 +76,7 @@ _CACHE_SECONDS = [
     ("/api/distance/", 300),
     ("/api/exoplanets", 3600),
     ("/api/launch-windows/", 3600),
+    ("/api/trajectory", 3600),
     ("/api/bodies", 86400),
 ]
 _DEGRADED_CACHE = "public, max-age=30"  # datos `stale` o aún incompletos
@@ -358,6 +362,7 @@ async def _prewarm():
             asteroids.resource.get(),
             launches.resource.get(),
             run_in_threadpool(_windows, "earth", "mars", None, None, 1),  # calienta numba
+            run_in_threadpool(_trajectory, "earth", "mars"),  # compila izzo (Lambert) y deja Tierra→Marte en caché
             exoplanets.resource.get(),
         ]
         for step in steps:
@@ -536,6 +541,50 @@ def get_launch_windows(
         return _windows(origin, destination, parsed_date, start_date, count)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+_trajectory_cache: dict = {}
+_trajectory_lock = threading.Lock()
+
+
+def _trajectory(origin: str, destination: str) -> dict:
+    """Trayectoria realista (Lambert) para la próxima ventana, cacheada por
+    (par, día UTC): las efemérides no cambian dentro del mismo día. El cálculo
+    tarda ~0,5 s (más ~4 s la primera vez por proceso: compilación de numba);
+    el candado evita que visitantes simultáneos lo repitan."""
+    key = (origin.lower(), destination.lower(), datetime.utcnow().strftime("%Y-%m-%d"))
+    hit = _trajectory_cache.get(key)
+    if hit is not None:
+        return hit
+    with _trajectory_lock:
+        hit = _trajectory_cache.get(key)
+        if hit is not None:
+            return hit
+        w = _windows(origin, destination, None, None, 1)
+        if not w["windows"]:
+            raise LookupError("No se encontró ninguna ventana de lanzamiento próxima para este par.")
+        window = w["windows"][0]
+        hohmann = orbital.compute_hohmann_transfer(
+            origin, destination, datetime.fromisoformat(window["departure_date"])).to_dict()
+        result = lambert.compute_trajectory(origin, destination, window, hohmann)
+        result["computed_for"] = key[2]
+        if len(_trajectory_cache) > 200:
+            _trajectory_cache.clear()
+        _trajectory_cache[key] = result
+        return result
+
+
+@app.get("/api/trajectory")
+def get_trajectory(origin: str = Query(...), destination: str = Query(...)):
+    """«Trayectoria realista»: problema de Lambert con posiciones reales de los
+    planetas para la próxima ventana, comparado con Hohmann. Mismos nombres de
+    cuerpo que /api/route (earth, mars, venus…, en inglés y minúsculas)."""
+    try:
+        return _trajectory(origin, destination)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.get("/api/missions/mars")

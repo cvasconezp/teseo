@@ -1,0 +1,61 @@
+/* «Trayectoria realista (Lambert)» — Teseo. Todo bajo .rt* y con los tokens de
+   index.css. Pensado desde 390 px: la tabla y el mapa ocupan el ancho de la tarjeta. */
+
+.rt { min-width: 0; }
+.rt .card__head { align-items: flex-start; flex-wrap: wrap; }
+.rt-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.rt-note { margin-top: 10px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.rt-h { margin: 18px 0 0; font-family: var(--serif); font-weight: 600; font-size: 19px; color: #fff; }
+
+/* Estados */
+.rt-state { margin-top: 14px; }
+.rt-skel { display: block; height: 14px; border-radius: 7px; background: var(--panel-strong); }
+.rt-skel + .rt-skel { margin-top: 10px; }
+.rt-skel--short { width: 62%; }
+@media (prefers-reduced-motion: no-preference) {
+  .rt-skel { animation: rt-breathe 1.4s ease-in-out infinite alternate; }
+  @keyframes rt-breathe { from { opacity: 0.45; } to { opacity: 1; } }
+}
+.rt-state--off { padding: 14px; border-radius: 14px; border: 1px dashed var(--line-strong); }
+.rt-state__title { font-weight: 600; font-size: 15px; color: #fff; }
+.rt-state--off .btn { margin-top: 10px; }
+
+/* Tabla de comparación */
+.rt-tablewrap { margin-top: 14px; }
+.rt-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13.5px; }
+.rt-table thead th { padding: 0 0 8px 8px; text-align: right; font-size: 12.5px; font-weight: 600; line-height: 1.25; color: var(--soft); vertical-align: bottom; }
+.rt-table thead th.rt-real { color: #C4B5FD; }
+.rt-table tbody th { width: 36%; padding: 9px 6px 9px 0; text-align: left; font-weight: 400; font-size: 13.5px; line-height: 1.3; color: var(--soft); border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.rt-table tbody td { padding: 9px 0 9px 8px; text-align: right; font-family: var(--mono); font-size: 12.5px; line-height: 1.35; color: var(--text); border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.rt-table td.rt-real { color: #fff; font-weight: 600; background: rgba(167, 139, 250, 0.07); padding-right: 6px; }
+.rt-diff { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--muted); }
+
+.rt-why { margin-top: 14px; font-size: 14.5px; line-height: 1.55; color: var(--soft); }
+
+/* Asistencias gravitatorias */
+.rt-assist { margin-top: 14px; padding: 12px 14px; border-radius: 14px; border: 1px dashed rgba(242, 196, 109, 0.6); background: rgba(242, 196, 109, 0.07); font-size: 14px; line-height: 1.5; color: var(--soft); }
+.rt-assist strong { color: #F2C46D; font-weight: 600; }
+.rt-assist p { margin-top: 6px; }
+.rt-assist__foot { font-size: 13px; color: var(--muted); }
+
+/* Porkchop */
+.rt-fig { margin: 0; }
+.rt-pork { display: block; width: 100%; max-width: 440px; height: auto; margin: 10px auto 0; cursor: crosshair; }
+.rt-tick { font-family: var(--sans); font-size: 11px; fill: rgba(255, 255, 255, 0.82); }
+.rt-axis { font-family: var(--sans); font-size: 11.5px; font-weight: 600; fill: rgba(255, 255, 255, 0.9); }
+.rt-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 10px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.3; color: var(--soft); }
+.rt-legend li { display: inline-flex; align-items: center; gap: 5px; }
+.rt-swatch { flex: none; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255, 255, 255, 0.35); }
+.rt-mark { flex: none; width: 12px; height: 12px; box-sizing: border-box; }
+.rt-mark--min { border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px #04080F; }
+.rt-mark--hoh { border: 2px solid #F2C46D; transform: rotate(45deg) scale(0.8); }
+.rt-pick { min-height: 2.9em; margin-top: 8px; padding: 8px 12px; border-radius: 12px; font-size: 13.5px; line-height: 1.4; color: var(--soft); background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line); }
+
+.rt-details { margin-top: 12px; }
+.rt-details > summary { cursor: pointer; padding: 10px 0; min-height: 44px; box-sizing: border-box; font-size: 14px; color: #C4B5FD; text-decoration: underline; text-underline-offset: 3px; }
+.rt-details > summary:focus-visible { outline: 2px solid #C4B5FD; outline-offset: 2px; border-radius: 6px; }
+.rt-table--top thead th { padding: 6px 4px; text-align: right; font-size: 12px; border-bottom: 1px solid var(--line-strong); }
+.rt-table--top thead th:first-child { text-align: left; padding-left: 0; }
+.rt-table--top tbody td { padding: 8px 4px; font-size: 12px; }
+.rt-table--top tbody td:first-child { text-align: left; padding-left: 0; }
+.rt-swatch--past { background: repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0 2px, transparent 2px 4px); }

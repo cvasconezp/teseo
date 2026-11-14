@@ -77,7 +77,7 @@ SPECIAL_DESTS = {"moon", "sun"}
 SPECIAL_KINDS = {"view", "link", "venus", "pick"}
 ENDPOINTS = {
     "missions_mars", "launches", "asteroids", "launch_windows", "position", "distance", "route",
-    "exoplanets", "comets", "probes", "blackholes_json", "other",
+    "exoplanets", "comets", "probes", "blackholes_json", "trajectory", "other",
 }
 ERROR_KINDS = {"timeout", "http4xx", "http5xx", "network", "parse"}
 SKY_LAYERS = {"messier", "pulsars", "blackholes", "galaxies", "meteors", "comets", "probes", "exoplanets"}
@@ -108,6 +108,8 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     # ¿Y la Luna? ¿Y el Sol? (src/special/): vista de cada tarjeta, enlace desde
     # Ruta y botón "Ver ventanas a Venus"
     "special_dest":       {"destination": SPECIAL_DESTS, "kind": SPECIAL_KINDS},
+    # Trayectoria realista (Lambert) en Ruta: resultado de la tarjeta (src/route/)
+    "trajectory_card":    {"origin": BODIES, "destination": BODIES, "state": {"ok", "fail", "empty"}},
     # Preguntas
     "q_index":            {},
     "q_open":             {"q": TOURS},
