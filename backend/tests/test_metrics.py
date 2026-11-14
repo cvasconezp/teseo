@@ -468,3 +468,9 @@ def test_mga_card_lista_blanca():
     ev = metrics.clean_event({"e": "mga_card", "p": {"destination": "pluton", "state": "hack", "kind": "x", "id": "EVVEJS-2034"}})
     assert ev["p"] == {}
     assert metrics.clean_event({"e": "net_error", "p": {"endpoint": "mga", "kind": "timeout"}})["p"] == {"endpoint": "mga", "kind": "timeout"}
+
+
+def test_coop_open():
+    # enlace del pie «En cooperación con Killa Ñan»: sin parámetros
+    assert metrics.clean_event({"e": "coop_open", "p": {"x": 1}}) == {"e": "coop_open", "p": {}}
+

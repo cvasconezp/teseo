@@ -483,6 +483,8 @@ strong { font-weight: 600; color: #fff; }
 .footer__sep { width: 3px; height: 3px; border-radius: 50%; background: var(--muted); }
 /* teléfonos estrechos: los dos enlaces se apilan y el punto separador sobra */
 @media (max-width: 379px) { .footer__sep { display: none; } .footer { gap: 0 22px; } }
+/* En el teléfono, «Desarrollado por…» va en su propia línea (sin punto colgando al final) */
+@media (max-width: 599px) { .footer__link--made { flex-basis: 100%; justify-content: center; } .footer__sep--made { display: none; } }
 
 /* por encima del visor del Cielo a pantalla completa (z-index 60) */
 .modal { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(2, 4, 9, 0.82); animation: fadeInSlow .2s ease-out; }

@@ -188,6 +188,7 @@ const T = {
 
     // Pie y créditos
     madeBy:         "Made by Yachay Deep Labs",
+    coopWith:       "In cooperation with Killa Ñan",
     creditsLink:    "Credits and data",
     creditsTitle:   "Credits and data sources",
     creditsIntro:   "Teseo uses real data from official sources. MIT-licensed code.",
@@ -344,6 +345,7 @@ const T = {
     skipToContent:  "Saltar al contenido",
 
     madeBy:         "Desarrollado por Yachay Deep Labs",
+    coopWith:       "En cooperación con Killa Ñan",
     creditsLink:    "Créditos y datos",
     creditsTitle:   "Créditos y fuentes de datos",
     creditsIntro:   "Teseo usa datos reales de fuentes oficiales. Código con licencia MIT.",
@@ -1854,8 +1856,13 @@ export default function Teseo() {
               abre los créditos desde su menú (evento "teseo:credits"). */}
           {tab!=="sky" && (
             <footer className="shell footer">
-              <a href="https://yachaydeep.com" target="_blank" rel="noopener noreferrer" className="footer__link">
+              <a href="https://yachaydeep.com" target="_blank" rel="noopener noreferrer" className="footer__link footer__link--made">
                 {t.madeBy}
+              </a>
+              <span aria-hidden="true" className="footer__sep footer__sep--made"/>
+              <a href="https://www.facebook.com/share/1JGNNHwUXd/" target="_blank" rel="noopener noreferrer" className="footer__link"
+                onClick={()=>track("coop_open")}>
+                {t.coopWith}
               </a>
               <span aria-hidden="true" className="footer__sep"/>
               <button type="button" onClick={()=>{ track("credits_open"); setShowCredits(true); }} className="footer__link">

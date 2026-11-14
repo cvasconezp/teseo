@@ -101,6 +101,7 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "language_change":    {"lang": LANGS},
     "night_vision":       {"state": ON_OFF},
     "credits_open":       {},
+    "coop_open":          {},   # enlace «En cooperación con Killa Ñan» del pie
     "data_retry":         {"tab": TABS},
     "net_error":          {"endpoint": ENDPOINTS, "kind": ERROR_KINDS},
     # Ahora en el espacio
