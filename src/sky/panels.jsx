@@ -341,7 +341,7 @@ export function SkyActions({ t, onTonight, onPoint }) {
   );
 }
 
-export const PointingBar = memo(function PointingBar({ t, mode, source, error, aligned, apiRef, onStart, onExit, onReset, onDismiss, canRetry,
+export const PointingBar = memo(function PointingBar({ t, mode, source, error, aligned, apiRef, onStart, onExit, onReset, onNudge, onResume, onDismiss, canRetry,
   ctl, onCtl, help, onZoom, onLayers, onTonight, onSearch, north }) {
   const [look, setLook] = useState(null);   // { p: punto cardinal 0-7, a: altitud en grados enteros }
   useEffect(() => {
@@ -362,6 +362,23 @@ export const PointingBar = memo(function PointingBar({ t, mode, source, error, a
           <button type="button" className="sk-btn" onClick={onDismiss}>{t.close}</button>
         </div>
       </div>
+    );
+  }
+  if (mode === "paused") {
+    // modo manual tras arrastrar: se mira con el dedo; levantar el teléfono (o el botón) vuelve a apuntar
+    return (
+      <section className="sk-arpill is-manual" aria-label={t.pointManual}>
+        <span className="sk-arpill-read" role="status">
+          <Icon name="hand" size={19} />
+          <span className="sk-arpill-txt"><strong>{t.pointManual}</strong><small>{t.pointManualHint}</small></span>
+        </span>
+        <button type="button" className="sk-arpill-resume" onClick={onResume}>
+          <Icon name="point" size={17} /><span>{t.pointResume}</span>
+        </button>
+        <button type="button" className="sk-arpill-exit" onClick={onExit} aria-label={t.pointExitAria}>
+          <Icon name="close" size={16} />
+        </button>
+      </section>
     );
   }
   const waiting = !look || !source;
@@ -387,6 +404,13 @@ export const PointingBar = memo(function PointingBar({ t, mode, source, error, a
           <div className="sk-artray-help">
             <p>{hint}</p>
             {northLine && <p className="sk-artray-north" title={t.declWhy}><Icon name="target" size={14} />{northLine}</p>}
+            {onNudge && (
+              <div className="sk-artray-align" role="group" aria-label={t.pointAlign}>
+                <span>{t.pointAlign}</span>
+                <button type="button" className="sk-artray-btn is-icon" onClick={() => onNudge(-2)} aria-label={t.pointAlignL}><Icon name="prev" size={20} /></button>
+                <button type="button" className="sk-artray-btn is-icon" onClick={() => onNudge(2)} aria-label={t.pointAlignR}><Icon name="next" size={20} /></button>
+              </div>
+            )}
             {aligned && <button type="button" className="sk-btn" onClick={onReset}><Icon name="retry" size={15} />{t.pointReset}</button>}
           </div>
         </div>

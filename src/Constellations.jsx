@@ -9,6 +9,7 @@ import { fmtDist, fmtYears, fmtWhenShort, fmtKm, fmtDuration } from "./sky/forma
 import Icon from "./sky/icons.jsx";
 import { PerfMeter, SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TimePanel, TourCard, Onboarding, PointingBar, SkyActions, GuideHud, TonightPanel } from "./sky/panels.jsx";
 import { cameraQuat, lookFromQuat } from "./sky/deviceOrientation.js";
+import { createResumeDetector, isDragToManual } from "./sky/arResume.js";
 import { guideArrow, turnHint, altAz } from "./sky/guide.js";
 import { computeTonight } from "./sky/tonight.js";
 import { buildSkyNotes } from "./sky/explain.js";
@@ -286,9 +287,11 @@ const TC = {
     pointAbove: (a) => `${a}° above the horizon`, pointUnder: (a) => `${a}° below the horizon · under your feet`,
     pointZenith: "Looking at the zenith", pointZenithSub: "straight above your head",
     pointNadir: "Looking at the ground", pointNadirSub: "straight under your feet",
-    pointHint: "Doesn't match? Drag sideways to line it up with a star or planet you recognise.",
-    pointHintRel: "Your phone isn't reporting where north is. Drag the sky sideways until it matches a star or planet you recognise.",
+    pointHint: "Doesn't match? In Controls, use Align ◀ ▶ to line it up with a star or planet you recognise. Drag with your finger to look around by hand.",
+    pointHintRel: "Your phone isn't reporting where north is. Use Align ◀ ▶ until the sky matches a star or planet you recognise.",
     pointReset: "Reset alignment",
+    pointAlign: "Align", pointAlignL: "Turn the sky 2° left", pointAlignR: "Turn the sky 2° right",
+    pointManual: "Manual view", pointManualHint: "or raise your phone", pointResume: "Point again",
     pointDenied: "Motion sensors aren't allowed. To try again, close this tab, open Teseo again and tap “Allow” when your phone asks about motion and orientation.",
     pointNoSensor: "This device isn't sending orientation data (gyroscope or compass). You can still explore the sky with your finger.",
     latLon: (a, o) => `${Math.abs(a).toFixed(2)}° ${a >= 0 ? "N" : "S"}, ${Math.abs(o).toFixed(2)}° ${o >= 0 ? "E" : "W"}`,
@@ -422,9 +425,11 @@ const TC = {
     pointAbove: (a) => `${a}° sobre el horizonte`, pointUnder: (a) => `${a}° bajo el horizonte · bajo tus pies`,
     pointZenith: "Mirando al cenit", pointZenithSub: "justo sobre tu cabeza",
     pointNadir: "Mirando al suelo", pointNadirSub: "justo bajo tus pies",
-    pointHint: "¿No coincide? Arrastra hacia los lados para alinear con una estrella o planeta que reconozcas.",
-    pointHintRel: "Tu teléfono no indica dónde está el norte. Arrastra el cielo hacia los lados hasta que coincida con una estrella o planeta que reconozcas.",
+    pointHint: "¿No coincide? En Controles, usa Alinear ◀ ▶ hasta que coincida con una estrella o planeta que reconozcas. Arrastra con el dedo para mirar a mano.",
+    pointHintRel: "Tu teléfono no indica dónde está el norte. Usa Alinear ◀ ▶ hasta que el cielo coincida con una estrella o planeta que reconozcas.",
     pointReset: "Reiniciar alineación",
+    pointAlign: "Alinear", pointAlignL: "Girar el cielo 2° a la izquierda", pointAlignR: "Girar el cielo 2° a la derecha",
+    pointManual: "Vista manual", pointManualHint: "o levanta el teléfono", pointResume: "Volver a apuntar",
     pointDenied: "No hay permiso para los sensores de movimiento. Para reintentarlo, cierra esta pestaña, vuelve a abrir Teseo y toca «Permitir» cuando el teléfono pregunte por movimiento y orientación.",
     pointNoSensor: "Este dispositivo no envía datos de orientación (giroscopio o brújula). Puedes seguir explorando el cielo con el dedo.",
     latLon: (a, o) => `${Math.abs(a).toFixed(2)}° ${a >= 0 ? "N" : "S"}, ${Math.abs(o).toFixed(2)}° ${o >= 0 ? "E" : "O"}`,
@@ -574,7 +579,7 @@ export default function Constellations({ lang = "es" }) {
   const bodiesRef = useRef(bodies);
   // ── apuntar al cielo (sensores de orientación; solo dentro de Mi cielo) ──
   const [arCapable] = useState(pointingSupported);    // táctil + sensores + HTTPS
-  const [ar, setAr] = useState("off");                // off | pending (falta ubicación) | on
+  const [ar, setAr] = useState("off");                // off | pending (falta ubicación) | on | paused (manual: se arrastró; sensores escuchando)
   const [arSrc, setArSrc] = useState(null);           // null (esperando datos) | "absolute" | "relative"
   const [arError, setArError] = useState(null);       // null | "denied" | "nosensor"
   const [arAligned, setArAligned] = useState(() => pointAzOffset !== 0);
@@ -2132,7 +2137,7 @@ export default function Constellations({ lang = "es" }) {
   const orbitBy = useCallback((dAz, dPol) => {
     const ref = sceneRef.current; if (!ref) return;
     if (ref.ar.on) {                       // apuntando: las flechas ajustan la alineación (2° por pulsación)
-      if (dAz) { pointAzOffset += dAz > 0 ? 2 : -2; setArAligned(true); }
+      if (dAz) nudgeArAlign(dAz > 0 ? 2 : -2);
       return;
     }
     if (ref.mode === "in") {
@@ -2251,6 +2256,12 @@ export default function Constellations({ lang = "es" }) {
     }
   }, [lat, lon]);
   const resetArAlign = useCallback(() => { pointAzOffset = 0; setArAligned(false); }, []);
+  // alinear a mano el norte (botones del menú de Controles y flechas del teclado): 2° por toque
+  const nudgeArAlign = useCallback((deg) => { pointAzOffset = ((pointAzOffset + deg) % 360 + 540) % 360 - 180; setArAligned(Math.abs(pointAzOffset) > 0.05); }, []);
+  // arrastrar mientras se apunta = pasar al modo manual (mirar con el dedo en todas direcciones).
+  // Los sensores siguen escuchando para volver solo al levantar el teléfono hacia el cielo.
+  const pauseAr = useCallback(() => { track("sky_ar", { state: "manual" }); setAr("paused"); setArCtl(false); }, []);
+  const resumeAr = useCallback((how) => { track("sky_ar", { state: how === "raise" ? "resume_raise" : "resume" }); setAr("on"); }, []);
   // "Encuéntralo": entra en el modo apuntar (dentro del gesto, por el permiso de iOS) con una flecha guía
   const findIt = useCallback((g) => {
     setGuide(g); setSelObj(null); setPanel(null); setArCtl(false);
@@ -2299,7 +2310,7 @@ export default function Constellations({ lang = "es" }) {
   }, [ar, localMode, lat, lon]);
   // el modo solo vive dentro de Mi cielo: salir de él, empezar el tour o cerrar el panel a medias lo apaga
   useEffect(() => {
-    if (ar === "on" && (!localMode || lat == null || tourActive)) stopAr();
+    if ((ar === "on" || ar === "paused") && (!localMode || lat == null || tourActive)) stopAr();
     else if (ar === "pending" && panel !== "location" && !(localMode && lat != null)) stopAr();
   }, [ar, localMode, lat, tourActive, panel, stopAr]);
   // al desmontar la vista: fuera listeners y bloqueo de pantalla
@@ -2370,45 +2381,39 @@ export default function Constellations({ lang = "es" }) {
       r.applyFov();
     };
   }, [arOn, ready]);
-  // gestos mientras se apunta: arrastre horizontal = alinear el azimut; pellizco = campo de visión.
-  // El toque corto sigue abriendo la ficha (lo gestiona el efecto de selección de abajo).
+  // gestos mientras se apunta: arrastrar (en cualquier dirección) = pasar al modo manual, y el mismo dedo
+  // sigue moviendo la vista sin soltarlo; pellizco = campo de visión. El toque corto sigue abriendo la ficha
+  // (lo gestiona el efecto de selección de abajo). La alineación del norte va en Controles → Alinear.
   useEffect(() => {
     const ref = sceneRef.current;
     if (!ref || !arOn) return;
     const el = ref.renderer.domElement, st = ref.ar;
     const pts = new Map();
-    let dragging = false, startX = 0, startY = 0, lastX = 0, pinch0 = 0, span0 = 0;
+    let startX = 0, startY = 0, pinch0 = 0, span0 = 0, gone = false;
     const dist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
     const onDown = (e) => {
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
       try { el.setPointerCapture(e.pointerId); } catch { /* puntero ya liberado */ }
-      dragging = false;
-      if (pts.size === 1) { startX = lastX = e.clientX; startY = e.clientY; }
+      if (pts.size === 1) { startX = e.clientX; startY = e.clientY; }
       else if (pts.size === 2) { pinch0 = dist(); span0 = st.span; }
     };
     const onMove = (e) => {
-      const p = pts.get(e.pointerId); if (!p) return;
+      const p = pts.get(e.pointerId); if (!p || gone) return;
       p.x = e.clientX; p.y = e.clientY;
       if (pts.size === 2) {
         const d = dist();
         if (pinch0 > 0 && d > 0) { st.span = Math.max(22, Math.min(110, span0 * pinch0 / d)); ref.applyArFov(); }
-      } else if (pts.size === 1) {
-        if (!dragging && Math.abs(e.clientX - startX) > 10 && Math.abs(e.clientX - startX) > Math.abs(e.clientY - startY)) { dragging = true; lastX = e.clientX; }
-        if (dragging) {
-          // el cielo sigue al dedo: grados por píxel en el centro de la vista (más rápido cerca del cenit)
-          const cam = ref.camera, w = el.clientWidth || 1;
-          const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * cam.aspect) * 180 / Math.PI;
-          const k = hfov / w / Math.max(0.25, Math.cos(st.alt * Math.PI / 180));
-          pointAzOffset = ((pointAzOffset - (e.clientX - lastX) * k) % 360 + 540) % 360 - 180;
-          lastX = e.clientX;
-        }
+      } else if (pts.size === 1 && pinch0 === 0 && isDragToManual(e.clientX - startX, e.clientY - startY)) {
+        // el gesto de "mirar desde dentro" adopta este mismo dedo, para que la vista siga al arrastre
+        gone = true;
+        ref.look.adopt = { id: e.pointerId, x: e.clientX, y: e.clientY };
+        pauseAr();
       }
     };
     const onEnd = (e) => {
       if (!pts.delete(e.pointerId)) return;
-      if (dragging) setArAligned(Math.abs(pointAzOffset) > 0.05);
-      dragging = false; pinch0 = 0;
-      if (pts.size === 1) { const r = [...pts.values()][0]; startX = lastX = r.x; startY = r.y; }
+      if (pts.size === 0) pinch0 = 0;
+      if (pts.size === 1) { const r = [...pts.values()][0]; startX = r.x; startY = r.y; }
     };
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointermove", onMove);
@@ -2420,7 +2425,23 @@ export default function Constellations({ lang = "es" }) {
       el.removeEventListener("pointerup", onEnd);
       el.removeEventListener("pointercancel", onEnd);
     };
-  }, [arOn, ready]);
+  }, [arOn, ready, pauseAr]);
+
+  // modo manual tras arrastrar: volver a apuntar solo al levantar el teléfono hacia el cielo
+  // (primero hay que bajarlo, para no volver en el acto; ver src/sky/arResume.js)
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || ar !== "paused") return;
+    const det = createResumeDetector(), q = [0, 0, 0, 0], lk = {};
+    const id = setInterval(() => {
+      const p = pointRef.current.pose;
+      if (!p.fresh || document.visibilityState !== "visible") return;
+      cameraQuat(q, p.alpha, p.beta, p.gamma, p.screen, 0);
+      lookFromQuat(q[0], q[1], q[2], q[3], lk);
+      if (det.update(lk.alt, performance.now(), !!ref.look.drag)) resumeAr("raise");
+    }, 100);
+    return () => clearInterval(id);
+  }, [ar, ready, resumeAr]);
 
   // gestos desde dentro (sin apuntar): arrastrar = mirar alrededor (el cielo sigue al dedo, con inercia
   // suave); pellizco y rueda = campo de visión. Nada de desplazamiento ni de "dolly": el observador no se mueve.
@@ -2441,7 +2462,14 @@ export default function Constellations({ lang = "es" }) {
       else if (pts.size === 2) { pinch0 = dist(); span0 = lk.span; }
     };
     const onMove = (e) => {
-      const p = pts.get(e.pointerId); if (!p || !active()) return;
+      let p = pts.get(e.pointerId);
+      if (!p && active() && lk.adopt && lk.adopt.id === e.pointerId && pts.size === 0) {
+        // viene de "Apuntar al cielo": el dedo que arrastraba pasa a mover la vista sin soltarlo
+        p = { x: lk.adopt.x, y: lk.adopt.y }; pts.set(e.pointerId, p);
+        lastX = lk.adopt.x; lastY = lk.adopt.y; lastT = performance.now();
+        lk.fly = null; lk.vy = lk.vp = 0; lk.drag = true; lk.adopt = null;
+      }
+      if (!p || !active()) return;
       p.x = e.clientX; p.y = e.clientY;
       if (pts.size >= 2) {
         if (pinch0 > 0) { lk.span = lk.spanT = clampSpan(span0 * pinch0 / dist()); ref.applyFov(); }
@@ -2658,7 +2686,7 @@ export default function Constellations({ lang = "es" }) {
   const showDepth = !!(sky && selMeta && !localMode && !tourActive);
   const showOnboard = !!(showHint && sky && !selObj && !panel && !tourActive && !showDepth && !arOn);
   // barra de "Apuntar al cielo": invitación (dentro de Mi cielo), indicador activo o aviso de error
-  const arBar = !sky || tourActive ? null : arOn ? "on" : arError ? "error" : null;
+  const arBar = !sky || tourActive ? null : arOn ? "on" : ar === "paused" ? "paused" : arError ? "error" : null;
   const immersive = arOn && !isWide;          // teléfono apuntando: el cielo ocupa toda la pantalla
   const inMySky = localMode && lat != null;
   // "Esta noche": solo se calcula con el panel abierto
@@ -2740,7 +2768,7 @@ export default function Constellations({ lang = "es" }) {
     }
     return out;
   }, [selCon, datasets.messier, datasets.galaxies, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const showActions = !!(sky && !tourActive && !arOn && !arError && inMySky && !covered && !showOnboard && !viewFrom && !showDepth);
+  const showActions = !!(sky && !tourActive && !arOn && ar !== "paused" && !arError && inMySky && !covered && !showOnboard && !viewFrom && !showDepth);
   // compartiendo en el teléfono, el visor pasa a pantalla completa: la vista previa necesita todo el alto
   const stageClass = "sk-stage" + (full || immersive || (share && !isWide) ? " is-full" : "") + (immersive ? " is-immersive" : "") + (arOn && arCtl ? " ar-ctl" : "") + (covered ? " is-covered" : "") + (selObj ? " has-sheet" : "")
     + (tourActive ? " has-tour" : "") + (showDepth ? " has-depth" : "") + (arOn ? " is-ar" : "") + (panel ? " has-panel" : "");
@@ -2853,7 +2881,7 @@ export default function Constellations({ lang = "es" }) {
 
       {arBar && (
         <PointingBar t={t} mode={arBar} source={arSrc} error={arError} aligned={arAligned} apiRef={arHudRef}
-          onStart={startAr} onExit={stopAr} onReset={resetArAlign} onDismiss={() => setArError(null)} canRetry={arCapable}
+          onStart={startAr} onExit={stopAr} onReset={resetArAlign} onNudge={nudgeArAlign} onResume={() => resumeAr("button")} onDismiss={() => setArError(null)} canRetry={arCapable}
           ctl={arCtl} onCtl={() => setArCtl(v => !v)} help={arHelp && !covered} onZoom={zoomBy} north={northText}
           onLayers={() => openPanel("layers")} onTonight={() => openPanel("tonight")}
           onSearch={() => { const i = stageRef.current && stageRef.current.querySelector(".sk-search input"); if (i) i.focus(); }} />

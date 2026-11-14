@@ -385,15 +385,26 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-arpill-more { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 50%; color: var(--mute); }
 .sk-arpill-more[aria-expanded="true"] { color: #d6caff; background: rgba(167, 139, 250, 0.18); }
 .sk-stage .sk-arpill-exit { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 44px; min-width: 44px; padding: 0 14px 0 11px; border-radius: 999px; background: linear-gradient(135deg, #7c3aed, #4f5fe0); color: #fff; font-size: 14px; font-weight: 500; }
+/* vista manual tras arrastrar: mirar con el dedo; levantar el teléfono o el botón vuelve a apuntar */
+.sk-arpill.is-manual { border-color: rgba(167, 139, 250, 0.55); gap: 4px; }
+.sk-arpill.is-manual .sk-arpill-read { color: #c4b5fd; padding-right: 4px; }
+.sk-arpill-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.sk-arpill.is-manual .sk-arpill-txt strong { font-family: var(--sans, inherit); font-size: 14px; min-width: 0; }
+.sk-arpill-txt small { font-size: 11px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42vw; }
+.sk-stage .sk-arpill-resume { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 44px; padding: 0 12px 0 10px; border-radius: 999px; background: linear-gradient(135deg, #7c3aed, #4f5fe0); color: #fff; font-size: 14px; font-weight: 500; white-space: nowrap; }
+.sk-arpill.is-manual .sk-arpill-exit { padding: 0; width: 44px; background: rgba(255, 255, 255, 0.08); }
 /* controles temporales y ayuda de alineación */
 .sk-artray, .sk-arhelp { position: absolute; z-index: 23; left: 10px; right: 10px; bottom: calc(68px + var(--sk-safe, 0px) + env(safe-area-inset-bottom, 0px)); border-radius: 18px; box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55); }
 .sk-artray { padding: 6px; display: grid; gap: 6px; animation: sk-rise 0.22s var(--ease); }
 .sk-artray-row { display: grid; grid-template-columns: 1fr 1fr 1fr 46px 46px; gap: 4px; }
 .sk-artray-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 48px; min-width: 0; padding: 4px 2px; border-radius: 13px; color: var(--text); font-size: 11.5px; font-weight: 500; background: rgba(255, 255, 255, 0.05) !important; }
 .sk-artray-btn span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sk-artray-help { display: flex; align-items: center; gap: 10px; padding: 2px 6px 4px 8px; }
+.sk-artray-help { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 2px 6px 4px 8px; }
+.sk-artray-align { display: flex; align-items: center; gap: 4px; }
+.sk-artray-align > span { font-size: 12.5px; color: var(--text); margin-right: 2px; }
+.sk-artray-align .sk-artray-btn { width: 46px; }
 .sk-artray-help p, .sk-arhelp { font-size: 12.5px; line-height: 1.35; color: var(--mute); margin: 0; }
-.sk-artray-help p { flex: 1; min-width: 0; }
+.sk-artray-help p { flex: 1 1 100%; min-width: 0; }
 .sk-artray-help .sk-btn { flex: none; font-size: 13px; padding: 0 12px; white-space: normal; max-width: 44%; line-height: 1.15; text-align: left; }
 .sk-arhelp { padding: 10px 14px; color: #dfe6ff; pointer-events: none; animation: sk-help 7s var(--ease) both; }
 @keyframes sk-help { 0% { opacity: 0; transform: translateY(10px); } 6%, 84% { opacity: 1; transform: none; } 100% { opacity: 0; } }
