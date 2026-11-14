@@ -1,0 +1,55 @@
+/* time.css — «¿Se puede viajar en el tiempo?» (prefijo q-time / q-clock).
+   Reutiliza las variables y piezas de questions.css. Nada de fondos blancos:
+   todo son capas translúcidas sobre el fondo oscuro, para que la visión
+   nocturna (capa roja multiplicada) los tiña bien. */
+
+.q-step { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
+.q-step:first-of-type { margin-top: 26px; }
+.q-step__title { margin-bottom: 8px; }
+.q-step__lead { margin-bottom: 14px; font-size: 15px; color: var(--soft); }
+.q-step__p { margin-top: 10px; font-size: 14.5px; color: var(--soft); }
+.q-step .q-card { margin-top: 14px; }
+.q-step .q-card + .q-card { margin-top: 10px; }
+.q-step .q-refs { margin-bottom: 4px; }
+.q-calc--solo { margin-top: 6px; }
+.q-calc--solo dd { font-variant-numeric: lining-nums tabular-nums; }
+
+.q-result--time { margin-top: 12px; background: linear-gradient(160deg, rgba(125, 185, 255, 0.12), rgba(124, 58, 237, 0.08) 55%, rgba(255, 255, 255, 0.02)); border-color: rgba(125, 185, 255, 0.34); padding-bottom: 14px; }
+.q-result--time .q-result__label { margin-top: 0; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; }
+.q-result--time .q-result__unit { color: #B9D8FF; font-size: 17px; }
+.q-result--time .q-time__out { margin-top: 12px; }
+.q-result--time .q-fine, .q-result--time .q-note, .q-result--time .q-formula { margin-top: 10px; }
+.q-result--time .q-time__rate { overflow-wrap: anywhere; }
+.q-time-tour .q-time__b { overflow-wrap: anywhere; text-wrap: balance; }
+.q-trip { margin-top: 24px; padding-top: 18px; }
+.q-twin { margin-top: 18px; }
+.q-assume__list { margin: 0; padding-left: 1.15em; }
+.q-assume__list li { margin-top: 8px; }
+.q-assume__list li::marker { color: var(--thread); }
+.q-sources { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
+.q-assume { margin-top: 30px; }
+@media (min-width: 1024px) { .q-assume, .q-sources, .q-step__lead { max-width: 42rem; } .q-assume, .q-sources { margin-inline: auto; } }
+
+/* Dos relojes */
+.q-clocks { margin: 14px 0 0; padding: 14px 12px 12px; border-radius: 22px; background: linear-gradient(170deg, rgba(37, 99, 235, 0.09), rgba(255, 255, 255, 0.02) 60%); border: 1px solid var(--line-strong); }
+.q-clocks__title { padding: 0 4px 6px; font-family: var(--serif); font-weight: 600; font-size: 22px; line-height: 1.15; color: #fff; }
+.q-clocks__row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.q-clock { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
+.q-clock__face { display: block; width: 100%; max-width: 132px; height: auto; }
+.q-clock__ring { fill: rgba(255, 255, 255, 0.04); stroke: rgba(255, 255, 255, 0.55); stroke-width: 2; }
+.q-clock__tick { stroke: rgba(255, 255, 255, 0.6); stroke-width: 2; stroke-linecap: round; }
+.q-clock__hub { fill: rgba(255, 255, 255, 0.85); }
+.q-clock__who { margin-top: 4px; font-size: 14px; font-weight: 600; line-height: 1.2; color: #fff; }
+.q-clock__age { min-height: 1.4em; font-family: var(--mono); font-size: 13.5px; color: var(--soft); font-variant-numeric: tabular-nums; }
+.q-clocks__btn { margin-top: 10px; min-height: 44px; }
+.q-clocks__fine { margin-top: 8px; padding: 0 4px; }
+
+.q-trip .q-time__lead { margin-top: 6px; }
+@media (min-width: 560px) { .q-time-tour .q-presets__row { grid-template-columns: repeat(2, 1fr); } .q-time-tour .q-presets__row--3 { grid-template-columns: repeat(3, 1fr); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .q-clock__face * { transition: none; }
+}
+
+/* La última marca (99,99 %) se alinea a la derecha para que no se corte en pantallas estrechas */
+.q-time-tour .q-slide .q-ticks__t:last-child { transform: translateX(-80%); }
