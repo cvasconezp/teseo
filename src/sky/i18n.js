@@ -391,4 +391,5 @@ export const DIR_NAMES = DIRS;
 // textos de la ronda 3 (src/sky/i18n-r3.js): mismas claves en ES y EN
 import { R3 } from "./i18n-r3.js";
 import { R4 } from "./i18n-r4.js";
-for (const k of ["es", "en"]) Object.assign(TX[k], R3[k], R4[k]);
+import { R5 } from "./i18n-r5.js";
+for (const k of ["es", "en"]) Object.assign(TX[k], R3[k], R4[k], R5[k]);
