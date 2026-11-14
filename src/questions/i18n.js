@@ -7,7 +7,7 @@ export const TQ = {
   es: {
     // ── Índice de recorridos ──
     indexTitle: "Preguntas",
-    indexLead: "Cuatro preguntas grandes y lo que de verdad sabemos de cada una. En todas hay algo que mover con el dedo: los números salen de mediciones publicadas y la cuenta se hace en tu teléfono.",
+    indexLead: "Cinco preguntas grandes y lo que de verdad sabemos de cada una. En todas hay algo que mover con el dedo: los números salen de mediciones publicadas y la cuenta se hace en tu teléfono.",
     indexLegend: "Cada dato lleva una de estas tres etiquetas",
     indexOpen: "Abrir el recorrido",
     allQuestions: "Todas las preguntas",
@@ -15,6 +15,7 @@ export const TQ = {
     tourError: "Este recorrido no terminó de cargar. Revisa tu conexión.",
     tourRetry: "Reintentar",
     tours: {
+      mass: { title: "¿Qué pasa si cambio la masa?", teaser: "Pon tu masa en Marte, en el Sol y en una estrella de neutrones. Luego sube la masa de un asteroide hasta una estrella y mira en qué se convierte.", tag: "Juego con masa, peso y órbitas" },
       bh: { title: "¿Qué pasa cerca de un agujero negro?", teaser: "Elige una masa, de la Tierra a un cuásar, y mira cuánto mide su horizonte y cuánto se frena el tiempo a su lado.", tag: "Calculadora de horizonte, tiempo y mareas" },
       expansion: { title: "¿El universo se expande?", teaser: "Ajusta una recta sobre 36 supernovas reales y obtén la edad del universo. Luego quita la energía oscura y mira qué cambia.", tag: "Diagrama de Hubble con datos publicados" },
       dm: { title: "¿De qué está hecho el universo?", teaser: "Las estrellas del borde de una galaxia giran demasiado rápido. Añade masa invisible hasta que la cuenta cuadre con lo medido.", tag: "Curva de rotación real de NGC 3198" },
@@ -136,7 +137,7 @@ export const TQ = {
   en: {
     // ── Tour index ──
     indexTitle: "Questions",
-    indexLead: "Four big questions and what we actually know about each. Every one has something to move with your finger: the numbers come from published measurements and the arithmetic runs on your phone.",
+    indexLead: "Five big questions and what we actually know about each. Every one has something to move with your finger: the numbers come from published measurements and the arithmetic runs on your phone.",
     indexLegend: "Every figure carries one of these three labels",
     indexOpen: "Open the tour",
     allQuestions: "All questions",
@@ -144,6 +145,7 @@ export const TQ = {
     tourError: "This tour did not finish loading. Check your connection.",
     tourRetry: "Try again",
     tours: {
+      mass: { title: "What happens if I change the mass?", teaser: "Put your mass on Mars, on the Sun and on a neutron star. Then raise an asteroid’s mass up to a star and see what it turns into.", tag: "A game with mass, weight and orbits" },
       bh: { title: "What happens near a black hole?", teaser: "Pick a mass, from Earth to a quasar, and see how big its horizon is and how much time slows beside it.", tag: "Horizon, time and tide calculator" },
       expansion: { title: "Is the universe expanding?", teaser: "Fit a line through 36 real supernovae and get the age of the universe. Then remove dark energy and see what changes.", tag: "Hubble diagram with published data" },
       dm: { title: "What is the universe made of?", teaser: "Stars at the edge of a galaxy orbit too fast. Add unseen mass until the sums match what was measured.", tag: "Real rotation curve of NGC 3198" },

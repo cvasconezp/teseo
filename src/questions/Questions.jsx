@@ -12,13 +12,14 @@ import { TQ } from "./i18n.js";
 import "./questions.css";
 
 const TOURS = {
+  mass: lazy(() => import("./MassTour.jsx")),
   bh: lazy(() => import("./BlackHoleTour.jsx")),
   expansion: lazy(() => import("./ExpansionTour.jsx")),
   dm: lazy(() => import("./DarkMatterTour.jsx")),
   drake: lazy(() => import("./DrakeTour.jsx")),
 };
 // Orden del índice
-export const TOUR_IDS = ["bh", "expansion", "dm", "drake"];
+export const TOUR_IDS = ["mass", "bh", "expansion", "dm", "drake"];
 
 // Último lugar visitado: al cambiar de pestaña el panel se desmonta y, al
 // volver sin enlace, se retoma donde se dejó.
@@ -36,6 +37,17 @@ function currentRoute() {
 
 // Emblema de cada recorrido: un dibujo pequeño de su pieza central.
 function Emblem({ id }) {
+  if (id === "mass") return (
+    <svg viewBox="0 0 120 80" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id="q-em-mass-s" cx="40%" cy="35%" r="70%"><stop offset="0" stopColor="#FFF4D6" /><stop offset="1" stopColor="#FFB84D" /></radialGradient>
+        <radialGradient id="q-em-mass-p" cx="38%" cy="32%" r="80%"><stop offset="0" stopColor="#E7D3B2" /><stop offset="1" stopColor="#A87656" /></radialGradient>
+      </defs>
+      <circle cx="16" cy="52" r="5" fill="#9A9088" />
+      <circle cx="38" cy="48" r="11" fill="url(#q-em-mass-p)" />
+      <circle cx="82" cy="40" r="30" fill="url(#q-em-mass-s)" />
+    </svg>
+  );
   if (id === "bh") return (
     <svg viewBox="0 0 120 80" aria-hidden="true" focusable="false">
       <defs><radialGradient id="q-em-bh" cx="50%" cy="62%" r="60%"><stop offset="0.42" stopColor="#FFB067" stopOpacity="0" /><stop offset="0.6" stopColor="#FFB067" /><stop offset="0.78" stopColor="#FF7A3C" stopOpacity="0.55" /><stop offset="1" stopColor="#FF7A3C" stopOpacity="0" /></radialGradient></defs>

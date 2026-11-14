@@ -64,6 +64,10 @@ def test_whitelist_events_and_params():
     assert metrics.clean_event({"e": "sky_select", "p": {"id": "https://evil.example/x?y"}})["p"] == {}
     assert metrics.clean_event({"e": "q_preset", "p": {"q": "drake", "preset": {"a": 1}}})["p"] == {"q": "drake"}
     assert metrics.clean_event({"e": "night_vision", "p": {"state": True}})["p"] == {"state": "on"}
+    # pregunta «mass» (masa): se acepta su id y sus atajos; un id desconocido se descarta
+    assert metrics.clean_event({"e": "q_open", "p": {"q": "mass"}})["p"] == {"q": "mass"}
+    assert metrics.clean_event({"e": "q_preset", "p": {"q": "mass", "preset": "orbit_au"}})["p"] == {"q": "mass", "preset": "orbit_au"}
+    assert metrics.clean_event({"e": "q_open", "p": {"q": "masa"}})["p"] == {}
 
 
 def test_special_dest_moon_sun():
