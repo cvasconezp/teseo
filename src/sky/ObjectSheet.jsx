@@ -9,6 +9,8 @@ import { fmtDist, fmtYears, fmtDuration, fmtKm, fmtMassSun, fmtSuns, num, AU_KM,
 import { starTemperature, parseSpect } from "./starColor.js";
 import { exoClass, tempBand, methodKey, starClass, schwarzschildKm, bhSizeBand, pulsarSpin, hubbleFamily, magReach, JUPITER_RE, JUPITER_ME } from "./explain.js";
 import { NoteArt, ExoCompare } from "./NoteArt.jsx";
+import CompositionBlock from "./CompositionBlock.jsx";
+import StarLifeBlock from "./StarLifeBlock.jsx";
 import { drawArt, artKind, artOptions } from "./art.js";
 import { riseTransitSet, bestTonight, signalDelay, horizonFor } from "./riseset.js";
 import { altAz } from "./guide.js";
@@ -309,6 +311,9 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, credit, met
             ))}
           </ul>
         )}
+        {/* «¿De qué está hecho?» y «Su vida y su final»: solo Sol, Luna, planetas y estrellas (los bloques devuelven null en el resto) */}
+        {!isNote && <CompositionBlock obj={obj} lang={lang} />}
+        {!isNote && <StarLifeBlock obj={obj} lang={lang} />}
         {extract && (
           <p className="sk-desc">{extract} <a href={wiki.url} target="_blank" rel="noopener noreferrer">{t.readMore}</a></p>
         )}
