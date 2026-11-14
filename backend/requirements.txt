@@ -16,3 +16,7 @@ groq==1.4.0
 astropy==5.3.4
 numpy==1.26.4
 hapsira==0.18.0
+
+# ISS: propagación SGP4 (Brandon Rhodes). Sin dependencias: no toca astropy ni
+# numpy (comprobado con numpy==1.26.4 y astropy==5.3.4).
+sgp4==2.27

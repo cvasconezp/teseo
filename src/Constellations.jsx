@@ -2920,7 +2920,8 @@ export default function Constellations({ lang = "es" }) {
         <TonightPanel t={t} lang={lang} data={tonight} placeName={placeLabel} onGo={tonightGo}
           onFind={arCapable ? tonightFind : null}
           onGoTime={(d) => { setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(d)); }}
-          onClose={() => setPanel(null)} />
+          onClose={() => setPanel(null)}
+          iss={lat != null && lon != null ? { lat, lon, altM: elev || 0 } : null} />
       )}
       {sky && panel === "time" && (
         <TimePanel t={t} lang={lang} when={when} whenStr={whenStr} isNow={!timeMoved} playing={playing}

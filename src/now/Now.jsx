@@ -18,6 +18,7 @@ import {
 } from "./math.js";
 import { TN } from "./i18n.jsx";
 import { track, trackOnce, trackNetError } from "../ui/track.js";
+import Calendar from "./calendar/Calendar.jsx";
 import "./now.css";
 
 const ASTEROID_DAYS = 30, ASTEROID_LD = 10;
@@ -561,7 +562,8 @@ export default function Now({ lang = "es", api = "" }) {
   const [launches, retryLaunches] = useEndpoint(`${api}/api/launches?limit=8`, undefined, "launches");
   const [rocks, retryRocks] = useEndpoint(`${api}/api/asteroids?days=${ASTEROID_DAYS}&dist_ld=${ASTEROID_LD}`, undefined, "asteroids");
   return (
-    <div className="now-grid">
+    <div className="now-grid now-grid--cal">
+      <Calendar lang={lang} api={api} />
       <Card title={t.marsTitle} cert="measured" certNote={t.marsCert} state={mars} retry={retryMars} t={t} lang={lang}
         area="mars" fallbackSource="NASA JPL Horizons">
         {(d, st) => <MarsBody data={d} more={st.more} lang={lang} t={t} />}

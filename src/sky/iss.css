@@ -1,0 +1,62 @@
+/* La ISS sobre ti — tarjeta (IssPassesCard.jsx).
+   Hereda las variables de .sk-stage (sky.css); cada una lleva su valor por defecto para poder
+   usarse también fuera de la vista Cielo. Móvil primero: probada a 390 px; objetivos táctiles ≥ 44 px,
+   texto ≥ 12,5 px, contraste ≥ 4,5:1 sobre el fondo oscuro. */
+.iss-card { --iss-text: var(--text, #eef0fa); --iss-mute: var(--mute, rgba(238, 240, 250, 0.72)); --iss-gold: var(--gold, #f2c66d); --iss-violet: var(--violet, #a78bfa); --iss-line: var(--line-soft, rgba(255, 255, 255, 0.12));
+  display: flex; flex-direction: column; gap: 12px; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 14px 12px; border-radius: 16px; border: 1px solid var(--iss-line); background: rgba(255, 255, 255, 0.035); color: var(--iss-text); font-family: var(--sans, Inter, system-ui, sans-serif); }
+.iss-card * { box-sizing: border-box; }
+.iss-head { display: flex; gap: 10px; align-items: flex-start; }
+.iss-ico { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--iss-gold); background: rgba(242, 198, 109, 0.1); }
+.iss-head h3 { margin: 0; font-family: var(--serif, Georgia, serif); font-size: 21px; font-weight: 600; line-height: 1.15; color: #fff; }
+.iss-lead { margin: 3px 0 0; font-size: 13px; line-height: 1.4; color: var(--iss-mute); }
+
+.iss-note { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--iss-text); }
+.iss-note.is-mute { color: var(--iss-mute); }
+.iss-fine { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--iss-mute); }
+.iss-warn { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 8px 10px; border-radius: 10px; font-size: 12.5px; line-height: 1.4; color: #ffe2a8; background: rgba(242, 198, 109, 0.09); border: 1px solid rgba(242, 198, 109, 0.4); }
+.iss-warn svg { flex: none; margin-top: 1px; color: var(--iss-gold); }
+
+/* próxima pasada */
+.iss-next { display: flex; flex-direction: column; gap: 1px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(242, 198, 109, 0.45); background: rgba(242, 198, 109, 0.07); }
+.iss-next span { font-size: 12.5px; color: var(--iss-mute); }
+.iss-next b { font-family: var(--serif, Georgia, serif); font-size: 24px; font-weight: 600; line-height: 1.15; color: var(--iss-gold); font-variant-numeric: tabular-nums; }
+
+/* lista */
+.iss-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.iss-pass { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--iss-line); }
+.iss-pass.is-now { border-color: rgba(103, 232, 200, 0.6); }
+.iss-when { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.iss-day { font-size: 13px; color: var(--iss-mute); }
+.iss-time { font-family: var(--serif, Georgia, serif); font-size: 24px; font-weight: 600; line-height: 1.1; color: #fff; font-variant-numeric: tabular-nums; }
+.iss-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.iss-chip { display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: 999px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--iss-text); border: 1px solid var(--iss-line); background: rgba(255, 255, 255, 0.05); white-space: nowrap; }
+.iss-chip.is-mag { color: var(--iss-gold); border-color: rgba(242, 198, 109, 0.5); }
+.iss-chip.is-now { color: #67e8c8; border-color: rgba(103, 232, 200, 0.55); }
+.iss-route { margin: 0; font-size: 14px; line-height: 1.4; color: var(--iss-text); overflow-wrap: anywhere; }
+.iss-pass .iss-fine { margin: 0; }
+.iss-show { align-self: stretch; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 13px; border: 1px solid rgba(242, 198, 109, 0.6); background: rgba(242, 198, 109, 0.1); color: var(--iss-gold); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s, transform 0.1s; }
+.iss-show:hover { background: rgba(242, 198, 109, 0.18); }
+.iss-show:active { transform: scale(0.98); }
+
+/* vacío */
+.iss-empty { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; border: 1px dashed var(--iss-line); }
+.iss-empty strong { font-family: var(--serif, Georgia, serif); font-size: 19px; font-weight: 600; line-height: 1.2; color: #fff; }
+
+/* error y reintento */
+.iss-error { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.iss-retry { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 13px; border: 1px solid var(--iss-line); background: rgba(255, 255, 255, 0.06); color: var(--iss-text); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+.iss-retry:hover { border-color: var(--iss-violet); }
+
+/* carga */
+.iss-skel { display: grid; gap: 8px; }
+.iss-skel i { display: block; height: 64px; border-radius: 14px; background: linear-gradient(90deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04)); background-size: 200% 100%; animation: iss-shimmer 1.4s linear infinite; }
+
+.iss-foot { display: flex; flex-direction: column; gap: 4px; padding-top: 10px; border-top: 1px solid var(--iss-line); }
+.iss-source { font-size: 12.5px; font-weight: 500; color: var(--iss-text); }
+
+/* foco visible para teclado */
+.iss-card button:focus-visible { outline: 3px solid var(--iss-violet); outline-offset: 2px; }
+
+@keyframes iss-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .iss-skel i { animation: none; } .iss-show { transition: none; } }
+@media (forced-colors: active) { .iss-show, .iss-retry, .iss-chip, .iss-pass, .iss-next { border: 1px solid CanvasText; } }
