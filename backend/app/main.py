@@ -11,6 +11,7 @@ Endpoints:
   POST /api/route                     → ruta Hohmann completa + narrativa
   GET  /api/launch-windows/{a}/{b}    → próximas ventanas de lanzamiento
   GET  /api/trajectory?origin&destination → trayectoria realista (Lambert) vs Hohmann
+  GET  /api/mga?origin&destination   → viaje con catapultas (asistencias gravitatorias múltiples)
   POST /api/explain                   → explicación de un concepto (IA)
   GET  /api/exoplanets                → exoplanetas (NASA Exoplanet Archive)
   GET  /api/comets                    → cometas notables (NASA Horizons)
@@ -51,6 +52,7 @@ from app import iss
 from app import push
 from app import metrics
 from app import lambert
+from app import mga
 from app.cache import ProviderError, iso_utc
 
 VERSION = "0.2.0"
@@ -81,6 +83,7 @@ _CACHE_SECONDS = [
     ("/api/exoplanets", 3600),
     ("/api/launch-windows/", 3600),
     ("/api/trajectory", 3600),
+    ("/api/mga", 3600),
     ("/api/bodies", 86400),
 ]
 _DEGRADED_CACHE = "public, max-age=30"  # datos `stale` o aún incompletos
@@ -207,6 +210,7 @@ def api_health():
         # Solo el estado del almacén: nunca los recuentos.
         "metrics": _safe_metrics_status(),
         "push": push.status(),  # recordatorios push: claves y almacén (app/push.py), sin recuentos
+        "mga": mga_service.status(),  # «Planifica tu viaje con catapultas»: caché y cola de cálculo
     }
 
 
@@ -374,6 +378,7 @@ async def _prewarm():
             run_in_threadpool(_windows, "earth", "mars", None, None, 1),  # calienta numba
             run_in_threadpool(_trajectory, "earth", "mars"),  # compila izzo (Lambert) y deja Tierra→Marte en caché
             exoplanets.resource.get(),
+            run_in_threadpool(mga_service.prewarm),  # encola el cálculo MGA de los destinos sin caché (hilo propio)
         ]
         for step in steps:
             try:
@@ -628,6 +633,44 @@ def get_trajectory(origin: str = Query(...), destination: str = Query(...)):
         raise HTTPException(status_code=400, detail=str(e))
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+# ─── «Planifica tu viaje con catapultas» (app/mga.py) ──────────────────────
+# Caché persistente en el mismo volumen que las métricas (o TESEO_MGA_DIR).
+mga_service = mga.MgaService(
+    (os.environ.get("TESEO_MGA_DIR", "").strip() or os.environ.get("TESEO_METRICS_DIR", "").strip()) or None)
+
+_MGA_EARTH_ONLY = {
+    "es": "Por ahora, el plan con catapultas solo se calcula desde la Tierra.",
+    "en": "For now, the gravity-assist plan is only computed from Earth.",
+}
+
+
+@app.get("/api/mga")
+def get_mga(response: Response, origin: str = Query("earth", max_length=16),
+            destination: str = Query(..., max_length=16)):
+    """«Planifica tu viaje con catapultas»: las mejores trayectorias con asistencias
+    gravitatorias (cónicas empalmadas, Lambert de Izzo) para salir entre hoy y 25 años
+    después, comparadas con el viaje directo. El cálculo (~5–20 s por destino) se hace
+    en segundo plano y se guarda en caché: sin resultado aún, responde 202 con el
+    progreso y `Retry-After`. Mismos nombres de cuerpo que /api/trajectory."""
+    o, d = origin.strip().lower(), destination.strip().lower()
+    if o not in orbital.BODIES or d not in orbital.BODIES:
+        raise HTTPException(status_code=400, detail=f"Cuerpo desconocido: '{o if o not in orbital.BODIES else d}'.")
+    if o == d:
+        raise HTTPException(status_code=400, detail="El origen y el destino deben ser distintos.")
+    if o != "earth":
+        return {"status": "earth_only", "origin": o, "destination": d, "message": _MGA_EARTH_ONLY}
+    status, payload = mga_service.get(d)
+    if status == "computing":
+        return JSONResponse(status_code=202, content=payload,
+                            headers={"Retry-After": "8", "Cache-Control": "no-store"})
+    if status == "error":
+        raise HTTPException(status_code=503, detail=f"No se pudo calcular el plan: {payload['detail']}",
+                            headers={"Retry-After": "60"})
+    if payload.get("refreshing"):
+        _degraded(response)
+    return payload
 
 
 @app.get("/api/missions/mars")

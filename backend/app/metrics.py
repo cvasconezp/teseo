@@ -77,7 +77,7 @@ SPECIAL_DESTS = {"moon", "sun"}
 SPECIAL_KINDS = {"view", "link", "venus", "pick"}
 ENDPOINTS = {
     "missions_mars", "launches", "asteroids", "launch_windows", "position", "distance", "route",
-    "exoplanets", "comets", "probes", "blackholes_json", "trajectory", "iss_passes", "other",
+    "exoplanets", "comets", "probes", "blackholes_json", "trajectory", "iss_passes", "mga", "other",
 }
 ERROR_KINDS = {"timeout", "http4xx", "http5xx", "network", "parse"}
 SKY_LAYERS = {"messier", "pulsars", "blackholes", "galaxies", "meteors", "comets", "probes", "exoplanets"}
@@ -115,6 +115,11 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "trajectory_card":    {"origin": BODIES, "destination": BODIES, "state": {"ok", "fail", "empty"}},
     # Catapultas (asistencias gravitatorias) en Ruta: vista de la tarjeta por destino (src/route/GravityAssists.jsx)
     "assists_card":       {"origin": BODIES, "destination": BODIES},
+    # «Planifica tu viaje con catapultas» en Ruta (src/route/MgaPlanner.jsx): resultado de la tarjeta por
+    # destino (state) y qué se abrió (kind: otra ruta de la tabla o los supuestos). Nunca la ruta ni la fecha.
+    "mga_card":           {"origin": BODIES, "destination": BODIES,
+                           "state": {"ok", "fail", "empty", "computing", "earth_only"},
+                           "kind": {"option", "assumptions"}},
     # Preguntas
     "q_index":            {},
     "q_search":           {"state": {"ok", "fail"}},

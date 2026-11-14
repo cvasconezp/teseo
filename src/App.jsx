@@ -19,7 +19,9 @@ import RealTrajectory from "./route/RealTrajectory.jsx";
 import { TR } from "./route/i18n.js";
 // «Catapultas» (asistencias gravitatorias): tarjeta bajo la trayectoria realista (src/route/)
 import GravityAssists from "./route/GravityAssists.jsx";
+import MgaPlanner from "./route/MgaPlanner.jsx";
 import { GA } from "./route/i18n-assists.js";
+import { MGA } from "./route/i18n-mga.js";
 // Geometría del dibujo de la ruta en el mapa: media elipse de Hohmann con ángulos reales
 import { ORBIT_R, hohmannPlan, pathD, placeLabel, routeDates } from "./route/hohmannMap.js";
 import CosmicScale from "./CosmicScale.jsx";
@@ -1802,6 +1804,9 @@ export default function Teseo() {
                       </SectionBoundary>
                       <SectionBoundary name="Catapultas" title={GA[lang].boundaryTitle} message={GA[lang].boundaryBody} retryLabel={GA[lang].retry}>
                         <GravityAssists from={from} to={to} lang={lang}/>
+                      </SectionBoundary>
+                      <SectionBoundary name="Planifica tu viaje con catapultas" title={MGA[lang].boundaryTitle} message={MGA[lang].boundaryBody} retryLabel={MGA[lang].retry}>
+                        <MgaPlanner from={from} to={to} lang={lang}/>
                       </SectionBoundary>
                     </>)}
 

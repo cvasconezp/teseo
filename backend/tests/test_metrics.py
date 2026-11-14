@@ -455,3 +455,16 @@ def test_push_remind_lista_blanca(store):
     raw = open(store.path, encoding="utf-8").read()
     assert "push_remind" in raw and "kind:on" in raw
     assert "fcm.googleapis.com" not in raw and "abc123" not in raw
+
+
+def test_mga_card_lista_blanca():
+    # «Planifica tu viaje con catapultas»: cuerpos, estado y acción de conjuntos cerrados; nada más viaja
+    ev = metrics.clean_event({"e": "mga_card", "p": {"origin": "earth", "destination": "saturn", "state": "ok"}})
+    assert ev == {"e": "mga_card", "p": {"origin": "earth", "destination": "saturn", "state": "ok"}}
+    for st in ("ok", "fail", "empty", "computing", "earth_only"):
+        assert metrics.clean_event({"e": "mga_card", "p": {"state": st}})["p"] == {"state": st}
+    for kind in ("option", "assumptions"):
+        assert metrics.clean_event({"e": "mga_card", "p": {"kind": kind}})["p"] == {"kind": kind}
+    ev = metrics.clean_event({"e": "mga_card", "p": {"destination": "pluton", "state": "hack", "kind": "x", "id": "EVVEJS-2034"}})
+    assert ev["p"] == {}
+    assert metrics.clean_event({"e": "net_error", "p": {"endpoint": "mga", "kind": "timeout"}})["p"] == {"endpoint": "mga", "kind": "timeout"}
