@@ -539,7 +539,13 @@ strong { font-weight: 600; color: #fff; }
   border: 1px solid var(--line, rgba(255,255,255,.12)); background: rgba(255,255,255,.04); color: var(--muted); }
 .night-btn:hover { color: #fff; }
 .night-btn.is-on { color: #ff6b6b; border-color: rgba(255,80,80,.55); background: rgba(255,40,40,.12); }
-.night-vision-layer { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none;
-  background: #ff1a1a; mix-blend-mode: multiply; }
-html.night-vision body { background: #000; }
+/* La capa es bastante más grande que la pantalla: en el teléfono, al desplazar
+   rápido, la barra del navegador se oculta y la ventana visible crece por
+   debajo; con inset:0 quedaba una franja sin teñir. 100lvh = alto con las
+   barras ocultas. Se mantiene en su propia capa de composición para que no
+   se quede atrás al hacer scroll. */
+.night-vision-layer { position: fixed; top: -50vh; left: -10vw; width: 120vw;
+  height: 200vh; height: calc(100lvh + 100vh); z-index: 2147483000; pointer-events: none;
+  background: #ff1a1a; mix-blend-mode: multiply; transform: translateZ(0); will-change: transform; }
+html.night-vision, html.night-vision body { background: #000; overscroll-behavior-y: none; }
 html.night-vision .night-vision-dim { filter: brightness(.7); }
