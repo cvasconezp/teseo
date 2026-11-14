@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   MASS_T, MASS_REFS, MASS_NEXT, MASS_SLIDER, DEFAULT_LOGM, PRESETS, WORLDS, WEIGHINGS, ORBIT_DISTANCES, DEFAULT_ORBIT,
-  M_EARTH_KG, DM_OVER_ORDINARY,
+  M_EARTH_KG, MJ_KG, DM_OVER_ORDINARY,
   surfaceGravity, escapeVelocity, meanDensity, schwarzschildKg, weightN, scaleKg, orbitPeriod, massFromOrbit, animSeconds,
   worldGravity, radiusM, starTeff, classify, massHuman, logToMass, massToLog, tickPct, nearestLadder, kelvinToRgb,
+  EXAMPLE_SHORT, COMPARES, TABLE_ORDER, WD_MEASURED, example, exampleDensity, teaspoonKg,
+  densityBand, isRelativistic, sizeSlider, clampLogR, sizeTickPct, sizePresetRadius, SIZE_PRESETS,
 } from "./massData.js";
 import { readNumber, parseRoute, clamp } from "./physics.js";
-import { R_EARTH } from "./constants.js";
+import { R_EARTH, R_SUN, M_SUN_KG } from "./constants.js";
 import { num, sig, sci } from "./format.js";
 import { length, duration, quantity, times } from "./units.js";
 import { TQ } from "./i18n.js";
@@ -17,7 +19,8 @@ import {
 } from "./shared.jsx";
 
 // Último estado del deslizador del laboratorio (no la masa personal: esa no se guarda).
-const store = { logM: null, orbit: null };
+const store = { logM: null, orbit: null, pair: null, sizeOn: false, logR: null };
+const STEPS = 4;
 
 function readHash() {
   try {
@@ -35,6 +38,31 @@ const fmtSpeed = (v, lang) => (v < 1000 ? `${sig(v, lang, 2)} m/s` : `${sig(v / 
 const fmtKg = (x, lang) => (x >= 1e6 || x < 0.01 ? sci(x, lang, 3) : sig(x, lang, 3));
 const ratioTxt = (k, lang) => (k >= 100 ? times(k, lang) : sig(k, lang, 2));
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// Longitud: por debajo de 1 mm se da en notación científica (un asteroide de 10¹⁵ kg tiene r_s ≈ 10⁻¹² m).
+const lengthFine = (m, lang) => (m < 1e-3 ? `${sci(m, lang, 2)} m` : length(m, lang));
+// Masa corta de la tabla: M⊕, MJ o M☉ según el tamaño (el mismo criterio que massHuman).
+function massShort(kg, lang) {
+  if (kg < 0.1 * MJ_KG) return `${sig(kg / M_EARTH_KG, lang, 3)} M⊕`;
+  if (kg < 0.075 * M_SUN_KG) return `${sig(kg / MJ_KG, lang, 3)} MJ`;
+  return `${sig(kg / M_SUN_KG, lang, 3)} M☉`;
+}
+// Cuánto pesa una cucharadita (5 mL) de material con la densidad rho.
+function teaspoonText(rho, SZ, lang) {
+  const kg = teaspoonKg(rho);
+  let v, u;
+  if (kg < 1) { const g = kg * 1000; v = g < 0.01 ? sci(g, lang, 2) : sig(g, lang, 2); u = "g"; }
+  else if (kg < 1000) { v = sig(kg, lang, 2); u = "kg"; }
+  else { v = times(kg / 1000, lang); u = "t"; }
+  return `${v} ${SZ.units[u][v === "1" ? 0 : 1]}`;
+}
+// «Casi como la Tierra», «3 veces el de la Tierra»…: el texto de un radio frente al terrestre.
+function earthVs(R, lang, L) {
+  const k = R / R_EARTH;
+  if (Math.abs(Math.log10(k)) < 0.02) return L.size.nearEarth;
+  return L.radiusVs(k < 0.001 ? sci(k, lang, 2) : ratioTxt(k, lang), k >= 1);
+}
+// ¿El cuerpo es tan pequeño frente a su referencia que se dibuja como un punto?
+const isDot = (R) => { const ref = artRef(R); return R * (ART_MAX / Math.max(R, ref.R)) < 3; };
 
 // ── Dibujo del cuerpo ───────────────────────────────────────────────────────
 // Tamaños A ESCALA REAL entre el cuerpo y una referencia conocida (el círculo a trazos). La referencia
@@ -123,6 +151,22 @@ function BodyArt({ kind, R, teff, aria, lang }) {
       <circle cx={cx} cy={cy} r={px * 1.5} fill={`url(#h${uid})`} />
       <circle cx={cx} cy={cy} r={px} fill={`url(#g${uid})`} />
     </g>);
+  } else if (kind === "blackhole") {
+    art = (<g>
+      <defs><radialGradient id={`h${uid}`}><stop offset="0.55" stopColor="#FF9A5C" stopOpacity="0.5" /><stop offset="1" stopColor="#FF9A5C" stopOpacity="0" /></radialGradient></defs>
+      <circle cx={cx} cy={cy} r={Math.min(78, px * 1.6 + 4)} fill={`url(#h${uid})`} />
+      <circle cx={cx} cy={cy} r={px} fill="#000" stroke="#FF9A5C" strokeWidth="1.8" />
+    </g>);
+  } else if (kind === "neutron" || kind === "whitedwarf") {
+    const col = kind === "neutron" ? "#7FB2FF" : "#CFE0FF";
+    art = (<g>
+      <defs>
+        <radialGradient id={`h${uid}`}><stop offset="0.5" stopColor={col} stopOpacity="0.6" /><stop offset="1" stopColor={col} stopOpacity="0" /></radialGradient>
+        <radialGradient id={`g${uid}`} cx="42%" cy="38%" r="70%"><stop offset="0" stopColor="#fff" /><stop offset="1" stopColor={col} /></radialGradient>
+      </defs>
+      <circle cx={cx} cy={cy} r={Math.min(78, px * 1.7 + 4)} fill={`url(#h${uid})`} />
+      <circle cx={cx} cy={cy} r={px} fill={`url(#g${uid})`} />
+    </g>);
   } else {
     const [r, g, b] = kelvinToRgb(teff || 5772), col = `rgb(${r},${g},${b})`;
     const glow = Math.min(78, px * (kind === "massive" ? 1.55 : 1.4));
@@ -175,7 +219,7 @@ function WeightStep({ lang, t, T, personKg, setPersonKg }) {
   const slideV = clamp(Math.round(personKg), 20, 150);
   return (
     <section className="q-mass__sec" aria-labelledby="q-mass-w">
-      <p className="q-mass__step">{T.stepLabel(1, 3)}</p>
+      <p className="q-mass__step">{T.stepLabel(1, STEPS)}</p>
       <h3 id="q-mass-w" className="q-h3">{W.title}</h3>
       <p className="q-model__lead">{W.lead}</p>
       <div className="q-mass__you">
@@ -215,11 +259,164 @@ function WeightStep({ lang, t, T, personKg, setPersonKg }) {
   );
 }
 
-// ── Paso 2: laboratorio ─────────────────────────────────────────────────────
-function Lab({ lang, t, T, personKg, logM, setLogM }) {
-  const L = T.lab;
+// ── Paso 2: más masa no siempre es más grande ───────────────────────────────
+// Dos cuerpos reales a escala entre sí (si uno es muy pequeño, se dibuja como un punto con un anillo).
+function PairArt({ items, lang, aria }) {
+  const uid = useId().replace(/:/g, "");
+  const [a, b] = items;
+  const MAXP = 58, gap = 44, cy = 68;
+  const scale = MAXP / Math.max(a.R, b.R);
+  const px = (e) => Math.max(2.5, e.R * scale);
+  const pa = px(a), pb = px(b);
+  const x0 = (300 - (2 * pa + 2 * pb + gap)) / 2;
+  const xs = [x0 + pa, x0 + 2 * pa + gap + pb];
+  return (
+    <svg className="q-mass__art q-mass__pair" viewBox="0 0 300 172" role="img" aria-label={aria}>
+      <g aria-hidden="true">
+        {items.map((e, i) => {
+          const p = i ? pb : pa, x = xs[i], dot = e.R * scale < 3.2;
+          const [c0, c1] = e.colors;
+          return (
+            <g key={e.id}>
+              <defs><radialGradient id={`p${i}${uid}`} cx="36%" cy="30%" r="80%"><stop offset="0" stopColor={c0} /><stop offset="1" stopColor={c1} /></radialGradient></defs>
+              {e.id === "bh10"
+                ? (<><circle cx={x} cy={cy} r={p * 1.35 + 2} fill="#FF9A5C" fillOpacity="0.18" /><circle cx={x} cy={cy} r={p} fill="#000" stroke="#FF9A5C" strokeWidth="1.8" /></>)
+                : (<circle cx={x} cy={cy} r={p} fill={`url(#p${i}${uid})`} stroke={e.approx ? "#fff" : "none"} strokeOpacity="0.8" strokeWidth="1.2" strokeDasharray={e.approx ? "4 3" : undefined} />)}
+              {dot && <circle cx={x} cy={cy} r={10} fill="none" stroke="#fff" strokeOpacity="0.85" strokeWidth="1.2" strokeDasharray="2.5 2.5" />}
+              <text x={x} y="150" textAnchor="middle" className="q-plot__label">{EXAMPLE_SHORT[e.id][lang]}</text>
+              <text x={x} y="164" textAnchor="middle" className="q-plot__label">{e.approx ? "≈ " : ""}{lengthFine(e.R, lang)}</text>
+            </g>
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
+
+// Frase «X tiene k veces la masa de Y, pero un radio…» (o, con la ciudad, que no tiene masa, el ancho).
+function cmpSentence(a, b, lang, B) {
+  if (a.mass && b.mass) {
+    const k = b.mass / a.mass, r = b.R / a.R;
+    let rp, but = true;
+    if (r >= 1.1) { rp = B.radBigger(times(r, lang)); but = false; }
+    else if (r > 0.9) rp = B.radSame;
+    else if (r > 0.1) rp = B.radSmallish(sig(r, lang, 2));
+    else rp = B.radSmaller(times(1 / r, lang));
+    return B.cmpMass(cap(b.the[lang]), a.the[lang], times(k, lang), (but ? B.cmpRadiusBut : B.cmpRadiusAnd)(rp));
+  }
+  return B.cmpWidth(cap(b.the[lang]), a.the[lang], sig(b.R / a.R, lang, 2));
+}
+const densityVsTxt = (rho, lang, B) => (rho >= 1000 ? B.densityVs(times(rho / 1000, lang)) : B.densityVsLess(fmt3(rho / 1000, lang)));
+
+function BigStep({ lang, t, T }) {
+  const B = T.big;
+  const [pairId, setPairId] = useState(() => store.pair || COMPARES[0].id);
+  useEffect(() => { store.pair = pairId; }, [pairId]);
+  const pair = COMPARES.find(c => c.id === pairId) || COMPARES[0];
+  const items = pair.items.map(example);
+  const [a, b] = items;
+  const P = B.pairs[pair.id];
+  const big = a.R >= b.R ? a : b, small = big === a ? b : a;
+  const dotNote = isDotPair(small, big) ? B.dotOne(cap(small.the[lang]), times(big.R / small.R, lang), big.the[lang]) : "";
+  const aria = B.art(a.the[lang], lengthFine(a.R, lang), b.the[lang], lengthFine(b.R, lang), dotNote);
+  return (
+    <section className="q-mass__sec" aria-labelledby="q-mass-big">
+      <p className="q-mass__step">{T.stepLabel(2, STEPS)}</p>
+      <h3 id="q-mass-big" className="q-h3">{B.title}</h3>
+      <p className="q-model__lead">{B.stepLead}</p>
+
+      <div className="q-mass__panel">
+        <p className="q-presets__label" id="q-mass-pairs">{B.chooseLabel}</p>
+        <div className="q-chips q-chips--wrap" role="group" aria-labelledby="q-mass-pairs">
+          {COMPARES.map(c => (
+            <button key={c.id} type="button" data-preset={`big_${c.id}`} className={`q-preset ${c.id === pair.id ? "is-on" : ""}`} aria-pressed={c.id === pair.id} onClick={() => setPairId(c.id)}>{B.tabs[c.id]}</button>
+          ))}
+        </div>
+        <h4 className="q-h4 q-mass__h4 q-mass__pairtitle" role="status" aria-live="polite" aria-atomic="true">{P.title}</h4>
+        <PairArt items={items} lang={lang} aria={aria} />
+        {dotNote && <p className="q-fine">{dotNote}</p>}
+        <p className="q-mass__blurb">{P.text}</p>
+        <p className="q-mass__blurb q-mass__cmpline"><strong>{cmpSentence(a, b, lang, B)}</strong></p>
+        <p className="q-mass__tags"><Certainty level={pair.level} t={t} short note={P.note} /></p>
+        <table className="q-table q-mass__cmp">
+          <caption className="q-sr">{B.art(a.the[lang], lengthFine(a.R, lang), b.the[lang], lengthFine(b.R, lang), "")}</caption>
+          <thead><tr><th scope="col"><span className="q-sr">{B.colObject}</span></th>{items.map(e => <th key={e.id} scope="col">{EXAMPLE_SHORT[e.id][lang]}</th>)}</tr></thead>
+          <tbody>
+            <tr><th scope="row">{B.factMass}</th>{items.map(e => <td key={e.id}>{e.mass ? massShort(e.mass, lang) : "—"}</td>)}</tr>
+            <tr><th scope="row">{B.factRadius}</th>{items.map(e => (
+              <td key={e.id}>{e.approx ? "≈ " : ""}{lengthFine(e.R, lang)}{e.horizon && <span className="q-mass__sub">{B.factHorizon}</span>}{e.approx && <span className="q-mass__sub">{B.factApprox}</span>}</td>
+            ))}</tr>
+            <tr><th scope="row">{B.factDensity}</th>{items.map(e => { const d = exampleDensity(e); return (
+              <td key={e.id}>{d ? <>{quantity(d, lang)} kg/m³<span className="q-mass__sub">{densityVsTxt(d, lang, B)}</span></> : "—"}</td>
+            ); })}</tr>
+          </tbody>
+        </table>
+        <p className="q-fine">{B.scaleNote}</p>
+        <Refs ids={pair.refs} refs={MASS_REFS} lang={lang} t={t} />
+      </div>
+
+      <h4 className="q-h4 q-mass__h4 q-mass__h4--gap">{B.tableTitle}</h4>
+      <table className="q-table q-mass__order">
+        <caption className="q-sr">{B.tableCaption}</caption>
+        <thead><tr><th scope="col">{B.colObject}</th><th scope="col">{B.colMass}</th><th scope="col">{B.colRadius}</th><th scope="col">{B.colDensity}</th></tr></thead>
+        <tbody>
+          {TABLE_ORDER.map(id => {
+            const e = example(id), d = exampleDensity(e);
+            return (
+              <tr key={id}>
+                <th scope="row">{EXAMPLE_SHORT[id][lang]}</th>
+                <td>{massShort(e.mass, lang)}</td>
+                <td>{lengthFine(e.R, lang)}</td>
+                <td>{quantity(d, lang)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="q-fine">{B.tableNote}</p>
+
+      <Why summary={B.wdTitle}>
+        <p>{B.wdLead}</p>
+        <table className="q-table q-mass__wd">
+          <caption className="q-sr">{B.wdCaption}</caption>
+          <thead><tr><th scope="col">{B.wdName}</th><th scope="col">{B.colMass}</th><th scope="col">{B.colRadius}</th></tr></thead>
+          <tbody>
+            {WD_MEASURED.map(w => (
+              <tr key={w.name} className={w.dynamical ? "is-you" : ""}>
+                <th scope="row">{w.name === "Sirius B" ? EXAMPLE_SHORT.sirius[lang] : w.name}</th>
+                <td>{sig(w.mass, lang, 3)} ± {sig(w.dm, lang, 2)} M☉</td>
+                <td>{sig(w.R, lang, 3)} R☉<span className="q-mass__sub">{lang === "es" ? `${sig((w.R * R_SUN) / R_EARTH, lang, 2)} de la Tierra` : `${sig((w.R * R_SUN) / R_EARTH, lang, 2)} of Earth’s`}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="q-fine">{B.wdNote}</p>
+        <Refs ids={["joyce2018", "bond2017", "nasaWD"]} refs={MASS_REFS} lang={lang} t={t} />
+      </Why>
+
+      <h4 className="q-h4 q-mass__h4 q-mass__h4--gap">{B.sumTitle}</h4>
+      <p className="q-mass__blurb">{B.sumText}</p>
+      <Why summary={B.whySummary}>
+        <ul className="q-formulas">{B.whyBody.map(f => <li key={f} className="q-formula">{sub(f)}</li>)}</ul>
+        <p>{B.whyFine}</p>
+      </Why>
+    </section>
+  );
+}
+// ¿El menor de los dos cuerpos se dibuja como un punto? (misma regla que PairArt)
+function isDotPair(small, big) { return small.R * (58 / big.R) < 3.2; }
+
+// ── Paso 3: laboratorio ─────────────────────────────────────────────────────
+function Lab({ lang, t, T, personKg, logM, setLogM, sizeOn, setSizeOn, logR, setLogR }) {
+  const L = T.lab, SZ = L.size;
   const M = logToMass(logM);
-  const R = radiusM(M);
+  const Rm = radiusM(M);
+  const sl = sizeSlider(M);
+  // En el modo «elegir tamaño», el radio lo pone la persona (siempre dentro del rango).
+  const logRc = sizeOn ? clampLogR(logR == null ? Math.log10(Rm) : logR, M) : null;
+  const R = sizeOn ? Math.pow(10, logRc) : Rm;
+  const band = sizeOn ? densityBand(M, R) : null;
+  const isBH = band === "bh";
   const g = surfaceGravity(M, R);
   const vEsc = escapeVelocity(M, R);
   const rho = meanDensity(M, R);
@@ -244,9 +441,43 @@ function Lab({ lang, t, T, personKg, logM, setLogM }) {
     { label: L.tickJup, pct: tickPct(1.89813e27) }, { label: L.tickSun, pct: tickPct(1.98841e30) },
   ];
   const certainty = preset && preset.real ? "measured" : "estimated";
+
+  // Modo «elegir tamaño»: marcas del deslizador de radio (se omiten las que quedan fuera o muy juntas).
+  const sizeMarks = [];
+  if (sizeOn) {
+    const cand = [
+      { label: "r_s", pct: 0 },
+      { label: SZ.tickCity, pct: sizeTickPct(5000, M) },
+      { label: SZ.tickEarth, pct: sizeTickPct(R_EARTH, M) },
+      { label: SZ.tickSun, pct: sizeTickPct(R_SUN, M) },
+      { label: SZ.tickSuper, pct: 100 },
+    ];
+    for (const c of cand) {
+      if (c.pct < 0 || c.pct > 100) continue;
+      while (sizeMarks.length > 1 && c.pct - sizeMarks[sizeMarks.length - 1].pct < 16) sizeMarks.pop();
+      if (sizeMarks.length && c.pct - sizeMarks[sizeMarks.length - 1].pct < 16) continue;
+      sizeMarks.push(c);
+    }
+  }
+  const B_ = band ? SZ.bands[band] : null;
+  const artKind = sizeOn ? ({ bh: "blackhole", ns: "neutron", gap: "neutron", wd: "whitedwarf" }[band] || kind) : kind;
+  const artTeff = sizeOn && isStar && R > 5 * Rm ? 3500 : teff;
+  const headName = sizeOn ? B_.name : K.name;
+  const caveat = !sizeOn ? "" : band === "wd" && M < 0.1 * M_SUN_KG ? SZ.caveat.wdLow : (band === "wd" || band === "gap") && M > 1.4 * M_SUN_KG ? SZ.caveat.wdHigh
+    : band === "ns" && M < 1 * M_SUN_KG ? SZ.caveat.nsLow : band === "ns" && M > 3 * M_SUN_KG ? SZ.caveat.nsHigh : "";
+  const kR = R / Rm;
+  const vsModel = Math.abs(Math.log10(kR)) < 0.02 ? SZ.vsSame
+    : kR < 1 ? SZ.vsSmaller(times(1 / kR, lang), times(1 / (kR * kR), lang), times(1 / (kR * kR * kR), lang))
+      : SZ.vsBigger(times(kR, lang), times(kR * kR, lang), times(kR * kR * kR, lang));
+  const sizeVisible = `${lengthFine(R, lang)} · ${earthVs(R, lang, L)}`;
+  const toggleSize = () => {
+    if (!sizeOn && logR == null) setLogR(Math.log10(Rm));
+    setSizeOn(!sizeOn);
+  };
+  const dotted = isDot(R);
   return (
     <section className="q-mass__sec" aria-labelledby="q-mass-lab">
-      <p className="q-mass__step">{T.stepLabel(2, 3)}</p>
+      <p className="q-mass__step">{T.stepLabel(3, STEPS)}</p>
       <h3 id="q-mass-lab" className="q-h3">{L.title}</h3>
       <p className="q-model__lead">{L.lead}</p>
 
@@ -264,56 +495,96 @@ function Lab({ lang, t, T, personKg, logM, setLogM }) {
             ))}
           </div>
         </div>
+
+        <div className="q-mass__size">
+          <button type="button" role="switch" aria-checked={sizeOn} data-size-switch className={`q-mass__switch ${sizeOn ? "is-on" : ""}`} onClick={toggleSize}>
+            <span className="q-mass__knob" aria-hidden="true"><i /></span>
+            <span className="q-mass__switchtxt"><strong>{SZ.toggle}</strong><span>{SZ.toggleHint}</span></span>
+          </button>
+          {sizeOn && (
+            <>
+              <p className="q-fine">{SZ.massFixed(massTxt)}</p>
+              <Slider label={SZ.slider} hint={SZ.sliderHint} value={logRc} min={sl.min} max={sl.max} step={sl.step}
+                onChange={setLogR} valueText={sizeVisible} ariaText={SZ.sliderValue(lengthFine(R, lang), earthVs(R, lang, L), B_.name)}>
+                <Ticks marks={sizeMarks} />
+              </Slider>
+              <div className="q-presets q-presets--chips" role="group" aria-labelledby="q-mass-sizepresets">
+                <p id="q-mass-sizepresets" className="q-presets__label">{SZ.presetsLabel}</p>
+                <div className="q-chips">
+                  {SIZE_PRESETS.map(id => (
+                    <button key={id} type="button" data-size={id} className={`q-preset ${Math.abs(Math.log10(sizePresetRadius(id, M)) - logRc) < 0.006 ? "is-on" : ""}`}
+                      aria-pressed={Math.abs(Math.log10(sizePresetRadius(id, M)) - logRc) < 0.006} onClick={() => setLogR(Math.log10(sizePresetRadius(id, M)))}>{SZ.presets[id]}</button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="q-mass__panel q-mass__panel--out">
-        <p className="q-result__label">{L.kindLabel}</p>
+        <p className="q-result__label">{sizeOn ? SZ.bandLabel : L.kindLabel}</p>
         <p className="q-mass__kind" role="status" aria-live="polite" aria-atomic="true">
-          <span className="q-mass__kindname">{K.name}</span>
-          <span className="q-mass__kindwhat">{K.what}</span>
+          <span className="q-mass__kindname">{headName}</span>
+          {!sizeOn && <span className="q-mass__kindwhat">{K.what}</span>}
         </p>
-        <BodyArt kind={kind} R={R} teff={teff} lang={lang} aria={L.artAria(K.name, length(R, lang), radiusTxtVs(rRatio, lang, L))} />
-        <p className="q-mass__blurb">{K.blurb}</p>
+        <BodyArt kind={artKind} R={R} teff={artTeff} lang={lang} aria={L.artAria(headName, lengthFine(R, lang), earthVs(R, lang, L))} />
+        {sizeOn && dotted && <p className="q-fine">{L.dotNote}</p>}
+        <p className="q-mass__blurb">{sizeOn ? B_.note : K.blurb}</p>
+        {sizeOn && <p className="q-mass__blurb">{SZ.teaspoon(teaspoonText(rho, SZ, lang))}</p>}
+        {caveat && <p className="q-fine">{caveat}</p>}
+        {sizeOn && <p className="q-mass__blurb q-mass__vs">{vsModel}</p>}
         <p className="q-mass__tags">
-          <Certainty level="estimated" t={t} short note={L.tagThreshold} />
-          <Certainty level={certainty} t={t} short note={certainty === "measured" ? L.measuredTag : L.estimatedTag} />
+          {sizeOn
+            ? <Certainty level="estimated" t={t} short note={SZ.tag} />
+            : (<>
+              <Certainty level="estimated" t={t} short note={L.tagThreshold} />
+              <Certainty level={certainty} t={t} short note={certainty === "measured" ? L.measuredTag : L.estimatedTag} />
+            </>)}
         </p>
-        <p className="q-fine">{L.approx}</p>
-        {logM > MASS_SLIDER.max - 0.5 && <p className="q-fine">{L.limitNote}</p>}
+        {!sizeOn && <p className="q-fine">{L.approx}</p>}
+        {!sizeOn && <p className="q-fine">{L.radiusNote}</p>}
+        <p className="q-fine">{L.artNote}</p>
+        {!sizeOn && logM > MASS_SLIDER.max - 0.5 && <p className="q-fine">{L.limitNote}</p>}
 
         <dl className="q-dist__list q-mass__facts">
-          <div><dt>{L.radius}</dt><dd>{length(R, lang)}<span className="q-bh__cmp">{radiusTxtVs(rRatio, lang, L)}</span></dd></div>
-          <div><dt>{L.gravity}</dt><dd>{fmt3(g, lang)} m/s²<span className="q-bh__cmp">{L.gravityVs(ratioTxt(ratioG, lang))}</span></dd></div>
-          <div><dt>{L.escape}</dt><dd>{fmtSpeed(vEsc, lang)}<span className="q-bh__cmp">{L.escapeVs(ratioTxt(vEsc / 11186, lang))}</span></dd></div>
+          <div><dt>{L.radius}</dt><dd>{lengthFine(R, lang)}<span className="q-bh__cmp">{radiusTxtVs(rRatio, lang, L)}</span></dd></div>
+          <div><dt>{L.gravity}</dt><dd>{isBH ? SZ.gravityBH : <>{fmt3(g, lang)} m/s²<span className="q-bh__cmp">{L.gravityVs(ratioTxt(ratioG, lang))}</span></>}</dd></div>
+          <div><dt>{L.escape}</dt><dd>{isBH ? SZ.escapeBH : <>{fmtSpeed(vEsc, lang)}<span className="q-bh__cmp">{L.escapeVs(ratioTxt(vEsc / 11186, lang))}</span></>}</dd></div>
           <div><dt>{L.density}</dt><dd>{quantity(rho, lang)} kg/m³<span className="q-bh__cmp">{L.densityVs}</span></dd></div>
-          {isStar && teff && <div><dt>{L.temp}</dt><dd>{num(Math.round(teff / 10) * 10, lang)} K<span className="q-bh__cmp">{L.tempNote}</span></dd></div>}
+          {!sizeOn && isStar && teff && <div><dt>{L.temp}</dt><dd>{num(Math.round(teff / 10) * 10, lang)} K<span className="q-bh__cmp">{L.tempNote}</span></dd></div>}
         </dl>
-        {(isGiantOrStar || isStar) && <p className="q-fine">{isStar ? L.surfaceStar : L.surfaceGiant}</p>}
+        {!sizeOn && (isGiantOrStar || isStar) && <p className="q-fine">{isStar ? L.surfaceStar : L.surfaceGiant}</p>}
+        {sizeOn && !isBH && isRelativistic(M, R) && <p className="q-fine">{SZ.relNote}</p>}
       </div>
 
       <div className="q-mass__panel q-mass__panel--here">
         <h4 className="q-h4 q-mass__h4">{L.hereTitle}</h4>
-        <div className="q-mass__here">
-          <div className="q-mass__figure"><Person /><i aria-hidden="true" /></div>
-          <div className="q-mass__heretxt">
-            <p className="q-fine">{L.hereLead(kTxt)}</p>
-            <p className="q-mass__hereline"><span>{L.hereWeight}</span><strong>{fmtKg(weightN(personKg, g), lang)} N</strong></p>
-            <p className="q-mass__hereline"><span>{L.hereScale}</span><strong>{fmtKg(scaleKg(personKg, g), lang)} kg</strong></p>
-          </div>
-        </div>
-        <div className="q-wbar" role="img" aria-label={L.hereBarAria(ratioTxt(ratioG, lang))}>
-          <div className="q-wbar__track" aria-hidden="true"><i style={{ width: `${barPct}%` }} /><b style={{ left: `${earthPct}%` }} /></div>
-          <div className="q-wbar__lbl" aria-hidden="true"><span style={{ left: `${earthPct}%` }}>{L.hereBarEarth}</span></div>
-        </div>
-        <p className="q-fine">{ratioG >= 1 ? L.hereRatio(ratioTxt(ratioG, lang), true) : L.hereRatio(ratioTxt(ratioG, lang), false)}. {L.hereBarFine}</p>
-        {(isStar || isGiantOrStar) && <p className="q-fine">{L.hereNoSurface}</p>}
+        {isBH ? <p className="q-mass__blurb">{SZ.hereBH}</p> : (
+          <>
+            <div className="q-mass__here">
+              <div className="q-mass__figure"><Person /><i aria-hidden="true" /></div>
+              <div className="q-mass__heretxt">
+                <p className="q-fine">{L.hereLead(kTxt)}</p>
+                <p className="q-mass__hereline"><span>{L.hereWeight}</span><strong>{fmtKg(weightN(personKg, g), lang)} N</strong></p>
+                <p className="q-mass__hereline"><span>{L.hereScale}</span><strong>{fmtKg(scaleKg(personKg, g), lang)} kg</strong></p>
+              </div>
+            </div>
+            <div className="q-wbar" role="img" aria-label={L.hereBarAria(ratioTxt(ratioG, lang))}>
+              <div className="q-wbar__track" aria-hidden="true"><i style={{ width: `${barPct}%` }} /><b style={{ left: `${earthPct}%` }} /></div>
+              <div className="q-wbar__lbl" aria-hidden="true"><span style={{ left: `${earthPct}%` }}>{L.hereBarEarth}</span></div>
+            </div>
+            <p className="q-fine">{ratioG >= 1 ? L.hereRatio(ratioTxt(ratioG, lang), true) : L.hereRatio(ratioTxt(ratioG, lang), false)}. {L.hereBarFine}</p>
+            {(sizeOn ? !["rock", "lead"].includes(band) : (isStar || isGiantOrStar)) && <p className="q-fine">{L.hereNoSurface}</p>}
+          </>
+        )}
       </div>
 
       <div className="q-mass__panel q-mass__panel--bh">
         <h4 className="q-h4 q-mass__h4">{L.bhTitle}</h4>
         <p className="q-fine">{sub(L.bhLead)}</p>
         <p className="q-mass__bh" role="status" aria-live="polite" aria-atomic="true">
-          <span className="q-mono">{sub("r_s")} = </span><strong>{length(rs, lang)}</strong>
+          <span className="q-mono">{sub("r_s")} = </span><strong>{lengthFine(rs, lang)}</strong>
         </p>
         <p className="q-mass__blurb">{bhText}</p>
         {obj.approx && <p className="q-fine">{L.bhApprox}</p>}
@@ -323,14 +594,14 @@ function Lab({ lang, t, T, personKg, logM, setLogM }) {
       <Why summary={L.whySummary}>
         <ul className="q-formulas">{L.whyBody.map(f => <li key={f} className="q-formula">{sub(f)}</li>)}</ul>
         <p>{L.whyFine}</p>
-        <Refs ids={["nasaFacts", "ceres", "mamajek", "hatzes", "codata", "iau2015"]} refs={MASS_REFS} lang={lang} t={t} />
+        <Refs ids={["nasaFacts", "ceres", "mamajek", "hatzes", "codata", "iau2015", ...(sizeOn ? ["buchdahl", "lead"] : [])]} refs={MASS_REFS} lang={lang} t={t} />
       </Why>
     </section>
   );
 }
-function radiusTxtVs(r, lang, L) { return L.radiusVs(ratioTxt(r, lang), r >= 1); }
+function radiusTxtVs(r, lang, L) { return L.radiusVs(r < 0.001 ? sci(r, lang, 2) : ratioTxt(r, lang), r >= 1); }
 
-// ── Paso 3: órbita ──────────────────────────────────────────────────────────
+// ── Paso 4: órbita ──────────────────────────────────────────────────────────
 function useReducedMotion() {
   const [r, setR] = useState(() => { try { return !!window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } });
   useEffect(() => {
@@ -423,7 +694,7 @@ function OrbitStep({ lang, t, T, logM }) {
   const cmp = Math.abs(Math.log10(k)) < 0.01 ? O.same : k > 1 ? O.faster(ratioTxt(k, lang)) : O.slower(ratioTxt(1 / k, lang));
   return (
     <section className="q-mass__sec" aria-labelledby="q-mass-orbit">
-      <p className="q-mass__step">{T.stepLabel(3, 3)}</p>
+      <p className="q-mass__step">{T.stepLabel(4, STEPS)}</p>
       <h3 id="q-mass-orbit" className="q-h3">{O.title}</h3>
       <p className="q-model__lead">{O.lead}</p>
       <div className="q-mass__panel">
@@ -495,7 +766,10 @@ export default function MassTour({ lang = "es", indexHref }) {
   const fromHash = useMemo(readHash, []);
   const [logM, setLogM] = useState(() => fromHash.logM ?? store.logM ?? DEFAULT_LOGM);
   const [personKg, setPersonKg] = useState(60);      // solo en memoria: no va al hash ni a ningún almacén
+  const [sizeOn, setSizeOn] = useState(() => store.sizeOn);       // «Elegir yo el tamaño» (apagado por defecto)
+  const [logR, setLogR] = useState(() => store.logR);             // log10 del radio elegido (m); null hasta que se enciende
   useEffect(() => { store.logM = logM; }, [logM]);
+  useEffect(() => { store.sizeOn = sizeOn; store.logR = logR; }, [sizeOn, logR]);
 
   const hash = `#${prefix(lang)}?q=mass&m=${Number(logM.toFixed(3))}`;
   useHashSync(hash);
@@ -505,7 +779,9 @@ export default function MassTour({ lang = "es", indexHref }) {
       <TourHead t={t} title={T.title} lead={T.lead} indexHref={indexHref} />
 
       <WeightStep lang={lang} t={t} T={T} personKg={personKg} setPersonKg={setPersonKg} />
-      <Lab lang={lang} t={t} T={T} personKg={personKg} logM={logM} setLogM={setLogM} />
+      <BigStep lang={lang} t={t} T={T} />
+      <Lab lang={lang} t={t} T={T} personKg={personKg} logM={logM} setLogM={setLogM}
+        sizeOn={sizeOn} setSizeOn={setSizeOn} logR={logR} setLogR={setLogR} />
       <OrbitStep lang={lang} t={t} T={T} logM={logM} />
 
       <section className="q-thread" aria-labelledby="q-thread-title">
