@@ -129,8 +129,21 @@ const VIVID_KEY = "teseo_star_vivid";   // "resaltar colores de las estrellas" (
 
 // Términos genéricos de categoría: al buscar "pulsar" o "agujero negro" se
 // lista la capa entera en vez de exigir el nombre exacto de cada objeto.
+// Nombres tradicionales en español de estrellas brillantes → nombre IAU del catálogo (HYG).
+// Se buscan en minúsculas; solo se añaden los que difieren del nombre IAU.
+const STAR_ES = {
+  "sirio": "Sirius", "canopo": "Canopus", "arturo": "Arcturus", "proción": "Procyon", "procion": "Procyon",
+  "estrella polar": "Polaris", "polar": "Polaris", "espiga": "Spica", "achernar": "Achernar",
+  "aldebarán": "Aldebaran", "fomalhaut": "Fomalhaut", "régulo": "Regulus", "regulo": "Regulus",
+  "cástor": "Castor", "pólux": "Pollux", "polux": "Pollux", "deneb": "Deneb", "altair": "Altair",
+  "rigil kentaurus": "Rigil Kentaurus", "alfa centauri": "Rigil Kentaurus", "hadar": "Hadar",
+  "acrux": "Acrux", "mimosa": "Mimosa", "antares": "Antares", "bellatrix": "Bellatrix",
+  "betelgeuse": "Betelgeuse", "bételgeuse": "Betelgeuse", "rígel": "Rigel", "alnilam": "Alnilam",
+};
+
 const CATEGORY_TERMS = [
-  { key: "pulsars",    terms: ["pulsar", "pulsares", "pulsars"] },
+  // los púlsares son estrellas de neutrones (y «neutrinos» es una confusión frecuente: también lleva aquí)
+  { key: "pulsars",    terms: ["pulsar", "pulsares", "pulsars", "púlsar", "púlsares", "estrella de neutrones", "estrellas de neutrones", "neutrones", "neutron star", "neutron stars", "magnetar", "magnetares", "magnetars", "estrella de neutrinos", "estrellas de neutrinos"] },
   { key: "blackholes", terms: ["agujero negro", "agujeros negros", "agujero", "hoyo negro", "black hole", "blackhole", "black holes"] },
   { key: "galaxies",   terms: ["galaxia", "galaxias", "galaxy", "galaxies"] },
   { key: "comets",     terms: ["cometa", "cometas", "comet", "comets"] },
@@ -646,7 +659,10 @@ export default function Constellations({ lang = "es" }) {
     if (q.length < 3) return null;
     // "sat" debe seguir encontrando Saturno (y "mar" Marte), no la categoría "satélites"
     if (["sol", "sun", "luna", "moon", "mercurio", "mercury", "venus", "marte", "mars", "júpiter", "jupiter", "saturno", "saturn", "urano", "uranus", "neptuno", "neptune"].some(n => n.startsWith(q))) return null;
-    return CATEGORY_TERMS.find(c => c.terms.some(t => t.startsWith(q) || t === q || t.includes(q))) || null;
+    // los términos de varias palabras ("estrella de neutrones") solo cuentan cuando ya se escribió más de una
+    // palabra: así "estrella" sigue buscando estrellas por nombre
+    const hit = (t) => (t.includes(" ") && !q.includes(" ")) ? false : (t.startsWith(q) || t === q || t.includes(q));
+    return CATEGORY_TERMS.find(c => c.terms.some(hit)) || null;
   }, [query]);
 
   // si se busca una categoría cuya capa aún no está cargada (diferida/backend),
@@ -687,7 +703,13 @@ export default function Constellations({ lang = "es" }) {
     const kinds = TC[lang].kinds;
     for (const b of bodies) if ((b.name + " " + bodyName(b.name, "en")).toLowerCase().includes(q)) r.push({ type: "solar", body: b, label: bodyName(b.name, lang), kind: kinds.solar });
     for (const c of sky.constellations) if ((c.la + " " + c.en).toLowerCase().includes(q)) r.push({ type: "con", ab: c.ab, label: `${c.la} · ${c.en}`, kind: kinds.con });
-    sky.stars.forEach((st, si) => { if (st[7] && st[7].toLowerCase().includes(q)) r.push({ type: "star", st, si, label: st[7], kind: kinds.star }); });
+    // nombres en español de estrellas brillantes ("Sirio" → Sirius, "Estrella Polar" → Polaris)
+    const esAlias = new Set(Object.entries(STAR_ES).filter(([es]) => es.includes(q)).map(([, en]) => en.toLowerCase()));
+    sky.stars.forEach((st, si) => {
+      if (!st[7]) return;
+      const n = st[7].toLowerCase();
+      if (n.includes(q) || esAlias.has(n)) r.push({ type: "star", st, si, label: st[7], kind: kinds.star });
+    });
     // capas de objetos: Messier / agujeros negros / meteoros siempre están
     // cargadas; el resto solo si el usuario activó su capa.
     for (const key of ["messier", "blackholes", "meteors", "galaxies", "pulsars", "comets", "probes", "exoplanets"]) {
