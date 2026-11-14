@@ -1,0 +1,43 @@
+/* Líneas guía — vista Cielo de Teseo (grupo dentro de Capas → Vista).
+   Todo bajo .sk-stage (hereda las variables de sky.css: --line-soft, --text, --mute, --gold…).
+   Reutiliza .sk-layer / .sk-layer-main / .sk-switch de sky.css; aquí solo lo propio.
+   Móvil primero: cada fila mide ≥ 56 px (objetivo táctil ≥ 44 px), texto ≥ 12 px. */
+.sk-stage .sk-guides { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.sk-stage .sk-guides-title { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: #cfc4ff; }
+.sk-stage .sk-guides-lead { margin: 0 0 2px; font-size: 12.5px; line-height: 1.4; color: var(--mute); }
+
+/* muestra de la línea (en la columna de 12 px del punto de color de .sk-layer-main) */
+.sk-stage .sk-guide-swatch { display: block; width: 12px; height: 12px; border-radius: 2px; color: var(--c); }
+.sk-stage .sk-guide-swatch-ecliptic,
+.sk-stage .sk-guide-swatch-equator,
+.sk-stage .sk-guide-swatch-meridian { height: 3px; border-radius: 2px; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.sk-stage .sk-guide-swatch-meridian { width: 3px; height: 12px; margin-left: 4px; }
+.sk-stage .sk-guide-swatch-galactic { height: 3px; background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
+.sk-stage .sk-guide-swatch-eqGrid,
+.sk-stage .sk-guide-swatch-altAzGrid {
+  border: 1px solid var(--c); opacity: 0.85;
+  background:
+    linear-gradient(var(--c), var(--c)) center / 1px 100% no-repeat,
+    linear-gradient(var(--c), var(--c)) center / 100% 1px no-repeat;
+}
+.sk-stage .sk-guide-swatch-altAzGrid { border-radius: 50% 50% 2px 2px; }
+.sk-stage .sk-guide-swatch-poles { width: 10px; height: 10px; border: 1.5px solid var(--c); border-radius: 50%; background: radial-gradient(circle, var(--c) 0 1.5px, transparent 2px); }
+
+/* sin lugar: el interruptor queda inactivo pero la explicación se lee bien (no se apaga toda la fila) */
+.sk-stage .sk-guide-row.is-unavailable .sk-layer-main:disabled { opacity: 1; }
+.sk-stage .sk-guide-row.is-unavailable .sk-switch,
+.sk-stage .sk-guide-row.is-unavailable .sk-guide-swatch { opacity: 0.45; }
+.sk-stage .sk-guide-row.is-unavailable .sk-layer-txt b { color: rgba(238, 240, 250, 0.82); }
+.sk-stage .sk-guide-need { display: block; margin-top: 3px; color: #f1e2bd; }
+
+.sk-stage .sk-guides-fine { margin: 4px 10px 0 34px; font-size: 12px; line-height: 1.4; color: var(--mute); }
+
+@media (forced-colors: active) {
+  .sk-stage .sk-guide-swatch { forced-color-adjust: none; }
+}
+
+/* etiquetas de las líneas guía en el cielo (SkyLabels: clase sk-label-guide_*) — letra de interfaz, más pequeña
+   que los nombres de astros; los nombres de línea ("Eclíptica") algo más marcados */
+.sk-label[class*="sk-label-guide_"] { font-family: var(--sans); font-size: 11.5px; letter-spacing: 0.01em; }
+.sk-label.sk-label-guide_ecliptic, .sk-label.sk-label-guide_equator, .sk-label.sk-label-guide_galactic,
+.sk-label.sk-label-guide_meridian, .sk-label.sk-label-guide_poles { font-size: 12.5px; font-weight: 600; }
