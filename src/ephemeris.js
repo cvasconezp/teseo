@@ -1,5 +1,7 @@
 // ephemeris.js — posiciones reales de Sol, Luna y planetas (método de Paul Schlyter).
 // Determinista; precisión ~1-2 minutos de arco. Devuelve dirección ecuatorial (nx,ny,nz).
+import { moonSchlyter } from "./moon.js";
+
 const RAD = Math.PI / 180;
 const sind = x => Math.sin(x * RAD), cosd = x => Math.cos(x * RAD);
 const atan2d = (y, x) => Math.atan2(y, x) / RAD, asind = x => Math.asin(x) / RAD;
@@ -67,30 +69,15 @@ export function ephemeris(date) {
       r_au: Math.sqrt(xh*xh+yh*yh+zh*zh), hel: [xh, yh, zh], geo: [xg, yg, zg] });
   }
 
-  // Luna (geocéntrica) + perturbaciones principales
-  const N = 125.1228 - 0.0529538083 * d, i = 5.1454, w = 318.0634 + 0.1643573223 * d;
-  const a = 60.2666, e = 0.054900, M = 115.3654 + 13.0649929509 * d;
-  const E = kepler(M, e);
-  const xv = a * (cosd(E) - e), yv = a * Math.sqrt(1 - e * e) * sind(E);
-  const v = atan2d(yv, xv), r = Math.sqrt(xv * xv + yv * yv);
-  const lon = v + w;
-  let xh = r * (cosd(N) * cosd(lon) - sind(N) * sind(lon) * cosd(i));
-  let yh = r * (sind(N) * cosd(lon) + cosd(N) * sind(lon) * cosd(i));
-  let zh = r * (sind(lon) * sind(i));
-  let mlon = atan2d(yh, xh), mlat = atan2d(zh, Math.sqrt(xh * xh + yh * yh));
-  const Ms = sun.M, ws = sun.w, Mm = M, Ls = rev(Ms + ws), Lm = rev(Mm + w + N), D = rev(Lm - Ls), F = rev(Lm - N);
-  mlon += -1.274 * sind(Mm - 2*D) + 0.658 * sind(2*D) - 0.186 * sind(Ms) - 0.059 * sind(2*Mm - 2*D)
-        - 0.057 * sind(Mm - 2*D + Ms) + 0.053 * sind(Mm + 2*D) + 0.046 * sind(2*D - Ms) + 0.041 * sind(Mm - Ms)
-        - 0.035 * sind(D) - 0.031 * sind(Mm + Ms) - 0.015 * sind(2*F - 2*D) + 0.011 * sind(Mm - 4*D);
-  mlat += -0.173 * sind(F - 2*D) - 0.055 * sind(Mm - F - 2*D) - 0.046 * sind(Mm + F - 2*D)
-        + 0.033 * sind(F + 2*D) + 0.017 * sind(2*Mm + F);
+  // Luna geocéntrica: Schlyter con perturbaciones completas de longitud, latitud y distancia (src/moon.js)
+  const mo = moonSchlyter(d), mlon = mo.lon, mlat = mo.lat;
   const xe2 = cosd(mlat) * cosd(mlon), ye2 = cosd(mlat) * sind(mlon), ze2 = sind(mlat);
   const moonEq = eclToEq(xe2, ye2, ze2, ecl);
   // fase: elongación Sol-Luna
   const elong = Math.acos(Math.max(-1, Math.min(1, cosd(mlat) * cosd(mlon - sun.lon)))) / RAD;
   const illum = (1 - cosd(elong)) / 2;
   const waxing = rev(mlon - sun.lon) < 180;
-  out.push({ name: "Luna", body: "moon", ...dirObj(moonEq), illum: +illum.toFixed(2), waxing, dist_km: Math.round(r * 6371) });
+  out.push({ name: "Luna", body: "moon", ...dirObj(moonEq), illum: +illum.toFixed(2), waxing, dist_km: Math.round(mo.distKm) });
   return out;
 }
 function dirObj(eq) { const dr = toDir(eq); return { nx: +dr[0].toFixed(5), ny: +dr[1].toFixed(5), nz: +dr[2].toFixed(5), ra: rev(atan2d(eq.y, eq.x)), dec: asind(eq.z / Math.sqrt(eq.x*eq.x+eq.y*eq.y+eq.z*eq.z)) }; }
