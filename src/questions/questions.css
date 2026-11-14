@@ -272,6 +272,7 @@ details[open] > summary .q-chev { transform: rotate(180deg); }
 .q-idx__card--bh { --acc: #FF9A5C; }
 .q-idx__card--expansion { --acc: #FDA4AF; }
 .q-idx__card--dm { --acc: #5EEAD4; }
+.q-idx__card--time { --acc: #BEF264; }
 .q-idx__art { grid-area: art; display: block; width: 126px; height: 84px; }
 .q-idx__art svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .q-idx__eq { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 30px; fill: var(--violet); }
