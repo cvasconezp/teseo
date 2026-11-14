@@ -531,3 +531,15 @@ strong { font-weight: 600; color: #fff; }
   .pick__list, .term__note, .modal, .sphere__tex { animation: none; }
   .tabs__tab::after, .now__chev, .tech__chev, .pick__chev, .map__planet .sphere, .btn { transition: none; }
 }
+
+/* ── Visión nocturna ─────────────────────────────────────────────────────
+   Capa fija que multiplica todo por rojo: la pantalla queda en rojo y oscura,
+   incluido el cielo 3D. Se deja pasar los toques (pointer-events: none). */
+.night-btn { width: 44px; height: 44px; display: inline-grid; place-items: center; border-radius: 999px;
+  border: 1px solid var(--line, rgba(255,255,255,.12)); background: rgba(255,255,255,.04); color: var(--muted); }
+.night-btn:hover { color: #fff; }
+.night-btn.is-on { color: #ff6b6b; border-color: rgba(255,80,80,.55); background: rgba(255,40,40,.12); }
+.night-vision-layer { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none;
+  background: #ff1a1a; mix-blend-mode: multiply; }
+html.night-vision body { background: #000; }
+html.night-vision .night-vision-dim { filter: brightness(.7); }
