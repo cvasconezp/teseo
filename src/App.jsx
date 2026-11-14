@@ -17,6 +17,11 @@ import { TS } from "./special/i18n.js";
 // «Trayectoria realista (Lambert)»: tarjeta aparte bajo los detalles técnicos de Ruta (src/route/)
 import RealTrajectory from "./route/RealTrajectory.jsx";
 import { TR } from "./route/i18n.js";
+// «Catapultas» (asistencias gravitatorias): tarjeta bajo la trayectoria realista (src/route/)
+import GravityAssists from "./route/GravityAssists.jsx";
+import { GA } from "./route/i18n-assists.js";
+// Geometría del dibujo de la ruta en el mapa: media elipse de Hohmann con ángulos reales
+import { ORBIT_R, hohmannPlan, pathD, placeLabel, routeDates } from "./route/hohmannMap.js";
 import CosmicScale from "./CosmicScale.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
@@ -74,7 +79,12 @@ const T = {
     mapNasa:        "Today's positions: NASA JPL",
     mapLocal:       "Today's positions: local estimate",
     mapLoading:     "Loading real positions…",
-    mapNote:        "Tap a planet to go there. Sizes and distances are not to scale; the thread is schematic.",
+    mapNote:        "Tap a planet to go there. Sizes are not to scale. The line is the Hohmann route for the next window: real angles, compressed distances.",
+    mapNoteSpecial: "Tap a planet to go there. Sizes and distances are not to scale; the thread is schematic.",
+    mapNoWindow:    "No launch window available: the line leaves today.",
+    mapDep:         (d) => `Departure: ${d}`,
+    mapArr:         (d) => `Arrival: ${d}`,
+    mapRouteLabel:  (from, to, dep, arr) => `Hohmann route from ${from} to ${to}: departure ${dep}, arrival ${arr}. The destination is drawn as an outline where it will be on arrival.`,
     sun:            "Sun",
 
     // Respuesta
@@ -232,7 +242,12 @@ const T = {
     mapNasa:        "Posiciones de hoy: NASA JPL",
     mapLocal:       "Posiciones de hoy: cálculo local aproximado",
     mapLoading:     "Cargando posiciones reales…",
-    mapNote:        "Toca un planeta para ir allí. Tamaños y distancias no están a escala; el hilo es esquemático.",
+    mapNote:        "Toca un planeta para ir allí. Los tamaños no están a escala. La línea es la ruta de Hohmann de la próxima ventana: ángulos reales, distancias comprimidas.",
+    mapNoteSpecial: "Toca un planeta para ir allí. Tamaños y distancias no están a escala; el hilo es esquemático.",
+    mapNoWindow:    "No hay ventana de lanzamiento disponible: la línea sale hoy.",
+    mapDep:         (d) => `Salida: ${d}`,
+    mapArr:         (d) => `Llegada: ${d}`,
+    mapRouteLabel:  (from, to, dep, arr) => `Ruta de Hohmann de ${from} a ${to}: salida ${dep}, llegada ${arr}. El destino se dibuja con contorno donde estará al llegar.`,
     sun:            "Sol",
 
     answerQ:        (dest) => `¿Cuánto tardarías en llegar a ${dest}?`,
@@ -675,7 +690,7 @@ function Term({ k, lang, children }) {
 // puedan tocar; el ángulo de cada planeta sí es el real de hoy.
 
 const TAU = Math.PI * 2;
-const ORBIT_R = i => 9.6 + i * 5.1;          // radio de cada órbita, en % del mapa
+// ORBIT_R (radio de cada órbita, en % del mapa) vive en src/route/hohmannMap.js
 const SUN_SIZE = 10;
 
 function useWidth(ref, fallback) {
@@ -694,17 +709,20 @@ function useWidth(ref, fallback) {
 }
 
 // Coloca cada etiqueta donde no pise planetas ni otras etiquetas (px)
-function layoutLabels(pts, w, names, activeIds) {
+// `extra`: cajas (px) de los marcadores de la ruta, que tampoco deben pisarse.
+// Devuelve { pos: desplazamiento de cada etiqueta, boxes: su caja en px }.
+function layoutLabels(pts, w, names, activeIds, extra = [], path = []) {
   const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   const obstacles = [];
   const sunR = (w * SUN_SIZE) / 200;
   obstacles.push({ x: w / 2 - sunR, y: w / 2 - sunR, w: sunR * 2, h: sunR * 2 });
+  for (const b of extra) obstacles.push(b);
   for (const q of pts) {
     const r = (w * q.p.size) / 200 + 1;
     obstacles.push({ x: (q.x * w) / 100 - r, y: (q.y * w) / 100 - r, w: r * 2, h: r * 2 });
   }
   const order = [...pts].sort((a, b) => (activeIds.includes(b.p.id) ? 1 : 0) - (activeIds.includes(a.p.id) ? 1 : 0));
-  const out = {};
+  const out = {}, boxes = {};
   for (const q of order) {
     const cx = (q.x * w) / 100, cy = (q.y * w) / 100;
     const r = (w * q.p.size) / 200 + (q.p.id === "saturn" ? 3 : 0);
@@ -717,24 +735,30 @@ function layoutLabels(pts, w, names, activeIds) {
       { x: cx + r * 0.7 + 3, y: cy + r * 0.7 },
       { x: cx - r * 0.7 - 3 - lw, y: cy - r * 0.7 - lh },
     ];
-    let best = null;
+    let best = null, firstFree = null;
     for (const c of cands) {
       const box = { ...c, w: lw, h: lh };
       if (box.x < 0 || box.y < 0 || box.x + lw > w || box.y + lh > w) continue;
       if (obstacles.some(o => hit(box, o))) continue;
+      if (!firstFree) firstFree = box;
+      // mejor un sitio que no tape la línea de la ruta; si no hay, el primero libre
+      if (path.some(p => p.x >= box.x - 2 && p.x <= box.x + lw + 2 && p.y >= box.y - 2 && p.y <= box.y + lh + 2)) continue;
       best = box; break;
     }
+    if (!best) best = firstFree;
     if (!best) {
       const c = cands[0];
       best = { x: Math.min(Math.max(c.x, 0), w - lw), y: Math.min(c.y, w - lh), w: lw, h: lh };
     }
     obstacles.push(best);
     out[q.p.id] = { dx: best.x - cx, dy: best.y - cy };
+    boxes[q.p.id] = best;
   }
-  return out;
+  return { pos: out, boxes };
 }
 
-function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun = null }) {
+// plan: { dep: ISO, arr: ISO } de la próxima ventana (o de hoy si no hay ninguna)
+function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun = null, plan = null }) {
   const ref = useRef(null);
   const w = useWidth(ref, 340);
   const t = T[lang];
@@ -748,16 +772,68 @@ function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun
 
   const names = useMemo(()=>Object.fromEntries(PLANETS.map(p=>[p.id, pname(p, lang)])),[lang]);
   const toId = special ? null : to.id;   // con la Luna o el Sol de destino no se marca ningún planeta
-  const labels = useMemo(()=>layoutLabels(pts, w, names, [from.id, toId].filter(Boolean)),[pts, w, names, from.id, toId]);
 
-  // El hilo de Ariadna: sale tangente a la órbita de origen, gira en el sentido
-  // en que giran los planetas y llega tangente a la de destino. Es esquemático.
+  // Media elipse de Hohmann de la próxima ventana: ángulos reales, radios comprimidos
+  // con la misma escala del mapa (ver src/route/hohmannMap.js). Solo con destino planeta.
+  const depISO = plan && plan.dep, arrISO = plan && plan.arr;
+  const hoh = useMemo(()=>{
+    if (special || !depISO || !arrISO) return null;
+    try { return hohmannPlan(from.id, to.id, parseISO(depISO), parseISO(arrISO)); } catch { return null; }
+  },[special, from.id, to.id, depISO, arrISO]);
+
+  // Marcadores de salida y llegada (px): el punto de salida y el destino «fantasma»
+  const ghostPx = useMemo(()=>{
+    const p = PLANETS.find(q=>q.id===to.id);
+    return Math.max(10, (w * p.size) / 100);
+  },[w, to.id]);
+  const marks = useMemo(()=>{
+    if (!hoh) return null;
+    const px = v => (v * w) / 100;
+    const dep = { x: px(hoh.dep.x), y: px(hoh.dep.y), r: 5 };
+    const gh = { x: px(hoh.ghost.x), y: px(hoh.ghost.y), r: ghostPx / 2 + 3 };
+    const box = m => ({ x: m.x - m.r - 2, y: m.y - m.r - 2, w: (m.r + 2) * 2, h: (m.r + 2) * 2 });
+    return { dep, gh, boxes: [box(dep), box(gh)] };
+  },[hoh, w, ghostPx]);
+
+  const pathPx = useMemo(()=>hoh ? hoh.points.map(q=>({ x: (q.x * w) / 100, y: (q.y * w) / 100 })) : [],[hoh, w]);
+  const lay = useMemo(()=>layoutLabels(pts, w, names, [from.id, toId].filter(Boolean), marks ? marks.boxes : [], pathPx),[pts, w, names, from.id, toId, marks, pathPx]);
+  const labels = lay.pos;
+
+  // Etiquetas «Salida: …» y «Llegada: …»: junto a su marcador y sin pisar planetas,
+  // sus etiquetas ni la propia línea (si no hay hueco, solo queda el marcador)
+  const depTxt = depISO ? fmtDate(depISO, lang, "short") : "";
+  const arrTxt = arrISO ? fmtDate(arrISO, lang, "short") : "";
+  const tags = useMemo(()=>{
+    if (!hoh || !marks) return null;
+    const px = v => (v * w) / 100;
+    const obstacles = [{ x: w / 2 - (w * SUN_SIZE) / 200, y: w / 2 - (w * SUN_SIZE) / 200, w: (w * SUN_SIZE) / 100, h: (w * SUN_SIZE) / 100 }];
+    for (const q of pts) { const r = (w * q.p.size) / 200 + 2; obstacles.push({ x: px(q.x) - r, y: px(q.y) - r, w: r * 2, h: r * 2 }); }
+    for (const id of Object.keys(lay.boxes)) obstacles.push(lay.boxes[id]);
+    obstacles.push(...marks.boxes);
+    const path = pathPx;
+    const out = {};
+    for (const [key, m, txt] of [["arr", marks.gh, t.mapArr(arrTxt)], ["dep", marks.dep, t.mapDep(depTxt)]]) {
+      // primero en una línea; si no cabe, en dos («Salida:» / «4 dic 2026»)
+      const opts = { avoidPath: path, gap: m.r + 4 };
+      let b = placeLabel(m.x, m.y, txt.length * 6.6 + 8, 17, w, obstacles, opts), shown = txt;
+      if (!b && txt.includes(": ")) {
+        shown = txt.replace(": ", ":\n");
+        const longest = Math.max(...shown.split("\n").map(x=>x.length));
+        b = placeLabel(m.x, m.y, longest * 6.6 + 8, 34, w, obstacles, opts);
+      }
+      if (b) { out[key] = { ...b, txt: shown }; obstacles.push(b); }
+    }
+    return out;
+  },[hoh, marks, pts, w, lay, t, depTxt, arrTxt, pathPx]);
+
+  // El hilo de Ariadna con destino especial: al Sol, media vuelta cayendo hacia el centro
+  // (esquemática); a la Luna no hay hilo (está pegada a la Tierra a esta escala).
   const thread = useMemo(()=>{
+    if (hoh) return pathD(hoh.points);
+    if (special !== "sun") return "";
     const A = pts.find(q=>q.p.id===from.id);
-    if (special === "moon") return "";   // la Luna está pegada a la Tierra a esta escala
-    // al Sol: media vuelta cayendo hacia el centro (media elipse de Hohmann), también esquemático
-    const B = special === "sun" ? { a: A.a + Math.PI, r: 0 } : pts.find(q=>q.p.id===toId);
-    const sweep = special === "sun" ? Math.PI : (((B.a - A.a) % TAU) + TAU) % TAU;
+    const B = { a: A.a + Math.PI, r: 0 };
+    const sweep = Math.PI;
     const N = 72;
     let d = "";
     for (let k = 0; k <= N; k++) {
@@ -767,10 +843,12 @@ function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun
       d += `${k ? "L" : "M"}${(50 + r * Math.cos(a)).toFixed(2)} ${(50 - r * Math.sin(a)).toFixed(2)}`;
     }
     return d;
-  },[pts, from.id, toId, special]);
+  },[hoh, pts, from.id, special]);
+
+  const routeLabel = hoh ? t.mapRouteLabel(pnameArt(from, lang), pnameArt(to, lang), depTxt, arrTxt) : "";
 
   return (
-    <div ref={ref} className="map" role="group" aria-label={t.mapLabel}>
+    <div ref={ref} className="map" role="group" aria-label={routeLabel ? `${t.mapLabel} ${routeLabel}` : t.mapLabel}>
       <svg viewBox="0 0 100 100" className="map__svg" aria-hidden="true">
         <defs>
           <radialGradient id="map-glow" cx="50%" cy="50%" r="50%">
@@ -794,6 +872,15 @@ function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun
           <path d={thread} className="thread thread--glow" pathLength="1"/>
           <path d={thread} className="thread" pathLength="1" stroke="url(#thread-grad)"/>
         </g>
+        {hoh && marks && (
+          <g key={`m-${from.id}-${toId}`} className="map__marks">
+            {/* destino «fantasma»: contorno donde estará el planeta el día de la llegada */}
+            <circle className="map__ghost" cx={hoh.ghost.x} cy={hoh.ghost.y} r={(marks.gh.r / w) * 100}/>
+            {/* punto de salida, en la posición del origen el día de la salida */}
+            <circle className="map__dep-ring" cx={hoh.dep.x} cy={hoh.dep.y} r={(marks.dep.r / w) * 100}/>
+            <circle className="map__dep" cx={hoh.dep.x} cy={hoh.dep.y} r={(2.6 / w) * 100}/>
+          </g>
+        )}
       </svg>
 
       {/* El Sol también se toca: es un destino especial (siempre desde la Tierra) */}
@@ -823,6 +910,10 @@ function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun
           </button>
         );
       })}
+
+      {tags && ["dep", "arr"].map(k => tags[k] && (
+        <span key={k} aria-hidden="true" className={`map__tag map__tag--${k}`} style={{ left: tags[k].x, top: tags[k].y }}>{tags[k].txt}</span>
+      ))}
     </div>
   );
 }
@@ -1364,6 +1455,9 @@ export default function Teseo() {
   const [routeError, setRouteError] = useState(false);
   const [routeTry,   setRouteTry]   = useState(0);
   const [winError,   setWinError]   = useState(false);
+  // Primera ventana de lanzamiento según el servidor (la misma que la pestaña Ventanas);
+  // mientras llega, o si falla, el mapa usa la ventana local (ver routeDates)
+  const [srvWin,    setSrvWin]    = useState(null);
   const [winTry,     setWinTry]     = useState(0);
   // Vista 3D: componente lazy recreable si falló la carga del chunk
   const [SkyView, setSkyView] = useState(()=>Constellations);
@@ -1420,6 +1514,21 @@ export default function Teseo() {
     return ()=>{ alive=false; ctrl.abort(); };
   },[from,to,distTry]);
 
+  // Próxima ventana de lanzamiento para dibujar la media elipse de Hohmann en el mapa
+  useEffect(()=>{
+    setSrvWin(null);
+    if(!API||special||from.id===to.id) return;
+    const ctrl = new AbortController();
+    let alive = true;
+    fetchJson(`${API}/api/launch-windows/${from.id}/${to.id}?count=4`,{signal:ctrl.signal})
+      .then(d=>{
+        const w = d && Array.isArray(d.windows) ? d.windows[0] : null;
+        if(alive && w && w.departure_date && w.arrival_date) setSrvWin({ from:from.id, to:to.id, dep:w.departure_date, arr:w.arrival_date });
+      })
+      .catch(()=>{});   // sin servidor: queda la ventana local
+    return ()=>{ alive=false; ctrl.abort(); };
+  },[from,to,!!special]);
+
   // Fetch Hohmann route from backend
   useEffect(()=>{
     if(!API||from.id===to.id) return;
@@ -1457,6 +1566,11 @@ export default function Teseo() {
   const allReal = Object.keys(realPos).length === PLANETS.length;
   const route = useMemo(()=>(backend && backend.transfer_time_days ? backend : hohmannLocal(from.id, to.id)),[backend, from.id, to.id]);
   const distKm = useMemo(()=>realDist ?? approxDistanceKm(from.id, to.id),[realDist, from.id, to.id]);
+  const mapPlan = useMemo(()=>{
+    if (special) return null;
+    const srv = srvWin && srvWin.from===from.id && srvWin.to===to.id ? srvWin : null;
+    return routeDates(from.id, to.id, srv);
+  },[special, srvWin, from.id, to.id]);
 
   // ── Un único aviso por pestaña, con un único "Reintentar" ─────────────────
   const posFailed = posStatus==="error";
@@ -1648,7 +1762,7 @@ export default function Teseo() {
                     </div>
 
                   <div className="nav-grid__map">
-                    <SolarMap from={from} to={to} positions={positions} lang={lang} onPick={pickPlanet} special={special?.id || null}
+                    <SolarMap from={from} to={to} positions={positions} lang={lang} onPick={pickPlanet} special={special?.id || null} plan={mapPlan}
                       onPickSun={()=>{ if (special?.id !== "sun") pickSpecial(SPECIALS[1]); }}/>
 
                     <p className="map-caption">
@@ -1657,7 +1771,7 @@ export default function Teseo() {
                         <span className="dot" aria-hidden="true"/>
                         {allReal ? t.mapNasa : posStatus==="loading" ? t.mapLoading : t.mapLocal}
                       </span>
-                      <span>{t.mapNote}</span>
+                      <span>{special ? t.mapNoteSpecial : t.mapNote}{mapPlan && mapPlan.source==="today" ? ` ${t.mapNoWindow}` : ""}</span>
                     </p>
                   </div>
 
@@ -1685,6 +1799,9 @@ export default function Teseo() {
                       <TechDetails lang={lang} route={route} distKm={distKm} distReal={!!realDist}/>
                       <SectionBoundary name="Trayectoria realista" title={TR[lang].boundaryTitle} message={TR[lang].boundaryBody} retryLabel={TR[lang].retry}>
                         <RealTrajectory from={from} to={to} lang={lang}/>
+                      </SectionBoundary>
+                      <SectionBoundary name="Catapultas" title={GA[lang].boundaryTitle} message={GA[lang].boundaryBody} retryLabel={GA[lang].retry}>
+                        <GravityAssists from={from} to={to} lang={lang}/>
                       </SectionBoundary>
                     </>)}
 

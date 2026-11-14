@@ -112,6 +112,8 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "special_dest":       {"destination": SPECIAL_DESTS, "kind": SPECIAL_KINDS},
     # Trayectoria realista (Lambert) en Ruta: resultado de la tarjeta (src/route/)
     "trajectory_card":    {"origin": BODIES, "destination": BODIES, "state": {"ok", "fail", "empty"}},
+    # Catapultas (asistencias gravitatorias) en Ruta: vista de la tarjeta por destino (src/route/GravityAssists.jsx)
+    "assists_card":       {"origin": BODIES, "destination": BODIES},
     # Preguntas
     "q_index":            {},
     "q_search":           {"state": {"ok", "fail"}},
