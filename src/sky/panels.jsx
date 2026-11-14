@@ -158,7 +158,7 @@ const GROUPS = [
   { id: "deep", keys: ["messier", "galaxies", "blackholes", "pulsars", "exoplanets"] },
 ];
 export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, layerError, onToggle, onRetry,
-  showSolar, onToggleSolar, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid }) {
+  showSolar, onToggleSolar, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid, outside = false, onOutside }) {
   // patrón llamativo de la capa (contado en los datos cargados): una línea y un botón para verlo
   const noteLine = (key) => {
     const n = enabled[key] && notes.find((x) => x.layer === key);
@@ -241,6 +241,15 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
             <button type="button" role="switch" aria-checked={vivid} className="sk-layer-main" onClick={onVivid}>
               <i className="sk-dot" style={{ background: "linear-gradient(90deg,#a8c0ff,#fff1ea 50%,#ffbd78)" }} />
               <span className="sk-layer-txt"><b>{t.vividStars}</b><small>{t.vividHint}</small></span>
+              <i className="sk-switch" />
+            </button>
+          </div>
+        )}
+        {onOutside && (
+          <div className="sk-layer">
+            <button type="button" role="switch" aria-checked={!!outside} className="sk-layer-main" onClick={onOutside}>
+              <i className="sk-dot" style={{ background: "radial-gradient(circle at 35% 35%,#c9d7ff,#3b4a7a 70%)" }} />
+              <span className="sk-layer-txt"><b>{t.outsideView}</b><small>{t.outsideHint}</small></span>
               <i className="sk-switch" />
             </button>
           </div>

@@ -25,6 +25,8 @@ import { constellationData, conNameEs } from "./sky/constellations.js";
 import { declination } from "./sky/geomag.js";
 import { compassPoint8 } from "./sky/deviceOrientation.js";
 import { useStageLayout } from "./sky/viewport.js";
+import { localSkyQuat, lookFrame, dirToYawPitch, yawPitchToDir, lookQuat, spanToFov, shortToSpan, dragDelta, clampPitch, clampSpan,
+  localDefaultAz, starScaleFor, screenOf, rankHits, SPAN_DEF, PITCH_MIN_LOCAL, PITCH_MIN_FREE, PITCH_MAX, LOCAL_ALT_DEF } from "./sky/look.js";
 import "./sky/sky.css";
 
 const API = import.meta.env.VITE_API_URL || "";
@@ -68,6 +70,8 @@ const HINT_KEY = "teseo_hint_v2";   // primeros pasos vistos (v1 era el párrafo
 const PERF_ON = typeof window !== "undefined" && perfFlag(window.location.hash, window.location.search);
 // &adapt=0: resolución fija (sin bajada adaptativa), para comparar mediciones
 const ADAPT_OFF = typeof window !== "undefined" && /[?&]adapt=0\b/.test(window.location.hash + "&" + window.location.search);
+// &e2e=1: expone en window.__teseoSky el estado de la cámara (solo lectura) para las pruebas en navegador
+const E2E = typeof window !== "undefined" && /[?&]e2e=1\b/.test(window.location.hash + "&" + window.location.search);
 const IDLE_EVERY = 6;                 // con el cielo quieto se dibuja 1 de cada 6 cuadros (la Tierra en miniatura sigue girando)
 const VIVID_KEY = "teseo_star_vivid";   // "resaltar colores de las estrellas" (1/0)
 
@@ -137,29 +141,6 @@ function resolveStop(stop, ref, sky, datasets) {
   }
   return null;
 }
-function gmstRad(date) {
-  const JD = date.getTime() / 86400000 + 2440587.5;
-  const T = JD - 2451545.0;
-  let g = 280.46061837 + 360.98564736629 * T;
-  g = ((g % 360) + 360) % 360;
-  return g * Math.PI / 180;
-}
-// Cuaternión que mapea coordenadas ecuatoriales -> mundo local
-// (Y = cenit, -Z = Norte, +X = Este) para una latitud/longitud y momento dados.
-function localSkyQuat(latDeg, lonDeg, date) {
-  const phi = latDeg * Math.PI / 180;
-  const lst = gmstRad(date) + lonDeg * Math.PI / 180;
-  const up = new THREE.Vector3(Math.cos(phi) * Math.cos(lst), Math.cos(phi) * Math.sin(lst), Math.sin(phi)).normalize();
-  const ncp = new THREE.Vector3(0, 0, 1);
-  const north = ncp.clone().sub(up.clone().multiplyScalar(ncp.dot(up)));
-  if (north.lengthSq() < 1e-6) north.set(1, 0, 0); else north.normalize();
-  // Este = Norte × Cenit: así (Este, Cenit, −Norte) es una base diestra (rotación pura).
-  // Con Cenit × Norte salía el Oeste, la base era zurda y el cuaternión resultaba inválido.
-  const east = new THREE.Vector3().crossVectors(north, up).normalize();
-  const B = new THREE.Matrix4().makeBasis(east, up, north.clone().multiplyScalar(-1));
-  B.transpose();
-  return new THREE.Quaternion().setFromRotationMatrix(B);
-}
 function makeTextSprite(text) {
   const c = document.createElement("canvas"); c.width = c.height = 64;
   const ctx = c.getContext("2d");
@@ -187,7 +168,7 @@ const TC = {
     lightyears: "light-years",
     away: "away",
     from: "Distance from Earth",
-    dragHint: "Drag to orbit · scroll to zoom",
+    dragHint: "Drag to look around · pinch or scroll to zoom",
     note: "Star positions & distances: real (HYG / Hipparcos). 3D depth uses a logarithmic scale of the real distance so it stays viewable — the distances shown are the real ones.",
     loading: "Loading the real sky…",
     retry: "Retry",
@@ -197,7 +178,7 @@ const TC = {
     tourNoText: "Narration isn't available right now. The tour goes on with the real data.",
     nearest: "Nearest", farthest: "Farthest", spread: "Depth spread",
     // ── visor ──
-    canvasAria: "3D sky map: stars, constellations and objects in their real positions. Arrow keys rotate, + and − zoom, Escape closes the open panel.",
+    canvasAria: "Sky map seen from Earth, from the centre of the celestial sphere: stars, constellations and objects in their real positions. Arrow keys look around, + and − zoom, Escape closes the open panel.",
     skyFrom: "Sky seen from", backToEarth: "Back to Earth",
     zoomIn: "Zoom in", zoomOut: "Zoom out", centerView: "Center the view", centerObj: "Center on the object",
     postcardAria: "Save a postcard of this sky (PNG)", fullOn: "Full screen", fullOff: "Exit full screen",
@@ -272,7 +253,7 @@ const TC = {
     // ── primeros pasos ──
     onboardAria: "Getting started", skip: "Skip", exploreAlone: "Explore on my own",
     onboard: [
-      { title: "Turn the sky with your finger", body: "Drag to look around and pinch to zoom in. Every star sits in its real position." },
+      { title: "Look around with your finger", body: "You're at the centre of the sky, as if you were looking up from Earth. Drag to look around and pinch to zoom in. Every star sits in its real position." },
       { title: "Tap anything that catches your eye", body: "A planet, a star, a nebula… or search for it by name. You'll see what it is and how far away." },
       { title: "Add layers, or let us guide you", body: "Below: Layers (galaxies, pulsars, comets…), My sky (what's up from where you are), Tour and Time." },
     ],
@@ -323,7 +304,7 @@ const TC = {
     lightyears: "años luz",
     away: "de distancia",
     from: "Distancia desde la Tierra",
-    dragHint: "Arrastra para girar · rueda para acercar",
+    dragHint: "Arrastra para mirar alrededor · pellizca o usa la rueda para acercar",
     note: "Posiciones y distancias estelares: reales (HYG / Hipparcos). La profundidad 3D usa una escala logarítmica de la distancia real para que sea visualizable — las distancias mostradas son las reales.",
     loading: "Cargando el cielo real…",
     retry: "Reintentar",
@@ -333,7 +314,7 @@ const TC = {
     tourNoText: "La narración no está disponible ahora. El recorrido sigue con los datos reales.",
     nearest: "Más cercana", farthest: "Más lejana", spread: "Rango de profundidad",
     // ── visor ──
-    canvasAria: "Mapa del cielo en 3D: estrellas, constelaciones y objetos en su posición real. Flechas para girar, + y − para acercar, Escape para cerrar el panel abierto.",
+    canvasAria: "Mapa del cielo visto desde la Tierra, desde el centro de la esfera celeste: estrellas, constelaciones y objetos en su posición real. Flechas para mirar alrededor, + y − para acercar, Escape para cerrar el panel abierto.",
     skyFrom: "Cielo visto desde", backToEarth: "Volver a la Tierra",
     zoomIn: "Acercar", zoomOut: "Alejar", centerView: "Centrar la vista", centerObj: "Centrar en el objeto",
     postcardAria: "Guardar una postal de este cielo (PNG)", fullOn: "Pantalla completa", fullOff: "Salir de pantalla completa",
@@ -408,7 +389,7 @@ const TC = {
     // ── primeros pasos ──
     onboardAria: "Primeros pasos", skip: "Saltar", exploreAlone: "Explorar por mi cuenta",
     onboard: [
-      { title: "Gira el cielo con el dedo", body: "Arrastra para mirar alrededor y pellizca para acercarte. Cada estrella está en su posición real." },
+      { title: "Mira alrededor con el dedo", body: "Estás en el centro del cielo, como si lo miraras desde la Tierra. Arrastra para mirar alrededor y pellizca para acercar. Cada estrella está en su posición real." },
       { title: "Toca lo que te llame la atención", body: "Un planeta, una estrella, una nebulosa… o búscalo por su nombre. Verás qué es y a qué distancia está." },
       { title: "Suma capas o déjate guiar", body: "Abajo tienes Capas (galaxias, púlsares, cometas…), Mi cielo (lo que se ve desde donde estás), Tour y Tiempo." },
     ],
@@ -486,6 +467,7 @@ export default function Constellations({ lang = "es" }) {
   const [enabled, setEnabled] = useState({});   // key -> bool
   const [selObj, setSelObj] = useState(null);
   const [viewFrom, setViewFrom] = useState(null); // null = Tierra; {name,pos:[x,y,z]} = otra estrella
+  const [outside, setOutside] = useState(false);  // vista opcional: la esfera celeste entera, desde fuera
   const [wiki, setWiki] = useState(null);
   const [localMode, setLocalMode] = useState(false);
   const [lat, setLat] = useState(null);
@@ -778,6 +760,7 @@ export default function Constellations({ lang = "es" }) {
       if (viewFrom) p.set("v", encodeURIComponent(viewFrom.name) + "~" + viewFrom.pos.map(n => n.toFixed(3)).join("~"));
       if (PERF_ON) p.set("fps", "1");
       if (ADAPT_OFF) p.set("adapt", "0");           // el medidor sobrevive a la reescritura del enlace
+      if (E2E) p.set("e2e", "1");
       if (selObj && selObj.name && selObj.layer !== "note") p.set("o", selObj.layer + "~" + encodeURIComponent(selObj.layer === "con" ? selObj.ab : selObj.name));
       else if (pendingObjRef.current) p.set("o", pendingObjRef.current);   // aún restaurándose: no se pierde del enlace
       const qs = p.toString();
@@ -818,8 +801,9 @@ export default function Constellations({ lang = "es" }) {
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x04080f, 0.00018);
-    const camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 6000);
-    camera.position.set(0, 0, 1700);
+    // el observador está EN EL CENTRO de la esfera celeste: la cámara solo gira (src/sky/look.js)
+    const camera = new THREE.PerspectiveCamera(spanToFov(SPAN_DEF, W / H), W / H, 0.1, 6000);
+    camera.position.set(0, 0, 0);
     // sin preserveDrawingBuffer: la postal vuelve a renderizar justo antes de copiar el lienzo
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(W, H);
@@ -831,14 +815,18 @@ export default function Constellations({ lang = "es" }) {
     const frameStats = createFrameStats(600);
     mount.appendChild(renderer.domElement);
 
+    // OrbitControls solo para lo que se ve desde fuera (profundidad real de una constelación y la
+    // vista opcional "la esfera desde fuera"); desde dentro manda la mirada propia (ref.look).
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.rotateSpeed = 0.5;
     controls.minDistance = 50;
     controls.maxDistance = 3000;
+    controls.enabled = false;
+    controls.target.set(0, 0, -1);
     const calm = prefersReducedMotion();
-    controls.autoRotate = !calm;
+    controls.autoRotate = false;
     controls.autoRotateSpeed = 0.15;
 
     // index stars by hip
@@ -947,6 +935,7 @@ export default function Constellations({ lang = "es" }) {
       new THREE.MeshBasicMaterial({ map: earthTex })
     );
     earth.rotation.z = 0.41;
+    earth.visible = false;                 // desde dentro el observador ES la Tierra: solo se ve desde fuera
     scene.add(earth);
 
     // grupo de horizonte (modo cielo local)
@@ -957,8 +946,9 @@ export default function Constellations({ lang = "es" }) {
     ringGeo.setAttribute("position", new THREE.Float32BufferAttribute(harr, 3));
     horizon.add(new THREE.Line(ringGeo, new THREE.LineBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.5 })));
     const ground = new THREE.Mesh(new THREE.CircleGeometry(905, 96),
-      new THREE.MeshBasicMaterial({ color: 0x05070e, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
-    ground.rotation.x = -Math.PI / 2; ground.position.y = -1.5; horizon.add(ground);
+      new THREE.MeshBasicMaterial({ color: 0x05070e, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+    // el suelo se dibuja después de estrellas, líneas y planetas: lo que queda bajo el horizonte se ve apagado
+    ground.rotation.x = -Math.PI / 2; ground.position.y = -1.5; ground.renderOrder = 2; horizon.add(ground);
     const cardinals = {};
     [["N", 0, -905], ["E", 905, 0], ["S", 0, 905], ["O", -905, 0], ["W", -905, 0]].forEach(([tt, x, z]) => {
       const sp = makeTextSprite(tt); sp.position.set(x, 20, z); horizon.add(sp); cardinals[tt] = sp;
@@ -1001,8 +991,21 @@ export default function Constellations({ lang = "es" }) {
     // modo apuntar: el zoom es el campo de visión. `span` = grados que abarca el lado largo.
     const applyArFov = () => {
       const st = sceneRef.current && sceneRef.current.ar; if (!st) return;
-      const half = Math.tan(THREE.MathUtils.degToRad(st.span / 2));
-      camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(camera.aspect >= 1 ? half / camera.aspect : half));
+      camera.fov = spanToFov(st.span, camera.aspect);
+      camera.updateProjectionMatrix();
+      sizeSolar();
+    };
+    // campo de visión según el modo: desde dentro lo da look.span (el zoom); desde fuera, fijo
+    const applyFov = () => {
+      const r = sceneRef.current; if (!r) return;
+      if (r.ar.on) { applyArFov(); return; }
+      if (r.mode === "in") {
+        camera.fov = spanToFov(r.look.span, camera.aspect);
+        r.points.material.uniforms.uScale.value = starScaleFor(camera.fov);
+      } else {
+        camera.fov = 55;
+        r.points.material.uniforms.uScale.value = 1;
+      }
       camera.updateProjectionMatrix();
       sizeSolar();
     };
@@ -1061,21 +1064,66 @@ export default function Constellations({ lang = "es" }) {
         sGeo.attributes.scolor.needsUpdate = true;
       },
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, bodies: [], showSolar: true,
-      sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, lang: langRef.current, sizeSolar, applyArFov, ground,
+      sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
+      // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
+      mode: "in",
+      look: { yaw: 0, pitch: 0, span: SPAN_DEF, spanT: SPAN_DEF, vy: 0, vp: 0, drag: false, fly: null, local: false, qF: lookFrame(false), minPitch: PITCH_MIN_FREE },
       // apuntar al cielo: objetos fijos que el bucle reutiliza (nada se crea por frame)
-      ar: { on: false, has: false, t: 0, n: 0, decl: 0, north: false, span: POINT_SPAN, savedFov: 55, alt: 0, cur: new THREE.Quaternion(), tgt: new THREE.Quaternion(), arr: [0, 0, 0, 1], look: { alt: 0, az: 0 }, g: {}, look2: {} },
+      ar: { on: false, has: false, t: 0, n: 0, decl: 0, north: false, span: POINT_SPAN, alt: 0, cur: new THREE.Quaternion(), tgt: new THREE.Quaternion(), arr: [0, 0, 0, 1], look: { alt: 0, az: 0 }, g: {}, look2: {} },
       guide: null, fly: null, _labels: [], notes: [], noteTags: {}, when: new Date(), occl: [], _occN: 0,
       wake: () => { wakeUntil = performance.now() + 500; }, perf: { stats: frameStats, adaptive, basePR, idle: false, drawn: 0 },
       viewShift: { x: 0, yf: 0, cx: 0, cy: 0, dirty: false } };
+    {
+      const r = sceneRef.current, lk = r.look, ypTmp = {};
+      // dirección hacia la que se mira (mundo). Desde fuera: el centro de la cara que da a la cámara.
+      r.fwd = (out = new THREE.Vector3()) => {
+        if (r.mode === "out") return out.copy(camera.position).normalize();
+        return out.set(0, 0, -1).applyQuaternion(camera.quaternion);
+      };
+      const setDir = (d) => { dirToYawPitch(d, lk.qF, ypTmp); lk.yaw = ypTmp.yaw; lk.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, ypTmp.pitch)); };
+      // girar la mirada hacia `dir` (mundo) y encuadrar con `span` (grados del lado largo); vuela salvo `instant`
+      r.lookAt = (dir, span, instant) => {
+        const to = dir.clone().normalize(), s1 = clampSpan(span == null ? lk.spanT : span);
+        lk.vy = lk.vp = 0;
+        const from = yawPitchToDir(lk.yaw, lk.pitch, lk.qF);
+        if (instant || calm || r.mode !== "in" || (from.angleTo(to) < 0.005 && Math.abs(s1 - lk.span) < 0.05)) {
+          lk.fly = null; setDir(to); lk.span = lk.spanT = s1; applyFov(); return;
+        }
+        const ang = from.angleTo(to);
+        lk.fly = { from, q: new THREE.Quaternion().setFromUnitVectors(from, to), to, t0: performance.now(), dur: 450 + 550 * Math.min(1, ang / 2), s0: lk.span, s1 };
+        lk.spanT = s1;
+      };
+      // marco de la mirada: local (Mi cielo, con horizonte) o ecuatorial (norte celeste arriba)
+      r.setFrame = (local) => {
+        lk.local = !!local; lk.qF = lookFrame(!!local); lk.minPitch = local ? PITCH_MIN_LOCAL : PITCH_MIN_FREE; lk.fly = null; lk.vy = lk.vp = 0;
+      };
+      // mirada por defecto: sin ubicación, Orión (reconocible y alto en las noches de noviembre);
+      // en Mi cielo, hacia el este (trópico) o el ecuador celeste, a 35° de altura
+      r.defaultDir = () => {
+        if (lk.local) {
+          const lat = r.localLat == null ? 0 : r.localLat;
+          return yawPitchToDir(localDefaultAz(lat) * Math.PI / 180, LOCAL_ALT_DEF * Math.PI / 180, lk.qF);
+        }
+        const c = conCentroid.Ori, v = new THREE.Vector3();
+        if (c && c.idxs.length) for (const i of c.idxs) v.add(new THREE.Vector3(posFlat[i * 3], posFlat[i * 3 + 1], posFlat[i * 3 + 2]));
+        return v.lengthSq() > 0 ? v.normalize() : new THREE.Vector3(0, 1, 0);
+      };
+      setDir(r.defaultDir());
+      camera.quaternion.copy(lookQuat(lk.yaw, lk.pitch, lk.qF));
+      applyFov();
+      if (E2E) window.__teseoSky = {
+        cam: () => ({ fov: camera.fov, aspect: camera.aspect, q: camera.quaternion.toArray(), p: camera.position.toArray(), mode: r.mode, ar: r.ar.on, local: r.localModeOn, localQuat: r.localQuat.toArray(), span: lk.span, w: mount.clientWidth, h: mount.clientHeight, vx: r.viewShift.cx, vy: r.viewShift.cy, flying: !!lk.fly, pm: camera.projectionMatrix.toArray(), mwi: camera.matrixWorldInverse.toArray() }),
+        bodies: () => (r.showSolar ? r.bodies : []).map((b) => ({ name: b.name, nx: b.nx, ny: b.ny, nz: b.nz })),
+      };
+    }
     setReady(true);
 
     // resize
     const onResize = () => {
       const w = mount.clientWidth, h = mount.clientHeight;
-      camera.aspect = w / h; camera.updateProjectionMatrix();
+      camera.aspect = w / h;
       renderer.setSize(w, h);
-      sizeSolar();
-      if (sceneRef.current && sceneRef.current.ar.on) applyArFov();   // p. ej. al girar el teléfono
+      applyFov();                          // desde dentro el campo depende del aspecto (p. ej. al girar el teléfono)
       if (sceneRef.current) sceneRef.current.viewShift.dirty = true;
     };
     window.addEventListener("resize", onResize);
@@ -1095,7 +1143,7 @@ export default function Constellations({ lang = "es" }) {
     for (const ev of ["pointerdown", "pointermove", "wheel", "touchstart", "keydown"]) renderer.domElement.addEventListener(ev, wakeEv, { passive: true });
     const onVisible = () => { lastT = 0; prevDrawn = false; wakeEv(); };          // al volver a la pestaña no se cuenta la pausa como un cuadro lento
     document.addEventListener("visibilitychange", onVisible);
-    const tmp = new THREE.Vector3(), flyV = new THREE.Vector3(), flyQ = new THREE.Quaternion();
+    const tmp = new THREE.Vector3(), flyV = new THREE.Vector3(), flyQ = new THREE.Quaternion(), flyYP = {};
     const cullQ = new THREE.Quaternion(), cullF = new THREE.Vector3(), cullP = new THREE.Vector3();
     const animate = () => {
       raf = requestAnimationFrame(animate);
@@ -1159,18 +1207,49 @@ export default function Constellations({ lang = "es" }) {
           ar.alt = ar.look.alt;
           if (arHudRef.current) arHudRef.current(ar.look.az, ar.look.alt);
         }
-      } else {
-        const fl = ref.fly;
+      } else if (ref.mode === "in") {
+        // desde dentro: la cámara en el centro, orientada por la mirada (yaw/pitch en su marco)
+        const lk = ref.look, fl = lk.fly;
+        const dts = dtFrame > 0 ? Math.min(0.05, dtFrame / 1000) : 0.016;
         if (fl) {
-          // vuelo hasta un objeto: la dirección de la mirada gira por el camino más corto
-          const k = Math.min(1, (performance.now() - fl.t0) / fl.dur), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+          // vuelo hasta un objeto: la mirada gira por el camino más corto y el zoom cambia a la vez
+          const k = Math.min(1, (tStart - fl.t0) / fl.dur), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
           flyQ.identity().slerp(fl.q, e);
           flyV.copy(fl.from).applyQuaternion(flyQ);
-          ref.controls.target.copy(flyV).multiplyScalar(870);
-          ref.camera.position.copy(flyV).multiplyScalar(fl.r0 + (fl.r1 - fl.r0) * e);
-          if (k >= 1) ref.fly = null;
+          if (k >= 1) flyV.copy(fl.to);
+          dirToYawPitch(flyV, lk.qF, flyYP);
+          lk.yaw = flyYP.yaw; lk.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, flyYP.pitch));
+          lk.span = fl.s0 * Math.pow(fl.s1 / fl.s0, e);
+          applyFov();
+          if (k >= 1) { lk.fly = null; lk.span = lk.spanT = fl.s1; }
+        } else {
+          if (!lk.drag && (Math.abs(lk.vy) > 1e-4 || Math.abs(lk.vp) > 1e-4)) {
+            // inercia suave al soltar el dedo
+            lk.yaw += lk.vy * dts;
+            lk.pitch = clampPitch(lk.pitch + lk.vp * dts, lk.pitch, lk.minPitch, PITCH_MAX);
+            const damp = Math.exp(-dts / 0.22); lk.vy *= damp; lk.vp *= damp;
+          }
+          if (Math.abs(lk.spanT - lk.span) > 0.01) {
+            // zoom de los botones: se acerca en unos pocos cuadros
+            lk.span += (lk.spanT - lk.span) * (calm ? 1 : 0.3);
+            if (Math.abs(lk.spanT - lk.span) <= 0.01) lk.span = lk.spanT;
+            applyFov();
+          }
         }
+        ref.camera.position.set(0, 0, 0);
+        lookQuat(lk.yaw, lk.pitch, lk.qF, ref.camera.quaternion);
+      } else {
         ref.controls.update();
+      }
+      // la esfera vista desde fuera: los planetas de la cara oculta no se dibujan (se confundirían con los de delante)
+      const outNow = !ar.on && ref.mode === "out";
+      if (outNow || ref._solarCulled) {
+        const cpos = ref.camera.position;
+        for (const nm in ref.solarSprites) {
+          const spr = ref.solarSprites[nm];
+          spr.visible = !outNow || spr.position.dot(cpos) > spr.position.lengthSq();
+        }
+        ref._solarCulled = outNow;
       }
       // encuadre: desplaza el centro de la vista para que el objeto no quede bajo
       // la ficha o un panel (x en px a la izquierda, yf = fracción del alto hacia arriba)
@@ -1191,7 +1270,7 @@ export default function Constellations({ lang = "es" }) {
       // (con tolerancia: el amortiguado de OrbitControls sigue moviendo la cámara millonésimas durante segundos;
       // se compara con el último cuadro DIBUJADO, así que una deriva lenta acaba dibujándose igual)
       const far = (a, b, e) => !(Math.abs(a - b) <= e);
-      const moved = rebuild || ar.on || !!ref.fly || tStart < wakeUntil || far(cp.x, lastCam.px, 0.01) || far(cp.y, lastCam.py, 0.01) || far(cp.z, lastCam.pz, 0.01)
+      const moved = rebuild || ar.on || !!ref.look.fly || tStart < wakeUntil || far(cp.x, lastCam.px, 0.01) || far(cp.y, lastCam.py, 0.01) || far(cp.z, lastCam.pz, 0.01)
         || far(cq.x, lastCam.qx, 1e-6) || far(cq.y, lastCam.qy, 1e-6) || far(cq.z, lastCam.qz, 1e-6) || far(cq.w, lastCam.qw, 1e-6) || ref.camera.fov !== lastCam.fov || far(vs.cx, lastCam.vx, 0.25) || far(vs.cy, lastCam.vy, 0.25) || us !== lastCam.us;
       const draw = moved || (++idleN % IDLE_EVERY === 0);
       if (moved) idleN = 0;
@@ -1245,7 +1324,10 @@ export default function Constellations({ lang = "es" }) {
       if (draw) ref._lf = (ref._lf || 0) + 1;
       if (draw && (ref._lf < 4 || ref._lf % 5 === 0)) {
         const W = mount.clientWidth, H = mount.clientHeight;
-        const camDist = ref.camera.position.length();
+        // desde dentro (también apuntando) la cámara está en el centro: el detalle lo decide el campo de visión
+        const inside = ar.on || ref.mode === "in", outside = !ar.on && ref.mode === "out";
+        const camDist = inside ? 0 : ref.camera.position.length();
+        const camPos = ref.camera.position;
         const out = [];
         // zonas tapadas por la ficha o un panel: ahí no se dibujan nombres (ni a medias)
         if (ref._occN++ % 6 === 0) {
@@ -1276,8 +1358,10 @@ export default function Constellations({ lang = "es" }) {
         const proj = (x, y, z, cls) => {
           tmp.set(x, y, z);
           if (ref.localQuat) tmp.applyQuaternion(ref.localQuat);
-          // apuntando: bajo el horizonte solo se nombran el Sol, la Luna y los planetas (están "bajo tus pies")
-          if (ar.on && cls !== "solar" && tmp.y < -12) return false;
+          // en Mi cielo (desde dentro o apuntando): bajo el horizonte solo se nombran el Sol, la Luna y los planetas
+          if (inside && ref.localModeOn && cls !== "solar" && tmp.y < -12) return false;
+          // la esfera vista desde fuera: nada de la cara oculta (se mezclaría con la delantera)
+          if (outside && tmp.dot(camPos) <= tmp.lengthSq()) return false;
           tmp.project(ref.camera);
           if (tmp.z >= 1 || tmp.x < -1.05 || tmp.x > 1.05 || tmp.y < -1.05 || tmp.y > 1.05) return false;
           psx = (tmp.x * 0.5 + 0.5) * W; psy = (-tmp.y * 0.5 + 0.5) * H;
@@ -1317,7 +1401,7 @@ export default function Constellations({ lang = "es" }) {
             if (!proj(ob.nx*870, ob.ny*870, ob.nz*870, "obj_" + o.key)) continue;
             let g = null;
             for (const k of groups) if (Math.abs(k.x - psx) < 22 && Math.abs(k.y - psy) < 14) { g = k; break; }
-            if (g) g.n++; else groups.push({ x: psx, y: psy, n: 1, name: ob.name, cls: "obj_" + o.key, used: false });
+            if (g) g.n++; else groups.push({ x: psx, y: psy, n: 1, name: ob.name, cls: "obj_" + o.key, used: false, pk: { layer: o.key, ob } });
           }
         }
         // primero el sistema solar: sus nombres tienen prioridad en el anti-solape
@@ -1325,21 +1409,21 @@ export default function Constellations({ lang = "es" }) {
           if (!proj(b.nx*860, b.ny*860, b.nz*860, "solar")) continue;
           let extra = 0;
           for (const k of groups) if (!k.used && Math.abs(k.x - psx) < 22 && Math.abs(k.y - psy) < 16) { extra += k.n; k.used = true; }
-          place(psx, psy, bodyName(b.name, ref.lang) + (extra ? ` +${extra}` : ""), "solar", null, Math.round(ref.solarSprites[b.name].userData.discPx + 7));
+          place(psx, psy, bodyName(b.name, ref.lang) + (extra ? ` +${extra}` : ""), "solar", null, Math.round(ref.solarSprites[b.name].userData.discPx + 7), { pk: { layer: "solar", ob: b } });
         }
-        for (const k of groups) if (!k.used) place(k.x, k.y, k.name + (k.n > 1 ? ` +${k.n - 1}` : ""), k.cls);
+        for (const k of groups) if (!k.used) place(k.x, k.y, k.name + (k.n > 1 ? ` +${k.n - 1}` : ""), k.cls, null, undefined, { pk: k.pk });
         // el objeto abierto siempre lleva su nombre, aunque sea de catálogo
         const so = selObjRef.current;
         if (so && so.nx != null && so.layer !== "solar" && so.layer !== "note" && so.layer !== "con" && !(so.layer === "star" && selAb)) {
-          if (so.layer === "star" && so.si != null) push(pa[so.si*3], pa[so.si*3+1], pa[so.si*3+2], so.name, "star", null, undefined, { hot: true });
-          else push(so.nx*870, so.ny*870, so.nz*870, (so.layer === "meteors" && ref.lang === "en" && so.name_en) || so.name, "obj_" + so.layer, null, undefined, { hot: true });
+          if (so.layer === "star" && so.si != null) push(pa[so.si*3], pa[so.si*3+1], pa[so.si*3+2], so.name, "star", null, undefined, { hot: true, pk: { si: so.si } });
+          else push(so.nx*870, so.ny*870, so.nz*870, (so.layer === "meteors" && ref.lang === "en" && so.name_en) || so.name, "obj_" + so.layer, null, undefined, { hot: true, pk: { layer: so.layer, ob: so } });
         }
         // notas tocables sobre patrones del cielo (campo de Kepler, plano galáctico…)
         if (camDist < 1050) for (const nt of (ref.notes || [])) push(nt.dir[0]*870, nt.dir[1]*870, nt.dir[2]*870, ref.noteTags[nt.id] || "?", "note", null, 0, { id: nt.id });
         if (selAb && ref.conMeta[selAb]) {
           collectNamed(ref.conMeta[selAb], ref.byHip).forEach(st => {
             const i = ref.hipIndex.get(st[0]);
-            push(pa[i*3], pa[i*3+1], pa[i*3+2], st[7], "star", st[6]);
+            push(pa[i*3], pa[i*3+1], pa[i*3+2], st[7], "star", st[6], undefined, { pk: { si: i } });
           });
         } else if (camDist > 820) {
           for (const ab in ref.conCentroid) {
@@ -1349,7 +1433,7 @@ export default function Constellations({ lang = "es" }) {
             const n = c.idxs.length; push(cx/n, cy/n, cz/n, c.name, "con", null, undefined, { ab });
           }
         } else {
-          if (ar.on) {
+          if (inside && (ar.on || ref.camera.fov > 14)) {
             // mirando desde dentro: nombres de constelaciones además de las estrellas brillantes
             for (const ab in ref.conCentroid) {
               const c = ref.conCentroid[ab]; if (!c.idxs.length) continue;
@@ -1360,10 +1444,13 @@ export default function Constellations({ lang = "es" }) {
           }
           const dens = ref.labelDensity || "normal";
           const magBoost = dens === "pocas" ? -1.2 : dens === "muchas" ? 1.3 : 0;
-          const magT = ar.on ? 2.6 + magBoost : 1.0 + (820 - camDist) / 770 * 5.2 + magBoost;
+          // desde dentro, al acercar (menos campo de visión) se nombran estrellas más débiles
+          const magT = ar.on ? 2.6 + magBoost
+            : inside ? Math.min(6.5, 2.0 + 1.6 * Math.log2(90 / Math.max(3, ref.camera.fov))) + magBoost
+            : 1.0 + (820 - camDist) / 770 * 5.2 + magBoost;
           // namedStars ya está ordenada por brillo: se recorre hasta el límite sin crear listas por pasada
           const maxN = dens === "muchas" ? 70 : 38, ns = ref.namedStars;
-          for (let q = 0; q < ns.length && q < maxN && ns[q].mag <= magT; q++) { const s = ns[q]; push(pa[s.i*3], pa[s.i*3+1], pa[s.i*3+2], s.name, "star"); }
+          for (let q = 0; q < ns.length && q < maxN && ns[q].mag <= magT; q++) { const s = ns[q]; push(pa[s.i*3], pa[s.i*3+1], pa[s.i*3+2], s.name, "star", null, undefined, { pk: { si: s.i } }); }
         }
         if (camDist < 1050) {
           const lim = CATALOG_LABELS[ref.labelDensity || "normal"];
@@ -1376,10 +1463,10 @@ export default function Constellations({ lang = "es" }) {
               const ob = objs[q];
               if (!inCone(ob.nx*870, ob.ny*870, ob.nz*870) || !proj(ob.nx*870, ob.ny*870, ob.nz*870, cls)) continue;
               const nm = (o.key === "meteors" && ref.lang === "en" && ob.name_en) || ob.name;
-              if (isNotable(o.key, ob, ref.when)) place(psx, psy, nm, cls);
-              else if (++nCat <= lim) cat.push(psx, psy, nm);
+              if (isNotable(o.key, ob, ref.when)) place(psx, psy, nm, cls, null, undefined, { pk: { layer: o.key, ob } });
+              else if (++nCat <= lim) cat.push(psx, psy, nm, ob);
             }
-            if (nCat <= lim) for (let q = 0; q < cat.length; q += 3) place(cat[q], cat[q+1], cat[q+2], cls);
+            if (nCat <= lim) for (let q = 0; q < cat.length; q += 4) place(cat[q], cat[q+1], cat[q+2], cls, null, undefined, { pk: { layer: o.key, ob: cat[q+3] } });
           }
         }
         const dens2 = ref.labelDensity || "normal";
@@ -1418,13 +1505,15 @@ export default function Constellations({ lang = "es" }) {
     if (!ref || !ref.applyViewpoint) return;
     ref.applyViewpoint(viewFrom ? viewFrom.pos : null);
     ref._dirty = true;   // fuerza reconstruir posiciones/líneas en el próximo frame
+    // desde otra estrella se sigue en el centro (su cielo, reproyectado por paralaje): la mirada va al Sol
+    if (viewFrom && ref.mode === "in" && !ref.ar.on && !selObjRef.current) ref.lookAt(ref.sunSprite.position.clone().normalize(), 90);
   }, [viewFrom, ready]);
 
   // posiciona la cámara según la profundidad: 0 = vista desde la Tierra (plano),
   // 1 = vista lateral que REVELA la profundidad real en distancia.
   const positionCamera = useCallback((dpt) => {
     const ref = sceneRef.current;
-    if (!ref || !ref.selCentroidDir || ref.localModeOn) return;
+    if (!ref || !ref.selCentroidDir || ref.localModeOn || ref.mode !== "depth") return;
     const v = ref.selCentroidDir;
     const targetR = FLAT_R + (ref.selAvgR - FLAT_R) * dpt;
     const target = v.clone().multiplyScalar(targetR);
@@ -1436,21 +1525,16 @@ export default function Constellations({ lang = "es" }) {
       .add(side.multiplyScalar(Math.sin(angle))).normalize();
     ref.camera.position.copy(target.clone().add(dir.multiplyScalar(dist)));
     ref.controls.target.copy(target);
+    // el norte celeste arriba, como en la vista desde dentro (salvo cerca del polo, donde no sirve de referencia)
+    if (Math.abs(v.z) < 0.85) ref.camera.up.set(0, 0, 1); else ref.camera.up.set(0, 1, 0);
     ref.controls.update();
   }, []);
 
-  // al cambiar de constelación
+  // al cambiar de constelación: dirección media y radio medio (para la vista de profundidad)
   useEffect(() => {
     const ref = sceneRef.current;
     if (!ref) return;
-    if (!sel) {
-      ref.selCentroidDir = null;
-      ref.controls.autoRotate = true;
-      ref.controls.target.set(0, 0, 0);
-      ref.camera.position.set(0, 0, 1700);
-      ref.controls.update();
-      return;
-    }
+    if (!sel) { ref.selCentroidDir = null; return; }
     const c = ref.conMeta[sel]; if (!c) return;
     let cx=0,cy=0,cz=0,n=0,sumR=0,cnt=0;
     const seen=new Set();
@@ -1458,13 +1542,14 @@ export default function Constellations({ lang = "es" }) {
     if(n===0) return;
     ref.selCentroidDir = new THREE.Vector3(cx/n,cy/n,cz/n).normalize();
     ref.selAvgR = cnt ? sumR/cnt : FLAT_R;
-    ref.controls.autoRotate = false;
-    positionCamera(depthRef.current);
-  }, [sel, positionCamera]);
+    ref.lastSelAb = sel;
+    if (ref.mode === "depth") positionCamera(depthRef.current);   // de una constelación a otra sin salir del modo
+  }, [sel, positionCamera, ready]);
 
   // al mover el slider de profundidad, gira la cámara para revelarla
   useEffect(() => {
-    if (sel) positionCamera(depth);
+    const ref = sceneRef.current;
+    if (sel && ref && ref.mode === "depth") positionCamera(depth);
   }, [depth, sel, positionCamera]);
 
   // construir los puntos de cada capa (marcadores en la esfera del cielo)
@@ -1520,17 +1605,17 @@ export default function Constellations({ lang = "es" }) {
     if (ref.localQuat) v.applyQuaternion(ref.localQuat);
     v.normalize();
     if (ref.ar.on) return;                 // apuntando: la cámara la lleva el teléfono, no la selección
-    ref.controls.autoRotate = false;
-    // una constelación se encuadra entera: la cámara retrocede según su tamaño angular
-    let camR = 540;
-    if (selObj.layer === "con" && selObj.rad) {
-      const half = THREE.MathUtils.degToRad(ref.camera.fov / 2), fit = Math.atan(Math.tan(half) * Math.min(1, ref.camera.aspect));
-      camR = Math.max(30, Math.min(540, 870 * Math.cos(selObj.rad) - 870 * Math.sin(selObj.rad) * 1.3 / Math.tan(fit)));
+    if (ref.mode === "depth") return;      // profundidad real: abrir una ficha no mueve la vista lateral
+    if (ref.mode === "out") {              // la esfera desde fuera: se gira para que el objeto dé a la cámara
+      ref.camera.position.copy(v).multiplyScalar(ref.camera.position.length() || 1700);
+      ref.controls.autoRotate = false; ref.controls.update();
+      return;
     }
-    ref.fly = null;
-    ref.controls.target.copy(v.clone().multiplyScalar(870));
-    ref.camera.position.copy(v.clone().multiplyScalar(camR));
-    ref.controls.update();
+    // desde dentro: la mirada gira hacia el objeto (sin mover al observador) y el zoom lo encuadra;
+    // una constelación entera, con margen (en el teléfono la ficha tapa la parte baja)
+    let span = Math.min(ref.look.spanT, 70);
+    if (selObj.layer === "con" && selObj.rad) span = Math.max(14, shortToSpan(2 * selObj.rad * 180 / Math.PI * (isWideRef.current ? 1.35 : 1.6), ref.camera.aspect));
+    ref.lookAt(v, span);
     // solo al cambiar de objeto: el paso del tiempo no debe recolocar la cámara
   }, [selObj && selObj.name, selObj && selObj.layer]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -1553,8 +1638,9 @@ export default function Constellations({ lang = "es" }) {
     const ref = sceneRef.current;
     if (!ref || !ref.points) return;
     const active = localMode && lat != null && lon != null;
+    const prevQ = ref.localQuat.clone();
     const q = active ? localSkyQuat(lat, lon, new Date(whenStr)) : new THREE.Quaternion();
-    ref.localQuat = q; ref.localModeOn = active;
+    ref.localQuat = q; ref.localModeOn = active; ref.localLat = active ? lat : null;
     ref.points.quaternion.copy(q);
     ref.lines.quaternion.copy(q);
     (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));
@@ -1565,19 +1651,64 @@ export default function Constellations({ lang = "es" }) {
     if (ref._localKey === key) return;
     const first = ref._localKey === undefined;
     ref._localKey = key;
-    if (active) {
-      ref.controls.autoRotate = false;
-      ref.controls.target.set(0, 120, 0);
-      const tall = ref.camera.aspect < 1 ? 1.5 : 1;   // en vertical se aleja para que quepa el horizonte
-      ref.camera.position.set(0, 560 * tall, 1500 * tall);
-      ref.controls.update();
-    } else if (!first && !sel && !selObj) {
-      ref.controls.autoRotate = !prefersReducedMotion();
-      ref.controls.target.set(0, 0, 0);
-      ref.camera.position.set(0, 0, 1700);
-      ref.controls.update();
-    }
+    if (first && !active) return;
+    // la mirada cambia de marco: con horizonte (cenit arriba) o ecuatorial (norte celeste arriba)
+    const lk = ref.look;
+    const eqDir = yawPitchToDir(lk.yaw, lk.pitch, lk.qF).applyQuaternion(prevQ.invert());   // lo que se miraba, en ecuatoriales
+    ref.setFrame(active);
+    // al entrar (o cambiar de lugar): hacia el este o el ecuador celeste, a 35°; al salir, se sigue mirando lo mismo
+    const next = active ? { dir: ref.defaultDir(), span: SPAN_DEF } : { dir: eqDir, span: undefined };
+    if (ref.mode === "in") ref.lookAt(next.dir, next.span, true);
+    else ref.pendingLook = next;
   }, [localMode, lat, lon, whenStr, ready, datasets, sel]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── modo de la vista ──
+  // "in": el observador en el centro de la esfera, mirando hacia fuera (por defecto, Mi cielo, otra estrella).
+  // "depth": la profundidad real de una constelación, que necesita ver las estrellas de lado (OrbitControls).
+  // "out": la esfera entera desde fuera, solo con el interruptor rotulado de Capas.
+  const localActive = localMode && lat != null && lon != null;
+  useEffect(() => { if (localActive && outside) setOutside(false); }, [localActive, outside]);
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref) return;
+    const want = sel && !localActive ? "depth" : outside && !localActive ? "out" : "in";
+    if (want === ref.mode) return;
+    const prev = ref.mode, { camera, controls } = ref;
+    const fwd = ref.fwd();                               // hacia dónde se miraba, antes de cambiar
+    ref.mode = want;
+    camera.up.set(0, 1, 0);
+    if (want === "in") {
+      controls.enabled = false; controls.autoRotate = false;
+      ref.earth.visible = false;
+      camera.position.set(0, 0, 0);
+      let dir = fwd, span;
+      if (ref.pendingLook) { dir = ref.pendingLook.dir; span = ref.pendingLook.span; ref.pendingLook = null; }
+      else if (prev === "depth" && ref.lastSelAb) {
+        // al salir de la profundidad: se mira la constelación, encuadrada entera
+        const co = conObjRef.current(ref.lastSelAb);
+        if (co) {
+          dir = new THREE.Vector3(co.nx, co.ny, co.nz).applyQuaternion(ref.localQuat);
+          span = Math.max(14, shortToSpan(2 * co.rad * 180 / Math.PI * 1.5, camera.aspect));
+        }
+      }
+      ref.lookAt(dir, span, true);
+      ref.applyFov();
+    } else {
+      ref.look.fly = null; ref.look.vy = ref.look.vp = 0;
+      controls.enabled = !ref.ar.on;
+      ref.earth.visible = !ref.sunSprite.visible;
+      ref.applyFov();                                    // desde fuera, campo fijo de 55°
+      // desde fuera no se puede "entrar" en la bola con la rueda (dentro ya está la vista normal)
+      controls.minDistance = want === "out" ? 1000 : 50;
+      if (want === "depth") { controls.autoRotate = false; positionCamera(depthRef.current); }
+      else {
+        controls.autoRotate = !prefersReducedMotion();
+        controls.target.set(0, 0, 0);
+        camera.position.copy(fwd).multiplyScalar(1700);  // la cara que se miraba queda delante
+        controls.update();
+      }
+    }
+    if (ref.wake) ref.wake();
+  }, [sel, outside, localActive, ready, positionCamera]);
 
   useEffect(() => {
     const ref = sceneRef.current;
@@ -1632,34 +1763,27 @@ export default function Constellations({ lang = "es" }) {
     ref.lang = lang;
     if (ref.cardinals) { ref.cardinals.O.visible = lang === "es"; ref.cardinals.W.visible = lang !== "es"; }
   }, [lang, ready]);
-  const focusDir = useCallback((nx, ny, nz) => {
-    const ref = sceneRef.current; if (!ref) return;
-    const v = new THREE.Vector3(nx, ny, nz);
-    if (ref.localQuat) v.applyQuaternion(ref.localQuat);
-    v.normalize();
-    ref.controls.autoRotate = false;
-    ref.controls.target.copy(v.clone().multiplyScalar(870));
-    ref.camera.position.copy(v.clone().multiplyScalar(390));
-    ref.controls.update();
-  }, []);
-  // la cámara vuela hasta una dirección del cielo (o salta, con "reducir movimiento")
-  const flyTo = useCallback((nx, ny, nz) => {
+  // girar la mirada hasta una dirección del cielo (tour, "Esta noche", "Encuéntralo" sin sensores, búsqueda).
+  // Desde dentro la cámara no se mueve del centro: solo gira y ajusta el zoom.
+  const goLook = useCallback((nx, ny, nz, span) => {
     const ref = sceneRef.current; if (!ref || ref.ar.on) return;
     const to = new THREE.Vector3(nx, ny, nz);
     if (ref.localQuat) to.applyQuaternion(ref.localQuat);
     to.normalize();
-    const { camera, controls } = ref;
-    controls.autoRotate = false;
-    // dirección actual de la mirada: hacia el objetivo, o la de la cámara si aún mira al centro desde fuera
-    const from = controls.target.lengthSq() > 1 ? controls.target.clone().normalize() : camera.position.clone().normalize();
-    if (prefersReducedMotion() || from.angleTo(to) < 0.01) {
-      ref.fly = null;
-      controls.target.copy(to).multiplyScalar(870); camera.position.copy(to).multiplyScalar(540); controls.update();
+    if (ref.mode === "depth") { ref.pendingLook = { dir: to, span }; setSel(null); setDepth(0); return; }   // se sale de la profundidad
+    if (ref.mode === "out") {
+      ref.controls.autoRotate = false;
+      ref.camera.position.copy(to).multiplyScalar(ref.camera.position.length() || 1700); ref.controls.update();
       return;
     }
-    ref.fly = { from, q: new THREE.Quaternion().setFromUnitVectors(from, to), t0: performance.now(), dur: 500 + 500 * Math.min(1, from.angleTo(to) / 2), r0: camera.position.length(), r1: 540 };
+    ref.lookAt(to, span);
   }, []);
-  const startTour = useCallback(() => { setSel(null); setSelObj(null); setPanel(null); setTourAuto(true); setTourIndex(0); setTourActive(true); }, []);
+  const focusDir = useCallback((nx, ny, nz, span = 60) => goLook(nx, ny, nz, span), [goLook]);
+  const flyTo = useCallback((nx, ny, nz) => {
+    const ref = sceneRef.current; if (!ref) return;
+    goLook(nx, ny, nz, Math.min(ref.look.spanT, 60));
+  }, [goLook]);
+  const startTour = useCallback(() => { setSel(null); setOutside(false); setSelObj(null); setPanel(null); setTourAuto(true); setTourIndex(0); setTourActive(true); }, []);
   // Los datos del tour (Messier y agujeros negros) se leen por referencia: así, si
   // OTRA capa termina de cargar a mitad del recorrido, la parada actual no se
   // reinicia ni se vuelve a pedir su narración.
@@ -1669,7 +1793,7 @@ export default function Constellations({ lang = "es" }) {
     const ref = sceneRef.current; const stop = TOUR[tourIndex];
     const r = resolveStop(stop, ref, sky, datasetsRef.current);
     if (!r) return;
-    focusDir(r.dir[0], r.dir[1], r.dir[2]);
+    focusDir(r.dir[0], r.dir[1], r.dir[2], r.type === "con" ? 75 : 45);
     const title = stop.title ? (stop.title[lang] || stop.title.es) : "";
     setTourTitle(title); setTourText(null);
     setTourFact(r.dist ? TC[lang].tourFactDist(fmtDist(r.dist, lang)) : "");
@@ -1709,8 +1833,7 @@ export default function Constellations({ lang = "es" }) {
     else if (res.type === "layer") { setEnabled(e => ({ ...e, [res.layer]: true })); setSelObj({ ...res.obj, layer: res.layer }); }
   }, []);
 
-  // zoom con botones (dolly hacia/desde el objetivo actual; mantiene centrado
-  // lo que esté en controls.target, p.ej. el objeto seleccionado)
+  // zoom con botones: desde dentro (y apuntando) cambia el campo de visión; desde fuera, la distancia
   const zoomBy = useCallback((f) => {
     const ref = sceneRef.current; if (!ref) return;
     const { camera, controls } = ref;
@@ -1719,6 +1842,7 @@ export default function Constellations({ lang = "es" }) {
       ref.applyArFov();
       return;
     }
+    if (ref.mode === "in") { ref.look.fly = null; ref.look.spanT = clampSpan(ref.look.spanT * f); if (ref.wake) ref.wake(); return; }
     controls.autoRotate = false;
     const dir = camera.position.clone().sub(controls.target);
     let len = dir.length() * f;
@@ -1726,26 +1850,38 @@ export default function Constellations({ lang = "es" }) {
     camera.position.copy(controls.target.clone().add(dir.normalize().multiplyScalar(len)));
     controls.update();
   }, []);
-  // centrar en el objeto seleccionado (o volver al centro si no hay ninguno)
+  // centrar en el objeto seleccionado (o volver a la mirada inicial si no hay ninguno)
   const recenter = useCallback(() => {
     const ref = sceneRef.current; if (!ref || ref.ar.on) return;
+    if (ref.mode === "depth") { positionCamera(depthRef.current); return; }
     if (selObj && selObj.nx != null) {
       const v = new THREE.Vector3(selObj.nx, selObj.ny, selObj.nz);
+      if (selObj.layer === "star" && selObj.si != null) v.set(ref.posFlat[selObj.si*3], ref.posFlat[selObj.si*3+1], ref.posFlat[selObj.si*3+2]);
       if (ref.localQuat) v.applyQuaternion(ref.localQuat);
-      v.normalize().multiplyScalar(870);
-      ref.controls.target.copy(v);
+      v.normalize();
+      if (ref.mode === "out") { ref.camera.position.copy(v).multiplyScalar(ref.camera.position.length()); ref.controls.update(); return; }
+      ref.lookAt(v, selObj.layer === "con" && selObj.rad ? Math.max(14, shortToSpan(2 * selObj.rad * 180 / Math.PI * 1.5, ref.camera.aspect)) : Math.min(ref.look.spanT, 60));
+    } else if (ref.mode === "out") {
+      ref.controls.target.set(0, 0, 0); ref.controls.update();
     } else {
-      ref.controls.target.set(0, 0, 0);
+      ref.lookAt(ref.defaultDir(), SPAN_DEF);
     }
     ref.controls.autoRotate = false;
-    ref.controls.update();
-  }, [selObj]);
+  }, [selObj, positionCamera]);
 
-  // rotar la vista con el teclado (accesibilidad)
+  // rotar la vista con el teclado (accesibilidad): desde dentro, las flechas mueven la mirada
   const orbitBy = useCallback((dAz, dPol) => {
     const ref = sceneRef.current; if (!ref) return;
     if (ref.ar.on) {                       // apuntando: las flechas ajustan la alineación (2° por pulsación)
       if (dAz) { pointAzOffset += dAz > 0 ? 2 : -2; setArAligned(true); }
+      return;
+    }
+    if (ref.mode === "in") {
+      const lk = ref.look, k = Math.max(0.15, ref.camera.fov / 90);   // pasos más finos con zoom
+      lk.fly = null; lk.vy = lk.vp = 0;
+      lk.yaw += dAz * k;
+      lk.pitch = clampPitch(lk.pitch - dPol * k, lk.pitch, lk.minPitch, PITCH_MAX);
+      if (ref.wake) ref.wake();
       return;
     }
     const { camera, controls } = ref; controls.autoRotate = false;
@@ -1793,9 +1929,10 @@ export default function Constellations({ lang = "es" }) {
     // sin objeto: el cielo hacia donde mira la cámara
     let center = [0, 0, 1];
     if (ref) {
-      const v = ref.controls.target.clone().sub(ref.camera.position);
+      // desde dentro (y apuntando): la dirección de la mirada; desde fuera: la cara que da a la cámara
+      const v = ref.ar.on || ref.mode !== "depth" ? ref.fwd() : ref.controls.target.clone().sub(ref.camera.position);
       if (ref.ar.on) v.set(0, 0, -1).applyQuaternion(ref.camera.quaternion);
-      if (v.lengthSq() < 1e-6) v.copy(ref.camera.position).multiplyScalar(-1);
+      if (v.lengthSq() < 1e-6) v.set(0, 0, 1);
       v.normalize();
       if (ref.localQuat) v.applyQuaternion(ref.localQuat.clone().invert());
       center = [v.x, v.y, v.z];
@@ -1928,35 +2065,36 @@ export default function Constellations({ lang = "es" }) {
     const ref = sceneRef.current;
     if (!ref || !arOn) return;
     const { camera, controls } = ref, st = ref.ar;
-    st.on = true; st.has = false; st.t = 0; st.n = 0; st.cur.identity(); st.savedFov = camera.fov;
+    st.on = true; st.has = false; st.t = 0; st.n = 0; st.cur.identity();
     controls.enabled = false; controls.autoRotate = false;
+    ref.look.fly = null; ref.look.vy = ref.look.vp = 0; ref.look.drag = false;
     ref.earth.visible = false;             // el observador está en el centro: la Tierra en miniatura estorbaría
-    ref.points.material.uniforms.uScale.value = 1.9;   // visto desde dentro, las estrellas se dibujan más grandes
+    ref.points.material.uniforms.uScale.value = 1.9;   // como antes de la vista desde dentro: el modo apuntar no cambia
     ref.ground.material.opacity = 0.86;    // el suelo casi opaco: lo que queda debajo está "bajo tus pies"
     ref.applyArFov();
     return () => {
       st.on = false;
       const r = sceneRef.current; if (!r) return;      // la escena ya se destruyó
-      controls.enabled = true;
-      r.points.material.uniforms.uScale.value = 1;
-      r.ground.material.opacity = 0.55;
-      camera.fov = st.savedFov; camera.updateProjectionMatrix(); r.sizeSolar();
-      r.earth.visible = !r.sunSprite.visible;
-      // la cámara vuelve a un estado coherente: el objeto abierto, el cielo local o la vista general
+      controls.enabled = r.mode !== "in";
+      r.ground.material.opacity = 0.8;
+      r.earth.visible = r.mode !== "in" && !r.sunSprite.visible;
+      // la mirada desde dentro sigue donde apuntaba el teléfono (o en el objeto abierto), con su propio zoom
       const so = selObjRef.current;
+      let dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
       if (so && so.nx != null) {
-        const v = new THREE.Vector3(so.nx, so.ny, so.nz);
-        if (r.localQuat) v.applyQuaternion(r.localQuat);
-        v.normalize();
-        controls.target.copy(v.clone().multiplyScalar(870)); camera.position.copy(v.multiplyScalar(540));
-      } else if (r.localModeOn) {
-        const tall = camera.aspect < 1 ? 1.5 : 1;
-        controls.target.set(0, 120, 0); camera.position.set(0, 560 * tall, 1500 * tall);
-      } else {
-        controls.target.set(0, 0, 0); camera.position.set(0, 0, 1700);
+        dir = new THREE.Vector3(so.nx, so.ny, so.nz);
+        if (so.layer === "star" && so.si != null) dir.set(r.posFlat[so.si*3], r.posFlat[so.si*3+1], r.posFlat[so.si*3+2]);
+        if (r.localQuat) dir.applyQuaternion(r.localQuat);
       }
       camera.up.set(0, 1, 0);
-      controls.update();
+      if (r.mode === "in") {
+        const lk = r.look;
+        r.lookAt(dir, lk.spanT, true);
+        if (!(so && so.nx != null)) lk.pitch = Math.max(lk.pitch, lk.minPitch);   // sin objeto, no se queda mirando al suelo
+        camera.position.set(0, 0, 0);
+        lookQuat(lk.yaw, lk.pitch, lk.qF, camera.quaternion);
+      }
+      r.applyFov();
     };
   }, [arOn, ready]);
   // gestos mientras se apunta: arrastre horizontal = alinear el azimut; pellizco = campo de visión.
@@ -2011,6 +2149,74 @@ export default function Constellations({ lang = "es" }) {
     };
   }, [arOn, ready]);
 
+  // gestos desde dentro (sin apuntar): arrastrar = mirar alrededor (el cielo sigue al dedo, con inercia
+  // suave); pellizco y rueda = campo de visión. Nada de desplazamiento ni de "dolly": el observador no se mueve.
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || !ref.renderer) return;
+    const el = ref.renderer.domElement, lk = ref.look;
+    const pts = new Map();
+    let lastX = 0, lastY = 0, lastT = 0, pinch0 = 0, span0 = 0;
+    const active = () => ref.mode === "in" && !ref.ar.on;
+    const dist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+    const onDown = (e) => {
+      if (!active()) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      try { el.setPointerCapture(e.pointerId); } catch { /* puntero ya liberado */ }
+      lk.fly = null; lk.vy = lk.vp = 0;
+      if (pts.size === 1) { lastX = e.clientX; lastY = e.clientY; lastT = performance.now(); lk.drag = true; }
+      else if (pts.size === 2) { pinch0 = dist(); span0 = lk.span; }
+    };
+    const onMove = (e) => {
+      const p = pts.get(e.pointerId); if (!p || !active()) return;
+      p.x = e.clientX; p.y = e.clientY;
+      if (pts.size >= 2) {
+        if (pinch0 > 0) { lk.span = lk.spanT = clampSpan(span0 * pinch0 / dist()); ref.applyFov(); }
+        return;
+      }
+      const now = performance.now(), dt = Math.max(1, now - lastT);
+      const dd = dragDelta(e.clientX - lastX, e.clientY - lastY, ref.camera.fov, el.clientHeight, lk.pitch);
+      lk.yaw += dd.dyaw;
+      const np = clampPitch(lk.pitch + dd.dpitch, lk.pitch, lk.minPitch, PITCH_MAX);
+      // velocidad (rad/s) suavizada, para la inercia al soltar
+      lk.vy = 0.6 * lk.vy + 0.4 * (dd.dyaw / dt * 1000);
+      lk.vp = 0.6 * lk.vp + 0.4 * ((np - lk.pitch) / dt * 1000);
+      lk.pitch = np;
+      lastX = e.clientX; lastY = e.clientY; lastT = now;
+    };
+    const onEnd = (e) => {
+      if (!pts.delete(e.pointerId)) return;
+      if (pts.size === 1) { const r = [...pts.values()][0]; lastX = r.x; lastY = r.y; lastT = performance.now(); lk.vy = lk.vp = 0; pinch0 = 0; return; }
+      if (pts.size === 0) {
+        lk.drag = false; pinch0 = 0;
+        // sin inercia si el dedo se paró antes de soltar, o con "reducir movimiento"
+        if (prefersReducedMotion() || performance.now() - lastT > 90 || e.type === "pointercancel") { lk.vy = lk.vp = 0; }
+        else { const lim = 6; lk.vy = Math.max(-lim, Math.min(lim, lk.vy)); lk.vp = Math.max(-lim, Math.min(lim, lk.vp)); }
+      }
+    };
+    const onWheel = (e) => {
+      if (!active()) return;
+      e.preventDefault();
+      const dy = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      lk.fly = null;
+      lk.span = lk.spanT = clampSpan(lk.span * Math.exp(Math.max(-200, Math.min(200, dy)) * 0.0015));
+      ref.applyFov();
+      if (ref.wake) ref.wake();
+    };
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onEnd);
+    el.addEventListener("pointercancel", onEnd);
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onEnd);
+      el.removeEventListener("pointercancel", onEnd);
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, [ready]);
+
   // un panel a la vez; en móvil la ficha y los paneles comparten la parte baja
   const openPanel = useCallback((id) => {
     setPanel(p => (p === id ? null : id));
@@ -2025,61 +2231,79 @@ export default function Constellations({ lang = "es" }) {
     if (share) setShare(false); else if (railOpen) setRailOpen(false); else if (pick) setPick(null); else if (panel) setPanel(null); else if (selObj) setSelObj(null); else if (guide) setGuide(null); else if (toast) setToast(null); else if (full) setFull(false);
   }, [panel, selObj, full, railOpen, guide, pick, toast, share]);
 
-  // click para identificar un objeto (raycast)
+  // tocar para identificar un objeto: se proyecta en pantalla todo lo visible POR DELANTE de la cámara
+  // (nunca lo que queda detrás del observador ni, desde fuera, la cara oculta de la esfera) y gana el
+  // más cercano al dedo (src/sky/look.js: screenOf / rankHits)
   useEffect(() => {
     const ref = sceneRef.current;
     if (!ref || !ref.renderer) return;
     const el = ref.renderer.domElement;
-    const vtmp = new THREE.Vector3();
-    let downX = 0, downY = 0;
-    const onDown = (e) => { downX = e.clientX; downY = e.clientY; };
+    const vtmp = new THREE.Vector3(), sp = {}, selW = new THREE.Vector3();
+    let downX = 0, downY = 0, multi = false, nDown = 0;
+    const onDown = (e) => { nDown++; if (nDown === 1) { downX = e.clientX; downY = e.clientY; multi = false; } else multi = true; };
+    const onCancel = () => { nDown = Math.max(0, nDown - 1); };
     const onUp = (e) => {
+      nDown = Math.max(0, nDown - 1);
+      if (multi) { if (nDown === 0) multi = false; return; }               // fue un pellizco
       if (Math.abs(e.clientX - downX) > 6 || Math.abs(e.clientY - downY) > 6) return; // fue arrastre
       const r = el.getBoundingClientRect();
       const px = e.clientX - r.left, py = e.clientY - r.top;
-      const touch = e.pointerType === "touch" ? 8 : 0;          // el dedo es menos preciso que el ratón
-      // el más cercano al toque en pantalla, entre todo lo visible
-      let best = null, bestD = Infinity;
-      const hits = [];                                           // todo lo que cae bajo el dedo (para objetos amontonados)
-      const consider = (x, y, z, maxD, make, label, kind) => {
+      const touch = e.pointerType === "touch" || e.pointerType === "pen";
+      const touchR = touch ? 28 : 16;                                       // radio táctil en px CSS
+      const mode = ref.ar.on ? "in" : ref.mode;
+      ref.camera.updateMatrixWorld();
+      // en la profundidad real solo cuenta la mitad del cielo donde está la constelación
+      const depthDir = mode === "depth" && ref.selCentroidDir ? selW.copy(ref.selCentroidDir).applyQuaternion(ref.localQuat) : null;
+      const cands = [];
+      const consider = (x, y, z, rObj, prio, make, label, kind) => {
         vtmp.set(x, y, z);
         if (ref.localQuat) vtmp.applyQuaternion(ref.localQuat);
-        vtmp.project(ref.camera);
-        if (vtmp.z > 1 || vtmp.z < -1) return;                   // detrás de la cámara
-        const sx = (vtmp.x * 0.5 + 0.5) * r.width, sy = (-vtmp.y * 0.5 + 0.5) * r.height;
-        const d = Math.hypot(sx - px, sy - py);
-        if (d >= maxD + touch) return;
-        const h = { d: d - maxD, sx, sy, make, label, kind };
-        hits.push(h);
-        if (h.d < bestD) { bestD = h.d; best = h; }
+        if (depthDir && vtmp.dot(depthDir) <= 0) return;
+        if (!screenOf(ref.camera, vtmp, r.width, r.height, mode, sp)) return;
+        if (Math.abs(sp.x - px) > 120 || Math.abs(sp.y - py) > 120) return;  // lejos del dedo: ni se considera
+        cands.push({ sx: sp.x, sy: sp.y, r: rObj, prio, make, label, kind });
       };
       const L = ref.lang, kinds = TC[L].kinds;
-      if (ref.showSolar) for (const b of (ref.bodies || [])) consider(b.nx * 860, b.ny * 860, b.nz * 860, 30, () => ({ ...b, layer: "solar" }), bodyName(b.name, L), kinds.solar);
+      // prioridades (px de ventaja para desempatar): Sol, Luna y planetas > objetos con nombre > estrellas débiles
+      if (ref.showSolar) for (const b of (ref.bodies || [])) consider(b.nx * 860, b.ny * 860, b.nz * 860, ref.solarSprites[b.name] ? ref.solarSprites[b.name].userData.discPx : 12, 10, () => ({ ...b, layer: "solar" }), bodyName(b.name, L), kinds.solar);
       for (const o of (ref.layerObjs || [])) {
         if (!o.points.visible) continue;
         const objs = o.points.userData.objs || [], kind = (LAYERS.find(l => l.key === o.key) || {})[L] || o.key;
-        for (let i = 0; i < objs.length; i++) { const ob = objs[i]; consider(ob.nx * 870, ob.ny * 870, ob.nz * 870, 24, () => ({ ...ob, layer: o.key }), labelForObj(o.key, ob, L), kind); }
+        for (let i = 0; i < objs.length; i++) { const ob = objs[i]; consider(ob.nx * 870, ob.ny * 870, ob.nz * 870, 0, isNotable(o.key, ob, ref.when) ? 6 : 1, () => ({ ...ob, layer: o.key }), labelForObj(o.key, ob, L), kind); }
       }
       const pa = ref.posAttr.array, stars = sky.stars;
       for (let i = 0; i < stars.length; i++) {
         if (!stars[i][7]) continue;                              // solo estrellas con nombre propio
-        consider(pa[i * 3], pa[i * 3 + 1], pa[i * 3 + 2], 16, () => starObj(stars[i], i), stars[i][7], kinds.star);
+        const m = stars[i][4];
+        consider(pa[i * 3], pa[i * 3 + 1], pa[i * 3 + 2], 0, m < 1 ? 6 : m < 2.5 ? 4 : 2, () => starObj(stars[i], i), stars[i][7], kinds.star);
+      }
+      const { best, same } = rankHits(cands, px, py, touchR);
+      // ¿se tocó el texto de una etiqueta? Gana la etiqueta salvo que haya un objeto justo bajo el dedo (≤ 6 px)
+      let lbHit = null;
+      if (!best || best.d > 6) {
+        let bestDy = Infinity;
+        for (const lb of (ref._labels || [])) {
+          if (lb.cls === "note") continue;                         // las notas son botones propios
+          const cw = lb.cls === "con" ? (r.width >= 900 ? 12.5 : 11) : lb.cls === "solar" ? (r.width >= 900 ? 9 : 8) : (r.width >= 900 ? 7.8 : 6.9);
+          const w = String(lb.name).length * cw + 14, dx = lb.dx || 8;
+          const x0 = lb.flip ? lb.x - dx - w : lb.x + dx - 4, x1 = x0 + w + 4;
+          const dy = Math.abs(py - lb.y);
+          if (px >= x0 - 4 && px <= x1 + 4 && dy <= (touch ? 16 : 11) && dy < bestDy) { bestDy = dy; lbHit = lb; }
+        }
+      }
+      if (lbHit) {
+        let o = null;
+        if (lbHit.cls === "con") o = conObjRef.current(lbHit.ab);
+        else if (lbHit.pk && lbHit.pk.si != null) o = starObj(stars[lbHit.pk.si], lbHit.pk.si);
+        else if (lbHit.pk && lbHit.pk.layer === "solar") o = { ...lbHit.pk.ob, layer: "solar" };
+        else if (lbHit.pk && lbHit.pk.ob) o = { ...lbHit.pk.ob, layer: lbHit.pk.layer };
+        if (o) { setPick(null); if (o.layer === "con") setSel(null); setSelObj(o); return; }
       }
       if (best) {
         // varios objetos prácticamente en el mismo punto (p. ej. Marte y sus orbitadores): se deja elegir
-        const same = hits.filter((h) => Math.hypot(h.sx - best.sx, h.sy - best.sy) < 14).sort((a, b) => a.d - b.d);
         if (same.length > 1) { setPick(same.slice(0, 8).map((h) => ({ label: h.label, kind: h.kind, make: h.make }))); setSelObj(null); if (!isWideRef.current) setPanel(null); }
         else { setPick(null); setSelObj(best.make()); }
         return;
-      }
-      // nada debajo: ¿se tocó el nombre de una constelación? → su ficha
-      for (const lb of (ref._labels || [])) {
-        if (lb.cls !== "con") continue;
-        const w = lb.name.length * (r.width >= 900 ? 12.5 : 11) + 14, x0 = lb.flip ? lb.x - w : lb.x;
-        if (px >= x0 - 6 && px <= x0 + w + 6 && Math.abs(py - lb.y) <= 16 + touch) {
-          const co = conObjRef.current(lb.ab);
-          if (co) { setPick(null); setSel(null); setSelObj(co); return; }
-        }
       }
       setPick(null);
       if (ref.ar.on && !isWideRef.current && !selObjRef.current && !panelRef.current) setArCtl(v => !v);
@@ -2087,7 +2311,8 @@ export default function Constellations({ lang = "es" }) {
     };
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointerup", onUp);
-    return () => { el.removeEventListener("pointerdown", onDown); el.removeEventListener("pointerup", onUp); };
+    el.addEventListener("pointercancel", onCancel);
+    return () => { el.removeEventListener("pointerdown", onDown); el.removeEventListener("pointerup", onUp); el.removeEventListener("pointercancel", onCancel); };
   }, [ready, sky]);
 
   const onPick = useCallback((e) => {
@@ -2226,8 +2451,14 @@ export default function Constellations({ lang = "es" }) {
       {sky && (
         <div className="sk-top">
           <SearchBox t={t} query={query} setQuery={setQuery} results={results} onResult={onResult} quick={quick} compact={!isWide} />
-          {(viewFrom || (isWide && localMode)) && (
+          {(viewFrom || outside || (isWide && localMode)) && (
             <div className="sk-chips">
+              {outside && (
+                <div className="sk-chip tone-violet">
+                  <span>{t.outsideChip}</span>
+                  <button type="button" onClick={() => setOutside(false)} aria-label={t.backInsideAria}>{t.backInside}</button>
+                </div>
+              )}
               {viewFrom && (
                 <div className="sk-chip tone-violet">
                   <span>{t.skyFrom} <b>{viewFrom.name}</b></span>
@@ -2317,6 +2548,7 @@ export default function Constellations({ lang = "es" }) {
           onToggle={toggleLayer} onRetry={loadLayer} showSolar={showSolar} onToggleSolar={() => setShowSolar(v => !v)}
           constellations={sortedCons} sel={sel} onPick={onPick} labelDensity={labelDensity} onDensity={setLabelDensity}
           vivid={vividStars} onVivid={() => setVividStars(v => !v)}
+          outside={outside} onOutside={inMySky ? null : () => { setOutside(o => !o); setSel(null); setDepth(0); if (!isWideRef.current) setPanel(null); }}
           onClose={() => setPanel(null)} notes={notes} onNote={openNote} />
       )}
       {sky && panel === "location" && (
