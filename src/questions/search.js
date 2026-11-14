@@ -6,8 +6,8 @@
 // Palabras clave por pregunta (ES y EN). Las preguntas que aún no existan en TOUR_IDS se ignoran.
 export const KEYWORDS = {
   mass: {
-    es: "masa peso báscula gravedad densidad tamaño radio inercia órbita kepler luna planeta enana marrón enana blanca estrella neutrones schwarzschild compresión pesar sirio betelgeuse",
-    en: "mass weight scale gravity density size radius inertia orbit kepler moon planet brown dwarf white dwarf star neutron schwarzschild compress weigh sirius betelgeuse",
+    es: "masa peso báscula gravedad densidad tamaño radio inercia órbita kepler luna planeta enana marrón enana blanca estrella neutrones schwarzschild agujero negro compresión pesar sirio betelgeuse",
+    en: "mass weight scale gravity density size radius inertia orbit kepler moon planet brown dwarf white dwarf star neutron schwarzschild black hole compress weigh sirius betelgeuse",
   },
   time: {
     es: "tiempo viaje viajar relatividad einstein dilatación velocidad luz gps reloj relojes gemelos paradoja próxima centauri chimborazo gravedad pasado futuro agujero gusano envejecer",

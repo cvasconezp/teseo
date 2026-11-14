@@ -1,0 +1,138 @@
+/* spectrum.css — «¿Cómo sabemos de qué están hechas las estrellas?» (prefijos q-spec / q-nir / q-game).
+   Reutiliza las variables y piezas de questions.css. Nada de fondos ni rellenos blancos: todo son
+   capas translúcidas sobre el fondo oscuro, para que la visión nocturna (capa roja multiplicada)
+   las tiñe bien. El espectro visible lo dibuja src/sky/Spectrum.jsx con las variables del Cielo,
+   que aquí se definen en .q-spectrum-tour. */
+
+.q-spectrum-tour {
+  --mute: rgba(238, 240, 250, 0.7);
+  --gold: #F2C66D;
+  --line-soft: rgba(255, 255, 255, 0.1);
+}
+
+/* ─── Pasos (mismas medidas que en los otros recorridos) ─────────────────── */
+.q-spectrum-tour .q-step { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
+.q-spectrum-tour .q-step:first-of-type { margin-top: 26px; }
+.q-spectrum-tour .q-step__title { margin-bottom: 8px; }
+.q-spectrum-tour .q-step__lead { margin-bottom: 14px; font-size: 15px; color: var(--soft); }
+.q-spectrum-tour .q-step__p { margin-top: 10px; font-size: 14.5px; color: var(--soft); }
+.q-spectrum-tour .q-step .q-card { margin-top: 14px; }
+.q-spectrum-tour .q-step .q-card + .q-card { margin-top: 10px; }
+.q-spectrum-tour .q-step .q-refs { margin-bottom: 4px; }
+.q-spectrum-tour .q-assume__list { margin: 0; padding-left: 1.15em; }
+.q-spectrum-tour .q-assume__list li { margin-top: 8px; }
+.q-spectrum-tour .q-assume__list li::marker { color: var(--thread); }
+.q-spectrum-tour .q-sources { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
+.q-spectrum-tour .q-assume { margin-top: 30px; }
+.q-spectrum-tour .q-card__body > .q-refs { margin-top: 10px; }
+.q-spectrum-tour .q-spec-h4 { margin-top: 20px; }
+@media (min-width: 1024px) { .q-spectrum-tour .q-assume, .q-spectrum-tour .q-sources, .q-spectrum-tour .q-step__lead { max-width: 42rem; } .q-spectrum-tour .q-assume, .q-spectrum-tour .q-sources { margin-inline: auto; } }
+
+/* ─── Paso 1: prisma, franjas y línea de tiempo ──────────────────────────── */
+.q-prism { display: block; width: 100%; max-width: 360px; height: auto; margin: 6px auto 0; }
+.q-prism__beam { stroke: rgba(255, 255, 255, 0.85); stroke-width: 5; stroke-linecap: round; }
+.q-prism__glass { fill: rgba(125, 185, 255, 0.14); stroke: rgba(255, 255, 255, 0.55); stroke-width: 1.6; stroke-linejoin: round; }
+.q-strips-fig { margin: 18px 0 0; padding: 14px 12px 12px; border-radius: 18px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line-strong); }
+.q-strips-fig .q-h4 { margin-top: 0; font-size: 19px; }
+.q-strips { display: block; width: 100%; height: auto; margin-top: 8px; border-radius: 6px; }
+.q-strips__keys { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.45; color: var(--soft); }
+.q-strips__keys strong { color: #fff; }
+
+.q-time-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.q-time-item { display: grid; grid-template-columns: 78px minmax(0, 1fr); column-gap: 12px; padding: 14px 0 6px; border-top: 1px solid var(--line); }
+.q-time-item:first-child { border-top: 0; }
+.q-time-item__year { font-family: var(--serif); font-weight: 700; font-size: 20px; line-height: 1.15; color: var(--thread); font-variant-numeric: lining-nums; overflow-wrap: anywhere; }
+.q-time-item__who { font-weight: 600; font-size: 15px; line-height: 1.3; color: #fff; }
+.q-time-item__text { margin-top: 4px; font-size: 14px; line-height: 1.5; color: var(--soft); }
+.q-time-item .q-refs { margin-top: 4px; }
+
+/* ─── Espectro (visible + infrarrojo cercano) ───────────────────────────── */
+.q-spec-fig { margin: 14px 0 0; padding: 12px 10px 10px; border-radius: 20px; background: linear-gradient(170deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0.02) 60%); border: 1px solid var(--line-strong); }
+.q-spec-fig .sk-spec-svg { max-width: none; }
+.q-spec-fig.is-mystery .sk-spec-guide { display: none; }
+.q-spec-fig__nir { margin: 12px 2px 4px; font-size: 13px; font-weight: 600; line-height: 1.3; color: var(--soft); }
+.q-spec-fig .q-fine { margin: 8px 2px 0; }
+.q-nir { display: block; width: 100%; height: auto; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line); overflow: visible; }
+.q-nir text { font-family: var(--sans); font-size: 9px; fill: var(--muted); }
+.q-nir__curve { fill: none; stroke: #eef0fa; stroke-width: 1.6; stroke-linejoin: round; }
+.q-nir__area { fill: rgba(255, 120, 90, 0.14); }
+.q-nir__base { stroke: rgba(255, 255, 255, 0.18); stroke-width: 1; }
+.q-nir__strip { fill: rgba(255, 130, 100, 0.22); stroke: rgba(255, 255, 255, 0.18); stroke-width: 0.6; }
+.q-nir__abs { fill: #05070d; }
+.q-nir__guide { stroke: rgba(255, 255, 255, 0.22); stroke-width: 0.7; stroke-dasharray: 2 2; }
+.q-nir .q-nir__lbl { fill: #e3ddff; font-weight: 600; }
+.q-nir__tick line { stroke: rgba(255, 255, 255, 0.35); stroke-width: 1; }
+.q-nir .q-nir__axis { font-size: 8.5px; }
+.q-spec-night { margin: 8px 2px 0; padding: 8px 10px; border-radius: 12px; font-size: 12.5px; line-height: 1.45; color: var(--soft); background: rgba(255, 255, 255, 0.04); border: 1px dashed var(--line-strong); }
+.q-spec-night.is-on { border-style: solid; border-color: var(--thread); color: #fff; }
+
+/* ─── Fichas de elementos ───────────────────────────────────────────────── */
+.q-spec-chips { margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.q-spec-chip {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 10px; align-items: center; text-align: left;
+  min-height: 60px; padding: 8px 10px; border-radius: 14px; color: var(--soft);
+  background: var(--panel); border: 1px solid var(--line-strong); transition: background .2s, border-color .2s, color .2s;
+}
+.q-spec-chip:hover { background: var(--panel-strong); color: #fff; }
+.q-spec-chip__sym { grid-row: 1 / span 2; min-width: 34px; font-family: var(--serif); font-weight: 700; font-size: 24px; line-height: 1; text-align: center; color: #fff; }
+.q-spec-chip__name { font-size: 13.5px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.q-spec-chip__state { font-size: 11.5px; line-height: 1.2; color: var(--muted); }
+.q-spec-chip.is-on { color: #fff; background: rgba(124, 58, 237, 0.3); border-color: var(--violet); box-shadow: inset 0 0 0 1px var(--violet); }
+.q-spec-chip.is-on .q-spec-chip__state { color: #D6CCFF; }
+.q-spec-chip.is-silent { border-style: dashed; background: rgba(242, 196, 109, 0.08); border-color: rgba(242, 196, 109, 0.6); box-shadow: none; }
+.q-spec-chip.is-silent .q-spec-chip__state { color: var(--thread); }
+@media (min-width: 560px) { .q-spec-chips { grid-template-columns: repeat(3, 1fr); } }
+
+.q-spec-amounts { margin-top: 6px; }
+.q-spec-read { margin-top: 6px; }
+.q-spec-read__list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; line-height: 1.45; color: var(--soft); }
+.q-spec-read__list strong { color: #fff; font-family: var(--serif); font-size: 17px; }
+.q-spec-read .q-note { margin-top: 8px; }
+.q-spec-temp { margin-top: 8px; }
+.q-presets__row--5 { grid-template-columns: repeat(2, 1fr); }
+.q-presets__row--5 .q-preset:last-child { grid-column: 1 / -1; }
+@media (min-width: 560px) { .q-presets__row--5 { grid-template-columns: repeat(5, 1fr); } .q-presets__row--5 .q-preset:last-child { grid-column: auto; } }
+.q-spectrum-tour .q-presets { margin-top: 12px; }
+.q-spectrum-tour .q-presets--second { margin-top: 6px; }
+.q-spec-refs-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.45; color: var(--soft); }
+.q-spec-refs-list strong { color: #fff; font-family: var(--serif); font-size: 16px; }
+.q-spec-why { margin-top: 10px; }
+
+/* ─── Juego ─────────────────────────────────────────────────────────────── */
+.q-game-nav { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 8px; }
+.q-game-dot {
+  width: 44px; height: 44px; border-radius: 50%; font-family: var(--serif); font-weight: 700; font-size: 18px; color: var(--soft);
+  background: var(--panel); border: 1px solid var(--line-strong); transition: background .2s, border-color .2s, color .2s;
+}
+.q-game-dot:hover { background: var(--panel-strong); color: #fff; }
+.q-game-dot.is-on { color: #fff; background: rgba(124, 58, 237, 0.3); border-color: var(--violet); box-shadow: inset 0 0 0 1px var(--violet); }
+.q-game-dot.is-done { border-style: dashed; }
+.q-game-dot.is-perfect { border-color: var(--q-measured); color: var(--q-measured); }
+.q-game-dot.is-perfect.is-on { color: #fff; }
+.q-game-title { margin-top: 16px; }
+.q-game-actions { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; }
+.q-game-btn { min-height: 48px; flex: 1 1 10rem; }
+.q-game-result { margin-top: 12px; }
+.q-game-verdict { padding: 10px 14px; border-radius: 14px; font-family: var(--serif); font-weight: 600; font-size: 20px; line-height: 1.25; color: #fff; background: rgba(125, 185, 255, 0.1); border: 1px solid rgba(125, 185, 255, 0.4); }
+.q-game-verdict.is-perfect { background: rgba(110, 231, 168, 0.1); border-color: rgba(110, 231, 168, 0.5); }
+.q-game-rows { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.q-game-rows li { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 8px; align-items: start; padding: 8px 10px; border-radius: 12px; font-size: 14px; line-height: 1.45; color: var(--soft); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }
+.q-game-rows li.is-ok { border-color: rgba(110, 231, 168, 0.45); }
+.q-game-rows li.is-bad { border-style: dashed; border-color: rgba(242, 196, 109, 0.6); }
+.q-game-rows strong { color: #fff; }
+.q-spec-mark { margin-top: 2px; flex: none; }
+.q-spec-mark.is-ok { color: var(--q-measured); }
+.q-spec-mark.is-bad { color: var(--thread); }
+.q-game-tally { margin-top: 14px; }
+
+/* ─── Paso 4: esquema de un espectro de transmisión ─────────────────────── */
+.q-dip { display: block; width: 100%; max-width: 360px; height: auto; margin: 12px auto 0; }
+.q-dip text { font-family: var(--sans); font-size: 10px; fill: var(--muted); }
+.q-dip__axis { stroke: rgba(255, 255, 255, 0.4); stroke-width: 1; }
+.q-dip__band { fill: rgba(125, 185, 255, 0.12); }
+.q-dip__line { stroke: #eef0fa; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.q-dip .q-dip__label { font-size: 10.5px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .q-spec-chip, .q-game-dot { transition: none; }
+}

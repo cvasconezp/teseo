@@ -152,7 +152,7 @@ const used = [...tour.matchAll(/ids=\{(?:\[([^\]]*)\]|Object\.keys\(GW_REFS\))/g
 ok(used.length > 12 && used.every(id => GW_REFS[id]), "todos los ids de fuentes que usa el recorrido existen", used.filter(id => !GW_REFS[id]).join());
 ok(/gw: lazy\(\(\) => import\("\.\/GwTour\.jsx"\)\)/.test(qjsx) && /TOUR_IDS = \[[^\]]*"gw"/.test(qjsx), "«gw» registrado en TOURS y TOUR_IDS");
 ok(parseRoute("#preguntas?q=gw&a=36", ["bh", "gw"]).id === "gw" && parseRoute("#questions?q=gw", ["gw"]).id === "gw", "ruta #preguntas?q=gw");
-ok(/Siete preguntas grandes/.test(i18n) && /Seven big questions/.test(i18n) && !/Seis preguntas grandes|Six big questions/.test(i18n), "recuento del índice: Siete / Seven");
+ok(/Ocho preguntas grandes/.test(i18n) && /Eight big questions/.test(i18n) && !/Siete preguntas grandes|Seven big questions/.test(i18n), "recuento del índice: Ocho / Eight");
 ok(/gw: \{ title: "¿Qué son las ondas gravitacionales\?"/.test(i18n) && /gw: \{ title: "What are gravitational waves\?"/.test(i18n), "entrada del índice en ES y EN");
 ok(/href=\{`#\$\{prefix\}\?q=bh`\}/.test(tour) && /href=\{`#\$\{prefix\}\?q=time`\}/.test(tour), "cierre con enlaces a q=bh y q=time");
 ok((tour.match(/ariaText=\{/g) || []).length >= 5 && /aria-pressed/.test(tour), "deslizadores con aria-valuetext legible y atajos con aria-pressed");

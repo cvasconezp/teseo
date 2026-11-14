@@ -20,9 +20,10 @@ const TOURS = {
   time: lazy(() => import("./TimeTour.jsx")),
   gw: lazy(() => import("./GwTour.jsx")),
   drake: lazy(() => import("./DrakeTour.jsx")),
+  spectrum: lazy(() => import("./SpectrumTour.jsx")),
 };
 // Orden del índice
-export const TOUR_IDS = ["mass", "time", "bh", "gw", "expansion", "dm", "drake"];
+export const TOUR_IDS = ["mass", "time", "spectrum", "bh", "gw", "expansion", "dm", "drake"];
 
 // Último lugar visitado: al cambiar de pestaña el panel se desmonta y, al
 // volver sin enlace, se retoma donde se dejó.
@@ -85,6 +86,13 @@ function Emblem({ id }) {
   if (id === "gw") return (
     <svg viewBox="0 0 120 80" aria-hidden="true" focusable="false">
       <path d="M6 40H26C30 40 31 33 34 33S38 47 42 47 46 28 51 28 55 52 60 52 65 22 71 22 76 58 83 58 89 18 96 18 100 40 104 40H114" stroke="#7DB9FF" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+  if (id === "spectrum") return (
+    <svg viewBox="0 0 120 80" aria-hidden="true" focusable="false">
+      <defs><linearGradient id="q-em-spec" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stopColor="#8B5CF6" /><stop offset="0.22" stopColor="#3B82F6" /><stop offset="0.42" stopColor="#34D399" /><stop offset="0.62" stopColor="#FACC15" /><stop offset="0.82" stopColor="#FB923C" /><stop offset="1" stopColor="#EF4444" /></linearGradient></defs>
+      <rect x="8" y="22" width="104" height="36" rx="4" fill="url(#q-em-spec)" />
+      {[24, 31, 52, 68, 74, 96].map(x => <rect key={x} x={x} y="22" width={x === 68 ? 3 : 1.8} height="36" fill="#04080F" />)}
     </svg>
   );
   return (
