@@ -71,6 +71,7 @@ def test_special_dest_moon_sun():
     assert metrics.clean_event({"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}) == {"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}
     assert metrics.clean_event({"e": "special_dest", "p": {"destination": "sun", "kind": "venus"}})["p"] == {"destination": "sun", "kind": "venus"}
     assert metrics.clean_event({"e": "special_dest", "p": {"kind": "link"}})["p"] == {"kind": "link"}
+    assert metrics.clean_event({"e": "special_dest", "p": {"destination": "sun", "kind": "pick"}})["p"] == {"destination": "sun", "kind": "pick"}
     assert metrics.clean_event({"e": "special_dest", "p": {"destination": "mars", "kind": "hack", "dest": "moon"}})["p"] == {}
 
 

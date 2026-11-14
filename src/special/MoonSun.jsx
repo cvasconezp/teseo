@@ -184,8 +184,8 @@ function SunCard({ lang, onVenus }) {
   );
 }
 
-/** Sección completa (pestaña Ventanas). */
-export default function MoonSun({ lang, onVenus }) {
+/** Tarjeta de la Luna o del Sol cuando se eligen como destino (only = "moon" | "sun"). */
+export default function MoonSun({ lang, onVenus, only }) {
   const t = TS[lang];
   // "hoy": se fija al montar y se refresca cada 10 minutos si la pestaña sigue abierta
   const [now, setNow] = useState(() => new Date());
@@ -194,13 +194,13 @@ export default function MoonSun({ lang, onVenus }) {
     return () => clearInterval(id);
   }, []);
   return (
-    <section id={MOONSUN_ID} className="ms" aria-labelledby="ms-h">
-      <h2 id="ms-h" tabIndex={-1} className="ms__title">{t.title}</h2>
+    <section id={MOONSUN_ID} className={`ms ${only ? "ms--only" : ""}`} aria-label={only ? (only === "moon" ? t.moonTitle : t.sunTitle) : undefined} aria-labelledby={only ? undefined : "ms-h"}>
+      {!only && <h2 id="ms-h" tabIndex={-1} className="ms__title">{t.title}</h2>}
       <p className="ms__intro">{t.intro}</p>
       <p className="ms__dv"><strong>{t.dvTitle}</strong> {t.dvExplain}</p>
       <div className="ms-grid">
-        <MoonCard lang={lang} now={now}/>
-        <SunCard lang={lang} onVenus={onVenus}/>
+        {only !== "sun" && <MoonCard lang={lang} now={now}/>}
+        {only !== "moon" && <SunCard lang={lang} onVenus={onVenus}/>}
       </div>
     </section>
   );

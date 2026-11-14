@@ -120,9 +120,11 @@ console.log("Arrastre: el cielo sigue al dedo");
     ok(Math.abs(ex - dx) < Math.abs(dx) * 0.2 + 2 && Math.abs(ey - dy) < Math.abs(dy) * 0.2 + 2,
       `dedo (${dx}, ${dy}) px → el cielo se mueve (${ex.toFixed(1)}, ${ey.toFixed(1)}) px`);
   }
-  ok(clampPitch(-0.5, 0, PITCH_MIN_LOCAL, PITCH_MAX) === PITCH_MIN_LOCAL, "Mi cielo: no se baja más de 15° bajo el horizonte");
-  ok(clampPitch(-0.6, -0.7, PITCH_MIN_LOCAL, PITCH_MAX) === -0.6, "bajo el límite (tras una búsqueda) se puede subir");
-  ok(clampPitch(-0.8, -0.7, PITCH_MIN_LOCAL, PITCH_MAX) === -0.7, "… pero no bajar más");
+  ok(clampPitch(-0.5, 0, PITCH_MIN_LOCAL, PITCH_MAX) === -0.5, "Mi cielo: se puede mirar bajo el horizonte");
+  ok(clampPitch(-2, -1.5, PITCH_MIN_LOCAL, PITCH_MAX) === PITCH_MIN_LOCAL, "Mi cielo: hasta el nadir, no más");
+  ok(Math.abs(PITCH_MIN_LOCAL + PITCH_MAX) < 1e-12, "Mi cielo llega al nadir igual que al cenit");
+  ok(clampPitch(-0.6, -0.7, -0.5, PITCH_MAX) === -0.6, "bajo un límite (tras una búsqueda) se puede subir");
+  ok(clampPitch(-0.8, -0.7, -0.5, PITCH_MAX) === -0.7, "… pero no bajar más");
   ok(clampPitch(2, 1.5, PITCH_MIN_LOCAL, PITCH_MAX) === PITCH_MAX, "no se pasa del cenit");
 }
 
