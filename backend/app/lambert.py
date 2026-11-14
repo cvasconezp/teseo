@@ -65,7 +65,11 @@ LOW_ORBIT_ALT_KM = {
 
 # Destinos para los que la transferencia directa NO es lo que usan las misiones
 # reales (Δv de llegada o C3 desproporcionados). Cada ejemplo está verificado
-# en NASA (ver `_ASSIST_NOTES`).
+# en NASA/ESA (ver `_ASSIST_NOTES`; fuentes y más misiones en src/route/assists.js).
+# Voyager 2: lanzamiento 20 ago 1977, Urano 24 ene 1986 y Neptuno 25 ago 1989 (UT,
+# NASA science.nasa.gov/mission/voyager/voyager-2); NASA dice que es la única nave
+# que ha visitado Urano y Neptuno y que cada sobrevuelo la impulsó hacia el siguiente
+# planeta (science.nasa.gov/mission/voyager/planetary-voyage).
 ASSIST_BODIES = {"mercury", "jupiter", "saturn", "uranus", "neptune"}
 
 _ASSIST_NOTES = {
@@ -83,17 +87,18 @@ _ASSIST_NOTES = {
         ),
         "saturn": (
             "Saturno: la trayectoria directa es muy exigente. Cassini (NASA) usó "
-            "sobrevuelos de Venus (26 abr 1998 y 21 jun 1999), la Tierra "
-            "(18 ago 1999) y Júpiter (30 dic 2000)."
+            "sobrevuelos de Venus (abr 1998 y 24 jun 1999), la Tierra "
+            "(ago 1999) y Júpiter (30 dic 2000)."
         ),
         "uranus": (
             "Urano: la trayectoria directa es extrema; solo una nave lo ha visitado "
-            "(Voyager 2), con ayuda de las asistencias gravitatorias de Júpiter y Saturno."
+            "(Voyager 2, el 24 de enero de 1986), con ayuda de las asistencias "
+            "gravitatorias de Júpiter y Saturno."
         ),
         "neptune": (
             "Neptuno: la trayectoria directa es extrema; solo una nave lo ha visitado "
-            "(Voyager 2), con ayuda de las asistencias gravitatorias de Júpiter, "
-            "Saturno y Urano."
+            "(Voyager 2, el 25 de agosto de 1989), con ayuda de las asistencias "
+            "gravitatorias de Júpiter, Saturno y Urano."
         ),
     },
     "en": {
@@ -109,17 +114,18 @@ _ASSIST_NOTES = {
         ),
         "saturn": (
             "Saturn: the direct trajectory is very demanding. Cassini (NASA) used "
-            "flybys of Venus (26 Apr 1998 and 21 Jun 1999), Earth (18 Aug 1999) "
+            "flybys of Venus (Apr 1998 and 24 Jun 1999), Earth (Aug 1999) "
             "and Jupiter (30 Dec 2000)."
         ),
         "uranus": (
             "Uranus: the direct trajectory is extreme; only one spacecraft has "
-            "visited it (Voyager 2), helped by gravity assists at Jupiter and Saturn."
+            "visited it (Voyager 2, on 24 January 1986), helped by gravity assists "
+            "at Jupiter and Saturn."
         ),
         "neptune": (
             "Neptune: the direct trajectory is extreme; only one spacecraft has "
-            "visited it (Voyager 2), helped by gravity assists at Jupiter, Saturn "
-            "and Uranus."
+            "visited it (Voyager 2, on 25 August 1989), helped by gravity assists at "
+            "Jupiter, Saturn and Uranus."
         ),
     },
 }

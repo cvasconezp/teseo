@@ -59,3 +59,33 @@
 .rt-table--top tbody td { padding: 8px 4px; font-size: 12px; }
 .rt-table--top tbody td:first-child { text-align: left; padding-left: 0; }
 .rt-swatch--past { background: repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0 2px, transparent 2px 4px); }
+
+/* «Catapultas gravitatorias» — .ga*. Misma base de tarjeta que .rt; fichas en lista ordenada. */
+.ga-list { display: grid; gap: 14px; margin-top: 12px; }
+.ga-mission { padding: 12px 12px 4px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.025); min-width: 0; }
+.ga-mission__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ga-mission__name { margin: 0; font-family: var(--serif); font-weight: 600; font-size: 20px; line-height: 1.2; color: #fff; }
+.ga-mission__agency { font-size: 12px; color: var(--muted); }
+.ga-badge { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; padding: 6px 10px; border-radius: 10px; font-size: 13px; line-height: 1.35; font-weight: 600; color: #F8D88F; background: rgba(242, 196, 109, 0.1); border: 1px solid rgba(242, 196, 109, 0.45); }
+.ga-badge__dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--thread); box-shadow: 0 0 8px rgba(242, 196, 109, 0.8); }
+
+.ga-seq { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 0; margin: 12px 0 0; padding: 0; list-style: none; }
+.ga-chip { position: relative; display: flex; align-items: flex-start; }
+.ga-chip__vis { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 50px; max-width: 74px; text-align: center; }
+.ga-chip__sphere { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid transparent; }
+.ga-chip.is-target .ga-chip__sphere { border-color: var(--violet); box-shadow: 0 0 10px rgba(167, 139, 250, 0.6); }
+.ga-chip.is-planned .ga-chip__sphere { border: 1.5px dashed rgba(242, 196, 109, 0.9); }
+.ga-chip.is-launch .ga-chip__sphere { border-color: rgba(255, 255, 255, 0.35); }
+.ga-chip__name { font-size: 12px; line-height: 1.2; font-weight: 600; color: #fff; }
+.ga-chip__n { margin-left: 2px; font-weight: 600; color: var(--thread); }
+.ga-chip__date { font-size: 11px; line-height: 1.2; color: var(--soft); }
+.ga-arrow { align-self: flex-start; width: 16px; height: 36px; display: grid; place-items: center; font-size: 14px; color: var(--thread); }
+
+.ga-dur { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 12px 0 0; }
+.ga-dur dt { font-size: 12px; color: var(--muted); }
+.ga-dur dd { margin: 0; font-family: var(--mono); font-size: 14px; color: #fff; font-weight: 600; }
+.ga-verdict { margin: 6px 0 0; font-size: 13.5px; line-height: 1.4; color: var(--soft); }
+.ga-table thead th:nth-child(2), .ga-table tbody td:nth-child(2) { text-align: left; }
+.ga-sources { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: var(--soft); }
+.ga-sources a, .ga a { color: #C4B5FD; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.ga-sources li { padding: 3px 0; }

@@ -429,3 +429,10 @@ def test_q_search_y_q_nav():
     assert metrics.clean_event({"e": "q_nav", "p": {"q": "gw"}})["p"] == {"q": "gw"}
     assert metrics.clean_event({"e": "q_nav", "p": {"q": "otra"}})["p"] == {}
 
+
+def test_assists_card_lista_blanca():
+    # Tarjeta «Catapultas»: solo cuerpos de un conjunto cerrado; nada más viaja
+    ev = metrics.clean_event({"e": "assists_card", "p": {"origin": "earth", "destination": "jupiter"}})
+    assert ev == {"e": "assists_card", "p": {"origin": "earth", "destination": "jupiter"}}
+    assert metrics.clean_event({"e": "assists_card", "p": {"destination": "neptune"}})["p"] == {"destination": "neptune"}
+    assert metrics.clean_event({"e": "assists_card", "p": {"destination": "pluton", "mission": "juno", "lat": 1}})["p"] == {}
