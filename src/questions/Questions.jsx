@@ -9,6 +9,7 @@ import { parseRoute } from "./physics.js";
 import { track, trackOnce } from "../ui/track.js";
 import { Certainty } from "./shared.jsx";
 import { TQ } from "./i18n.js";
+import { searchTours, SEARCH_TEXT } from "./search.js";
 import "./questions.css";
 
 const TOURS = {
@@ -25,7 +26,7 @@ export const TOUR_IDS = ["mass", "time", "bh", "gw", "expansion", "dm", "drake"]
 
 // Último lugar visitado: al cambiar de pestaña el panel se desmonta y, al
 // volver sin enlace, se retoma donde se dejó.
-const store = { id: null };
+const store = { id: null, query: "" };
 
 const prefix = (lang) => (lang === "es" ? "preguntas" : "questions");
 
@@ -94,14 +95,34 @@ function Emblem({ id }) {
 }
 
 function Index({ lang, t }) {
+  // Buscador por palabras clave: se guarda en memoria mientras dure la visita
+  const [query, setQuery] = useState(() => store.query || "");
+  const S = SEARCH_TEXT[lang] || SEARCH_TEXT.es;
+  const shown = searchTours(query, TOUR_IDS, TQ);
+  const onQuery = (v) => { store.query = v; setQuery(v); };
   return (
     <section className="q q-idx" aria-labelledby="q-idx-title">
       <header className="q-head">
         <h2 id="q-idx-title" className="q-title">{t.indexTitle}</h2>
         <p className="q-lead">{t.indexLead}</p>
       </header>
+      <div className="q-search" role="search">
+        <label className="q-sr" htmlFor="q-search-input">{S.label}</label>
+        <svg className="q-search__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input id="q-search-input" className="q-search__input" type="search" value={query} placeholder={S.placeholder}
+          autoComplete="off" enterKeyHint="search" aria-describedby="q-search-count"
+          onChange={e => onQuery(e.target.value)}
+          onBlur={() => { if (query.trim()) track("q_search", { state: shown.length ? "ok" : "fail" }); }} />
+        {query && (
+          <button type="button" className="q-search__clear" aria-label={S.clear} onClick={() => onQuery("")}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        )}
+      </div>
+      <p id="q-search-count" className="q-search__count" role="status" aria-live="polite">{S.count(shown.length, TOUR_IDS.length)}</p>
+      {shown.length === 0 && <p className="q-search__empty">{S.empty(query.trim())}</p>}
       <ul className="q-idx__list">
-        {TOUR_IDS.map(id => (
+        {shown.map(id => (
           <li key={id}>
             <a className={`q-idx__card q-idx__card--${id}`} href={`#${prefix(lang)}?q=${id}`}>
               <span className="q-idx__art"><Emblem id={id} /></span>
@@ -122,6 +143,37 @@ function Index({ lang, t }) {
         </ul>
       </div>
     </section>
+  );
+}
+
+// Navegación entre preguntas al final de cada recorrido: anterior / siguiente y el resto en fichas.
+function TourNav({ id, lang, t }) {
+  const S = SEARCH_TEXT[lang] || SEARCH_TEXT.es;
+  const i = TOUR_IDS.indexOf(id), n = TOUR_IDS.length;
+  if (i < 0) return null;
+  const prev = TOUR_IDS[(i - 1 + n) % n], next = TOUR_IDS[(i + 1) % n];
+  const href = (q) => `#${prefix(lang)}?q=${q}`;
+  const go = (q) => () => track("q_nav", { q });
+  return (
+    <nav className="q-tournav" aria-label={S.navLabel}>
+      <h2 className="q-tournav__title">{S.navTitle}</h2>
+      <div className="q-tournav__pn">
+        <a className="q-tournav__card" href={href(prev)} onClick={go(prev)}>
+          <span className="q-tournav__dir">← {S.prev}</span>
+          <span className="q-tournav__name">{t.tours[prev].title}</span>
+        </a>
+        <a className="q-tournav__card is-next" href={href(next)} onClick={go(next)}>
+          <span className="q-tournav__dir">{S.next} →</span>
+          <span className="q-tournav__name">{t.tours[next].title}</span>
+        </a>
+      </div>
+      <ul className="q-tournav__all">
+        {TOUR_IDS.filter(q => q !== id).map(q => (
+          <li key={q}><a href={href(q)} onClick={go(q)}><span className="q-tournav__em"><Emblem id={q} /></span>{t.tours[q].title}</a></li>
+        ))}
+      </ul>
+      <a className="q-tournav__index" href={`#${prefix(lang)}`}>{t.allQuestions}</a>
+    </nav>
   );
 }
 
@@ -198,8 +250,11 @@ export default function Questions({ lang = "es", onSeeSky }) {
   if (!id) return <Index lang={lang} t={t} />;
   const Tour = TOURS[id];
   return (
-    <Suspense fallback={<p role="status" className="loading">{t.tourLoading}</p>}>
-      <Tour lang={lang} onSeeSky={seeSky} indexHref={indexHash} />
-    </Suspense>
+    <>
+      <Suspense fallback={<p role="status" className="loading">{t.tourLoading}</p>}>
+        <Tour lang={lang} onSeeSky={seeSky} indexHref={indexHash} />
+      </Suspense>
+      <TourNav id={id} lang={lang} t={t} />
+    </>
   );
 }
