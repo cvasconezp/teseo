@@ -17,6 +17,7 @@ Endpoints:
   GET  /api/probes                    → sondas y telescopios (NASA Horizons)
   GET  /api/launches                  → próximos lanzamientos (Launch Library 2)
   GET  /api/asteroids                 → acercamientos a la Tierra (JPL CNEOS)
+  GET  /api/iss/passes                → pasadas de la ISS sobre un lugar (CelesTrak + SGP4)
   GET  /api/missions/mars             → ventana a Marte + naves con destino Marte
   POST /api/m  (= /api/metrics/event) → métricas de uso anónimas y agregadas (204 siempre)
   GET  /api/metrics/summary[.csv]     → resumen de uso (token TESEO_METRICS_TOKEN; 404 sin él)
@@ -46,6 +47,7 @@ from app import narrative
 from app import exoplanets
 from app import launches
 from app import asteroids
+from app import iss
 from app import metrics
 from app import lambert
 from app.cache import ProviderError, iso_utc
@@ -68,6 +70,7 @@ _CACHE_SECONDS = [
     ("/api/health", 0),
     ("/api/launches", 300),
     ("/api/asteroids", 900),
+    ("/api/iss", 300),
     ("/api/missions/", 600),
     ("/api/probes", 600),
     ("/api/comets", 600),
@@ -188,6 +191,7 @@ def api_health():
         "caches": {
             "launches": {"provider": launches.SOURCE, **launches.resource.status()},
             "asteroids": {"provider": asteroids.SOURCE, **asteroids.resource.status()},
+            "iss": {"provider": iss.SOURCE, **iss.resource.status()},
             "exoplanets": {"provider": "NASA Exoplanet Archive", **exoplanets.resource.status()},
             "positions": {"provider": "NASA JPL Horizons", **nasa_horizons.positions_status()},
             "probes": {"provider": "NASA JPL Horizons", **nasa_horizons._probe_set.status()},
@@ -361,6 +365,7 @@ async def _prewarm():
             nasa_horizons.get_comet_positions(),
             asteroids.resource.get(),
             launches.resource.get(),
+            iss.resource.get(),
             run_in_threadpool(_windows, "earth", "mars", None, None, 1),  # calienta numba
             run_in_threadpool(_trajectory, "earth", "mars"),  # compila izzo (Lambert) y deja Tierra→Marte en caché
             exoplanets.resource.get(),
@@ -508,6 +513,30 @@ async def list_asteroids(
     except Exception as e:
         raise _provider_http_error("NASA/JPL CNEOS", e)
     if data["stale"]:
+        _degraded(response)
+    return data
+
+
+@app.get("/api/iss/passes")
+async def iss_passes(
+    response: Response,
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lon: float = Query(..., ge=-180.0, le=180.0),
+    alt_m: float = Query(0.0, ge=-500.0, le=9000.0),
+    days: int = Query(iss.DEFAULT_DAYS, ge=iss.MIN_DAYS, le=iss.MAX_DAYS),
+    track: str = Query("visible", pattern="^(visible|all|none)$"),
+):
+    """Pasadas de la Estación Espacial Internacional sobre un lugar en los
+    próximos `days` días (1–10), con física real: elementos orbitales de
+    CelesTrak y propagación SGP4. Cada pasada trae inicio, culminación y fin
+    (hora UTC, altura y azimut), si se ve a simple vista (ISS iluminada y Sol
+    a menos de −6°) y su trayectoria (`track`: por defecto solo en las visibles;
+    `track=all` en todas, `track=none` en ninguna). No se guarda ni se registra el lugar."""
+    try:
+        data = await iss.get_passes(lat, lon, alt_m, days, track)
+    except Exception as e:
+        raise _provider_http_error("CelesTrak", e)
+    if data["stale"] or data["elements"]["outdated"]:
         _degraded(response)
     return data
 

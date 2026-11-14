@@ -383,3 +383,23 @@ def test_trajectory_card_lista_blanca():
     assert metrics.clean_event({"e": "trajectory_card", "p": {"state": "fail"}})["p"] == {"state": "fail"}
     assert metrics.clean_event({"e": "trajectory_card", "p": {"destination": "pluton", "state": "hack", "lat": 1}})["p"] == {}
     assert metrics.clean_event({"e": "net_error", "p": {"endpoint": "trajectory", "kind": "timeout"}})["p"] == {"endpoint": "trajectory", "kind": "timeout"}
+
+
+# ─── ISS: pasadas sobre mi lugar ──────────────────────────────────────────────
+def test_iss_passes_event_whitelist():
+    assert metrics.clean_event({"e": "iss_passes", "p": {"kind": "show", "state": "ok"}}) == {"e": "iss_passes", "p": {"kind": "show", "state": "ok"}}
+    assert metrics.clean_event({"e": "iss_passes", "p": {"kind": "view", "state": "empty"}})["p"] == {"kind": "view", "state": "empty"}
+    # lo que no está en la lista se descarta (nunca el lugar ni las coordenadas); el evento cuenta igual
+    ev = metrics.clean_event({"e": "iss_passes", "p": {"kind": "teleport", "state": "ok", "lat": -0.22, "lon": -78.51}})
+    assert ev == {"e": "iss_passes", "p": {"state": "ok"}}
+    assert metrics.clean_event({"e": "net_error", "p": {"endpoint": "iss_passes", "kind": "network"}})["p"] == {"endpoint": "iss_passes", "kind": "network"}
+
+
+# ─── Calendario del cielo (src/now/calendar/) ────────────────────────────────
+def test_now_calendar_card_whitelist():
+    assert metrics.clean_event({"e": "now_card_view", "p": {"card": "calendar"}}) == {"e": "now_card_view", "p": {"card": "calendar"}}
+    for kind in ("filter", "ics", "sky", "show_all"):
+        assert metrics.clean_event({"e": "now_item", "p": {"card": "calendar", "kind": kind}})["p"] == {"card": "calendar", "kind": kind}
+    # nunca el lugar ni valores fuera de la lista
+    ev = metrics.clean_event({"e": "now_item", "p": {"card": "calendar", "kind": "teleport", "lat": -0.22, "lon": -78.51}})
+    assert ev["p"] == {"card": "calendar"}

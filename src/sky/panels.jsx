@@ -7,6 +7,7 @@ import { fmtWhenLong } from "./format.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import { bodyName } from "./bodies.js";
 import { useDialogFocus } from "./focus.js";
+import IssPassesCard from "./IssPassesCard.jsx";
 
 // ── Etiquetas proyectadas ────────────────────────────────────────────────
 // Tienen su propio estado: el bucle de render las actualiza ~12 veces/s sin
@@ -476,7 +477,7 @@ export const GuideHud = memo(function GuideHud({ t, label, apiRef, onStop }) {
 
 // ── Esta noche en tu cielo ───────────────────────────────────────────────
 const TN_ICON = { moon: "moon", planet: "planet", shower: "meteor", con: "constellation", deep: "sparkle" };
-export function TonightPanel({ t, lang, data, placeName, onGo, onFind, onGoTime, onClose }) {
+export function TonightPanel({ t, lang, data, placeName, onGo, onFind, onGoTime, onClose, iss = null }) {
   const loc = lang === "es" ? "es-EC" : "en-US";
   const hm = (d) => d.toLocaleTimeString(loc, lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { hour: "numeric", minute: "2-digit" });
   const md = (o) => { const [m, d] = o.peak.split("-").map(Number); return new Date(2024, m - 1, d).toLocaleDateString(lang === "es" ? "es" : "en-US", { day: "numeric", month: "short" }); };
@@ -533,6 +534,8 @@ export function TonightPanel({ t, lang, data, placeName, onGo, onFind, onGoTime,
           {later.length > 0 && (
             <div className="sk-group"><h3>{t.tonightLater}</h3><ul className="sk-tn-list">{later.map(row)}</ul></div>
           )}
+          {/* Pasadas de la ISS sobre este lugar (CelesTrak + SGP4, en el servidor) */}
+          {iss && <IssPassesCard lang={lang} lat={iss.lat} lon={iss.lon} altM={iss.altM || 0} />}
           <p className="sk-panel-foot">{t.tonightFoot}</p>
         </>
       )}

@@ -70,14 +70,14 @@ LANGS = {"es", "en"}
 SCREENS = {"small", "medium", "large"}
 ON_OFF = {"on", "off"}
 TOURS = {"drake", "bh", "expansion", "dm", "mass", "time"}
-NOW_CARDS = {"mars", "launches", "asteroids"}
-NOW_KINDS = {"details", "webcast", "info", "show_all", "select", "ld_help", "cneos"}
+NOW_CARDS = {"mars", "launches", "asteroids", "calendar"}
+NOW_KINDS = {"details", "webcast", "info", "show_all", "select", "ld_help", "cneos", "filter", "ics", "sky"}
 NOW_SOURCES = {"link", "windows", "route", "header", "teaser"}
 SPECIAL_DESTS = {"moon", "sun"}
 SPECIAL_KINDS = {"view", "link", "venus", "pick"}
 ENDPOINTS = {
     "missions_mars", "launches", "asteroids", "launch_windows", "position", "distance", "route",
-    "exoplanets", "comets", "probes", "blackholes_json", "trajectory", "other",
+    "exoplanets", "comets", "probes", "blackholes_json", "trajectory", "iss_passes", "other",
 }
 ERROR_KINDS = {"timeout", "http4xx", "http5xx", "network", "parse"}
 SKY_LAYERS = {"messier", "pulsars", "blackholes", "galaxies", "meteors", "comets", "probes", "exoplanets"}
@@ -88,6 +88,8 @@ SKY_KINDS = {
 SKY_AR = {"on", "off", "denied", "nosensor", "pending"}
 SKY_SETTINGS = {"atmosphere", "light_pollution", "labels", "lines", "art", "grid", "horizon", "night", "guides", "other"}
 STATES = {"on", "off", "ok", "fail", "start", "done", "skip"}
+ISS_KINDS = {"view", "show", "retry"}
+ISS_STATES = {"ok", "empty", "stale", "fail"}
 
 EVENTS: Dict[str, Dict[str, Any]] = {
     # sesión y navegación
@@ -133,6 +135,9 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "sky_time":           {"kind": {"now", "forward", "back", "custom"}},
     "sky_setting":        {"setting": SKY_SETTINGS, "state": STATES},
     "sky_nasa_image":     {"kind": SKY_KINDS},
+    # ISS: pasadas sobre mi lugar (src/sky/IssPassesCard.jsx). kind: ver la tarjeta,
+    # "Verla en el cielo", reintentar. state: resultado de la consulta.
+    "iss_passes":         {"kind": ISS_KINDS, "state": ISS_STATES},
 }
 
 # Pares que interesa contar juntos (además de por separado)
