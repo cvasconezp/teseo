@@ -123,6 +123,8 @@ probar.
 | GET | `/api/asteroids?days=30&dist_ld=10` | Asteroides y cometas que pasan cerca de la Tierra (NASA/JPL CNEOS) |
 | GET | `/api/missions/mars` | Próxima ventana Tierra→Marte y naves con destino Marte |
 | GET | `/api/health` | Versión y edad de las cachés por proveedor (no llama a nadie) |
+| POST | `/api/m` (= `/api/metrics/event`) | Métricas de uso anónimas y agregadas; responde siempre 204 |
+| GET | `/api/metrics/summary?days=30` · `/api/metrics/summary.csv` | Resumen de uso (requiere `TESEO_METRICS_TOKEN`; sin él, 404) |
 
 Toda llamada a un proveedor externo va con caché en memoria, una sola petición
 a la vez donde el proveedor lo exige y, si el proveedor falla, se sirve el
@@ -187,6 +189,36 @@ Variables de entorno del backend en Railway:
 - `TESEO_USER_AGENT` — recomendado: identifica al backend ante NASA/JPL, cuya
   política de uso pide producto, versión y contacto en el User-Agent
   (p. ej. `Teseo/0.2 (+https://tu-sitio; tu-correo@dominio)`).
+- `TESEO_METRICS_DIR` — directorio donde se guardan las métricas de uso
+  (p. ej. un volumen persistente de Railway montado en `/data`). Sin ella, o si
+  no se puede escribir, las métricas viven solo en memoria y se pierden al
+  reiniciar; `/api/health` → `metrics.storage` lo indica.
+- `TESEO_METRICS_TOKEN` — token para leer el resumen:
+  `curl -H "Authorization: Bearer $TOKEN" https://…/api/metrics/summary?days=30`
+  o `…/api/metrics/summary.csv?token=$TOKEN` (para una hoja de cálculo). Sin
+  token configurado, esos endpoints responden 404.
+- `TESEO_METRICS_UTC_OFFSET_HOURS` — opcional: desfase del "día" de los
+  contadores respecto a UTC (`-5` para Ecuador continental). Por defecto, día UTC.
+- `TESEO_METRICS_RATE_PER_MIN` — opcional: eventos por minuto y origen
+  (por defecto 1500, alto porque en un evento todo el público comparte la IP de
+  la wifi).
+
+### Métricas de uso (anónimas y agregadas)
+
+Además de Google Analytics (que solo se activa si la persona acepta el aviso de
+cookies), Teseo cuenta qué funciones se usan con un sistema propio que **no
+recoge datos personales**: `src/ui/track.js` envía en lotes, con `sendBeacon`
+(`text/plain`, sin preflight CORS), eventos de una lista blanca (`tab_change`,
+`q_open`, `now_card_view`…) con valores cortos de un conjunto conocido; el
+backend (`backend/app/metrics.py`) vuelve a filtrarlos con su propia lista
+blanca y **solo incrementa contadores por día** (p. ej.
+`2026-11-14 · tab_change · tab:sky → 37`). No se guarda IP, user-agent, cookies,
+identificadores ni la hora de cada evento; el móvil/tableta/escritorio se deduce
+del user-agent al recibir `session_start` y el user-agent se descarta al
+instante. Las "visitas" son `session_start`, una por pestaña del navegador (marca
+en `sessionStorage`). El límite de abuso usa un hash de la IP con sal que cambia
+cada minuto y solo vive en memoria. Si el navegador envía Do Not Track o Global
+Privacy Control, tampoco se envía nada al backend propio.
 
 ## Licencia
 
