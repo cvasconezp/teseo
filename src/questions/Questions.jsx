@@ -15,10 +15,11 @@ const TOURS = {
   bh: lazy(() => import("./BlackHoleTour.jsx")),
   expansion: lazy(() => import("./ExpansionTour.jsx")),
   dm: lazy(() => import("./DarkMatterTour.jsx")),
+  time: lazy(() => import("./TimeTour.jsx")),
   drake: lazy(() => import("./DrakeTour.jsx")),
 };
 // Orden del índice
-export const TOUR_IDS = ["bh", "expansion", "dm", "drake"];
+export const TOUR_IDS = ["bh", "expansion", "dm", "time", "drake"];
 
 // Último lugar visitado: al cambiar de pestaña el panel se desmonta y, al
 // volver sin enlace, se retoma donde se dejó.
@@ -48,6 +49,15 @@ function Emblem({ id }) {
       <path d="M10 70H112M10 70V8" stroke="rgba(255,255,255,.4)" fill="none" />
       <path d="M10 70 108 14" stroke="#FDA4AF" strokeWidth="2" strokeLinecap="round" />
       {[[22, 64], [30, 57], [37, 56], [45, 48], [52, 47], [60, 40], [66, 39], [75, 30], [83, 31], [92, 22], [101, 20]].map(([x, y]) => <circle key={x} cx={x} cy={y} r="2.6" fill="#fff" />)}
+    </svg>
+  );
+  if (id === "time") return (
+    <svg viewBox="0 0 120 80" aria-hidden="true" focusable="false">
+      <circle cx="34" cy="40" r="26" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2" />
+      <circle cx="86" cy="40" r="26" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2" />
+      <path d="M34 40V20M34 40 49 46" stroke="#7DB9FF" strokeWidth="3.4" strokeLinecap="round" />
+      <path d="M86 40V20M86 40 94 24" stroke="#F2C46D" strokeWidth="3.4" strokeLinecap="round" />
+      <circle cx="34" cy="40" r="3" fill="#fff" /><circle cx="86" cy="40" r="3" fill="#fff" />
     </svg>
   );
   if (id === "dm") return (

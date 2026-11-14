@@ -18,6 +18,7 @@ export const TQ = {
       bh: { title: "¿Qué pasa cerca de un agujero negro?", teaser: "Elige una masa, de la Tierra a un cuásar, y mira cuánto mide su horizonte y cuánto se frena el tiempo a su lado.", tag: "Calculadora de horizonte, tiempo y mareas" },
       expansion: { title: "¿El universo se expande?", teaser: "Ajusta una recta sobre 36 supernovas reales y obtén la edad del universo. Luego quita la energía oscura y mira qué cambia.", tag: "Diagrama de Hubble con datos publicados" },
       dm: { title: "¿De qué está hecho el universo?", teaser: "Las estrellas del borde de una galaxia giran demasiado rápido. Añade masa invisible hasta que la cuenta cuadre con lo medido.", tag: "Curva de rotación real de NGC 3198" },
+      time: { title: "¿Se puede viajar en el tiempo?", teaser: "Mueve un deslizador de velocidad y otro de gravedad y mira cuántos años gana o pierde tu reloj. Al futuro, sí; al pasado, nadie lo ha logrado.", tag: "Dos relojes: velocidad y gravedad" },
       drake: { title: "¿Estamos solos?", teaser: "Siete números para ordenar la pregunta. Tres se han medido; de los otros cuatro nadie sabe nada.", tag: "Ecuación de Drake, Fermi y Kardashov" },
     },
     // ── ¿Estamos solos? ──
@@ -147,6 +148,7 @@ export const TQ = {
       bh: { title: "What happens near a black hole?", teaser: "Pick a mass, from Earth to a quasar, and see how big its horizon is and how much time slows beside it.", tag: "Horizon, time and tide calculator" },
       expansion: { title: "Is the universe expanding?", teaser: "Fit a line through 36 real supernovae and get the age of the universe. Then remove dark energy and see what changes.", tag: "Hubble diagram with published data" },
       dm: { title: "What is the universe made of?", teaser: "Stars at the edge of a galaxy orbit too fast. Add unseen mass until the sums match what was measured.", tag: "Real rotation curve of NGC 3198" },
+      time: { title: "Can you travel in time?", teaser: "Move a speed slider and a gravity slider and see how many years your clock gains or loses. Into the future, yes; into the past, nobody has managed it.", tag: "Two clocks: speed and gravity" },
       drake: { title: "Are we alone?", teaser: "Seven numbers to frame the question. Three have been measured; nobody knows anything about the other four.", tag: "Drake equation, Fermi and Kardashev" },
     },
     // ── Are we alone? ──
