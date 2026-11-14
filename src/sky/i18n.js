@@ -392,4 +392,6 @@ export const DIR_NAMES = DIRS;
 import { R3 } from "./i18n-r3.js";
 import { R4 } from "./i18n-r4.js";
 import { R5 } from "./i18n-r5.js";
-for (const k of ["es", "en"]) Object.assign(TX[k], R3[k], R4[k], R5[k]);
+// atmósfera, contaminación lumínica y magnitudes (src/sky/i18n-atm.js)
+import { ATM } from "./i18n-atm.js";
+for (const k of ["es", "en"]) Object.assign(TX[k], R3[k], R4[k], R5[k], ATM[k]);

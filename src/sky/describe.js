@@ -88,6 +88,11 @@ export function describeObject(o, lang, t, meteorActive) {
     if (b.day_h) d.details.push([t.dRotation, fmtDuration(b.day_h * 3600, lang) + (b.spin < 0 ? ` (${t.retrograde})` : "")]);
     if (b.year_d) d.details.push([o.name === "Luna" ? t.dOrbitEarth : t.dOrbitSun, fmtDuration(b.year_d * 86400, lang)]);
     if (o.ra != null) d.details.push([t.dPosition, raDec(o.ra, o.dec, lang)]);
+    // magnitud aparente según la fecha (planetas: Mallama y Hilton 2018; Luna: aproximada)
+    if (o.mag != null && o.name !== "Sol" && t.dAppMag) {
+      d.details.push([t.dAppMag, t.appMagVal(o.mag, !!o.magApprox)]);
+      if (o.body === "planet") say(null, t.appMagLine(o.mag), t.appMagSrc);
+    }
     d.details.push([t.dSource, t.srcSolar]);
     d.distNote = t.ephemNote;
   } else if (L === "star") {
@@ -260,6 +265,9 @@ export function describeObject(o, lang, t, meteorActive) {
     d.note = t.noteBody[id];
     d.distNote = t.noteSource[id];
   }
+  // objetos que solo se detectan con instrumentos: nunca a simple vista (no se atenúan por la atmósfera)
+  if ((L === "pulsars" || L === "blackholes" || L === "exoplanets") && t.dNaked) d.details.unshift([t.dNaked, t.nakedNo]);
+  // con la atmósfera activa: si ahora mismo no se vería a simple vista, se dice
+  if (o.atmVis === false && t.atmHiddenNow) say(null, t.atmHiddenNow);
   return d;
 }
-

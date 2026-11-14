@@ -124,3 +124,29 @@ contra los propios servicios.
   CDN). Por eso la imagen de la NASA solo se muestra en la ficha; la postal
   (que se dibuja en un lienzo y se exporta) usa Wikipedia o la representación
   propia (`NASA_CANVAS_OK = false` en `src/sky/postcard.js`).
+
+
+### Atmósfera, contaminación lumínica y magnitudes (vista Cielo · Mi cielo)
+- **Brillo del cielo y umbral de visión:** B. E. Schaefer, *Astronomy and the
+  limits of vision*, Vistas in Astronomy 36, 311–361 (1993) y *To the visual
+  limits*, Sky & Telescope 95(5), 57–60 (1998), programa VISLIMIT (constantes
+  contrastadas con la transcripción de L. Bogan y con `Skybright.cpp` de
+  Stellarium). Código: `src/sky/atmosphere.js` · pruebas:
+  `node scripts/test_sky_atmosphere.mjs`.
+- **Masa de aire:** F. Kasten y A. T. Young, Applied Optics 28, 4735 (1989).
+- **Escala de Bortle:** J. E. Bortle, Sky & Telescope, febrero de 2001 (magnitud
+  límite por clase). Bortle no da brillo en mag/arcsec²: Teseo no lo muestra.
+- **Brillo típico de cielos naturales, rurales y urbanos; crepúsculos:** A. Hänel
+  et al., JQSRT 205, 278 (2018), tabla 2 (arXiv:1709.09558).
+- **Contexto sobre observadores típicos:** A. Crumey, MNRAS 442, 2600 (2014).
+- **Visión mesópica (cuándo deja de ayudar la adaptación a la oscuridad):** CIE 191:2010.
+- **Quito:** B. A. Aroca Morocho y P. M. Herrera Paucar (2022), *Estudio y análisis
+  del grado de la contaminación lumínica en el DMQ*, tesis UPS (SQM 15,5–16,4
+  mag/arcsec²) → Bortle 8 por defecto. Altitudes de los atajos: ficha de cada
+  ciudad en Wikipedia (Quito 2.850 m, Cayambe 2.830 m, Guayaquil 4 m, Cuenca 2.560 m).
+- **Magnitud aparente de los planetas:** A. Mallama y J. L. Hilton, Astronomy and
+  Computing 25, 10–24 (2018) (sin las correcciones L(λe) y L(Ls) de Marte).
+  Contrastada con JPL Horizons (APmag, 13-nov-2026): `node scripts/test_sky_planetmag.mjs`.
+- **Ciencia ciudadana:** Globe at Night, <https://globeatnight.org/>.
+- Los **colores** del cielo son una aproximación visual (no un modelo de dispersión),
+  y así se rotula en la interfaz.
