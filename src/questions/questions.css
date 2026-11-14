@@ -575,3 +575,32 @@ details[open] > summary .q-chev { transform: rotate(180deg); }
   .q-range:active::-webkit-slider-thumb { transform: none; }
   .q-chips { scroll-behavior: auto; }
 }
+
+/* Buscador del índice de Preguntas */
+.q-search { position: relative; margin: 18px 0 6px; }
+.q-search__icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.q-search__input { width: 100%; min-height: 50px; padding: 0 48px 0 44px; border-radius: 999px; border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.05); color: #fff; font: inherit; font-size: 16px; }
+.q-search__input::placeholder { color: var(--muted); }
+.q-search__input:focus-visible { outline: 3px solid #E8A838; outline-offset: 2px; }
+.q-search__input::-webkit-search-cancel-button { display: none; }
+.q-search__clear { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; display: grid; place-items: center; border-radius: 999px; color: var(--soft); background: transparent; border: 0; cursor: pointer; }
+.q-search__clear:focus-visible { outline: 3px solid #E8A838; outline-offset: 0; }
+.q-search__count { margin: 2px 4px 12px; font-size: 13px; color: var(--muted); }
+.q-search__empty { margin: 4px 4px 18px; color: var(--soft); }
+
+/* Navegación entre preguntas al final de cada recorrido */
+.q-tournav { margin: 36px 0 8px; padding-top: 22px; border-top: 1px solid var(--line-strong); }
+.q-tournav__title { font-family: var(--serif, inherit); font-size: 24px; color: #fff; margin-bottom: 12px; }
+.q-tournav__pn { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.q-tournav__card { display: flex; flex-direction: column; gap: 4px; min-height: 64px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.04); color: var(--soft); text-decoration: none; }
+.q-tournav__card.is-next { text-align: right; }
+.q-tournav__card:hover { background: rgba(255, 255, 255, 0.08); }
+.q-tournav__card:focus-visible, .q-tournav__all a:focus-visible, .q-tournav__index:focus-visible { outline: 3px solid #E8A838; outline-offset: 2px; }
+.q-tournav__dir { font-size: 12.5px; color: var(--muted); }
+.q-tournav__name { font-size: 15px; line-height: 1.3; color: #fff; }
+.q-tournav__all { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; }
+.q-tournav__all a { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 4px 10px; border-radius: 12px; color: var(--soft); text-decoration: none; }
+.q-tournav__all a:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+.q-tournav__em { flex: none; width: 48px; height: 32px; display: grid; place-items: center; }
+.q-tournav__em svg { width: 48px; height: 32px; }
+.q-tournav__index { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; color: var(--violet-soft, #c4b5fd); }

@@ -412,3 +412,11 @@ def test_now_calendar_card_whitelist():
     # nunca el lugar ni valores fuera de la lista
     ev = metrics.clean_event({"e": "now_item", "p": {"card": "calendar", "kind": "teleport", "lat": -0.22, "lon": -78.51}})
     assert ev["p"] == {"card": "calendar"}
+
+
+def test_q_search_y_q_nav():
+    # buscador del índice de Preguntas (nunca el texto escrito) y navegación entre preguntas
+    assert metrics.clean_event({"e": "q_search", "p": {"state": "ok", "q": "agujero negro"}})["p"] == {"state": "ok"}
+    assert metrics.clean_event({"e": "q_nav", "p": {"q": "gw"}})["p"] == {"q": "gw"}
+    assert metrics.clean_event({"e": "q_nav", "p": {"q": "otra"}})["p"] == {}
+

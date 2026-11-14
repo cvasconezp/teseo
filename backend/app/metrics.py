@@ -114,6 +114,8 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "trajectory_card":    {"origin": BODIES, "destination": BODIES, "state": {"ok", "fail", "empty"}},
     # Preguntas
     "q_index":            {},
+    "q_search":           {"state": {"ok", "fail"}},
+    "q_nav":              {"q": TOURS},
     "q_open":             {"q": TOURS},
     "q_preset":           {"q": TOURS, "preset": TOKEN},
     "q_slider":           {"q": TOURS},
