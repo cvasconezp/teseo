@@ -73,3 +73,5 @@
 }
 
 .cal-month__h::first-letter { text-transform: uppercase; }
+
+.cal-next { margin-bottom: 8px; }

@@ -155,7 +155,7 @@ export default function Calendar({ lang = "es", api = "" }) {
   const [from] = useState(() => Math.floor(Date.now() / 60000) * 60000);
   const [more, setMore] = useState(false);
   const [filter, setFilter] = useState("all");
-  const days = more ? 365 : 90;
+  const days = more ? 365 : 30;
 
   // vista de la tarjeta (anónima, una vez por pestaña)
   const boxRef = useRef(null);
@@ -193,7 +193,12 @@ export default function Calendar({ lang = "es", api = "" }) {
   }, [calc.list, from, days, launches, issPasses]);
 
   const shown = useMemo(() => (filter === "all" ? events : events.filter(e => e.type === filter)), [events, filter]);
-  const groups = useMemo(() => groupByMonth(shown), [shown]);
+  // Primero solo los más próximos (la lista completa mide miles de píxeles en el teléfono)
+  const STEP = 8;
+  const [limit, setLimit] = useState(STEP);
+  useEffect(() => { setLimit(STEP); }, [filter, more]);
+  const visible = useMemo(() => shown.slice(0, limit), [shown, limit]);
+  const groups = useMemo(() => groupByMonth(visible), [visible]);
   const present = useMemo(() => new Set(events.map(e => e.type)), [events]);
 
   const placeName = place.name || (place.kind === "me" ? t.placeMe : t.placeCustom(fmt.n(place.lat, 2), fmt.n(place.lon, 2)));
@@ -223,7 +228,7 @@ export default function Calendar({ lang = "es", api = "" }) {
       </div>
 
       <p className="cal-count" role="status" aria-live="polite">
-        {ready ? <>{more ? t.range365 : t.range90} · {t.count(shown.length)}</> : t.computing}
+        {ready ? <>{more ? t.range365 : t.range30} · {t.count(shown.length)}</> : t.computing}
       </p>
 
       {!ready && <div className="now-state" aria-hidden="true"><span className="now-skel" /><span className="now-skel now-skel--short" /></div>}
@@ -237,6 +242,12 @@ export default function Calendar({ lang = "es", api = "" }) {
         ))}
       </div>
 
+      {ready && shown.length > limit && (
+        <button type="button" className="btn btn--ghost now-more cal-next" aria-controls={listId}
+          onClick={() => setLimit(l => l + 10)}>
+          {t.moreEvents(Math.min(10, shown.length - limit), shown.length - limit)}
+        </button>
+      )}
       <button type="button" className="btn btn--ghost now-more" aria-expanded={more} aria-controls={listId}
         onClick={() => { if (!more) track("now_item", { card: "calendar", kind: "show_all" }); setMore(m => !m); }}>
         {more ? t.showLess : t.showMore}

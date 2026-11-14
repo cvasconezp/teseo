@@ -1500,6 +1500,10 @@ export default function Teseo() {
   },[syncHash]);
   const toggleNow = useCallback(()=>{
     if (!nowOpen) track("now_open", { source: "windows" });
+    // Al abrir, la vista se queda en la cabecera de la sección. Sin esto, el navegador ancla la
+    // vista al mapa que va debajo (en el teléfono la sección está antes del mapa) y, al crecer el
+    // contenido, la persona aparece al final de la lista en vez de al inicio.
+    if (!nowOpen) setNowFocus(n=>n+1);
     setNowOpen(!nowOpen);
   },[nowOpen]);
   useEffect(()=>{
