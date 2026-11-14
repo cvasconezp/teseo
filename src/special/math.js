@@ -141,52 +141,20 @@ export function sunTrip() {
 
 // ─── La Luna hoy (método de Paul Schlyter) ──────────────────────────────────
 
+import { moonSchlyter } from "../moon.js";
+
 const RAD = Math.PI / 180;
-const sind = x => Math.sin(x * RAD), cosd = x => Math.cos(x * RAD);
-const atan2d = (y, x) => Math.atan2(y, x) / RAD;
+const cosd = x => Math.cos(x * RAD);
 const rev = x => ((x % 360) + 360) % 360;
 const dayNum = ms => ms / DAY_MS + 2440587.5 - 2451543.5;   // días desde 1999-12-31 0h
-
-function kepler(Mdeg, e) {
-  const M = rev(Mdeg) * RAD;
-  let E = M + e * Math.sin(M) * (1 + e * Math.cos(M));
-  for (let k = 0; k < 12; k++) {
-    const dE = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
-    E -= dE;
-    if (Math.abs(dE) < 1e-12) break;
-  }
-  return E;
-}
 
 /**
  * Luna geocéntrica en una fecha: distancia (km), longitudes eclípticas de Luna
  * y Sol, elongación (0–360°, 0 = Luna nueva, 180 = llena), fracción iluminada.
  */
 export function moonState(date = new Date()) {
-  const d = dayNum(+date);
-  // Sol
-  const ws = 282.9404 + 4.70935e-5 * d, es = 0.016709 - 1.151e-9 * d, Ms = 356.047 + 0.9856002585 * d;
-  const Es = kepler(Ms, es);
-  const sunLon = rev(atan2d(Math.sqrt(1 - es * es) * Math.sin(Es), Math.cos(Es) - es) + ws);
-  // Luna: elementos medios
-  const N = 125.1228 - 0.0529538083 * d, i = 5.1454, w = 318.0634 + 0.1643573223 * d;
-  const a = 60.2666, e = 0.0549, Mm = 115.3654 + 13.0649929509 * d;   // a en radios terrestres
-  const E = kepler(Mm, e);
-  const xv = a * (Math.cos(E) - e), yv = a * Math.sqrt(1 - e * e) * Math.sin(E);
-  const v = atan2d(yv, xv), r = Math.hypot(xv, yv), u = v + w;
-  const xh = r * (cosd(N) * cosd(u) - sind(N) * sind(u) * cosd(i));
-  const yh = r * (sind(N) * cosd(u) + cosd(N) * sind(u) * cosd(i));
-  const zh = r * sind(u) * sind(i);
-  let lon = atan2d(yh, xh), lat = atan2d(zh, Math.hypot(xh, yh));
-  // Perturbaciones principales (Schlyter)
-  const Ls = rev(Ms + ws), Lm = rev(Mm + w + N), D = rev(Lm - Ls), F = rev(Lm - N);
-  lon += -1.274 * sind(Mm - 2 * D) + 0.658 * sind(2 * D) - 0.186 * sind(Ms) - 0.059 * sind(2 * Mm - 2 * D)
-       - 0.057 * sind(Mm - 2 * D + Ms) + 0.053 * sind(Mm + 2 * D) + 0.046 * sind(2 * D - Ms) + 0.041 * sind(Mm - Ms)
-       - 0.035 * sind(D) - 0.031 * sind(Mm + Ms) - 0.015 * sind(2 * F - 2 * D) + 0.011 * sind(Mm - 4 * D);
-  lat += -0.173 * sind(F - 2 * D) - 0.055 * sind(Mm - F - 2 * D) - 0.046 * sind(Mm + F - 2 * D)
-       + 0.033 * sind(F + 2 * D) + 0.017 * sind(2 * Mm + F);
-  const rEr = r - 0.58 * cosd(Mm - 2 * D) - 0.46 * cosd(2 * D);
-  const moonLon = rev(lon);
+  // Schlyter completo (longitud, latitud y distancia): src/moon.js, común con src/ephemeris.js
+  const { lon: moonLon, lat, rEr, sunLon } = moonSchlyter(dayNum(+date));
   const elong = rev(moonLon - sunLon);
   // Fracción iluminada a partir del ángulo Sol–Tierra–Luna (la paralaje del Sol es despreciable)
   const psi = Math.acos(Math.max(-1, Math.min(1, cosd(lat) * cosd(moonLon - sunLon)))) / RAD;
