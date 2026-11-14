@@ -531,6 +531,44 @@ details[open] > summary .q-chev { transform: rotate(180deg); }
   .q-mass__panel { margin-top: 14px; }
 }
 
+/* «Más masa no siempre es más grande» y «Elegir yo el tamaño» (añadido al bloque .q-mass) */
+.q-mass__pairtitle { margin-top: 14px; font-size: clamp(21px, 6vw, 25px); line-height: 1.2; text-wrap: balance; }
+.q-mass__pair { max-width: 340px; margin-top: 6px; }
+.q-mass__cmpline { color: #fff; }
+.q-mass__cmpline strong { font-weight: 600; }
+.q-mass__cmp { margin-top: 10px; }
+.q-mass__cmp td, .q-mass__order td, .q-mass__wd td { white-space: normal; overflow-wrap: anywhere; }
+.q-mass__cmp thead th:not(:first-child), .q-mass__cmp td { padding-right: 8px; }
+.q-mass__sub { display: block; margin-top: 2px; font-family: var(--sans); font-size: 11.5px; line-height: 1.3; color: var(--muted); }
+.q-mass__order { margin-top: 8px; table-layout: fixed; }
+.q-mass__order th, .q-mass__order td { font-size: 11.5px; padding-right: 4px; overflow-wrap: anywhere; }
+.q-mass__order thead th:first-child { width: 31%; }
+.q-mass__order thead th:nth-child(2) { width: 19%; }
+.q-mass__order thead th:nth-child(3) { width: 24%; }
+.q-mass__order td:not(:first-of-type), .q-mass__order thead th:not(:first-child) { text-align: right; padding-right: 0; padding-left: 6px; }
+.q-mass__wd { margin-top: 8px; }
+.q-mass__h4--gap { margin-top: 26px; }
+.q-mass__size { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.q-mass__size > .q-fine { margin-top: 10px; }
+.q-mass__switch { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 12px; border-radius: 16px; border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.04); color: var(--soft); font: inherit; text-align: left; cursor: pointer; }
+.q-mass__switch:hover { background: var(--panel-strong); }
+.q-mass__switch:focus-visible { outline: 3px solid #E8A838; outline-offset: 2px; }
+.q-mass__switch.is-on { border-color: var(--violet); background: rgba(124, 58, 237, 0.2); }
+.q-mass__knob { flex: none; position: relative; width: 46px; height: 26px; border-radius: 999px; border: 2px solid var(--muted); background: transparent; }
+.q-mass__knob i { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: transform 0.15s ease; }
+.q-mass__switch.is-on .q-mass__knob { border-color: #fff; background: var(--violet); }
+.q-mass__switch.is-on .q-mass__knob i { transform: translateX(20px); background: #fff; }
+.q-mass__switchtxt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.q-mass__switchtxt strong { font-family: var(--serif); font-weight: 700; font-size: 18px; line-height: 1.2; color: #fff; }
+.q-mass__switchtxt span { font-size: 13px; line-height: 1.35; color: var(--muted); }
+.q-mass__vs { padding-left: 12px; border-left: 2px solid var(--thread); color: #fff; }
+@media (min-width: 720px) {
+  .q-mass__sec > .q-mass__blurb { max-width: 42rem; margin-inline: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .q-mass__knob i { transition: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .q-chev, .q-bar, .q-bar.is-on, .q-preset, .q-mark, .q-idx__card { transition: none; }
   .q-bar { transform: none; }

@@ -2,7 +2,7 @@
 // cambio la masa?» (src/questions/massData.js).
 // Uso:  node scripts/test_questions_mass.mjs   (sale con código 1 si algo falla)
 import * as M from "../src/questions/massData.js";
-import { G, C, G0, M_SUN_KG } from "../src/questions/constants.js";
+import { G, C, G0, M_SUN_KG, R_SUN as R_SUN_, R_EARTH as R_EARTH_ } from "../src/questions/constants.js";
 import { TQ } from "../src/questions/i18n.js";
 
 let failed = 0, passed = 0;
@@ -10,6 +10,7 @@ const ok = (cond, name, detail = "") => { if (cond) { passed++; console.log(`  o
 const near = (a, b, rel = 1e-9) => Math.abs(a - b) <= rel * Math.max(Math.abs(a), Math.abs(b));
 const within = (a, b, abs) => Math.abs(a - b) <= abs;
 const keysOf = (o, pre = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? keysOf(v, `${pre}${k}.`) : [`${pre}${k}`]));
+const MJ_ = M.MJ_KG;
 const world = (id) => M.WORLDS.find(w => w.id === id);
 const preset = (id) => M.PRESETS.find(p => p.id === id);
 
@@ -158,6 +159,136 @@ ok(near(M.DM_OVER_ORDINARY, 5.364, 1e-3), "materia oscura / ordinaria (Planck) �
 ok(TQ.es.tours.mass && TQ.en.tours.mass && TQ.es.tours.mass.title && TQ.en.tours.mass.teaser && TQ.es.tours.mass.tag && TQ.en.tours.mass.tag, "tarjeta del índice «mass» en ES y EN");
 ok(keysOf(TQ.es).sort().join() === keysOf(TQ.en).sort().join(), "índice: ES y EN tienen las mismas claves");
 ok(M.ORBIT_DISTANCES.some(d => d.id === M.DEFAULT_ORBIT) && M.ORBIT_DISTANCES.every(d => d.a > 0 && d.label.es && d.label.en), "distancias de órbita válidas");
+
+console.log("Misma masa, distinto tamaño (g, v, ρ con el radio libre)");
+const MS = M_SUN_KG, ex = (id) => M.example(id);
+{
+  const sirius = ex("sirius"), rhoS = M.meanDensity(sirius.mass, sirius.R);
+  ok(rhoS > 1e9 && rhoS < 5e9 && Math.round(Math.log10(rhoS)) === 9, "densidad de Sirio B ≈ 10⁹ kg/m³ (2,8 × 10⁹ con 1,018 M☉ y 0,00802 R☉)", String(rhoS));
+  ok(near(sirius.R / world("earth").R, 0.876, 5e-3) && sirius.R < world("earth").R, "Sirio B es un poco más pequeña que la Tierra (0,88 R⊕)", String(sirius.R / world("earth").R));
+  const gNS = M.surfaceGravity(1.4 * MS, 12e3);
+  ok(within(gNS / 1.3e12, 1, 0.03), "estrella de neutrones de 1,4 M☉ y 12 km: g ≈ 1,3 × 10¹² m/s²", String(gNS));
+  const ns = ex("ns");
+  ok(near(M.meanDensity(ns.mass, ns.R), 3.44e17, 5e-3), "estrella de neutrones (1,4 M☉, 12,45 km): ρ ≈ 3,4 × 10¹⁷ kg/m³");
+  const bh = ex("bh10");
+  ok(within(bh.R / 1000, 29.5, 0.05) && near(bh.R, M.schwarzschildKg(10 * MS), 1e-12), "agujero negro de 10 M☉: r_s ≈ 29,5 km (≈ 30 km)", String(bh.R));
+  const bet = ex("betelgeuse"), rhoB = M.meanDensity(bet.mass, bet.R);
+  ok(within(bet.R / R_SUN_, 764, 1e-6) && rhoB < 1e-4 && rhoB < 1.2 / 1e4 && rhoB > 1e-5, "Betelgeuse: 764 R☉ y densidad ≈ 6 × 10⁻⁵ kg/m³, más de 10 000 veces menos que el aire", String(rhoB));
+  ok(M.meanDensity(M_SUN_KG, R_SUN_) / rhoB > 1e7, "Betelgeuse es más de 10⁷ veces menos densa que el Sol");
+  const bd = ex("browndwarf"), jup = ex("jupiter");
+  ok(bd.mass / jup.mass > 60 && bd.mass / jup.mass < 64 && bd.R / jup.R > 0.75 && bd.R / jup.R < 1.0, "enana marrón LHS 6343 C: 62 MJ y un radio menor que el de Júpiter (≈ 0,8)", String(bd.R / jup.R));
+  ok(M.example("sun").R > sirius.R * 100 && sirius.mass > M_SUN_KG, "Sirio B pesa más que el Sol y es más de 100 veces más pequeña");
+  // El radio no sigue a la masa: ordenados por masa, el radio sube y baja
+  const rows = M.TABLE_ORDER.map(ex), byMass = rows.every((e, i, a) => i === 0 || a[i - 1].mass <= e.mass);
+  let ups = 0, downs = 0; rows.forEach((e, i) => { if (i) (e.R > rows[i - 1].R ? ups++ : downs++); });
+  ok(byMass && ups >= 2 && downs >= 2, "en la tabla, ordenada por masa, el radio sube y baja (no sigue a la masa)", `${ups} subidas, ${downs} bajadas`);
+  ok(M.TABLE_ORDER.every(id => M.EXAMPLE_SHORT[id] && M.EXAMPLE_SHORT[id].es && M.EXAMPLE_SHORT[id].en), "cada cuerpo de la tabla tiene rótulo corto ES/EN");
+  ok(M.EXAMPLES.every(e => e.name.es && e.name.en && e.the.es && e.the.en && e.colors.length === 2 && e.R > 0 && (e.mass === null || e.mass > 0)), "ejemplos con nombre ES/EN, colores, masa y radio");
+  ok(M.EXAMPLES.filter(e => e.ref).every(e => M.MASS_REFS[e.ref]) && M.COMPARES.every(c => c.refs.every(r => M.MASS_REFS[r]) && c.items.every(i => ex(i)) && ["measured", "estimated"].includes(c.level)), "cada ejemplo y comparación cita fuentes que existen");
+  ok(M.COMPARES.map(c => c.id).join() === "jupiter,sirius,ns,bh,betelgeuse" && M.COMPARES.every(c => ["es", "en"].every(l => M.MASS_T[l].big.pairs[c.id] && M.MASS_T[l].big.tabs[c.id])), "cinco comparaciones con texto ES/EN");
+  // Enanas blancas medidas: la más masiva es la más pequeña (relación masa–radio inversa)
+  const wd = M.WD_MEASURED, top = wd.reduce((a, b) => (b.mass > a.mass ? b : a)), small = wd.reduce((a, b) => (b.R < a.R ? b : a));
+  ok(top.name === "Sirius B" && small.name === "Sirius B" && wd.length >= 5, "entre las enanas blancas medidas, la más masiva (Sirio B) es la más pequeña");
+  ok(wd.every(w => w.R > 0.007 && w.R < 0.016 && w.mass > 0.3 && w.mass < M.CHANDRASEKHAR), "radios de 0,7–1,6 % de R☉ y masas bajo el límite de Chandrasekhar (1,4 M☉)");
+}
+// Con el radio fijo, más masa da más gravedad; con la masa fija, menos radio da más gravedad (y más densidad)
+{
+  const Rfix = 6.371e6;
+  let a = true, b = true, c = true, d = true;
+  for (let l = 15; l < 31.5; l += 0.25) {
+    const m1 = Math.pow(10, l), m2 = Math.pow(10, l + 0.25);
+    if (!(M.surfaceGravity(m2, Rfix) > M.surfaceGravity(m1, Rfix))) a = false;
+    if (!(M.escapeVelocity(m2, Rfix) > M.escapeVelocity(m1, Rfix))) b = false;
+    const r1 = 1e3 * Math.pow(10, (l - 15) / 2), r2 = r1 / 1.5;
+    if (!(M.surfaceGravity(m1, r2) > M.surfaceGravity(m1, r1))) c = false;
+    if (!(M.meanDensity(m1, r2) > M.meanDensity(m1, r1) && M.escapeVelocity(m1, r2) > M.escapeVelocity(m1, r1))) d = false;
+  }
+  ok(a && b, "con el radio fijo, más masa → más gravedad y más velocidad de escape");
+  ok(c && d, "con la masa fija, menos radio → más gravedad, más velocidad de escape y más densidad");
+  ok(near(M.surfaceGravity(5.9722e24, 3189.5e3) / M.surfaceGravity(5.9722e24, 6379e3), 4, 1e-3), "la mitad del radio da 4 veces la gravedad (g ∝ 1/R²)");
+  ok(near(M.meanDensity(5.9722e24, 3189.5e3) / M.meanDensity(5.9722e24, 6379e3), 8, 1e-3), "la mitad del radio da 8 veces la densidad (ρ ∝ 1/R³)");
+  ok(near(M.radiusFromDensity(5.9722e24, M.meanDensity(5.9722e24, 1234e3)), 1234e3, 1e-12), "radiusFromDensity invierte meanDensity");
+}
+console.log("El radio de Schwarzschild marca el límite");
+{
+  const ME_ = 5.9722e24;
+  for (const m of [1e15, ME_, M_SUN_KG, 10 * M_SUN_KG, 60 * M_SUN_KG]) {
+    const rs = M.schwarzschildKg(m);
+    if (!(near(M.escapeVelocity(m, rs), C, 1e-9))) { ok(false, "v_escape(r_s) = c", String(m)); break; }
+  }
+  ok(true, "en el radio de Schwarzschild la velocidad de escape (Newton) vale exactamente c, para cualquier masa");
+  const rsE = M.schwarzschildKg(ME_);
+  ok(M.escapeVelocity(ME_, rsE * 0.99) > C && M.escapeVelocity(ME_, rsE * 1.01) < C, "por debajo de r_s la velocidad de escape supera a c; por encima, no");
+  ok(M.densityBand(ME_, rsE) === "bh" && M.densityBand(ME_, rsE * 0.5) === "bh" && M.densityBand(ME_, rsE * 1.1) === "bh", "en r_s, por debajo y hasta 9/8 r_s → agujero negro");
+  ok(M.densityBand(ME_, rsE * 1.2) !== "bh" && M.isBlackHole(ME_, rsE * M.BUCHDAHL) && !M.isBlackHole(ME_, rsE * M.BUCHDAHL * 1.001), "el límite de Buchdahl (9/8 r_s) separa el agujero negro del resto");
+  ok(near(M.BUCHDAHL, 1.125, 1e-12), "límite de Buchdahl = 9/8");
+  ok(M.isRelativistic(M_SUN_KG, 50 * M.schwarzschildKg(M_SUN_KG)) && !M.isRelativistic(M_SUN_KG, R_SUN_), "cerca de r_s Newton deja de valer; en el Sol, sí");
+}
+console.log("Rótulos por densidad y modo «Elegir yo el tamaño»");
+{
+  const ME_ = 5.9722e24, B_ = (m, rho) => M.densityBand(m, M.radiusFromDensity(m, rho));
+  ok(B_(ME_, 0.01) === "air" && B_(ME_, 1.1) === "air" && B_(ME_, 1.3) === "gas" && B_(ME_, 100) === "gas", "menos de 1,2 kg/m³ → más tenue que el aire; después, gas");
+  ok(B_(ME_, 1000) === "water" && B_(M_SUN_KG, 1410) === "water" && B_(MJ_, 1326) === "water", "1.000 kg/m³ (y el Sol y Júpiter) → como el agua");
+  ok(B_(ME_, 5514) === "rock" && B_(ME_, 11341) === "rock" && B_(ME_, 11343) === "lead", "la Tierra → roca; 11.342 kg/m³ (plomo) es el límite de «más denso que el plomo»");
+  ok(B_(ME_, 1e5) === "lead" && B_(ME_, 1.9e8) === "lead" && B_(ME_, 2.1e8) === "wd", "una enana marrón (10⁵) está entre el plomo y la enana blanca; desde 2 × 10⁸ → enana blanca");
+  ok(B_(M_SUN_KG, M.meanDensity(ex("sirius").mass, ex("sirius").R)) === "wd", "la densidad de Sirio B → enana blanca");
+  ok(near(M.teaspoonKg(2e8), 1000, 1e-12) && M.teaspoonKg(2.78e9) > 1e4, "a 2 × 10⁸ kg/m³ una cucharadita (5 mL) pesa una tonelada; en Sirio B, más de 10 t");
+  ok(B_(M_SUN_KG, 1e13) === "gap" && B_(M_SUN_KG, 1e16 * 1.01) === "ns" && B_(M_SUN_KG, 3.4e17) === "ns", "entre 10¹² y 10¹⁶, sin astros; desde 10¹⁶ → estrella de neutrones");
+  ok(M.DENSITY_BANDS.every((b, i, a) => i === 0 || a[i - 1].max < b.max) && M.BAND_IDS.length === 9, "las bandas están ordenadas y son nueve con el agujero negro");
+  ok(M.BAND_IDS.every(id => ["es", "en"].every(l => { const x = M.MASS_T[l].lab.size.bands[id]; return x && x.name && x.note; })), "cada banda tiene nombre y nota en ES y EN");
+  ok(M.MASS_T.es.lab.size.bands.bh.name.includes("Schwarzschild") && M.MASS_T.es.lab.size.bands.wd.name.includes("toneladas"), "los rótulos piden «radio de Schwarzschild» y «toneladas»");
+  // La Tierra comprimida: enana blanca, estrella de neutrones y agujero negro (los atajos del modo)
+  ok(M.densityBand(ME_, M.sizePresetRadius("model", ME_)) === "rock", "atajo «modelo»: la Tierra es roca");
+  ok(M.densityBand(ME_, M.sizePresetRadius("water", ME_)) === "water" && M.sizePresetRadius("water", ME_) > R_EARTH_, "atajo «como el agua»: la Tierra inflada");
+  ok(M.densityBand(ME_, M.sizePresetRadius("wd", ME_)) === "wd" && M.densityBand(ME_, M.sizePresetRadius("ns", ME_)) === "ns" && M.densityBand(ME_, M.sizePresetRadius("bh", ME_)) === "bh", "atajos: la Tierra comprimida a enana blanca, estrella de neutrones y agujero negro");
+  ok(near(M.sizePresetRadius("bh", ME_), M.schwarzschildKg(ME_), 1e-12) && within(M.sizePresetRadius("bh", ME_) * 1000, 8.87, 0.01), "atajo «agujero negro»: el radio de Schwarzschild de la Tierra (8,87 mm)");
+  ok(M.densityBand(ME_, M.sizePresetRadius("super", ME_)) === "air" && near(M.sizePresetRadius("super", ME_), 764 * R_SUN_, 1e-9), "atajo «supergigante»: la Tierra de 764 R☉ es más tenue que el aire");
+  ok(M.SIZE_PRESETS.every(id => ["es", "en"].every(l => M.MASS_T[l].lab.size.presets[id])), "atajos de tamaño con texto ES/EN");
+}
+console.log("Deslizador de radio (escala logarítmica)");
+{
+  const ME_ = 5.9722e24;
+  const masses = [1e15, ME_, M_SUN_KG, 20 * M_SUN_KG, 60 * M_SUN_KG];
+  ok(masses.every(m => near(Math.pow(10, M.sizeSlider(m).min), M.schwarzschildKg(m), 1e-12) && near(Math.pow(10, M.sizeSlider(m).max), 1000 * R_SUN_, 1e-12)), "va del radio de Schwarzschild de la masa elegida a una supergigante (1.000 R☉)");
+  ok(masses.every(m => M.sizeSlider(m).min < M.sizeSlider(m).max) && 1000 * R_SUN_ > 764 * R_SUN_, "el rango es válido para todas las masas y llega más allá de Betelgeuse");
+  let okAll = true, why = "";
+  for (const m of masses) {
+    const s = M.sizeSlider(m);
+    // ida y vuelta: log → radio → log, sobre toda la rejilla
+    for (let l = s.min; l <= s.max + 1e-9; l += 0.37) {
+      const sn = M.snapLogR(l, m), R = Math.pow(10, sn);
+      if (!Number.isFinite(R) || R <= 0 || sn < s.min - 1e-12 || sn > s.max + 1e-12 || !near(Math.log10(R), sn, 1e-12)) { okAll = false; why = `${m} ${l}`; }
+      const g = M.surfaceGravity(m, R), v = M.escapeVelocity(m, R), r = M.meanDensity(m, R);
+      if (![g, v, r].every(x => Number.isFinite(x) && x > 0)) { okAll = false; why = `valores ${m} ${l}`; }
+      if (!M.BAND_IDS.includes(M.densityBand(m, R))) { okAll = false; why = `banda ${m} ${l}`; }
+    }
+  }
+  ok(okAll, "el deslizador de radio va y vuelve sin error (radio, g, v, ρ y rótulo finitos en todo el rango)", why);
+  ok(masses.every(m => M.densityBand(m, Math.pow(10, M.sizeSlider(m).min)) === "bh"), "con el deslizador al mínimo (r_s) siempre sale «agujero negro»");
+  ok(masses.every(m => M.densityBand(m, Math.pow(10, M.sizeSlider(m).max)) === "air"), "con el deslizador al máximo (supergigante) siempre sale «más tenue que el aire»");
+  ok(M.snapLogR(-99, ME_) === M.sizeSlider(ME_).min && M.snapLogR(99, ME_) === M.sizeSlider(ME_).max && M.clampLogR(99, ME_) === M.sizeSlider(ME_).max, "snapLogR y clampLogR acotan a los extremos");
+  ok(near(M.sizeTickPct(M.schwarzschildKg(ME_), ME_), 0, 1e-9) && near(M.sizeTickPct(1000 * R_SUN_, ME_), 100, 1e-9) && M.sizeTickPct(R_EARTH_, ME_) < M.sizeTickPct(R_SUN_, ME_), "marcas del deslizador: r_s al 0 %, supergigante al 100 %, Tierra antes que el Sol");
+  // Ida y vuelta de ida a vuelta: cada atajo cae en la rejilla (±medio paso) sin salirse del rango
+  ok(M.SIZE_PRESETS.every(id => masses.every(m => { const l = Math.log10(M.sizePresetRadius(id, m)), s = M.sizeSlider(m); return l >= s.min - 1e-12 && l <= s.max + 1e-12 && Math.abs(M.snapLogR(l, m) - l) <= s.step / 2 + 1e-12; })), "los atajos de tamaño caen dentro del rango y a medio paso de la rejilla");
+  // Variar el radio de min a max y volver: g baja y sube de forma monótona
+  const s = M.sizeSlider(ME_); let gUp = true, prev = Infinity;
+  for (let l = s.min; l <= s.max; l += 0.5) { const g = M.surfaceGravity(ME_, Math.pow(10, l)); if (!(g < prev)) gUp = false; prev = g; }
+  prev = 0; for (let l = s.max; l >= s.min; l -= 0.5) { const g = M.surfaceGravity(ME_, Math.pow(10, l)); if (!(g > prev)) gUp = false; prev = g; }
+  ok(gUp, "al subir el radio la gravedad baja y al volver sube, sin saltos ni errores");
+}
+console.log("Textos de la tarjeta nueva y del modo de tamaño");
+{
+  const sizeKeys = (l) => keysOf(M.MASS_T[l].lab.size).sort().join();
+  ok(sizeKeys("es") === sizeKeys("en"), "lab.size: ES y EN con las mismas claves");
+  ok(keysOf(M.MASS_T.es.big).sort().join() === keysOf(M.MASS_T.en.big).sort().join(), "big: ES y EN con las mismas claves");
+  const SZ = M.MASS_T.es.lab.size;
+  ok(SZ.toggle === "Elegir yo el tamaño" && M.MASS_T.es.big.title === "Más masa no siempre es más grande", "textos pedidos: «Elegir yo el tamaño» y «Más masa no siempre es más grande»");
+  ok(M.MASS_T.es.lab.size.vsSmaller("2", "4", "8").includes("2 veces menor") && M.MASS_T.en.lab.size.vsBigger("2", "4", "8").includes("2 times bigger"), "frases «frente al modelo» en ES y EN");
+  ok(["g", "kg", "t"].every(u => ["es", "en"].every(l => M.MASS_T[l].lab.size.units[u].length === 2)), "unidades de la cucharadita con singular y plural");
+  ok(["es", "en"].every(l => /Más masa|More mass/.test(M.MASS_T[l].big.title) && !/NaN|undefined/.test(JSON.stringify(M.MASS_T[l].big.pairs))), "textos de las comparaciones sin NaN ni undefined");
+  ok(["es", "en"].every(l => M.MASS_T[l].assumptions.items.some(i => /Buchdahl/.test(i)) && M.MASS_T[l].assumptions.items.some(i => /10¹⁶/.test(i)) && M.MASS_T[l].assumptions.items.some(i => /1\.000|1,000/.test(i))), "«Supuestos» declara los umbrales de densidad, el límite de Buchdahl y el tope del deslizador");
+  ok(Object.keys(M.MASS_REFS).includes("joyce2018") && Object.keys(M.MASS_REFS).includes("bond2017") && /arxiv\.org\/abs\/1806\.00061/.test(M.MASS_REFS.joyce2018.url), "Sirio B cita a Joyce et al. 2018 (MNRAS) y Bond et al. 2017");
+}
 
 console.log(`\n${passed} pruebas correctas, ${failed} fallidas`);
 process.exit(failed ? 1 : 0);
