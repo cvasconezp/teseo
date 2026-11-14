@@ -158,7 +158,7 @@ const GROUPS = [
   { id: "deep", keys: ["messier", "galaxies", "blackholes", "pulsars", "exoplanets"] },
 ];
 export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, layerError, onToggle, onRetry,
-  showSolar, onToggleSolar, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid, outside = false, onOutside , atmosphere}) {
+  showSolar, onToggleSolar, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid, outside = false, onOutside , atmosphere, guides}) {
   // patrón llamativo de la capa (contado en los datos cargados): una línea y un botón para verlo
   const noteLine = (key) => {
     const n = enabled[key] && notes.find((x) => x.layer === key);
@@ -255,6 +255,7 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
             </button>
           </div>
         )}
+        {guides}
       </div>
       <p className="sk-panel-foot">{t.scaleNote}<br />{t.baseSources}</p>
     </PanelShell>

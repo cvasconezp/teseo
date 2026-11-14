@@ -33,6 +33,8 @@ import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { clampBortle, BORTLE_DEFAULT } from "./sky/lightPollution.js";
 import { bodyMagnitude, SUN_MAG_V } from "./sky/planetMag.js";
 import { track } from "./ui/track.js";
+import { GuidesLayer, GUIDE_LABEL_COLOR } from "./sky/guidesLayer.js";
+import { GuidesControls, useGuides } from "./sky/GuidesControls.jsx";
 import "./sky/sky.css";
 
 const API = import.meta.env.VITE_API_URL || "";
@@ -47,7 +49,7 @@ const LAYERS = [
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8" };
+const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", ...GUIDE_LABEL_COLOR };
 // Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
 // de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
 // en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
@@ -545,6 +547,8 @@ export default function Constellations({ lang = "es" }) {
   const pendingObjRef = useRef(null);   // objeto a restaurar desde la URL
   const hydratedRef = useRef(false);     // no escribir el hash antes de leerlo
   const [labelDensity, setLabelDensity] = useState("normal");
+  // líneas guía: todas apagadas por defecto; se recuerdan en localStorage
+  const [guidesOn, toggleGuide] = useGuides();
   // colores de las estrellas: realistas (suaves) por defecto; "resaltar" usa el color de cuerpo negro entero
   const [vividStars, setVividStars] = useState(() => { try { return localStorage.getItem(VIVID_KEY) === "1"; } catch { return false; } });
   STAR_MODE.vivid = vividStars;
@@ -1042,6 +1046,10 @@ export default function Constellations({ lang = "es" }) {
     // los sprites quedan ocultos y solo se conservan por compatibilidad
     for (const k in cardinals) cardinals[k].visible = false;
     horizon.visible = false; scene.add(horizon);
+    // líneas guía (src/sky/guidesLayer.js): eclíptica, ecuador, Vía Láctea, cuadrículas… Todas apagadas al
+    // empezar; se dibujan antes que estrellas y figuras (renderOrder −1) y el suelo las atenúa bajo el horizonte
+    const guides = new GuidesLayer({ radius: FLAT_R, lang: langRef.current });
+    scene.add(guides.group);
     // domo de atmósfera (src/sky/atmosphereLayer.js): se dibuja primero y debajo de todo
     const atm = createAtmosphereLayer();
     scene.add(atm.mesh);
@@ -1083,6 +1091,7 @@ export default function Constellations({ lang = "es" }) {
       const st = sceneRef.current && sceneRef.current.ar; if (!st) return;
       camera.fov = spanToFov(st.span, camera.aspect);
       camera.updateProjectionMatrix();
+      guides.setFov(camera.fov);
       sizeSolar();
     };
     // campo de visión según el modo: desde dentro lo da look.span (el zoom); desde fuera, fijo
@@ -1097,6 +1106,7 @@ export default function Constellations({ lang = "es" }) {
         r.points.material.uniforms.uScale.value = 1;
       }
       camera.updateProjectionMatrix();
+      guides.setFov(camera.fov);              // densidad de las cuadrículas según el zoom (solo cambia al cruzar un umbral)
       sizeSolar();
     };
     const redrawMoon = (phase) => {
@@ -1160,7 +1170,7 @@ export default function Constellations({ lang = "es" }) {
       recolorStars: () => paintStars(),
       atm, atmAlpha, starVis, atmOn: false, lineBase: 0.55, groundMat,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, bodies: [], showSolar: true,
-      sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
+      sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, guides, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
       mode: "in",
       look: { yaw: 0, pitch: 0, span: SPAN_DEF, spanT: SPAN_DEF, vy: 0, vp: 0, drag: false, fly: null, local: false, qF: lookFrame(false), minPitch: PITCH_MIN_FREE },
@@ -1644,6 +1654,15 @@ export default function Constellations({ lang = "es" }) {
             if (nCat <= lim) for (let q = 0; q < cat.length; q += 4) place(cat[q], cat[q+1], cat[q+2], cls, null, undefined, { pk: { layer: o.key, ob: cat[q+3] } });
           }
         }
+        // líneas guía: nombres y marcas de cuadrícula al final, solo en los huecos que dejan los objetos
+        if (camDist < 1050 && ref.guides && ref.guides.anyVisible()) {
+          for (const g of ref.guides.labelsForView(ref.camera, { w: W, h: H })) {
+            const n0 = out.length, dxg = g.prio > 1 ? 8 : 5;
+            place(g.x, g.y, g.name, g.cls, null, dxg);
+            // el nombre de una línea prueba otros puntos de ella si el primero está ocupado
+            if (out.length === n0 && g.alts) for (const a of g.alts) { place(a.x, a.y, g.name, g.cls, null, dxg); if (out.length > n0) break; }
+          }
+        }
         const dens2 = ref.labelDensity || "normal";
         const shown = out.slice(0, dens2 === "pocas" ? 26 : dens2 === "muchas" ? 110 : 64);
         ref._labels = shown;                       // el toque sobre el nombre de una constelación abre su ficha
@@ -1667,6 +1686,7 @@ export default function Constellations({ lang = "es" }) {
         if (m) (Array.isArray(m) ? m : [m]).forEach(mm => { if (mm.map) mm.map.dispose(); mm.dispose(); });
       });
       starTex.dispose();
+      guides.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       setReady(false);
@@ -1782,6 +1802,13 @@ export default function Constellations({ lang = "es" }) {
     if (!ref || !ref.layerObjs) return;
     ref.layerObjs.forEach(o => { o.points.visible = !!enabled[o.key]; });
   }, [enabled]);
+  // encender/apagar líneas guía (sin recrear geometría)
+  useEffect(() => {
+    const ref = sceneRef.current;
+    if (!ref || !ref.guides) return;
+    ref.guides.setAll(guidesOn);
+    if (ref.wake) ref.wake();
+  }, [guidesOn, ready]);
 
   // acercar la cámara al objeto seleccionado (zoom) + traer ficha de Wikipedia
   useEffect(() => {
@@ -1841,6 +1868,7 @@ export default function Constellations({ lang = "es" }) {
     ref.localQuat = q; ref.localModeOn = active; ref.localLat = active ? lat : null;
     ref.points.quaternion.copy(q);
     ref.lines.quaternion.copy(q);
+    if (ref.guides) ref.guides.setLocalFrame(active ? q : null);
     (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));
     if (ref.solarGroup) ref.solarGroup.quaternion.copy(q);
     if (ref.horizon) ref.horizon.visible = active;
@@ -1991,6 +2019,7 @@ export default function Constellations({ lang = "es" }) {
     const ref = sceneRef.current; if (!ref) return;
     ref.lang = lang;
     ref.cardNames = TC[lang].cardinals;
+    if (ref.guides) ref.guides.setLang(lang);
   }, [lang, ready]);
   // girar la mirada hasta una dirección del cielo (tour, "Esta noche", "Encuéntralo" sin sensores, búsqueda).
   // Desde dentro la cámara no se mueve del centro: solo gira y ajusta el zoom.
@@ -2531,6 +2560,7 @@ export default function Constellations({ lang = "es" }) {
         let bestDy = Infinity;
         for (const lb of (ref._labels || [])) {
           if (lb.cls === "note") continue;                         // las notas son botones propios
+          if (lb.cls.startsWith("guide_")) continue;               // las marcas de las líneas guía no se tocan
           const cw = lb.cls === "con" ? (r.width >= 900 ? 12.5 : 11) : lb.cls === "solar" ? (r.width >= 900 ? 9 : 8) : (r.width >= 900 ? 7.8 : 6.9);
           const w = String(lb.name).length * cw + 14, dx = lb.dx || 8;
           const x0 = lb.flip ? lb.x - dx - w : lb.x + dx - 4, x1 = x0 + w + 4;
@@ -2838,6 +2868,7 @@ export default function Constellations({ lang = "es" }) {
           onToggle={toggleLayer} onRetry={loadLayer} showSolar={showSolar} onToggleSolar={() => setShowSolar(v => !v)}
           constellations={sortedCons} sel={sel} onPick={onPick} labelDensity={labelDensity} onDensity={(v) => { track("sky_setting", { setting: "labels", state: "ok" }); setLabelDensity(v); }}
           vivid={vividStars} onVivid={() => setVividStars(v => !v)} atmosphere={atmControls}
+          guides={<GuidesControls lang={lang} value={guidesOn} localAvailable={localActive} onToggle={(k, on) => { track("sky_setting", { setting: "guides", state: on ? "on" : "off" }); toggleGuide(k, on); }} />}
           outside={outside} onOutside={inMySky ? null : () => { setOutside(o => !o); setSel(null); setDepth(0); if (!isWideRef.current) setPanel(null); }}
           onClose={() => setPanel(null)} notes={notes} onNote={openNote} />
       )}
