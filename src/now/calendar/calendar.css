@@ -75,3 +75,60 @@
 .cal-month__h::first-letter { text-transform: uppercase; }
 
 .cal-next { margin-bottom: 8px; }
+
+/* «Recordarme» (avisos push) — el estado se lee por texto + icono (campana / campana tachada) y borde, no solo
+   por color: con la visión nocturna (capa roja) los colores desaparecen. */
+.cal-remind-btn.is-on { border-color: rgba(167, 139, 250, 0.75); background: rgba(124, 58, 237, 0.22); }
+.cal-remind-btn:disabled, .cal-remind .btn:disabled, .cal-test__link:disabled { opacity: 0.6; cursor: progress; }
+.cal-remind { margin-top: 10px; padding: 12px 14px 14px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--panel); }
+.cal-remind:focus { outline: none; }
+.cal-remind:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.cal-remind__h { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; color: #fff; }
+.cal-remind__h svg { flex: none; color: var(--violet); }
+.cal-remind__p { margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--text); overflow-wrap: anywhere; }
+.cal-remind__p--warn { padding-left: 10px; border-left: 3px solid var(--line-strong); font-weight: 600; color: #fff; }
+.cal-remind__fine { margin-top: 10px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.cal-remind__leads { margin-top: 10px; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.cal-remind__leads legend { padding: 0; margin-bottom: 6px; font-size: 13.5px; color: var(--soft); }
+.cal-remind__lead { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: 14px; color: var(--soft); white-space: nowrap; cursor: pointer; }
+/* radio propio: anillo vacío / anillo con punto (se distingue por forma también con la capa roja) */
+.cal-remind__lead input { appearance: none; -webkit-appearance: none; flex: none; width: 18px; height: 18px; margin: 0; border: 2px solid currentColor; border-radius: 50%; background: transparent; cursor: inherit; }
+.cal-remind__lead input:checked { background: radial-gradient(circle, currentColor 0 3.5px, transparent 4px); }
+.cal-remind__lead input:focus-visible { outline: none; }
+.cal-remind__lead:has(input:checked) { color: #fff; border-color: rgba(167, 139, 250, 0.8); background: rgba(124, 58, 237, 0.28); box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.5); }
+.cal-remind__lead:has(input:focus-visible) { outline: 2px solid var(--violet); outline-offset: 2px; }
+.cal-remind__lead.is-off { opacity: 0.55; cursor: not-allowed; }
+.cal-remind__actions { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cal-remind__actions .cal-btn { white-space: nowrap; }
+.cal-remind__actions .cal-btn > svg, .cal-remind__h > svg, .cal-test__link > svg { flex: none; }
+.cal-remind__actions--fallback { margin-top: 6px; }
+.cal-remind__actions--fallback .cal-remind__p { margin-top: 0; flex: 1 1 100%; font-size: 13.5px; color: var(--soft); }
+.cal-remind__status { margin-top: 8px; display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; line-height: 1.45; color: var(--soft); }
+.cal-remind__status:empty { margin-top: 0; }
+.cal-remind__status svg { flex: none; margin-top: 1px; }
+.cal-remind__status.is-on { color: #DDD6FE; font-weight: 600; }
+.cal-remind__status.is-warn { padding-left: 10px; border-left: 3px solid var(--line-strong); color: #fff; }
+
+/* «Probar notificación»: enlace pequeño de la cabecera (objetivo táctil de 44 px) */
+.cal-test { display: flex; flex-direction: column; align-items: flex-start; }
+.cal-test__link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0; border: 0; background: none; color: #C4B5FD; font-size: 13.5px; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; cursor: pointer; }
+.cal-test__link:hover { color: #fff; }
+.cal-test__link:focus-visible, .cal-remind-btn:focus-visible, .cal-remind .btn:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.cal-test .cal-remind { margin-top: 0; }
+.cal-test .cal-remind__status { margin-top: 4px; }
+.cal-test .cal-remind__status:empty { margin-top: 0; }
+
+@media (max-width: 420px) {
+  /* con «Recordarme» caben dos botones por fila; el tercero baja a una fila entera */
+  .cal-ev__actions { flex-wrap: wrap; }
+  .cal-ev__actions .cal-btn { flex: 1 1 calc(50% - 4px); }
+  .cal-ev__actions .cal-remind-btn.is-on { flex-basis: 100%; }
+  /* el panel usa todo el ancho del evento (también la columna del icono: 24 px + 10 px de hueco) */
+  .cal-ev__body > .cal-remind { margin-left: -34px; padding: 12px; }
+  .cal-remind__actions .cal-btn { flex: 1 1 auto; padding: 0 12px; }
+  .cal-remind__lead { flex: 1 1 calc(50% - 4px); justify-content: center; gap: 6px; padding: 0 10px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cal-remind { animation: cal-remind-in 160ms ease-out; }
+  @keyframes cal-remind-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+}

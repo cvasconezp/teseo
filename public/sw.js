@@ -52,3 +52,50 @@ self.addEventListener("fetch", (e) => {
     )
   );
 });
+
+// ─── Avisos push: «Recordarme» del Calendario del cielo (src/now/calendar/push.js, backend app/push.py) ───
+// Solo se añaden manejadores: la estrategia de caché no cambia (por eso CACHE sigue en "teseo-v3").
+// El payload llega cifrado de extremo a extremo (RFC 8291) y trae { title, body, url, tag, lang }.
+
+/** URL de la app a abrir: solo del mismo origen (si no, la portada de «Ahora en el espacio»). */
+function appUrl(u) {
+  const fallback = new URL("/#ahora", self.location.origin).href;
+  try {
+    const url = new URL(u || "/#ahora", self.location.origin);
+    return url.origin === self.location.origin ? url.href : fallback;
+  } catch { return fallback; }
+}
+const short = (s, n) => (typeof s === "string" ? s.slice(0, n) : "");
+
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data ? short(e.data.text(), 300) : "" }; }
+  const lang = d.lang === "en" ? "en" : "es";
+  const title = short(d.title, 120) || "Teseo";
+  e.waitUntil(self.registration.showNotification(title, {
+    body: short(d.body, 300),
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: short(d.tag, 120) || "teseo",
+    lang,
+    dir: "ltr",
+    data: { url: appUrl(d.url) },
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const target = appUrl(e.notification.data && e.notification.data.url);
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of wins) {
+      try {
+        if (new URL(c.url).origin !== self.location.origin) continue;
+        const focused = await c.focus();                       // primero enfocar (conserva el permiso del clic)
+        if (c.url !== target && "navigate" in c) await c.navigate(target).catch(() => null);
+        return focused;
+      } catch { /* esta ventana no se deja: probar la siguiente */ }
+    }
+    return self.clients.openWindow ? self.clients.openWindow(target) : undefined;
+  })());
+});

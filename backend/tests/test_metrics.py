@@ -436,3 +436,22 @@ def test_assists_card_lista_blanca():
     assert ev == {"e": "assists_card", "p": {"origin": "earth", "destination": "jupiter"}}
     assert metrics.clean_event({"e": "assists_card", "p": {"destination": "neptune"}})["p"] == {"destination": "neptune"}
     assert metrics.clean_event({"e": "assists_card", "p": {"destination": "pluton", "mission": "juno", "lat": 1}})["p"] == {}
+
+
+# ─── «Recordarme» (push) del Calendario del cielo ─────────────────────────────
+def test_push_remind_lista_blanca(store):
+    for kind in ("on", "off", "test", "denied", "unsupported", "ios_install"):
+        assert metrics.clean_event({"e": "push_remind", "p": {"kind": kind}}) == {"e": "push_remind", "p": {"kind": kind}}
+    # nunca el endpoint de la suscripción, sus claves ni el evento elegido
+    endpoint = "https://fcm.googleapis.com/fcm/send/abc123:XYZ"
+    ev = metrics.clean_event({"e": "push_remind", "p": {"kind": "on", "endpoint": endpoint, "id": "moon-full-20261124",
+                                                        "auth": "AAAA", "state": "ok"}})
+    assert ev == {"e": "push_remind", "p": {"kind": "on"}}
+    assert metrics.clean_event({"e": "push_remind", "p": {"kind": endpoint}})["p"] == {}
+    # y por el endpoint HTTP tampoco llega al archivo
+    r = post({"e": "push_remind", "p": {"kind": "on", "endpoint": endpoint}})
+    assert r.status_code == 204
+    store.flush()
+    raw = open(store.path, encoding="utf-8").read()
+    assert "push_remind" in raw and "kind:on" in raw
+    assert "fcm.googleapis.com" not in raw and "abc123" not in raw
