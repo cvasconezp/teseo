@@ -14,15 +14,69 @@ export const DEFAULT_DAYS = 5;
 const loc = (lang) => (lang === "es" ? "es" : "en-US");
 const MINUS = "−";
 
-/** URL de la consulta. No se manda nada más que el lugar que la persona eligió. */
-export function issUrl({ lat, lon, altM = 0, days = DEFAULT_DAYS, api = API } = {}) {
+/** URL de la consulta. No se manda nada más que el lugar que la persona eligió.
+ *  `track` ("visible" | "all" | "none") y `passStart` (ISO UTC del inicio de una pasada) son opcionales. */
+export function issUrl({ lat, lon, altM = 0, days = DEFAULT_DAYS, api = API, track, passStart } = {}) {
   const q = new URLSearchParams({
     lat: String(Math.round(lat * 1000) / 1000),
     lon: String(Math.round(lon * 1000) / 1000),
     alt_m: String(Math.max(-500, Math.min(9000, Math.round(Number(altM) || 0)))),
     days: String(Math.max(1, Math.min(10, Math.round(days)))),
   });
+  if (track === "all" || track === "none") q.set("track", track);
+  if (passStart) q.set("pass_start", String(passStart));
   return `${String(api).replace(/\/+$/, "")}/api/iss/passes?${q}`;
+}
+
+/** Holgura (ms) al reconocer una pasada por su inicio: dos cálculos del servidor con «ahora» distinto
+ *  pueden afinar el inicio con un segundo de diferencia (igual que PASS_MATCH_S en backend/app/iss.py). */
+export const PASS_MATCH_MS = 120000;
+
+/** De una lista normalizada, la pasada cuyo inicio está más cerca de `startMs` (a menos de PASS_MATCH_MS). */
+export function findPass(passes, startMs, tol = PASS_MATCH_MS) {
+  let best = null, bd = tol;
+  for (const p of passes || []) {
+    const d = Math.abs(p.startMs - startMs);
+    if (d <= bd) { best = p; bd = d; }
+  }
+  return best;
+}
+
+/** ¿Trae la pasada su trayectoria? (por defecto el servidor solo la manda en las visibles). */
+export const hasTrack = (p) => !!(p && Array.isArray(p.track) && p.track.length >= 2);
+
+/**
+ * La trayectoria de UNA pasada, para dibujarla en el Cielo aunque no sea visible.
+ * Pide `pass_start` (el servidor devuelve solo esa pasada, ~2 KB) y además `track=all`: un servidor
+ * anterior que no conozca `pass_start` lo ignora y devuelve todas con su trayectoria (~80 KB en 5 días),
+ * de donde se toma la buscada. Devuelve { pass, data } o lanza Error si no aparece.
+ */
+export async function fetchIssPass({ lat, lon, altM = 0, days = DEFAULT_DAYS, pass, signal, fetchImpl, api } = {}) {
+  const f = fetchImpl || (typeof fetch === "function" ? fetch : null);
+  if (!f) throw new Error("fetch no disponible");
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error("sin lugar");
+  if (!pass || !pass.start) throw new Error("sin pasada");
+  const startMs = pass.startMs ?? ms(pass.start.t);
+  const res = await f(issUrl({ lat, lon, altM, days, api, track: "all", passStart: pass.start.t }), { signal, headers: { Accept: "application/json" } });
+  if (!res.ok) { const err = new Error(`HTTP ${res.status}`); err.status = res.status; throw err; }
+  const raw = await res.json();
+  if (!raw || !Array.isArray(raw.passes)) throw new Error("respuesta inesperada");
+  const data = normalizePasses(raw);
+  const hit = findPass(data.passes, startMs);
+  if (!hit || !hasTrack(hit)) { const err = new Error("pasada no encontrada"); err.status = 404; throw err; }
+  return { pass: hit, data };
+}
+
+/** Por qué no se ve una pasada a simple vista: "sun_up" (de día), "iss_in_shadow" (en la sombra de la
+ *  Tierra), "partial" (cuando es de noche la ISS ya va en sombra) o null si se ve. */
+export function hiddenReason(p) {
+  if (!p || p.visible) return null;
+  return p.why_not_visible === "sun_up" || p.why_not_visible === "iss_in_shadow" ? p.why_not_visible : "partial";
+}
+
+/** Pasadas que aún no han terminado (visibles o no), en orden: para «listar también las no visibles». */
+export function upcomingPasses(passes, nowMs = Date.now()) {
+  return (passes || []).filter((p) => p.endMs > nowMs);
 }
 
 const ms = (iso) => Date.parse(iso);
@@ -198,4 +252,29 @@ export function summarize(passes, nowMs = Date.now()) {
 export function accuracyWarnings(data) {
   const w = (data && data.warnings) || [];
   return { outdated: w.includes("elements_old") || !!(data && data.elements && data.elements.outdated), stale: w.includes("stale") || !!(data && data.stale) };
+}
+
+// ── la órbita, para la ficha de la ISS ───────────────────────────────────────
+const MU_EARTH = 398600.4418;     // km³/s², GM de la Tierra (WGS-84)
+const R_EARTH_KM = 6378.137;      // km, radio ecuatorial (WGS-84)
+/**
+ * Altura media, velocidad, período e inclinación de la órbita a partir de `elements` de la respuesta
+ * (perigee_km, apogee_km, period_min, inclination_deg, calculados del TLE en el servidor).
+ * Velocidad de una órbita casi circular: v = √(GM/a), con a sacado del período (3.ª ley de Kepler).
+ * Sin elementos se usan valores típicos (~420 km, 92,9 min, 51,6°) y `fromElements` es false.
+ */
+export function orbitFacts(el) {
+  const per = el && Number(el.perigee_km), apo = el && Number(el.apogee_km);
+  const P = el && Number(el.period_min), inc = el && Number(el.inclination_deg);
+  const hasAlt = Number.isFinite(per) && Number.isFinite(apo) && per > 100 && apo >= per;
+  const hasP = Number.isFinite(P) && P > 80 && P < 130;
+  const altKm = hasAlt ? (per + apo) / 2 : 420;
+  const a = hasP ? Math.cbrt(MU_EARTH * ((P * 60) / (2 * Math.PI)) ** 2) : R_EARTH_KM + altKm;
+  return {
+    altKm, perigeeKm: hasAlt ? per : null, apogeeKm: hasAlt ? apo : null,
+    speedKms: Math.sqrt(MU_EARTH / a),
+    periodMin: hasP ? P : (2 * Math.PI * Math.sqrt(a ** 3 / MU_EARTH)) / 60,
+    inclDeg: Number.isFinite(inc) && inc > 0 ? inc : 51.6,
+    fromElements: hasAlt && hasP,
+  };
 }

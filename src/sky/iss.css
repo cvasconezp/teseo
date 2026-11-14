@@ -32,11 +32,21 @@
 .iss-chip { display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: 999px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--iss-text); border: 1px solid var(--iss-line); background: rgba(255, 255, 255, 0.05); white-space: nowrap; }
 .iss-chip.is-mag { color: var(--iss-gold); border-color: rgba(242, 198, 109, 0.5); }
 .iss-chip.is-now { color: #67e8c8; border-color: rgba(103, 232, 200, 0.55); }
+.iss-chip.is-hidden { color: #c9d4ee; border-color: rgba(159, 179, 217, 0.5); background: rgba(159, 179, 217, 0.08); }
+.iss-pass.is-hidden { background: rgba(255, 255, 255, 0.025); border-style: dashed; }
+.iss-pass.is-hidden .iss-time { color: #dfe5f5; }
+.iss-card .iss-pass.is-hidden .iss-show { border-color: rgba(159, 179, 217, 0.55); background: rgba(159, 179, 217, 0.08); color: #dbe4f7; }
 .iss-route { margin: 0; font-size: 14px; line-height: 1.4; color: var(--iss-text); overflow-wrap: anywhere; }
 .iss-pass .iss-fine { margin: 0; }
-.iss-show { align-self: stretch; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 13px; border: 1px solid rgba(242, 198, 109, 0.6); background: rgba(242, 198, 109, 0.1); color: var(--iss-gold); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s, transform 0.1s; }
-.iss-show:hover { background: rgba(242, 198, 109, 0.18); }
-.iss-show:active { transform: scale(0.98); }
+.iss-card .iss-show { align-self: stretch; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 13px; border: 1px solid rgba(242, 198, 109, 0.6); background: rgba(242, 198, 109, 0.1); color: var(--iss-gold); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s, transform 0.1s; }
+.iss-card .iss-show:hover { background: rgba(242, 198, 109, 0.18); }
+.iss-card .iss-show:active { transform: scale(0.98); }
+
+/* botones: con .iss-card delante para ganar a «.sk-stage button» (sky.css), que les quita borde y fondo */
+/* «ver también las que no se ven» */
+.iss-card .iss-toggle { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 13px; border: 1px solid var(--iss-line); background: rgba(255, 255, 255, 0.05); color: var(--iss-text); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+.iss-card .iss-toggle:hover { border-color: var(--iss-violet); }
+.iss-card .iss-toggle[aria-pressed="true"] { border-color: rgba(159, 179, 217, 0.6); }
 
 /* vacío */
 .iss-empty { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; border: 1px dashed var(--iss-line); }
@@ -44,8 +54,8 @@
 
 /* error y reintento */
 .iss-error { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-.iss-retry { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 13px; border: 1px solid var(--iss-line); background: rgba(255, 255, 255, 0.06); color: var(--iss-text); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
-.iss-retry:hover { border-color: var(--iss-violet); }
+.iss-card .iss-retry { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 13px; border: 1px solid var(--iss-line); background: rgba(255, 255, 255, 0.06); color: var(--iss-text); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+.iss-card .iss-retry:hover { border-color: var(--iss-violet); }
 
 /* carga */
 .iss-skel { display: grid; gap: 8px; }
@@ -59,4 +69,34 @@
 
 @keyframes iss-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .iss-skel i { animation: none; } .iss-show { transition: none; } }
-@media (forced-colors: active) { .iss-show, .iss-retry, .iss-chip, .iss-pass, .iss-next { border: 1px solid CanvasText; } }
+@media (forced-colors: active) { .iss-show, .iss-retry, .iss-toggle, .iss-chip, .iss-pass, .iss-next { border: 1px solid CanvasText; } }
+
+/* ── La ISS en el Cielo (issLayer.js + Constellations.jsx) ── */
+/* etiquetas sobre la esfera: «ISS» junto al punto y la hora de cada minuto, pequeña */
+.sk-stage .sk-label-iss { font-family: var(--sans, Inter, system-ui, sans-serif); font-size: 14px; font-weight: 700; letter-spacing: 0.04em; }
+.sk-stage .sk-label-iss_t { font-family: var(--sans, Inter, system-ui, sans-serif); font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; opacity: 0.92; }
+@media (min-width: 900px) { .sk-stage .sk-label-iss { font-size: 15px; } .sk-stage .sk-label-iss_t { font-size: 12.5px; } }
+
+/* píldora bajo el buscador: hora de la simulación, ▶/⏸, velocidad y quitar */
+.sk-chip.sk-isspill { gap: 2px; padding-left: 4px; border-color: rgba(255, 217, 138, 0.55); background: rgba(46, 34, 10, 0.86); }
+.sk-isspill .chip-main { display: inline-flex; align-items: center; gap: 7px; min-width: 0; padding: 0 8px 0 6px; color: var(--text, #eef0fa); font-weight: 500; }
+.sk-isspill .chip-main i { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #fff6dc; box-shadow: 0 0 8px 2px rgba(255, 210, 130, 0.75); }
+.sk-isspill .chip-main i.is-shadow { background: #a9b8d6; box-shadow: none; opacity: 0.7; }
+.sk-isspill .chip-main i.is-off { background: transparent; border: 1px solid rgba(255, 217, 138, 0.7); box-shadow: none; }
+.sk-isspill .chip-main b { font-weight: 700; letter-spacing: 0.03em; color: #ffe08a; }
+.sk-isspill .chip-main span { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sk-chip.sk-isspill button { color: #ffe9b5; }
+.sk-isspill .iss-speed { min-width: 48px; font-variant-numeric: tabular-nums; font-weight: 600; }
+.sk-isspill .is-loading { color: var(--mute, rgba(238, 240, 250, 0.72)); padding-right: 10px; font-size: 12.5px; }
+
+/* teléfono: los avisos breves bajan para no tapar la píldora (en escritorio van a la derecha del buscador) */
+@media (max-width: 899.98px) { .sk-stage.has-isspill .sk-toast-slot { top: 110px; } }
+
+/* ficha */
+.sk-sheet.is-iss .iss-sheet-warn { display: flex; gap: 8px; align-items: flex-start; border-left-color: #ffd98a; color: #ffeec8; }
+.sk-sheet.is-iss .iss-sheet-warn svg { flex: none; margin-top: 2px; color: #ffd98a; }
+.sk-sheet.is-iss .iss-sheet-pass { display: grid; gap: 8px; }
+.sk-sheet.is-iss .iss-sheet-pass h3 { margin: 0; font-size: 13px; font-weight: 600; color: #ffe08a; }
+.sk-sheet.is-iss .sk-facts dd { font-variant-numeric: tabular-nums; }
+.sk-sheet.is-iss .iss-sheet-pass .sk-facts dd { font-size: 18px; }
+.sk-sheet.is-iss .iss-sheet-src { margin: 0; font-size: 12px; line-height: 1.4; color: var(--mute, rgba(238, 240, 250, 0.72)); }

@@ -88,8 +88,8 @@ SKY_KINDS = {
 SKY_AR = {"on", "off", "denied", "nosensor", "pending"}
 SKY_SETTINGS = {"atmosphere", "light_pollution", "labels", "lines", "art", "grid", "horizon", "night", "guides", "other"}
 STATES = {"on", "off", "ok", "fail", "start", "done", "skip"}
-ISS_KINDS = {"view", "show", "retry"}
-ISS_STATES = {"ok", "empty", "stale", "fail"}
+ISS_KINDS = {"view", "show", "retry", "list_all", "remove", "sheet", "play"}
+ISS_STATES = {"ok", "empty", "stale", "fail", "hidden"}
 PUSH_KINDS = {"on", "off", "test", "denied", "unsupported", "ios_install"}
 
 EVENTS: Dict[str, Dict[str, Any]] = {
@@ -140,8 +140,9 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "sky_time":           {"kind": {"now", "forward", "back", "custom"}},
     "sky_setting":        {"setting": SKY_SETTINGS, "state": STATES},
     "sky_nasa_image":     {"kind": SKY_KINDS},
-    # ISS: pasadas sobre mi lugar (src/sky/IssPassesCard.jsx). kind: ver la tarjeta,
-    # "Verla en el cielo", reintentar. state: resultado de la consulta.
+    # ISS: pasadas sobre mi lugar (src/sky/IssPassesCard.jsx) y la ISS en el Cielo. kind: ver la tarjeta,
+    # "Verla en el cielo", reintentar, listar también las no visibles, quitarla, abrir su ficha, reproducir.
+    # state: resultado de la consulta ("hidden" = se eligió ver una pasada que no es visible).
     "iss_passes":         {"kind": ISS_KINDS, "state": ISS_STATES},
     # «Recordarme» del Calendario del cielo (src/now/calendar/push.js): solo qué pasó, nunca la
     # suscripción ni su endpoint ni el evento elegido.

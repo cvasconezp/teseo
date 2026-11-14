@@ -7,8 +7,11 @@
 //   lat, lon   lugar de la persona (grados). Sin ellos la tarjeta pide elegir un lugar en «Mi cielo».
 //   altM       altitud del lugar en metros (opcional; por defecto 0)
 //   days       días a calcular, 1–10 (por defecto 5)
-//   onShow     opcional: onShow(pasada) al pulsar «Verla en el cielo». Sin él no se dibuja el botón.
-//              La pasada es la del servidor, ya normalizada (con startMs, endMs, track…).
+//   onShow     opcional: onShow(pasada, datos) al pulsar «Verla en el cielo». Sin él no se dibuja el botón.
+//              La pasada es la del servidor, ya normalizada (con startMs, endMs, track…); `datos` es la
+//              respuesta entera (elements: período, inclinación…). Las pasadas NO visibles llegan sin
+//              `track` (el servidor solo la manda en las visibles): quien la dibuje la pide con fetchIssPass.
+//   hiddenDefault  opcional: empezar listando también las no visibles (por defecto no)
 //   maxItems   cuántas pasadas visibles listar (por defecto 5)
 //   data       opcional: respuesta ya pedida (normalizada o cruda); si se da, no se consulta la red
 //   nowMs      opcional: «ahora» fijo en ms (pruebas y capturas); por defecto el reloj, con tic de 30 s
@@ -19,7 +22,7 @@ import Icon from "./icons.jsx";
 import { ISS } from "./i18n-iss.js";
 import {
   DEFAULT_DAYS, accuracyWarnings, describePass, fetchIssPasses, fmtDuration, fmtMag, formatClock, formatCountdown, formatDay,
-  isHappeningNow, nextVisiblePass, normalizePasses, summarize, visiblePasses,
+  hiddenReason, isHappeningNow, nextVisiblePass, normalizePasses, summarize, upcomingPasses, visiblePasses,
 } from "./issPasses.js";
 import { track } from "../ui/track.js";
 import "./iss.css";
@@ -33,13 +36,17 @@ function SatelliteIcon() {
   );
 }
 
-export default function IssPassesCard({ lang = "es", lat, lon, altM = 0, days = DEFAULT_DAYS, onShow, maxItems = 5, data: dataProp, nowMs, timeZone, onTrack }) {
+export default function IssPassesCard({ lang = "es", lat, lon, altM = 0, days = DEFAULT_DAYS, onShow, maxItems = 5, data: dataProp, nowMs, timeZone, onTrack, hiddenDefault = false }) {
   const t = ISS[lang] || ISS.es;
   const uid = useId();
   const hasPlace = Number.isFinite(lat) && Number.isFinite(lon);
   const [state, setState] = useState({ status: dataProp ? "ok" : "idle", data: dataProp ? normalizePasses(dataProp) : null });
   const [tick, setTick] = useState(() => Date.now());
   const [attempt, setAttempt] = useState(0);
+  // «Ver también las que no se ven»: la respuesta normal ya trae TODAS las pasadas (las no visibles sin
+  // trayectoria), así que listar las no visibles no cuesta otra consulta; la trayectoria de la que se
+  // elija se pide aparte (pass_start) solo al pulsar «Verla en el cielo».
+  const [showHidden, setShowHidden] = useState(!!hiddenDefault);
   const emit = useRef(onTrack || track);
   emit.current = onTrack || track;
 
@@ -72,10 +79,16 @@ export default function IssPassesCard({ lang = "es", lat, lon, altM = 0, days = 
   const now = nowMs != null ? nowMs : tick;
 
   const retry = useCallback(() => { emit.current("iss_passes", { kind: "retry" }); setAttempt((n) => n + 1); }, []);
-  const show = useCallback((p) => { emit.current("iss_passes", { kind: "show", state: "ok" }); onShow && onShow(p); }, [onShow]);
+  const show = useCallback((p) => { emit.current("iss_passes", { kind: "show", state: p.visible ? "ok" : "hidden" }); onShow && onShow(p, state.data); }, [onShow, state.data]);
+  const toggleHidden = useCallback(() => {
+    setShowHidden((v) => { if (!v) emit.current("iss_passes", { kind: "list_all", state: "ok" }); return !v; });
+  }, []);
 
   const data = state.data;
   const visible = useMemo(() => (data ? visiblePasses(data.passes, now).slice(0, maxItems) : []), [data, now, maxItems]);
+  const allPasses = useMemo(() => (data ? upcomingPasses(data.passes, now).slice(0, Math.max(maxItems, 10)) : []), [data, now, maxItems]);
+  const listed = showHidden ? allPasses : visible;
+  const hiddenCount = data ? upcomingPasses(data.passes, now).filter((p) => !p.visible).length : 0;
   const next = useMemo(() => (data ? nextVisiblePass(data.passes, now) : null), [data, now]);
   const sum = useMemo(() => (data ? summarize(data.passes, now) : null), [data, now]);
   const warn = data ? accuracyWarnings(data) : { outdated: false, stale: false };
@@ -120,16 +133,25 @@ export default function IssPassesCard({ lang = "es", lat, lon, altM = 0, days = 
             </div>
           )}
 
-          {visible.length > 0 ? (
-            <ul className="iss-list" aria-label={t.issListLabel}>
-              {visible.map((p) => {
+          {!showHidden && visible.length === 0 && (
+            <div className="iss-empty">
+              <strong>{t.issEmpty(windowDays)}</strong>
+              <p className="iss-note">{t.issEmptyWhy(sum.total, sum.sunUp, sum.shadow)}</p>
+              <p className="iss-fine">{t.issEmptyHelp}</p>
+            </div>
+          )}
+          {showHidden && hiddenCount > 0 && <p className="iss-fine">{t.issHiddenLead}</p>}
+          {listed.length > 0 && (
+            <ul className="iss-list" aria-label={showHidden ? t.issAllLabel : t.issListLabel}>
+              {listed.map((p) => {
                 const d = describePass(p, lang);
                 const startIso = new Date(d.startMs).toISOString();
                 const mag = fmtMag(p.mag, lang);
                 const happening = isHappeningNow(p, now);
                 const day = formatDay(d.startMs, o), clock = formatClock(d.startMs, o);
+                const why = hiddenReason(p);
                 return (
-                  <li key={p.id || p.start.t} className={`iss-pass${happening ? " is-now" : ""}`}>
+                  <li key={p.id || p.start.t} className={`iss-pass${happening ? " is-now" : ""}${why ? " is-hidden" : ""}`}>
                     <div className="iss-when">
                       <span>
                         <time className="iss-day" dateTime={startIso}>{day}</time>{" "}
@@ -137,6 +159,7 @@ export default function IssPassesCard({ lang = "es", lat, lon, altM = 0, days = 
                       </span>
                       <span className="iss-chips">
                         {happening && <span className="iss-chip is-now">{t.issNowTag}</span>}
+                        {why && <span className="iss-chip is-hidden">{t.issHiddenTag[why]}</span>}
                         <span className="iss-chip">{fmtDuration(d.durationS, lang)}</span>
                         {mag && <span className="iss-chip is-mag" title={t.issMagTitle} aria-label={`${t.issMag(mag)}. ${t.issMagTitle}`}>{mag}</span>}
                       </span>
@@ -152,12 +175,11 @@ export default function IssPassesCard({ lang = "es", lat, lon, altM = 0, days = 
                 );
               })}
             </ul>
-          ) : (
-            <div className="iss-empty">
-              <strong>{t.issEmpty(windowDays)}</strong>
-              <p className="iss-note">{t.issEmptyWhy(sum.total, sum.sunUp, sum.shadow)}</p>
-              <p className="iss-fine">{t.issEmptyHelp}</p>
-            </div>
+          )}
+          {(hiddenCount > 0 || showHidden) && (
+            <button type="button" className="iss-toggle" onClick={toggleHidden} aria-pressed={showHidden}>
+              <Icon name={showHidden ? "eye" : "layers"} size={17} />{showHidden ? t.issHideHidden : t.issShowHidden}
+            </button>
           )}
 
           {warn.stale && <p className="iss-warn" role="note"><Icon name="warn" size={16} />{t.issStale}</p>}

@@ -512,9 +512,40 @@ def _key(lat, lon, alt_m, days, epoch_line):
     return (round(lat, 3), round(lon, 3), int(round(alt_m / 10.0)) * 10, int(days), epoch_line)
 
 
-async def get_passes(lat: float, lon: float, alt_m: float = 0.0, days: int = DEFAULT_DAYS, tracks: str = "visible") -> dict:
+PASS_MATCH_S = 120.0          # s: holgura al buscar una pasada por su inicio (`pass_start`)
+
+
+def parse_iso_utc(s: str) -> float:
+    """"2026-11-14T18:19:10Z" (con o sin décimas) -> segundos Unix. ValueError si no encaja."""
+    from datetime import datetime, timezone
+    txt = (s or "").strip()
+    if not txt.endswith("Z"):
+        raise ValueError("se esperaba una hora UTC terminada en Z")
+    fmt = "%Y-%m-%dT%H:%M:%S.%fZ" if "." in txt else "%Y-%m-%dT%H:%M:%SZ"
+    return datetime.strptime(txt, fmt).replace(tzinfo=timezone.utc).timestamp()
+
+
+def pick_pass(passes: list, t_start: float, tol: float = PASS_MATCH_S) -> Optional[dict]:
+    """La pasada cuyo inicio está más cerca de `t_start` (a menos de `tol` segundos), o None.
+    Con holgura y no por igualdad del `id`: dos cálculos con «ahora» distinto pueden afinar el
+    inicio con un segundo de diferencia."""
+    best, best_d = None, tol
+    for p in passes:
+        d = abs(_iso_to_unix(p["start"]["t"]) - t_start)
+        if d <= best_d:
+            best, best_d = p, d
+    return best
+
+
+async def get_passes(lat: float, lon: float, alt_m: float = 0.0, days: int = DEFAULT_DAYS, tracks: str = "visible",
+                     pass_start: Optional[str] = None) -> dict:
     """Pasadas de la ISS para un lugar. Lanza ProviderError si no hay elementos
-    (primera vez y CelesTrak caído); si hay elementos viejos los usa y marca `stale`."""
+    (primera vez y CelesTrak caído); si hay elementos viejos los usa y marca `stale`.
+    Con `pass_start` (hora UTC ISO del inicio de una pasada, la de `start.t`) devuelve solo esa
+    pasada y SIEMPRE con su trayectoria, sea visible o no (así la vista Cielo dibuja una pasada de día
+    sin pedir la trayectoria de todas, ~80 KB en 5 días); `passes` queda vacío si no se encuentra.
+    `track` no se aplica en ese caso."""
+    t_pick = parse_iso_utc(pass_start) if pass_start else None
     elements, stale = await resource.get()
     now = _now()
     lat, lon = round(float(lat), 3), round(float(lon), 3)
@@ -533,9 +564,13 @@ async def get_passes(lat: float, lon: float, alt_m: float = 0.0, days: int = DEF
         _passes_cache[key] = (now, passes)
     # una pasada ya terminada (si vino de la caché) no se devuelve
     live = [p for p in passes if _iso_to_unix(p["end"]["t"]) >= now]
+    if t_pick is not None:
+        # una sola pasada, con su trayectoria completa
+        hit = pick_pass(live, t_pick)
+        live = [hit] if hit else []
     # La trayectoria (~40 puntos por pasada) pesa más que todo lo demás: por defecto solo
     # se manda la de las pasadas visibles ("all" las manda todas; "none", ninguna).
-    if tracks != "all":
+    elif tracks != "all":
         live = [p if (tracks == "visible" and p["visible"]) else {**p, "track": []} for p in live]
     info = elements_info(elements, now)
     warnings = []
@@ -543,7 +578,7 @@ async def get_passes(lat: float, lon: float, alt_m: float = 0.0, days: int = DEF
         warnings.append("elements_old")
     if stale:
         warnings.append("stale")
-    return {
+    out = {
         "source": SOURCE,
         "updated": iso_utc(resource.ts),
         "stale": bool(stale),
@@ -556,6 +591,9 @@ async def get_passes(lat: float, lon: float, alt_m: float = 0.0, days: int = DEF
         "warnings": warnings,
         "passes": live,
     }
+    if t_pick is not None:
+        out["pass_start"] = iso_utc(round(t_pick))
+    return out
 
 
 def _iso_to_unix(s: str) -> float:

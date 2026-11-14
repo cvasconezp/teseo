@@ -472,6 +472,61 @@ def test_trayectoria_solo_en_las_visibles_por_defecto(net):
     assert len(json_size(d)) < len(json_size(a)) * 0.6
 
 
+def test_una_sola_pasada_con_su_trayectoria(net):
+    """`pass_start`: la vista Cielo pide la trayectoria de UNA pasada (también de día o en sombra)
+    sin descargar la de todas con track=all."""
+    base = {"lat": QUITO[0], "lon": QUITO[1], "alt_m": QUITO[2], "days": 5}
+    todas = client.get("/api/iss/passes", params=base).json()["passes"]
+    ocultas = [p for p in todas if not p["visible"]]
+    assert ocultas and all(p["track"] == [] for p in ocultas)     # por defecto, sin trayectoria
+    elegida = ocultas[1]
+    r = client.get("/api/iss/passes", params={**base, "pass_start": elegida["start"]["t"]})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["pass_start"] == elegida["start"]["t"]
+    assert len(d["passes"]) == 1
+    p = d["passes"][0]
+    assert p["id"] == elegida["id"] and p["visible"] is False and p["why_not_visible"] == elegida["why_not_visible"]
+    # la trayectoria completa: del inicio al fin, cada ~10 s, con la culminación dentro
+    assert len(p["track"]) > 20
+    assert p["track"][0]["t"].startswith(p["start"]["t"][:16]) and p["track"][-1]["t"].startswith(p["end"]["t"][:16])
+    assert max(q["alt"] for q in p["track"]) == pytest.approx(p["max_alt"], abs=0.05)
+    # igual que la misma pasada en track=all (mismo cálculo, de la caché)
+    a = client.get("/api/iss/passes", params={**base, "track": "all"}).json()["passes"]
+    assert next(x for x in a if x["id"] == p["id"])["track"] == p["track"]
+    # pesa mucho menos que track=all
+    assert len(json_size(d)) < len(json_size({"passes": a})) / 8
+    # holgura de ± 2 min sobre el inicio (dos cálculos pueden diferir en un segundo); fuera de ella, nada
+    t0 = unix(elegida["start"]["t"])
+    iso = lambda t: datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    assert client.get("/api/iss/passes", params={**base, "pass_start": iso(t0 + 50)}).json()["passes"][0]["id"] == p["id"]
+    assert client.get("/api/iss/passes", params={**base, "pass_start": iso(t0 - 100) [:-1] + ".5Z"}).json()["passes"][0]["id"] == p["id"]
+    assert client.get("/api/iss/passes", params={**base, "pass_start": iso(t0 + 1800)}).json()["passes"] == []
+    # una visible también sale con su trayectoria, y `track` no la quita
+    vis = next(x for x in todas if x["visible"]) if any(x["visible"] for x in todas) else None
+    if vis:
+        v = client.get("/api/iss/passes", params={**base, "track": "none", "pass_start": vis["start"]["t"]}).json()["passes"]
+        assert len(v) == 1 and len(v[0]["track"]) > 20
+    # mal formado o fecha imposible: 422, sin tocar CelesTrak de más
+    n = len(net.calls)
+    for bad in ["ayer", "2026-11-14 18:19:10", "2026-11-14T18:19:10", "2026-13-40T25:00:00Z"]:
+        rr = client.get("/api/iss/passes", params={**base, "pass_start": bad})
+        assert rr.status_code == 422 and rr.json()["detail"].startswith("Parámetro inválido"), (bad, rr.text)
+    assert len(net.calls) == n
+
+
+def test_pick_pass_y_parse_iso():
+    assert iss.parse_iso_utc("2026-11-14T00:00:00Z") == T0
+    assert iss.parse_iso_utc("2026-11-14T00:00:00.5Z") == T0 + 0.5
+    with pytest.raises(ValueError):
+        iss.parse_iso_utc("2026-11-14T00:00:00")
+    ps = [{"start": {"t": "2026-11-14T00:00:00Z"}}, {"start": {"t": "2026-11-14T01:30:00Z"}}]
+    assert iss.pick_pass(ps, T0 + 90) is ps[0]
+    assert iss.pick_pass(ps, T0 + 5400 - 30) is ps[1]
+    assert iss.pick_pass(ps, T0 + 2700) is None
+    assert iss.pick_pass([], T0) is None
+
+
 def json_size(d):
     import json
     return json.dumps(d)
