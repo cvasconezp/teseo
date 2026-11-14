@@ -8,7 +8,8 @@
 //   que es el marco en que Schlyter da sus coordenadas; cantidad 20 = delta (UA, centro a centro).
 //   Nota: la cantidad 1 (astrométrica J2000) difiere ~0,37° en 2026 por la precesión, no por la Luna.
 // Observador geocéntrico: la paralaje topocéntrica (hasta ~1°) NO está en ephemeris() (no recibe
-// la posición del observador); ver el informe del cambio.
+// la posición del observador); la aplica src/sky/frames.js (topocentric, skyBodies) en «Mi cielo», y la
+// comprueba scripts/test_sky_frames.mjs contra astropy.
 import { ephemeris } from "../src/ephemeris.js";
 import { moonState } from "../src/special/math.js";
 

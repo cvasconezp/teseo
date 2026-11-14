@@ -9,7 +9,10 @@
 // MARCOS (los mismos que usa src/Constellations.jsx para estrellas y constelaciones):
 //   · Ecuatorial J2000 (sky.json): x = cos δ cos α, y = cos δ sin α, z = sin δ.
 //     +X = punto vernal (α = 0h), +Z = polo norte celeste. En la escena: vector × radio,
-//     sin cambio de ejes; en "Mi cielo" el objeto se gira con localSkyQuat (look.js).
+//     sin cambio de ejes; en "Mi cielo" el objeto se gira con localSkyQuatJ2000 (look.js),
+//     el mismo cuaternión que las estrellas. Los generadores de ecuador, cuadrícula AR/Dec y
+//     polos dan vectores en "su" ecuador: la capa (guidesLayer.js) los coloca en el ecuador DE LA
+//     FECHA (precesión de frames.js); la eclíptica y el plano galáctico se quedan en J2000.
 //   · Local (horizonte, solo "Mi cielo"): +X = este, +Y = cenit, −Z = norte.
 //     Azimut desde el norte hacia el este (N 0°, E 90°, S 180°, O 270°).
 //

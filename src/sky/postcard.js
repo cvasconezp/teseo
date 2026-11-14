@@ -13,7 +13,7 @@
 // que las pruebas usan para comprobarlo.
 import { drawArt, artKind, artOptions, drawSphere } from "./art.js";
 import { BODIES, textureUrl, makeFallbackCanvas, bodyName } from "./bodies.js";
-import { altAz } from "./guide.js";
+import { dateToJ2000, altAzJ2000 } from "./frames.js";
 import { nasaImageFor, nasaKindKey, imageOrder, nasaStatus } from "./nasaImages.js";
 /** ¿Se pueden dibujar en la postal las imágenes de images-assets.nasa.gov? (ver fromNasa en heroFor) */
 export const NASA_CANVAS_OK = false;
@@ -172,7 +172,9 @@ function drawChart(ctx, o) {
   }
   // cielo local: el suelo bajo el horizonte y los puntos cardinales
   if (local) {
-    const zen = zenithDir(local.lat, local.lon, local.date);
+    // el mapa está en J2000 (estrellas del catálogo y cuerpos ya precesados): el cenit y el polo de la
+    // fecha se llevan a J2000 (frames.js) para que horizonte y cardinales caigan donde están de verdad
+    const zen = dateToJ2000(zenithDir(local.lat, local.lon, local.date), local.date), pole = dateToJ2000([0, 0, 1], local.date);
     const CW = 108, CH = 135, cell = document.createElement("canvas"); cell.width = CW; cell.height = CH;
     const cx2 = cell.getContext("2d"), im = cx2.createImageData(CW, CH);
     for (let j = 0; j < CH; j++) for (let i = 0; i < CW; i++) {
@@ -184,7 +186,7 @@ function drawChart(ctx, o) {
     cx2.putImageData(im, 0, 0);
     ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; ctx.drawImage(cell, 0, 0, W, H); ctx.restore();
     // línea del horizonte y cardinales (N, E, S, O/W)
-    const north = norm([-zen[0] * zen[2], -zen[1] * zen[2], 1 - zen[2] * zen[2]]), east = cross(north, zen);
+    const pz = dot(pole, zen), north = norm([pole[0] - zen[0] * pz, pole[1] - zen[1] * pz, pole[2] - zen[2] * pz]), east = cross(north, zen);
     ctx.strokeStyle = "rgba(125,180,255,0.75)"; ctx.lineWidth = 2.5; ctx.beginPath(); let pen = false;
     for (let a = 0; a <= 360; a += 2) {
       const ar = a * Math.PI / 180, d = [north[0] * Math.cos(ar) + east[0] * Math.sin(ar), north[1] * Math.cos(ar) + east[1] * Math.sin(ar), north[2] * Math.cos(ar) + east[2] * Math.sin(ar)];
@@ -382,7 +384,7 @@ export function postcardText({ obj, info, lang, t, local, con, fmt }) {
   return { title: info.name, type: info.type + (info.badge ? ` · ${info.badge}` : ""), facts: facts.slice(0, 3), local: local && obj.nx != null ? localLine([obj.nx, obj.ny, obj.nz], local, t, lang, fmt) : null, credit: t.pcData(src || t.pcSrcSky) };
 }
 function localLine(dir, local, t, lang, fmt) {
-  const p = altAz(dir[0], dir[1], dir[2], local.lat, local.lon, local.date);
+  const p = altAzJ2000(dir[0], dir[1], dir[2], local.lat, local.lon, local.date);   // dir: J2000, como la escena
   return p.alt > 0 ? t.pcLocalUp(local.place, fmt.when(local.date), Math.round(p.alt), compassPoint8(p.az)) : t.pcLocalDown(local.place, fmt.when(local.date));
 }
 
@@ -434,7 +436,7 @@ export async function buildPostcard(p) {
   } else retY = Math.round((blockTop - 40) / 2) + 30;
   const cx = W / 2;
   const centerDir = con ? con.dir : obj && obj.nx != null ? [obj.nx, obj.ny, obj.nz] : (p.center || [0, 0, 1]);
-  const upHint = local ? zenithDir(local.lat, local.lon, local.date) : [0, 0, 1];
+  const upHint = local ? dateToJ2000(zenithDir(local.lat, local.lon, local.date), local.date) : [0, 0, 1];
   // escala: una constelación se encuadra entera; un objeto muestra ~105° de cielo a lo ancho
   const pxPerRad = con ? Math.min(1500, Math.max(520, (Math.min(W * 0.42, (blockTop - 80) * 0.44)) / Math.max(0.12, con.radius))) : W / (105 * Math.PI / 180);
   const proj = makeProjection(centerDir, upHint, pxPerRad, cx, retY);

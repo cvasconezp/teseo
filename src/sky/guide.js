@@ -118,18 +118,23 @@ export function sepDirs(ax, ay, az, bx, by, bz) {
  * del astro en ese instante (fijo para una estrella, variable para la Luna). Busca a
  * pasos de `stepMin` minutos hasta `maxHours` y afina por interpolación lineal.
  * Devuelve { date, az } o null si no hay cruce en ese intervalo.
+ * `minAlt` puede ser un número (grados) o una función (ms) → grados, para un horizonte convencional
+ * que cambia con el tiempo (la Luna: h0 = 0,7275·π − 0,5667°, con su paralaje π del momento).
  */
+export const horizonAt = (minAlt) => (typeof minAlt === "function" ? minAlt : () => minAlt);
 export function nextCrossing(dirAt, latDeg, lonDeg, from, { dir = 1, maxHours = 14, stepMin = 10, minAlt = 0 } = {}) {
   const altAt = (ms) => { const d = new Date(ms); const v = dirAt(d); return altAz(v[0], v[1], v[2], latDeg, lonDeg, d); };
-  let t0 = from.getTime(), a0 = altAt(t0).alt;
+  const h0 = horizonAt(minAlt);
+  // se sigue la altura RELATIVA al horizonte convencional: el cruce es su paso por 0
+  let t0 = from.getTime(), a0 = altAt(t0).alt - h0(t0);
   const step = stepMin * 60000, n = Math.floor(maxHours * 60 / Math.abs(stepMin));
   // "antes" y "después" se miran en orden cronológico aunque se camine hacia atrás
-  const crosses = (aPrev, aNext) => (step > 0 ? (dir > 0 ? aPrev <= minAlt && aNext > minAlt : aPrev > minAlt && aNext <= minAlt)
-    : (dir > 0 ? aNext <= minAlt && aPrev > minAlt : aNext > minAlt && aPrev <= minAlt));
+  const crosses = (aPrev, aNext) => (step > 0 ? (dir > 0 ? aPrev <= 0 && aNext > 0 : aPrev > 0 && aNext <= 0)
+    : (dir > 0 ? aNext <= 0 && aPrev > 0 : aNext > 0 && aPrev <= 0));
   for (let k = 1; k <= n; k++) {
-    const t1 = t0 + step, a1 = altAt(t1).alt;
+    const t1 = t0 + step, a1 = altAt(t1).alt - h0(t1);
     if (crosses(a0, a1)) {
-      const f = (minAlt - a0) / (a1 - a0 || 1e-9);
+      const f = -a0 / (a1 - a0 || 1e-9);
       const ms = t0 + f * step;
       return { date: new Date(ms), az: altAt(ms).az };
     }
@@ -144,6 +149,6 @@ export function nextCrossing(dirAt, latDeg, lonDeg, from, { dir = 1, maxHours = 
  */
 export function nextRise(dirAt, latDeg, lonDeg, from, maxHours = 14, stepMin = 10, minAlt = 0) {
   const v = dirAt(from);
-  if (altAz(v[0], v[1], v[2], latDeg, lonDeg, from).alt > minAlt) return null;
+  if (altAz(v[0], v[1], v[2], latDeg, lonDeg, from).alt > horizonAt(minAlt)(from.getTime())) return null;
   return nextCrossing(dirAt, latDeg, lonDeg, from, { dir: 1, maxHours, stepMin, minAlt });
 }

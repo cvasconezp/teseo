@@ -12,11 +12,10 @@ import { NoteArt, ExoCompare } from "./NoteArt.jsx";
 import CompositionBlock from "./CompositionBlock.jsx";
 import StarLifeBlock from "./StarLifeBlock.jsx";
 import { drawArt, artKind, artOptions } from "./art.js";
-import { riseTransitSet, bestTonight, signalDelay, horizonFor } from "./riseset.js";
-import { altAz } from "./guide.js";
+import { signalDelay } from "./riseset.js";
+import { visibilityOf } from "./objVisibility.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import { citizenFor, CITIZEN_VERIFIED } from "./citizen.js";
-import { ephemeris } from "../ephemeris.js";
 import { useDialogFocus } from "./focus.js";
 import { nasaImageFor, nasaKindKey, imageOrder, nasaStatus, setNasaStatus } from "./nasaImages.js";
 
@@ -159,26 +158,13 @@ export function ArtCanvas({ kind, obj, label }) {
 }
 
 // ── salida, culminación y puesta desde "Mi cielo" ───────────────────────────
-const bodyDirAt = (name) => (d) => { const b = ephemeris(d).find((x) => x.name === name); return [b.nx, b.ny, b.nz]; };
-const sunDirAt = bodyDirAt("Sol");
-/** Cálculo para la ficha: { rts, best, now } o null si el objeto no tiene dirección. */
-export function visibilityOf(obj, local, when) {
-  if (!obj || obj.nx == null || !local) return null;
-  const solar = obj.layer === "solar";
-  const dirAt = solar ? bodyDirAt(obj.name) : () => [obj.nx, obj.ny, obj.nz];
-  const minAlt = horizonFor(solar && obj.name === "Sol" ? "sun" : solar && obj.name === "Luna" ? "moon" : "star");
-  const rts = riseTransitSet(dirAt, local.lat, local.lon, when, { minAlt });
-  const d0 = dirAt(when), now = altAz(d0[0], d0[1], d0[2], local.lat, local.lon, when);
-  const isSun = solar && obj.name === "Sol";
-  // estrellas débiles y cielo profundo piden cielo oscuro (−12°); la Luna y los planetas ya se ven con −6°
-  const best = isSun ? null : bestTonight(dirAt, sunDirAt, local.lat, local.lon, when, { sunLimit: solar ? -6 : -12 });
-  return { rts, best, now, isSun };
-}
+// (cálculo puro en objVisibility.js: marcos de la fecha, Luna topocéntrica; se reexporta para quien lo importaba)
+export { visibilityOf };
 export function RiseSet({ obj, t, lang, local, when, onNeedPlace }) {
   // el cálculo se rehace por minuto, no por render
   const minute = Math.floor(when.getTime() / 60000);
   const vis = useMemo(() => (local ? visibilityOf(obj, local, new Date(minute * 60000)) : null),
-    [obj.name, obj.layer, obj.nx, obj.ny, obj.nz, local && local.lat, local && local.lon, minute]);   // eslint-disable-line react-hooks/exhaustive-deps
+    [obj.name, obj.layer, obj.nx, obj.ny, obj.nz, local && local.lat, local && local.lon, local && local.elev, minute]);   // eslint-disable-line react-hooks/exhaustive-deps
   if (obj.nx == null || obj.layer === "note") return null;
   if (!local) {
     return (

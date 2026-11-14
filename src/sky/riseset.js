@@ -5,7 +5,7 @@
 // Generaliza la búsqueda de salidas de "Esta noche" (guide.js → nextCrossing): se
 // muestrea la altitud real del astro (la Luna y los planetas se mueven; una estrella
 // no) y cada cruce del horizonte se afina por bisección.
-import { altAz, nextCrossing } from "./guide.js";
+import { altAz, nextCrossing, horizonAt } from "./guide.js";
 
 // Altitud geométrica del centro del astro en el momento en que se le ve salir o
 // ponerse (convención habitual de los almanaques; Meeus, Astronomical Algorithms, cap. 15):
@@ -13,6 +13,12 @@ export const H0_STAR = -0.5667;   // estrellas y planetas: refracción media en 
 export const H0_SUN = -0.8333;    // Sol: refracción + semidiámetro (borde superior)
 export const H0_MOON = 0.125;     // Luna: refracción + semidiámetro − paralaje horizontal media
 export const horizonFor = (kind) => (kind === "sun" ? H0_SUN : kind === "moon" ? H0_MOON : H0_STAR);
+// Luna con su paralaje del momento (Meeus cap. 15, ec. 15.1 y nota): h0 = 0,7275·π − 0°34′, con
+// π = asen(6378,14 km / distancia). Se aplica a la altura GEOCÉNTRICA (la de ephemeris()): el término
+// 0,7275·π = π − semidiámetro (0,2725·π) baja el centro geocéntrico hasta el borde superior visto desde
+// la superficie. Con π entre 54′ y 61′ va de +0,09° a +0,18° (H0_MOON = 0,125° es su valor medio:
+// hasta ~11 s de diferencia en la hora de salida en el ecuador).
+export const moonH0 = (distKm) => 0.7275 * Math.asin(6378.14 / distKm) * 180 / Math.PI - 0.5667;
 
 const MIN = 60000, HOUR = 3600000;
 
@@ -48,7 +54,7 @@ function maxBetween(altAt, t0, t1, stepMs = 5 * MIN) {
  * @param {(d: Date) => number[]} dirAt  dirección ecuatorial [nx, ny, nz] en un instante
  * @param {number} lat, lon             grados
  * @param {Date} date                   instante de referencia
- * @param {object} [o]  { minAlt = H0_STAR, stepMin = 10 }
+ * @param {object} [o]  { minAlt = H0_STAR, stepMin = 10 }  (minAlt: grados o función (ms) → grados, ver moonH0)
  * @returns {{ state: "normal"|"always"|"never", upNow: boolean,
  *             rise: {date, az}|null, transit: {date, alt}|null, set: {date, az}|null }}
  *   "always" = no se pone en 24 h; "never" = no sale en 24 h.
@@ -56,15 +62,16 @@ function maxBetween(altAt, t0, t1, stepMs = 5 * MIN) {
 export function riseTransitSet(dirAt, lat, lon, date, { minAlt = H0_STAR, stepMin = 10 } = {}) {
   const altAt = (ms) => { const d = new Date(ms); const v = dirAt(d); return altAz(v[0], v[1], v[2], lat, lon, d).alt; };
   const azAt = (ms) => { const d = new Date(ms); const v = dirAt(d); return altAz(v[0], v[1], v[2], lat, lon, d).az; };
+  const h0 = horizonAt(minAlt), relAt = (ms) => altAt(ms) - h0(ms);   // altura sobre el horizonte convencional
   const t0 = date.getTime(), step = stepMin * MIN;
   const cross = (from, dir, back) => {
     const c = nextCrossing(dirAt, lat, lon, new Date(from), { dir, maxHours: 24.5, stepMin: back ? -stepMin : stepMin, minAlt });
     if (!c) return null;
     const tc = c.date.getTime();
-    const t = refine(altAt, tc - step, tc + step, minAlt);
+    const t = refine(relAt, tc - step, tc + step, 0);
     return { date: new Date(t), az: azAt(t) };
   };
-  const upNow = altAt(t0) > minAlt;
+  const upNow = relAt(t0) > 0;
   let rise = null, set = null;
   if (upNow) {
     rise = cross(t0, 1, true);
