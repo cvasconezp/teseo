@@ -7,7 +7,7 @@ export const TQ = {
   es: {
     // ── Índice de recorridos ──
     indexTitle: "Preguntas",
-    indexLead: "Siete preguntas grandes y lo que de verdad sabemos de cada una. En todas hay algo que mover con el dedo: los números salen de mediciones publicadas y la cuenta se hace en tu teléfono.",
+    indexLead: "Ocho preguntas grandes y lo que de verdad sabemos de cada una. En todas hay algo que mover con el dedo: los números salen de mediciones publicadas y la cuenta se hace en tu teléfono.",
     indexLegend: "Cada dato lleva una de estas tres etiquetas",
     indexOpen: "Abrir el recorrido",
     allQuestions: "Todas las preguntas",
@@ -17,11 +17,12 @@ export const TQ = {
     tours: {
       mass: { title: "¿Qué pasa si cambio la masa?", teaser: "Pon tu masa en Marte, en el Sol y en una estrella de neutrones. Luego sube la masa de un asteroide hasta una estrella y mira en qué se convierte.", tag: "Juego con masa, peso y órbitas" },
       bh: { title: "¿Qué pasa cerca de un agujero negro?", teaser: "Elige una masa, de la Tierra a un cuásar, y mira cuánto mide su horizonte y cuánto se frena el tiempo a su lado.", tag: "Calculadora de horizonte, tiempo y mareas" },
-      expansion: { title: "¿El universo se expande?", teaser: "Ajusta una recta sobre 36 supernovas reales y obtén la edad del universo. Luego quita la energía oscura y mira qué cambia.", tag: "Diagrama de Hubble con datos publicados" },
-      dm: { title: "¿De qué está hecho el universo?", teaser: "Las estrellas del borde de una galaxia giran demasiado rápido. Añade masa invisible hasta que la cuenta cuadre con lo medido.", tag: "Curva de rotación real de NGC 3198" },
+      expansion: { title: "¿El universo se expande?", teaser: "Ajusta una recta sobre 36 supernovas reales y obtén la edad del universo. Luego quita la energía oscura y mira qué cambia.", tag: "Energía oscura · diagrama de Hubble con datos publicados" },
+      dm: { title: "¿De qué está hecho el universo?", teaser: "Las estrellas del borde de una galaxia giran demasiado rápido. Añade masa invisible hasta que la cuenta cuadre con lo medido.", tag: "Materia oscura · curva de rotación real de NGC 3198" },
       time: { title: "¿Se puede viajar en el tiempo?", teaser: "Mueve un deslizador de velocidad y otro de gravedad y mira cuántos años gana o pierde tu reloj. Al futuro, sí; al pasado, nadie lo ha logrado.", tag: "Dos relojes: velocidad y gravedad" },
       gw: { title: "¿Qué son las ondas gravitacionales?", teaser: "Mira cómo un anillo de partículas se estira y se aplasta, elige dos masas y escucha el chirrido de su fusión.", tag: "Chirrido, anillo y sonido" },
       drake: { title: "¿Estamos solos?", teaser: "Siete números para ordenar la pregunta. Tres se han medido; de los otros cuatro nadie sabe nada.", tag: "Ecuación de Drake, Fermi y Kardashov" },
+      spectrum: { title: "¿Cómo sabemos de qué están hechas las estrellas?", teaser: "Compón la atmósfera de un planeta o de una estrella y mira aparecer sus líneas. Luego adivina de qué está hecho un astro solo con su espectro.", tag: "Laboratorio y juego con el espectro de la luz" },
     },
     // ── ¿Estamos solos? ──
     title: "¿Estamos solos?",
@@ -139,7 +140,7 @@ export const TQ = {
   en: {
     // ── Tour index ──
     indexTitle: "Questions",
-    indexLead: "Seven big questions and what we actually know about each. Every one has something to move with your finger: the numbers come from published measurements and the arithmetic runs on your phone.",
+    indexLead: "Eight big questions and what we actually know about each. Every one has something to move with your finger: the numbers come from published measurements and the arithmetic runs on your phone.",
     indexLegend: "Every figure carries one of these three labels",
     indexOpen: "Open the tour",
     allQuestions: "All questions",
@@ -149,11 +150,12 @@ export const TQ = {
     tours: {
       mass: { title: "What happens if I change the mass?", teaser: "Put your mass on Mars, on the Sun and on a neutron star. Then raise an asteroid’s mass up to a star and see what it turns into.", tag: "A game with mass, weight and orbits" },
       bh: { title: "What happens near a black hole?", teaser: "Pick a mass, from Earth to a quasar, and see how big its horizon is and how much time slows beside it.", tag: "Horizon, time and tide calculator" },
-      expansion: { title: "Is the universe expanding?", teaser: "Fit a line through 36 real supernovae and get the age of the universe. Then remove dark energy and see what changes.", tag: "Hubble diagram with published data" },
-      dm: { title: "What is the universe made of?", teaser: "Stars at the edge of a galaxy orbit too fast. Add unseen mass until the sums match what was measured.", tag: "Real rotation curve of NGC 3198" },
+      expansion: { title: "Is the universe expanding?", teaser: "Fit a line through 36 real supernovae and get the age of the universe. Then remove dark energy and see what changes.", tag: "Dark energy · Hubble diagram with published data" },
+      dm: { title: "What is the universe made of?", teaser: "Stars at the edge of a galaxy orbit too fast. Add unseen mass until the sums match what was measured.", tag: "Dark matter · real rotation curve of NGC 3198" },
       time: { title: "Can you travel in time?", teaser: "Move a speed slider and a gravity slider and see how many years your clock gains or loses. Into the future, yes; into the past, nobody has managed it.", tag: "Two clocks: speed and gravity" },
       gw: { title: "What are gravitational waves?", teaser: "Watch a ring of particles stretch and squash, pick two masses and listen to the chirp of their merger.", tag: "Chirp, ring and sound" },
       drake: { title: "Are we alone?", teaser: "Seven numbers to frame the question. Three have been measured; nobody knows anything about the other four.", tag: "Drake equation, Fermi and Kardashev" },
+      spectrum: { title: "How do we know what stars are made of?", teaser: "Build the atmosphere of a planet or a star and watch its lines appear. Then guess what an object is made of from its spectrum alone.", tag: "Lab and game with the spectrum of light" },
     },
     // ── Are we alone? ──
     title: "Are we alone?",
