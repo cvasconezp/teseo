@@ -78,6 +78,15 @@ def test_tour_time_en_lista_blanca():
     assert metrics.clean_event({"e": "q_open", "p": {"q": "tiempo"}})["p"] == {}
 
 
+def test_tour_gw_en_lista_blanca():
+    # «¿Qué son las ondas gravitacionales?»: mismo q_open / q_preset que los demás recorridos
+    assert "gw" in metrics.TOURS
+    assert metrics.clean_event({"e": "q_open", "p": {"q": "gw"}}) == {"e": "q_open", "p": {"q": "gw"}}
+    assert metrics.clean_event({"e": "q_preset", "p": {"q": "gw", "preset": "gw150914"}})["p"] == {"q": "gw", "preset": "gw150914"}
+    assert metrics.clean_event({"e": "q_preset", "p": {"q": "gw", "preset": "gw170817"}})["p"] == {"q": "gw", "preset": "gw170817"}
+    assert metrics.clean_event({"e": "q_open", "p": {"q": "ondas"}})["p"] == {}
+
+
 def test_special_dest_moon_sun():
     # ¿Y la Luna? ¿Y el Sol?: solo moon/sun y tres tipos cerrados
     assert metrics.clean_event({"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}) == {"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}

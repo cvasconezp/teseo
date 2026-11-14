@@ -7,7 +7,7 @@ export const TQ = {
   es: {
     // ── Índice de recorridos ──
     indexTitle: "Preguntas",
-    indexLead: "Seis preguntas grandes y lo que de verdad sabemos de cada una. En todas hay algo que mover con el dedo: los números salen de mediciones publicadas y la cuenta se hace en tu teléfono.",
+    indexLead: "Siete preguntas grandes y lo que de verdad sabemos de cada una. En todas hay algo que mover con el dedo: los números salen de mediciones publicadas y la cuenta se hace en tu teléfono.",
     indexLegend: "Cada dato lleva una de estas tres etiquetas",
     indexOpen: "Abrir el recorrido",
     allQuestions: "Todas las preguntas",
@@ -20,6 +20,7 @@ export const TQ = {
       expansion: { title: "¿El universo se expande?", teaser: "Ajusta una recta sobre 36 supernovas reales y obtén la edad del universo. Luego quita la energía oscura y mira qué cambia.", tag: "Diagrama de Hubble con datos publicados" },
       dm: { title: "¿De qué está hecho el universo?", teaser: "Las estrellas del borde de una galaxia giran demasiado rápido. Añade masa invisible hasta que la cuenta cuadre con lo medido.", tag: "Curva de rotación real de NGC 3198" },
       time: { title: "¿Se puede viajar en el tiempo?", teaser: "Mueve un deslizador de velocidad y otro de gravedad y mira cuántos años gana o pierde tu reloj. Al futuro, sí; al pasado, nadie lo ha logrado.", tag: "Dos relojes: velocidad y gravedad" },
+      gw: { title: "¿Qué son las ondas gravitacionales?", teaser: "Mira cómo un anillo de partículas se estira y se aplasta, elige dos masas y escucha el chirrido de su fusión.", tag: "Chirrido, anillo y sonido" },
       drake: { title: "¿Estamos solos?", teaser: "Siete números para ordenar la pregunta. Tres se han medido; de los otros cuatro nadie sabe nada.", tag: "Ecuación de Drake, Fermi y Kardashov" },
     },
     // ── ¿Estamos solos? ──
@@ -138,7 +139,7 @@ export const TQ = {
   en: {
     // ── Tour index ──
     indexTitle: "Questions",
-    indexLead: "Six big questions and what we actually know about each. Every one has something to move with your finger: the numbers come from published measurements and the arithmetic runs on your phone.",
+    indexLead: "Seven big questions and what we actually know about each. Every one has something to move with your finger: the numbers come from published measurements and the arithmetic runs on your phone.",
     indexLegend: "Every figure carries one of these three labels",
     indexOpen: "Open the tour",
     allQuestions: "All questions",
@@ -151,6 +152,7 @@ export const TQ = {
       expansion: { title: "Is the universe expanding?", teaser: "Fit a line through 36 real supernovae and get the age of the universe. Then remove dark energy and see what changes.", tag: "Hubble diagram with published data" },
       dm: { title: "What is the universe made of?", teaser: "Stars at the edge of a galaxy orbit too fast. Add unseen mass until the sums match what was measured.", tag: "Real rotation curve of NGC 3198" },
       time: { title: "Can you travel in time?", teaser: "Move a speed slider and a gravity slider and see how many years your clock gains or loses. Into the future, yes; into the past, nobody has managed it.", tag: "Two clocks: speed and gravity" },
+      gw: { title: "What are gravitational waves?", teaser: "Watch a ring of particles stretch and squash, pick two masses and listen to the chirp of their merger.", tag: "Chirp, ring and sound" },
       drake: { title: "Are we alone?", teaser: "Seven numbers to frame the question. Three have been measured; nobody knows anything about the other four.", tag: "Drake equation, Fermi and Kardashev" },
     },
     // ── Are we alone? ──
