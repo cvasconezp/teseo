@@ -188,7 +188,14 @@ const T = {
 
     // Pie y créditos
     madeBy:         "Made by Yachay Deep Labs",
-    coopWith:       "In cooperation with Killa Ñan",
+    coopWith:       "In cooperation with Killa Ñan · Community astronomy",
+    allianceShort:  "with Killa Ñan",
+    introCredit:    "Yachay Deep Labs × Killa Ñan · Community astronomy",
+    whoTitle:       "Who makes Teseo",
+    whoYd:          ["Yachay Deep Labs", "Develops Teseo. Cayambe, Ecuador."],
+    whoKn:          ["Killa Ñan · Community astronomy", "Non-profit community astronomy project born in Cayambe (Ecuador) on 15 July 2018 and now present in several cities in the country. Teseo is built in cooperation with Killa Ñan."],
+    whoLinks:       { web: "Website", fb: "Facebook", ig: "Instagram" },
+    creditsGroups:  "Data sources by institution",
     creditsLink:    "Credits and data",
     creditsTitle:   "Credits and data sources",
     creditsIntro:   "Teseo uses real data from official sources. MIT-licensed code.",
@@ -196,21 +203,39 @@ const T = {
     privacyNote:    "Privacy: Teseo also counts, anonymously and in aggregate, which features are used (daily totals only), with no cookies and no personal data. Google Analytics is used only if you accept it in the cookie notice.",
     close:          "Close",
     credits: [
-      ["Stars and distances", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],
-      ["Constellations", "Stellarium western/modern · IAU · CC BY-SA"],
-      ["Clusters, nebulae and galaxies", "OpenNGC (Messier/NGC) · CC BY-SA"],
-      ["Galaxy distances", "from redshift (Hubble's law, approx.)"],
-      ["Pulsars", "ATNF Pulsar Catalogue (CSIRO)"],
-      ["Black holes", "Published values (selection)"],
-      ["Planet positions", "NASA JPL Horizons + ephemerides"],
-      ["Comets and probes (live)", "NASA JPL Horizons"],
-      ["Exoplanets", "NASA Exoplanet Archive"],
-      ["Upcoming launches", "Launch Library 2 · The Space Devs"],
-      ["Near-Earth asteroids", "NASA/JPL CNEOS"],
-      ["Planetary textures", "Solar System Scope (CC BY 4.0), NASA"],
-      ["Fact sheets and images", "Wikipedia · CC BY-SA"],
-      ["Narrative", "Groq (Llama models)"],
-      ["3D rendering", "Three.js · MIT"],
+      { g: "Space agencies", items: [
+        ["NASA · JPL", "Horizons (planets, comets and probes, live) · CNEOS (near-Earth asteroids)"],
+        ["NASA · other centres", "Exoplanet Archive (live) · GSFC eclipse tables · Image and Video Library · Planetary Fact Sheet"],
+        ["ESA", "Gaia DR3 (black holes Gaia BH1–BH3) · Planck 2018 (dark matter and dark energy)"],
+      ]},
+      { g: "Observatories and scientific collaborations", items: [
+        ["LIGO · Virgo · KAGRA", "GWTC-4.0 gravitational-wave catalogue"],
+        ["Event Horizon Telescope", "Images of M87* and Sagittarius A*"],
+        ["CSIRO (Australia)", "ATNF Pulsar Catalogue"],
+        ["DESI · SH0ES · LUX-ZEPLIN · CERN", "Expansion of the universe and dark-matter searches (published results)"],
+        ["SPARC (Case Western Reserve U.)", "Rotation curve of NGC 3198"],
+      ]},
+      { g: "Measurement institutes and Earth data", items: [
+        ["NIST (USA)", "CODATA constants · Atomic Spectra Database (spectral lines)"],
+        ["NOAA · British Geological Survey", "World Magnetic Model WMM2025 (compass)"],
+        ["IAU · IERS", "Astronomical constants, the 88 official constellations, Earth orientation"],
+      ]},
+      { g: "Catalogues, tracking and community", items: [
+        ["Stars and distances", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],
+        ["Constellation figures", "Stellarium western/modern · CC BY-SA"],
+        ["Clusters, nebulae and galaxies", "OpenNGC · SEDS Messier · distances from redshift (approx.)"],
+        ["Meteor showers", "International Meteor Organization (IMO)"],
+        ["International Space Station", "CelesTrak orbital elements · SGP4"],
+        ["Upcoming launches", "Launch Library 2 · The Space Devs"],
+        ["Ephemerides and sky", "Paul Schlyter · J. Meeus · Bortle scale · Schaefer atmosphere model"],
+        ["Planetary textures", "Solar System Scope (CC BY 4.0), NASA"],
+        ["Fact sheets and images", "Wikipedia · CC BY-SA"],
+      ]},
+      { g: "Software", items: [
+        ["Orbital mechanics", "hapsira · astropy · sgp4"],
+        ["Narrative", "Groq (Llama models) — narrates, never calculates"],
+        ["3D rendering", "Three.js · MIT"],
+      ]},
     ],
   },
   es: {
@@ -345,7 +370,14 @@ const T = {
     skipToContent:  "Saltar al contenido",
 
     madeBy:         "Desarrollado por Yachay Deep Labs",
-    coopWith:       "En cooperación con Killa Ñan",
+    coopWith:       "En cooperación con Killa Ñan · Astronomía comunitaria",
+    allianceShort:  "con Killa Ñan",
+    introCredit:    "Yachay Deep Labs × Killa Ñan · Astronomía comunitaria",
+    whoTitle:       "Quiénes hacen Teseo",
+    whoYd:          ["Yachay Deep Labs", "Desarrolla Teseo. Cayambe, Ecuador."],
+    whoKn:          ["Killa Ñan · Astronomía comunitaria", "Proyecto de astronomía comunitaria sin fines de lucro nacido en Cayambe (Ecuador) el 15 de julio de 2018 y presente hoy en varias ciudades del país. Teseo se hace en cooperación con Killa Ñan."],
+    whoLinks:       { web: "Sitio web", fb: "Facebook", ig: "Instagram" },
+    creditsGroups:  "Fuentes de datos por institución",
     creditsLink:    "Créditos y datos",
     creditsTitle:   "Créditos y fuentes de datos",
     creditsIntro:   "Teseo usa datos reales de fuentes oficiales. Código con licencia MIT.",
@@ -353,21 +385,39 @@ const T = {
     privacyNote:    "Privacidad: Teseo cuenta además, de forma anónima y agregada, qué funciones se usan (solo totales por día), sin cookies ni datos personales. Google Analytics solo se usa si lo aceptas en el aviso de cookies.",
     close:          "Cerrar",
     credits: [
-      ["Estrellas y distancias", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],
-      ["Constelaciones", "Stellarium western/modern · IAU · CC BY-SA"],
-      ["Cúmulos, nebulosas y galaxias", "OpenNGC (Messier/NGC) · CC BY-SA"],
-      ["Distancia de galaxias", "por redshift (ley de Hubble, aprox.)"],
-      ["Púlsares", "ATNF Pulsar Catalogue (CSIRO)"],
-      ["Agujeros negros", "Valores publicados (selección)"],
-      ["Posición de planetas", "NASA JPL Horizons + efemérides"],
-      ["Cometas y sondas (en vivo)", "NASA JPL Horizons"],
-      ["Exoplanetas", "NASA Exoplanet Archive"],
-      ["Próximos lanzamientos", "Launch Library 2 · The Space Devs"],
-      ["Asteroides cercanos", "NASA/JPL CNEOS"],
-      ["Texturas planetarias", "Solar System Scope (CC BY 4.0), NASA"],
-      ["Fichas e imágenes", "Wikipedia · CC BY-SA"],
-      ["Narrativa", "Groq (modelos Llama)"],
-      ["Render 3D", "Three.js · MIT"],
+      { g: "Agencias espaciales", items: [
+        ["NASA · JPL", "Horizons (planetas, cometas y sondas, en vivo) · CNEOS (asteroides cercanos)"],
+        ["NASA · otros centros", "Exoplanet Archive (en vivo) · tablas de eclipses del GSFC · Image and Video Library · Planetary Fact Sheet"],
+        ["ESA", "Gaia DR3 (agujeros negros Gaia BH1–BH3) · Planck 2018 (materia y energía oscura)"],
+      ]},
+      { g: "Observatorios y colaboraciones científicas", items: [
+        ["LIGO · Virgo · KAGRA", "Catálogo de ondas gravitacionales GWTC-4.0"],
+        ["Event Horizon Telescope", "Imágenes de M87* y Sagitario A*"],
+        ["CSIRO (Australia)", "Catálogo de púlsares ATNF"],
+        ["DESI · SH0ES · LUX-ZEPLIN · CERN", "Expansión del universo y búsquedas de materia oscura (resultados publicados)"],
+        ["SPARC (Case Western Reserve U.)", "Curva de rotación de NGC 3198"],
+      ]},
+      { g: "Institutos de medida y datos de la Tierra", items: [
+        ["NIST (EE. UU.)", "Constantes CODATA · Atomic Spectra Database (líneas espectrales)"],
+        ["NOAA · British Geological Survey", "Modelo magnético mundial WMM2025 (brújula)"],
+        ["UAI · IERS", "Constantes astronómicas, las 88 constelaciones oficiales, orientación de la Tierra"],
+      ]},
+      { g: "Catálogos, seguimiento y comunidad", items: [
+        ["Estrellas y distancias", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],
+        ["Figuras de constelaciones", "Stellarium western/modern · CC BY-SA"],
+        ["Cúmulos, nebulosas y galaxias", "OpenNGC · SEDS Messier · distancias por redshift (aprox.)"],
+        ["Lluvias de meteoros", "Organización Internacional de Meteoros (IMO)"],
+        ["Estación Espacial Internacional", "Elementos orbitales de CelesTrak · SGP4"],
+        ["Próximos lanzamientos", "Launch Library 2 · The Space Devs"],
+        ["Efemérides y cielo", "Paul Schlyter · J. Meeus · escala de Bortle · modelo de atmósfera de Schaefer"],
+        ["Texturas planetarias", "Solar System Scope (CC BY 4.0), NASA"],
+        ["Fichas e imágenes", "Wikipedia · CC BY-SA"],
+      ]},
+      { g: "Software", items: [
+        ["Mecánica orbital", "hapsira · astropy · sgp4"],
+        ["Narrativa", "Groq (modelos Llama) — narra, nunca calcula"],
+        ["Render 3D", "Three.js · MIT"],
+      ]},
     ],
   },
 };
@@ -602,6 +652,7 @@ function Intro({ lang, onDone }) {
       onClick={onDone}
       style={{opacity:phase>=5?0:1, transition:"opacity 0.7s"}}>
       <StarField/>
+      <p className="intro__credit">{t.introCredit}</p>
 
       {/* Phase 1 — You are here */}
       {phase>=1&&phase<3&&(
@@ -1319,12 +1370,34 @@ function CreditsModal({ lang, onClose }) {
             <IconClose width={20} height={20}/>
           </button>
         </div>
+        <h3 className="credits__h">{t.whoTitle}</h3>
+        <div className="who">
+          <a className="who__card who__card--kn" href="https://www.killanan.org/" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>
+            <span className="who__name">{t.whoKn[0]}</span>
+            <span className="who__text">{t.whoKn[1]}</span>
+          </a>
+          <div className="who__links">
+            <a href="https://www.killanan.org/" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>{t.whoLinks.web}</a>
+            <a href="https://www.facebook.com/KillaNanEC" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>{t.whoLinks.fb}</a>
+            <a href="https://www.instagram.com/killananec/" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>{t.whoLinks.ig}</a>
+          </div>
+          <a className="who__card" href="https://yachaydeep.com" target="_blank" rel="noopener noreferrer">
+            <span className="who__name">{t.whoYd[0]}</span>
+            <span className="who__text">{t.whoYd[1]}</span>
+          </a>
+        </div>
+        <h3 className="credits__h">{t.creditsGroups}</h3>
         <p className="modal__p">{t.creditsIntro}</p>
-        <dl className="credits">
-          {t.credits.map(([k,v])=>(
-            <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
-          ))}
-        </dl>
+        {t.credits.map(({g, items})=>(
+          <section key={g} className="credits__group">
+            <h4 className="credits__g">{g}</h4>
+            <dl className="credits">
+              {items.map(([k,v])=>(
+                <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+              ))}
+            </dl>
+          </section>
+        ))}
         <p className="modal__p modal__p--fine">{t.creditsNote}</p>
         <p className="modal__p modal__p--fine">{t.privacyNote}</p>
       </div>
@@ -1730,6 +1803,8 @@ export default function Teseo() {
             <div>
               <h1 className="wordmark" style={{fontSize:30}}>Teseo</h1>
               <p className="tagline">{t.tagline}</p>
+              <a className="tagline tagline--kn" href="https://www.killanan.org/" target="_blank" rel="noopener noreferrer"
+                title={t.coopWith} onClick={()=>track("coop_open", { from: "header" })}>{t.allianceShort}</a>
             </div>
             <div className="flex items-center gap-2">
             <button type="button" className={`night-btn${night ? " is-on" : ""}`} aria-pressed={night}
@@ -1860,8 +1935,8 @@ export default function Teseo() {
                 {t.madeBy}
               </a>
               <span aria-hidden="true" className="footer__sep footer__sep--made"/>
-              <a href="https://www.facebook.com/share/1JGNNHwUXd/" target="_blank" rel="noopener noreferrer" className="footer__link"
-                onClick={()=>track("coop_open")}>
+              <a href="https://www.killanan.org/" target="_blank" rel="noopener noreferrer" className="footer__link footer__link--kn"
+                onClick={()=>track("coop_open", { from: "footer" })}>
                 {t.coopWith}
               </a>
               <span aria-hidden="true" className="footer__sep"/>

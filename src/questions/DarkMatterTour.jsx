@@ -205,7 +205,7 @@ export default function DarkMatterTour({ lang = "es", indexHref }) {
         </Card>
         <Card id="q-dm-unknown" title={T.unknown.title} teaser={T.unknown.teaser} level={T.unknown.tag} t={t}>
           <p>{T.unknown.p1}</p><p>{T.unknown.p2}</p>
-          <Refs ids={["nasaDM", "lz2023"]} refs={DM_REFS} lang={lang} t={t} />
+          <Refs ids={["nasaDM", "lz2023", "cernDM"]} refs={DM_REFS} lang={lang} t={t} />
         </Card>
         <Card id="q-dm-mond" title={T.mond.title} teaser={T.mond.teaser} level={T.mond.tag} levelNote={T.mond.tagNote} t={t}>
           <p>{T.mond.p1}</p><p>{T.mond.p2}</p><p>{T.mond.p3}</p>

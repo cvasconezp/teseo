@@ -43,6 +43,7 @@ export const DM_REFS = {
   clowe2006: { cite: "Clowe et al. (2006), ApJ 648, L109: el cúmulo Bala", citeEn: "Clowe et al. (2006), ApJ 648, L109: the Bullet Cluster", url: "https://arxiv.org/abs/astro-ph/0608407" },
   chandraBullet: { cite: "Chandra (NASA): imágenes del cúmulo Bala, 1E 0657-56", citeEn: "Chandra (NASA): images of the Bullet Cluster, 1E 0657-56", url: "https://chandra.harvard.edu/photo/2006/1e0657/" },
   nasaDM: { cite: "NASA Science, «Dark Matter»", citeEn: "NASA Science, “Dark Matter”", url: "https://science.nasa.gov/dark-matter/" },
+  cernDM: { cite: "CERN, «Dark matter»: búsquedas en el Gran Colisionador de Hadrones (LHC)", citeEn: "CERN, “Dark matter”: searches at the Large Hadron Collider (LHC)", url: "https://home.cern/science/physics/dark-matter" },
   lz2023: { cite: "LUX-ZEPLIN (2023), PRL 131, 041002: primera búsqueda, sin señal", citeEn: "LUX-ZEPLIN (2023), PRL 131, 041002: first search, no signal", url: "https://arxiv.org/abs/2207.03764" },
   milgrom1983: { cite: "Milgrom (1983), ApJ 270, 365: la propuesta de la dinámica modificada (MOND)", citeEn: "Milgrom (1983), ApJ 270, 365: the proposal of modified dynamics (MOND)", url: "https://ui.adsabs.harvard.edu/abs/1983ApJ...270..365M/abstract" },
   mcgaugh2016: { cite: "McGaugh, Lelli y Schombert (2016), PRL 117, 201101: relación de aceleración radial", citeEn: "McGaugh, Lelli & Schombert (2016), PRL 117, 201101: the radial acceleration relation", url: "https://arxiv.org/abs/1609.05917" },
@@ -199,7 +200,7 @@ export const DM_T = {
       title: "Qué es: nadie lo sabe",
       teaser: "Se mide su gravedad; nunca se ha detectado una partícula.",
       p1: "«Materia oscura» nombra un efecto, no una sustancia conocida. No emite ni absorbe luz, y solo se nota por su gravedad. Podría ser una partícula nueva (los candidatos más buscados se llaman WIMP y axiones), agujeros negros muy antiguos o algo que nadie ha imaginado.",
-      p2: "Los detectores más sensibles, enterrados bajo tierra para aislarlos, llevan décadas buscando. El experimento LUX-ZEPLIN publicó en 2023 su primera búsqueda: sus datos eran compatibles con no haber visto nada. Cada resultado nulo descarta posibilidades, pero no dice qué es.",
+      p2: "Los detectores más sensibles, enterrados bajo tierra para aislarlos, llevan décadas buscando. El experimento LUX-ZEPLIN publicó en 2023 su primera búsqueda: sus datos eran compatibles con no haber visto nada. En el Gran Colisionador de Hadrones (LHC) del CERN también se busca: si los choques de protones crearan partículas de materia oscura, se notaría energía que falta; hasta hoy no ha aparecido. Cada resultado nulo descarta posibilidades, pero no dice qué es.",
       tag: "unknown",
     },
     mond: {
@@ -294,7 +295,7 @@ export const DM_T = {
       title: "What it is: nobody knows",
       teaser: "Its gravity is measured; no particle has ever been detected.",
       p1: "“Dark matter” names an effect, not a known substance. It neither emits nor absorbs light, and shows itself only through gravity. It could be a new particle (the most sought-after candidates are called WIMPs and axions), very old black holes, or something nobody has imagined.",
-      p2: "The most sensitive detectors, buried underground to shield them, have been searching for decades. The LUX-ZEPLIN experiment published its first search in 2023: its data were consistent with having seen nothing. Each null result rules out possibilities, but does not say what it is.",
+      p2: "The most sensitive detectors, buried underground to shield them, have been searching for decades. The LUX-ZEPLIN experiment published its first search in 2023: its data were consistent with having seen nothing. CERN’s Large Hadron Collider (LHC) is searching too: if proton collisions created dark matter particles, energy would go missing; so far it has not shown up. Each null result rules out possibilities, but does not say what it is.",
       tag: "unknown",
     },
     mond: {

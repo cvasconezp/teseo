@@ -471,6 +471,8 @@ def test_mga_card_lista_blanca():
 
 
 def test_coop_open():
-    # enlace del pie «En cooperación con Killa Ñan»: sin parámetros
+    # enlaces a Killa Ñan: solo se guarda desde dónde (pie, cabecera o créditos)
     assert metrics.clean_event({"e": "coop_open", "p": {"x": 1}}) == {"e": "coop_open", "p": {}}
+    assert metrics.clean_event({"e": "coop_open", "p": {"from": "header"}}) == {"e": "coop_open", "p": {"from": "header"}}
+    assert metrics.clean_event({"e": "coop_open", "p": {"from": "otro"}}) == {"e": "coop_open", "p": {}}
 

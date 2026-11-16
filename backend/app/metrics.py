@@ -70,6 +70,7 @@ LANGS = {"es", "en"}
 SCREENS = {"small", "medium", "large"}
 ON_OFF = {"on", "off"}
 TOURS = {"drake", "bh", "expansion", "dm", "mass", "time", "gw", "spectrum"}
+COOP_FROM = {"footer", "header", "credits"}
 NOW_CARDS = {"mars", "launches", "asteroids", "calendar"}
 NOW_KINDS = {"details", "webcast", "info", "show_all", "select", "ld_help", "cneos", "filter", "ics", "sky"}
 NOW_SOURCES = {"link", "windows", "route", "header", "teaser"}
@@ -101,7 +102,7 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "language_change":    {"lang": LANGS},
     "night_vision":       {"state": ON_OFF},
     "credits_open":       {},
-    "coop_open":          {},   # enlace «En cooperación con Killa Ñan» del pie
+    "coop_open":          {"from": COOP_FROM},   # enlaces a Killa Ñan (pie, cabecera, créditos)
     "data_retry":         {"tab": TABS},
     "net_error":          {"endpoint": ENDPOINTS, "kind": ERROR_KINDS},
     # Ahora en el espacio
