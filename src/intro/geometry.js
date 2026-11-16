@@ -90,31 +90,32 @@ function armPoint(k, u) {
   const a = BAR_TILT + k * Math.PI / 2 + th;
   return [r, a];
 }
-export function galaxyPoints(n = 1100) {
+export function galaxyPoints(n = 1300) {
   const rnd = seeded(11);
   const gauss = () => (rnd() + rnd() + rnd() + rnd() - 2) / 0.58;   // ≈ normal(0, 1)
   const pts = [];
   const warm = ["#fff3d6", "#ffe6b0", "#ffd9a0"], cool = ["#ffffff", "#c9b8ff", "#9ec5ff", "#b9d4ff"];
   const push = (x, y, size, col, op) => pts.push([f(x), f(y * 0.86), f(size), col, f(op)]);
-  const nBar = Math.round(n * 0.15), nDisk = Math.round(n * 0.07), nSpur = Math.round(n * 0.04);
+  const nBar = Math.round(n * 0.14), nDisk = Math.round(n * 0.03), nSpur = Math.round(n * 0.04);
   const nArms = n - nBar - nDisk - nSpur;
   // barra y bulbo: estrellas viejas, amarillentas
   for (let i = 0; i < nBar; i++) {
-    const along = gauss() * BAR_HALF * 0.5, across = gauss() * 5.5;
+    const along = gauss() * BAR_HALF * 0.42, across = gauss() * 4.2;
     const x = along * Math.cos(BAR_TILT) - across * Math.sin(BAR_TILT), y = along * Math.sin(BAR_TILT) + across * Math.cos(BAR_TILT);
-    push(x, y, 0.4 + rnd() * 0.8, warm[Math.floor(rnd() * warm.length)], 0.45 + rnd() * 0.5);
+    push(x, y, 0.35 + rnd() * 0.6, warm[Math.floor(rnd() * warm.length)], 0.45 + rnd() * 0.5);
   }
   // brazos: los principales (0 y 2) con más estrellas que los menores (1 y 3)
-  const weight = [1, 0.55, 1, 0.55], wsum = weight.reduce((a, b) => a + b, 0);
+  const weight = [1, 0.38, 1, 0.38], wsum = weight.reduce((a, b) => a + b, 0);
   for (let k = 0; k < 4; k++) {
     const m = Math.round(nArms * weight[k] / wsum);
     for (let i = 0; i < m; i++) {
-      const u = Math.pow(rnd(), 0.8);
+      const u = i / m + (rnd() - 0.5) / m;           // repartidos a lo largo del brazo (sin grumos al azar)
       const [r, a] = armPoint(k, u);
-      const w = (1.1 + r * 0.03) * gauss();
+      const w = (0.7 + r * 0.018) * gauss();
       const along = (rnd() - 0.5) * 3;
       const x = (r + w) * Math.cos(a) - along * Math.sin(a), y = (r + w) * Math.sin(a) + along * Math.cos(a);
-      push(x, y, 0.35 + rnd() * (k % 2 ? 0.7 : 1), cool[Math.floor(rnd() * cool.length)], (k % 2 ? 0.3 : 0.4) + rnd() * 0.55);
+      const core = Math.exp(-(w * w) / 18);          // más brillo en el eje del brazo
+      push(x, y, 0.3 + rnd() * (k % 2 ? 0.45 : 0.7), cool[Math.floor(rnd() * cool.length)], (k % 2 ? 0.25 : 0.35) + 0.55 * core);
     }
   }
   // disco tenue entre los brazos

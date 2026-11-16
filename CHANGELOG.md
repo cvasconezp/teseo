@@ -2,6 +2,9 @@
 
 ## 1.4.1 — 16 de noviembre de 2026
 
+- (1.4.2) Brazos más nítidos y ordenados: estrellas repartidas a lo largo de cada brazo,
+  más brillo en su eje y menos dispersión.
+
 - Entrada: la Vía Láctea ahora se parece a la nuestra — espiral barrada con
   barra central, dos brazos principales (Escudo-Centauro y Perseo), dos menores
   (Norma y Sagitario) y el brazo de Orión, donde se marca el Sol.
