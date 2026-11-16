@@ -4,7 +4,7 @@
 //  · tiempo de luz, ocultaciones y tránsitos, anillo de Saturno, buscador y textos ES/EN.
 // Uso:  node scripts/test_moons.mjs   (sale con código 1 si algo falla)
 import fs from "node:fs";
-import { MOON_TEXTURES, moonBody, MOON_KEYS, MOON_INFO, moonsOf, planetView, searchMoons, seeWith, moonVectorKm, moonName, PLANET_RADIUS_KM } from "../src/sky/moons.js";
+import { moonsSky, planetOrientation, MOON_TEXTURES, moonBody, MOON_KEYS, MOON_INFO, moonsOf, planetView, searchMoons, seeWith, moonVectorKm, moonName, PLANET_RADIUS_KM } from "../src/sky/moons.js";
 import { MOON_ORBITS } from "../src/sky/moonsData.js";
 import { ephemeris } from "../src/ephemeris.js";
 
@@ -73,6 +73,23 @@ ok(searchMoons("lunas").length === 19 && searchMoons("galileanos").length === 4,
 ok(searchMoons("luna").length === 0 && searchMoons("moon").length === 0, "«luna» / «moon» siguen siendo la Luna de la Tierra");
 ok(moonName("Iapetus", "es") === "Jápeto" && moonName("Iapetus", "en") === "Iapetus", "nombres en español: Jápeto");
 ok(seeWith(5.5, 200, "Júpiter") === "binoculars" && seeWith(8.3, 180, "Saturno") === "small" && seeWith(13.8, 30, "Urano") === "large" && seeWith(11, 20, "Marte") === "hard", "con qué se ve: prismáticos, telescopio pequeño, grande; Marte deslumbra");
+
+console.log("Orientación de los planetas frente a JPL Horizons (16-nov-2026 20:00 UT)");
+{
+  // Horizons, cantidades 14 y 17: ángulo de posición del polo norte y latitud del punto subterrestre
+  // (Horizons da latitud planetodética: en Saturno −7,66° equivale a −6,4° planetocéntrica, la que usan los anillos)
+  const d = new Date(Date.UTC(2026, 10, 16, 20));
+  const ref = { Jupiter: ["Júpiter", 21.98, -0.31], Saturn: ["Saturno", 3.47, -6.4], Uranus: ["Urano", 288.12 - 360, 74.8] };
+  for (const [en, [es, paH, bH]] of Object.entries(ref)) {
+    const b = ephemeris(d).find((x) => x.planet === en), n = Math.hypot(b.nx, b.ny, b.nz);
+    const o = planetOrientation(es, [b.nx / n, b.ny / n, b.nz / n]);
+    ok(Math.abs(o.pa - paH) < 1 && Math.abs(o.B - bH) < 1, `${es}: polo a ${o.pa.toFixed(2)}° (Horizons ${paH}°), latitud vista ${o.B.toFixed(2)}° (Horizons ${bH}°)`);
+  }
+  const b = ephemeris(d).find((x) => x.planet === "Jupiter");
+  const sky = moonsSky({ name: "Júpiter", nx: b.nx, ny: b.ny, nz: b.nz, dist_au: b.dist_au, r_au: b.r_au }, d);
+  const n = Math.hypot(b.nx, b.ny, b.nz), u = [b.nx / n, b.ny / n, b.nz / n];
+  ok(sky.length === 4 && sky.every((m) => Math.abs(Math.acos(Math.min(1, m.dir[0] * u[0] + m.dir[1] * u[1] + m.dir[2] * u[2])) * 206264.806 - m.sep) < 0.05), "en el cielo, cada luna queda a su separación del planeta");
+}
 
 console.log("Texturas del globo 3D");
 {

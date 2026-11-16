@@ -5,14 +5,20 @@ import { ephemeris } from "./ephemeris.js";
 import { ErrorNotice } from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS } from "./net.js";
 import { BODIES, BODY_NAMES, bodyName, textureUrl, drawBodySprite, SPRITE_PX } from "./sky/bodies.js";
-import { searchMoons, moonName, moonOrbit, MOON_INFO } from "./sky/moons.js";
+import { searchMoons, moonName, moonOrbit, MOON_INFO, MOON_KEYS, moonsSky, planetPole, planetOrientation, POLAR_FLATTENING } from "./sky/moons.js";
+import { drawSphere } from "./sky/art.js";
+import { RING_URL } from "./sky/bodies.js";
 
-// Luna de otro planeta como objeto de la escena: va donde su planeta (a menos de un cuarto de grado) y lleva su clave
-// en inglés («Io») como nombre; dónde está respecto al planeta lo dibuja la ficha (src/sky/MoonsView.jsx).
-function moonObjFrom(bodies, key) {
+// Luna de otro planeta como objeto de la escena: su dirección real en el cielo (a menos de un cuarto de grado
+// de su planeta, src/sky/moons.js) y su clave en inglés («Io») como nombre.
+function moonObjFrom(bodies, key, date = new Date()) {
   const o = moonOrbit(key); if (!o) return null;
   const b = (bodies || []).find((x) => x.name === o.parent); if (!b) return null;
-  return { nx: b.nx, ny: b.ny, nz: b.nz, ra: b.ra, dec: b.dec, eqDate: b.eqDate, dist_au: b.dist_au, r_au: b.r_au, layer: "moon", name: key, parent: o.parent };
+  let dir = [b.nx, b.ny, b.nz], aArcsec = null;
+  try {
+    if (b.dist_au) { const m = moonsSky(b, date).find((x) => x.key === key); if (m) { dir = m.dir; aArcsec = m.aArcsec; } }
+  } catch { /* sin posición propia: va donde su planeta */ }
+  return { nx: dir[0], ny: dir[1], nz: dir[2], ra: b.ra, dec: b.dec, eqDate: b.eqDate, dist_au: b.dist_au, r_au: b.r_au, layer: "moon", name: key, parent: o.parent, aArcsec };
 }
 const foldTxt = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 import { fmtDist, fmtYears, fmtWhenShort, fmtKm, fmtDuration } from "./sky/format.js";
@@ -687,6 +693,8 @@ export default function Constellations({ lang = "es" }) {
   useEffect(() => { isWideRef.current = isWide; }, [isWide]);
   useEffect(() => { datasetsRef.current = datasets; }, [datasets]);
   useEffect(() => { bodiesRef.current = bodies; }, [bodies]);
+  const whenRef = useRef(whenStr);
+  useEffect(() => { whenRef.current = whenStr; }, [whenStr]);
   // abreviatura IAU (p.ej. "Sgr") -> nombre de constelación, para que buscar
   // "sagit(tarius)" encuentre objetos cuyo nombre usa la abreviatura ("Sgr A*").
   const abbrevExpand = useMemo(() => {
@@ -747,7 +755,7 @@ export default function Constellations({ lang = "es" }) {
     for (const b of bodies) if ((b.name + " " + bodyName(b.name, "en")).toLowerCase().includes(q)) r.push({ type: "solar", body: b, label: bodyName(b.name, lang), kind: kinds.solar });
     // lunas de otros planetas (src/sky/moons.js): «Ío», «Titán», «lunas de Júpiter», «galileanos»
     for (const key of searchMoons(q)) {
-      const mo = moonObjFrom(bodies, key); if (!mo) continue;
+      const mo = moonObjFrom(bodies, key, new Date(whenStr)); if (!mo) continue;
       const exact = [MOON_INFO[key].es, MOON_INFO[key].en].some((n) => foldTxt(n) === foldTxt(q));
       r.push({ type: "moon", obj: mo, label: TC[lang].moonResult(moonName(key, lang), bodyName(mo.parent, lang)), kind: TC[lang].kindMoonOther, exact });
     }
@@ -783,7 +791,7 @@ export default function Constellations({ lang = "es" }) {
     }
     r.sort((a, b) => score(a.label, a.exact) - score(b.label, b.exact));
     return r.slice(0, 8);
-  }, [query, sky, datasets, bodies, abbrevExpand, catMatch, lang, layerError]);
+  }, [query, sky, datasets, bodies, abbrevExpand, catMatch, lang, layerError, whenStr]);
   const depthRef = useRef(0);
   const selRef = useRef(null);
   const pendingTries = useRef({}), pendingTimers = useRef([]);
@@ -904,7 +912,7 @@ export default function Constellations({ lang = "es" }) {
       return;
     }
     if (layer === "moon") {
-      const mo = moonObjFrom(bodiesRef.current, name);
+      const mo = moonObjFrom(bodiesRef.current, name, new Date(whenRef.current || Date.now()));
       if (mo) { setShowSolar(true); setSelObj(mo); }
       pendingObjRef.current = null;
       return;
@@ -1186,15 +1194,106 @@ export default function Constellations({ lang = "es" }) {
       img.onload = () => {
         if (sceneDead) return;
         solarImg[nm] = img;
+        { const rs = realSprites[nm]; if (rs && rs.wantB != null) { paintReal(nm, rs.wantB); if (sceneRef.current && sceneRef.current.sizeSolar) sceneRef.current.sizeSolar(); } }
         drawBodySprite(c, nm, img, nm === "Luna" ? (sceneRef.current && sceneRef.current.moonPhase) : null);
         tex.needsUpdate = true;
       };
       img.onerror = () => { /* textura aún no publicada (p. ej. marte, venus): queda el disco de respaldo */ };
       img.src = textureUrl(b.id);
     });
+    // lunas de otros planetas: un punto de luz cada una; solo con mucho zoom (src/sky/moons.js)
+    const moonGroup = new THREE.Group(); solarGroup.add(moonGroup); moonGroup.visible = false;
+    const dotC = document.createElement("canvas"); dotC.width = dotC.height = 64;
+    { const g = dotC.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.18, "rgba(250,250,255,0.95)"); gr.addColorStop(0.4, "rgba(220,228,255,0.35)"); gr.addColorStop(1, "rgba(220,228,255,0)");
+      g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
+    const dotTex = new THREE.CanvasTexture(dotC);
+    const moonSprites = {};
+    MOON_KEYS.forEach((key) => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, transparent: true, depthTest: false, sizeAttenuation: false }));
+      sp.userData.px = 13; sp.renderOrder = 2; moonGroup.add(sp); moonSprites[key] = sp;
+    });
+    // con mucho zoom, los planetas con lunas se dibujan como son: tamaño real, textura, achatamiento, anillos con su
+    // inclinación de esa fecha y el eje girado como se ve en el cielo (el marcador de tamaño fijo se oculta)
+    const REAL = ["Marte", "Júpiter", "Saturno", "Urano", "Neptuno"];
+    const realSprites = {};
+    let ringProfile = null;
+    { const ri = new Image(); ri.onload = () => { try {
+        const c = document.createElement("canvas"); c.width = ri.naturalWidth; c.height = ri.naturalHeight;
+        const g = c.getContext("2d"); g.drawImage(ri, 0, 0); ringProfile = g.getImageData(0, Math.floor(c.height / 2), c.width, 1).data;
+        const rs = realSprites["Saturno"]; if (rs && rs.wantB != null) paintReal("Saturno", rs.wantB);   // repintar con la textura de los anillos
+      } catch { /* sin perfil: anillo liso */ } }; ri.src = RING_URL; }
+    REAL.forEach((nm) => {
+      const c = document.createElement("canvas"); c.width = c.height = 256;
+      const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, sizeAttenuation: false }));
+      sp.visible = false; sp.renderOrder = 1; solarGroup.add(sp);
+      realSprites[nm] = { sp, c, tex, B: null, img: null, Rc: BODIES[nm].ring ? 54 : 124 };
+    });
+    const paintReal = (nm, B) => {
+      const rs = realSprites[nm], im = solarImg[nm]; if (!rs || !im) return;
+      if (!rs.img) { try { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; const g = c.getContext("2d"); g.drawImage(im, 0, 0); rs.img = g.getImageData(0, 0, c.width, c.height); } catch { return; } }
+      const x = rs.c.getContext("2d"), Rc = rs.Rc, Bt = B * Math.PI / 180;
+      x.clearRect(0, 0, 256, 256); x.save(); x.translate(128, 128);
+      const ringBand = (front) => {
+        if (!BODIES[nm].ring) return;
+        const inner = Rc * 1.236, outer = Rc * 2.27, sinB = Math.abs(Math.sin(Bt));
+        const near = Bt >= 0 ? [0, Math.PI] : [Math.PI, 2 * Math.PI], [a0, a1] = front ? near : [near[1], near[0] + 2 * Math.PI];
+        for (let r = inner; r <= outer; r += 0.6) {
+          let col = "226,205,160", al = 0.7;
+          if (ringProfile) { const n = ringProfile.length / 4, i = Math.min(n - 1, Math.floor(((r - inner) / (outer - inner)) * n)) * 4; col = `${ringProfile[i]},${ringProfile[i + 1]},${ringProfile[i + 2]}`; al = ringProfile[i + 3] / 255; }
+          if (al < 0.03) continue;
+          x.beginPath(); x.ellipse(0, 0, r, Math.max(0.3, r * sinB), 0, a0, a1); x.strokeStyle = `rgba(${col},${(al * 0.95).toFixed(3)})`; x.lineWidth = 0.8; x.stroke();
+        }
+      };
+      ringBand(false);
+      const off = document.createElement("canvas"); off.width = off.height = 2 * Rc;
+      drawSphere(off.getContext("2d"), rs.img, Rc, Rc, Rc, { lat0: Bt, lon0: 0.6 });
+      x.save(); x.scale(1, 1 - (POLAR_FLATTENING[nm] || 0) * Math.cos(Bt) ** 2); x.drawImage(off, -Rc, -Rc); x.restore();
+      ringBand(true);
+      x.restore(); rs.tex.needsUpdate = true; rs.B = B;
+    };
+    // cada cuadro: el eje del planeta, girado según hacia dónde queda el norte del cielo en la pantalla
+    const vP = new THREE.Vector3(), vQ = new THREE.Vector3();
+    const updateRealPlanets = () => {
+      for (const nm of REAL) {
+        const rs = realSprites[nm]; if (!rs.sp.visible || !rs.pole) continue;
+        const p = rs.sp.position, n = p.length(); if (!n) continue;
+        const d = [p.x / n, p.y / n, p.z / n], pl = rs.pole, dot = pl[0] * d[0] + pl[1] * d[1] + pl[2] * d[2];
+        const w = [pl[0] - dot * d[0], pl[1] - dot * d[1], pl[2] - dot * d[2]], wn = Math.hypot(w[0], w[1], w[2]) || 1;
+        vP.copy(p).applyMatrix4(solarGroup.matrixWorld).project(camera);
+        vQ.set(p.x + w[0] / wn * 0.4, p.y + w[1] / wn * 0.4, p.z + w[2] / wn * 0.4).applyMatrix4(solarGroup.matrixWorld).project(camera);
+        const dx = (vQ.x - vP.x) * (mount.clientWidth || 1), dy = (vQ.y - vP.y) * (mount.clientHeight || 1);
+        rs.sp.material.rotation = Math.atan2(-dx, dy);
+      }
+    };
+    // con poco zoom los planetas son marcadores de tamaño fijo; cuando su disco real es mayor, se dibujan a su tamaño
     const sizeSolar = () => {
       const k = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / (mount.clientHeight || 1);
-      for (const nm in solarSprites) { const v = solarSprites[nm].userData.px * k; solarSprites[nm].scale.set(v, v, 1); }
+      const bs = (sceneRef.current && sceneRef.current.bodies) || [];
+      for (const nm in solarSprites) {
+        const sp = solarSprites[nm], b = BODIES[nm], bb = bs.find((x) => x.name === nm);
+        let px = sp.userData.px;
+        const km = bb ? (bb.dist_km != null ? bb.dist_km : bb.dist_au != null ? bb.dist_au * 149597870.7 : null) : null;
+        if (km && b.diameter_km) {
+          const rPx = (b.diameter_km / 2 / km) / k;                       // radio real en px
+          px = Math.max(px, rPx * SPRITE_PX / (b.ring ? 21 : b.id === "sun" ? 26 : 28));
+        }
+        sp.userData.discPx = px * (b.ring ? 21 : b.id === "sun" ? 26 : 28) / SPRITE_PX;
+        sp.scale.set(px * k, px * k, 1);
+      }
+      moonGroup.visible = camera.fov < 7;                                  // se separan del planeta a partir de ~10° de campo
+      for (const nm of REAL) {
+        const rs = realSprites[nm], bb = bs.find((x) => x.name === nm), mk = solarSprites[nm];
+        const deep = moonGroup.visible && !!bb && !!bb.dist_au && !!solarImg[nm];
+        rs.sp.visible = deep; if (mk) mk.visible = !deep;
+        if (!deep) continue;
+        const rPx = Math.max(2.5, (BODIES[nm].diameter_km / 2 / (bb.dist_au * 149597870.7)) / k);
+        const size = (256 * rPx) / rs.Rc;
+        rs.sp.scale.set(size * k, size * k, 1);
+        if (mk) mk.userData.discPx = rPx * (BODIES[nm].ring ? 2.27 : 1);
+      }
+      for (const key in moonSprites) { const v = moonSprites[key].userData.px * k; moonSprites[key].scale.set(v, v, 1); }
     };
     sizeSolar();
     // modo apuntar: el zoom es el campo de visión. `span` = grados que abarca el lado largo.
@@ -1280,7 +1379,7 @@ export default function Constellations({ lang = "es" }) {
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
       atm, atmAlpha, starVis, atmOn: false, lineBase: 0.55, groundMat,
-      markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, bodies: [], showSolar: true,
+      markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
       mode: "in",
@@ -1360,6 +1459,12 @@ export default function Constellations({ lang = "es" }) {
             alpha = dv[1] <= 0 ? 1 : v.visible ? Math.max(0.6, v.alpha) : 0.3;
           }
           sp.material.opacity = alpha; r.solarVis[b.name] = vis;
+        }
+        // las lunas de otros planetas siguen a su planeta: con su misma opacidad (tenues si él lo está, p. ej. de día)
+        for (const m of (r.moonSky || [])) {
+          const ms = r.moonSprites && r.moonSprites[m.key], o = moonOrbit(m.key); if (!ms || !o) continue;
+          const ps = r.solarSprites[o.parent];
+          ms.material.opacity = ps ? ps.material.opacity : 1;
         }
         // cielo profundo con magnitud (Messier, galaxias): se ocultan los que no se verían
         let nDeep = 0, nDeepTot = 0;
@@ -1583,6 +1688,7 @@ export default function Constellations({ lang = "es" }) {
       if (draw) {
         lastCam.px = cp.x; lastCam.py = cp.y; lastCam.pz = cp.z; lastCam.qx = cq.x; lastCam.qy = cq.y; lastCam.qz = cq.z; lastCam.qw = cq.w; lastCam.fov = ref.camera.fov; lastCam.vx = vs.cx; lastCam.vy = vs.cy; lastCam.us = us;
         if (ref.atm.visible) ref.atm.follow(ref.camera);
+        if (ref.moonGroup && ref.moonGroup.visible) ref.updateRealPlanets();
         ref.renderer.render(ref.scene, ref.camera);
         drawnN++;
       }
@@ -1728,6 +1834,12 @@ export default function Constellations({ lang = "es" }) {
         if (inside && ref.issLayer && ref.issLayer.active) {
           for (const g of ref.issLayer.labelsForView(ref.camera, { w: W, h: H }, { clock: ref.issFmt || undefined })) place(g.x, g.y, g.name, g.cls, null, g.dx, g.pk ? { key: g.key, pk: g.pk } : { key: g.key });
         }
+        // la luna de otro planeta que está abierta: su nombre antes que ningún otro
+        const so0 = selObjRef.current;
+        if (so0 && so0.layer === "moon" && ref.showSolar && ref.moonGroup && ref.moonGroup.visible) {
+          const m = (ref.moonSky || []).find((x) => x.key === so0.name);
+          if (m && m.state !== "hidden" && proj(m.dir[0] * 860, m.dir[1] * 860, m.dir[2] * 860, "solar")) place(psx, psy, moonName(m.key, ref.lang), "solar", null, 9, { pk: { layer: "moon", ob: so0 } });
+        }
         // primero el sistema solar: sus nombres tienen prioridad en el anti-solape
         if (ref.showSolar) for (const b of (ref.bodies || [])) {
           if (ref.atmOn && ref.solarVis && ref.solarVis[b.name] === false && !(selObjRef.current && selObjRef.current.layer === "solar" && selObjRef.current.name === b.name)) continue;   // no se ve: sin nombre
@@ -1736,10 +1848,18 @@ export default function Constellations({ lang = "es" }) {
           for (const k of groups) if (!k.used && Math.abs(k.x - psx) < 22 && Math.abs(k.y - psy) < 16) { extra += k.n; k.used = true; }
           place(psx, psy, bodyName(b.name, ref.lang) + (extra ? ` +${extra}` : ""), "solar", null, Math.round(ref.solarSprites[b.name].userData.discPx + 7), { pk: { layer: "solar", ob: b } });
         }
+        // las lunas de otros planetas: con mucho zoom, su nombre junto al punto
+        if (ref.showSolar && ref.moonGroup && ref.moonGroup.visible && ref.camera.fov < 4) for (const m of (ref.moonSky || [])) {
+          if (m.state === "hidden") continue;
+          const mo = moonObjFrom(ref.bodies, m.key, new Date(whenRef.current || Date.now()));
+          if (so0 && so0.layer === "moon" && so0.name === m.key) continue;      // la abierta ya tiene su nombre (arriba)
+          if (!proj(m.dir[0] * 860, m.dir[1] * 860, m.dir[2] * 860, "solar")) continue;
+          place(psx, psy, moonName(m.key, ref.lang), "solar", null, 9, { pk: { layer: "moon", ob: mo } });
+        }
         for (const k of groups) if (!k.used) place(k.x, k.y, k.name + (k.n > 1 ? ` +${k.n - 1}` : ""), k.cls, null, undefined, { pk: k.pk });
         // el objeto abierto siempre lleva su nombre, aunque sea de catálogo
         const so = selObjRef.current;
-        if (so && so.nx != null && so.layer !== "solar" && so.layer !== "note" && so.layer !== "con" && !(so.layer === "star" && selAb)) {
+        if (so && so.nx != null && so.layer !== "solar" && so.layer !== "moon" && so.layer !== "note" && so.layer !== "con" && !(so.layer === "star" && selAb)) {
           if (so.layer === "star" && so.si != null) push(pa[so.si*3], pa[so.si*3+1], pa[so.si*3+2], so.name, "star", null, undefined, { hot: true, pk: { si: so.si } });
           else push(so.nx*870, so.ny*870, so.nz*870, (so.layer === "meteors" && ref.lang === "en" && so.name_en) || so.name, "obj_" + so.layer, null, undefined, { hot: true, pk: { layer: so.layer, ob: so } });
         }
@@ -1975,6 +2095,7 @@ export default function Constellations({ lang = "es" }) {
     // una constelación entera, con margen (en el teléfono la ficha tapa la parte baja)
     let span = Math.min(ref.look.spanT, 70);
     if (selObj.layer === "con" && selObj.rad) span = Math.max(14, shortToSpan(2 * selObj.rad * 180 / Math.PI * (isWideRef.current ? 1.35 : 1.6), ref.camera.aspect));
+    if (selObj.layer === "moon" && selObj.aArcsec) span = clampSpan(Math.max(0.25, (selObj.aArcsec / 3600) * (isWideRef.current ? 5 : 7)));   // la luna y su planeta, con margen
     ref.lookAt(v, span);
     // solo al cambiar de objeto: el paso del tiempo no debe recolocar la cámara
   }, [selObj && selObj.name, selObj && selObj.layer]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -2119,8 +2240,32 @@ export default function Constellations({ lang = "es" }) {
       ref.redrawMoon(ref.moonPhase);
     }
     bodies.forEach(b => { const sp = ref.solarSprites[b.name]; if (sp) sp.position.set(b.nx*860, b.ny*860, b.nz*860); });
+    // lunas de otros planetas en su posición de ese instante (las escondidas tras el planeta no se dibujan)
+    const date = new Date(whenStr), sky2 = [];
+    for (const pb of bodies) {
+      if (!pb.dist_au || !["Marte", "Júpiter", "Saturno", "Urano", "Neptuno"].includes(pb.name)) continue;
+      try { for (const m of moonsSky(pb, date)) sky2.push(m); } catch { /* sin datos: sin lunas */ }
+    }
+    for (const key in ref.moonSprites) ref.moonSprites[key].visible = false;
+    for (const m of sky2) {
+      const sp = ref.moonSprites[m.key]; if (!sp) continue;
+      sp.position.set(m.dir[0] * 860, m.dir[1] * 860, m.dir[2] * 860);
+      sp.visible = m.state !== "hidden";
+      sp.userData.px = m.mag < 7 ? 15 : m.mag < 10 ? 12 : 10;           // las más brillantes, algo mayores
+    }
+    ref.moonSky = sky2;
+    // planetas realistas: posición, polo y, si cambió la inclinación (o llegó la textura), un repintado
+    for (const nm in (ref.realSprites || {})) {
+      const rs = ref.realSprites[nm], pb = bodies.find((x) => x.name === nm); if (!pb) continue;
+      rs.sp.position.set(pb.nx * 860, pb.ny * 860, pb.nz * 860);
+      rs.pole = planetPole(nm);
+      const n = Math.hypot(pb.nx, pb.ny, pb.nz), o = planetOrientation(nm, [pb.nx / n, pb.ny / n, pb.nz / n]);
+      if (o) rs.wantB = o.B;
+      if (o && (rs.B == null || Math.abs(rs.B - o.B) > 0.3)) ref.paintReal(nm, o.B);
+    }
+    if (ref.sizeSolar) ref.sizeSolar();
     ref.solarGroup.quaternion.copy(ref.localQuat || new THREE.Quaternion());
-  }, [bodies, showSolar, ready, viewFrom]);
+  }, [bodies, showSolar, ready, viewFrom, whenStr]);
 
   // atmósfera: estrellas, planetas y cielo profundo según lo que deja ver el cielo (después de colocar
   // el marco local y los cuerpos, que son los efectos anteriores). Si algo falla, el cielo queda sin atmósfera.
@@ -2837,6 +2982,10 @@ export default function Constellations({ lang = "es" }) {
       const L = ref.lang, kinds = TC[L].kinds;
       // prioridades (px de ventaja para desempatar): Sol, Luna y planetas > objetos con nombre > estrellas débiles
       if (ref.showSolar) for (const b of (ref.bodies || [])) consider(b.nx * 860, b.ny * 860, b.nz * 860, ref.solarSprites[b.name] ? ref.solarSprites[b.name].userData.discPx : 12, 10, () => ({ ...b, layer: "solar" }), bodyName(b.name, L), kinds.solar);
+      if (ref.showSolar && ref.moonGroup && ref.moonGroup.visible) for (const m of (ref.moonSky || [])) {
+        if (m.state === "hidden") continue;
+        consider(m.dir[0] * 860, m.dir[1] * 860, m.dir[2] * 860, 5, 11, () => moonObjFrom(ref.bodies, m.key, new Date(whenRef.current || Date.now())), moonName(m.key, L), TC[L].kindMoonOther);
+      }
       for (const o of (ref.layerObjs || [])) {
         if (!o.points.visible) continue;
         const objs = o.points.userData.objs || [], kind = (LAYERS.find(l => l.key === o.key) || {})[L] || o.key;
@@ -2947,7 +3096,7 @@ export default function Constellations({ lang = "es" }) {
     if (!selObj) return null;
     let o = selObj;
     if (selObj.layer === "solar") { const b = bodies.find(x => x.name === selObj.name); if (b) o = { ...selObj, ...b }; }
-    if (selObj.layer === "moon") { const mo = moonObjFrom(bodies, selObj.name); if (mo) o = mo; }   // sigue a su planeta al pasar el tiempo
+    if (selObj.layer === "moon") { const mo = moonObjFrom(bodies, selObj.name, new Date(whenStr)); if (mo) o = mo; }   // sigue a su planeta al pasar el tiempo
     // con atmósfera: ¿se ve ahora a simple vista? (solo para lo que tiene magnitud; bajo el horizonte lo dice la ficha)
     if (atmState && o.nx != null && o.mag != null && o.name !== "Sol" && (o.layer === "solar" || o.layer === "star" || MAG_LAYERS.has(o.layer))) {
       try {

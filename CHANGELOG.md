@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.8.0 — 16 de noviembre de 2026
+
+- Cielo: el zoom llega hasta 0,2° (antes 5°). Con mucho zoom se ven las lunas
+  junto a su planeta, con su nombre, y se pueden tocar; Marte, Júpiter, Saturno,
+  Urano y Neptuno pasan a dibujarse a su tamaño real, con su textura, achatados,
+  con el eje girado como se ve en el cielo y Saturno con sus anillos abiertos lo
+  que toca esa fecha (comprobado con JPL Horizons). Al abrir una luna, el cielo
+  se acerca hasta verla junto a su planeta.
+- «Así se ve hoy» realista: el planeta con su textura y orientación real, las
+  lunas como puntos de luz a su escala (y su globo al acercarse), zoom con
+  pellizco, rueda o botones, arrastre, barra de escala y órbitas a pedido.
+
 ## 1.7.0 — 16 de noviembre de 2026
 
 - Lunas de otros planetas: 19 lunas de Marte, Júpiter, Saturno, Urano y Neptuno

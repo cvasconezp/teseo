@@ -17,7 +17,28 @@ import { MOON_ORBITS, MOON_T0_JD } from "./moonsData.js";
 const AU_KM = 149597870.7, C_KMS = 299792.458, ARCSEC = 206264.806;
 export const PLANET_RADIUS_KM = { "Marte": 3396.2, "Júpiter": 71492, "Saturno": 60268, "Urano": 25559, "Neptuno": 24764 };
 export const SATURN_RING_KM = 136775;
-const SATURN_POLE = (() => { const a = 40.589 * Math.PI / 180, d = 83.537 * Math.PI / 180; return [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)]; })();
+export const SATURN_RING_INNER_KM = 74490;                     // borde interior del anillo C (NASA, ficha de los anillos)
+// Polo norte de cada planeta (ICRF, término constante; IAU WGCCRE 2015, Archinal et al. 2018)
+const POLE_DEG = { "Marte": [317.269, 54.432], "Júpiter": [268.057, 64.495], "Saturno": [40.589, 83.537], "Urano": [257.311, -15.175], "Neptuno": [299.36, 43.46] };
+const poleVec = (name) => { const p = POLE_DEG[name]; if (!p) return null; const a = p[0] * Math.PI / 180, d = p[1] * Math.PI / 180; return [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)]; };
+const SATURN_POLE = poleVec("Saturno");
+/** Vector unitario del polo norte del planeta (ICRF) o null. */
+export const planetPole = (name) => poleVec(name);
+export const POLAR_FLATTENING = { "Marte": 0.00589, "Júpiter": 0.06487, "Saturno": 0.09796, "Urano": 0.02293, "Neptuno": 0.0171 };   // NASA, fichas planetarias
+
+/**
+ * Cómo se presenta el planeta visto desde la Tierra (u: vector unitario Tierra → planeta, ICRF):
+ * pa = ángulo de posición de su polo norte (grados, desde el norte del cielo hacia el este) y
+ * B = latitud del punto que mira hacia la Tierra (grados; > 0: se ve su hemisferio norte).
+ */
+export function planetOrientation(name, u) {
+  const p = poleVec(name); if (!p) return null;
+  const east = (() => { const c = [-u[1], u[0], 0], n = Math.hypot(c[0], c[1]); return [c[0] / n, c[1] / n, 0]; })();
+  const north = [u[1] * east[2] - u[2] * east[1], u[2] * east[0] - u[0] * east[2], u[0] * east[1] - u[1] * east[0]];
+  const sinB = -(p[0] * u[0] + p[1] * u[1] + p[2] * u[2]);
+  const pe = p[0] * east[0] + p[1] * east[1] + p[2] * east[2], pn = p[0] * north[0] + p[1] * north[1] + p[2] * north[2];
+  return { pa: Math.atan2(pe, pn) * 180 / Math.PI, B: Math.asin(Math.max(-1, Math.min(1, sinB))) * 180 / Math.PI };
+}
 
 // Nombres, descubrimiento y un dato que la distingue (ES/EN). Orden: por planeta y distancia.
 export const MOON_INFO = {
@@ -132,7 +153,7 @@ export function planetView(planet, date) {
     const state = sep < R ? (depth > 0 ? "hidden" : "transit") : "free";
     // magnitud: la de Horizons en T0, corregida por las distancias de hoy (sin cambio de fase)
     const mag = planet.r_au && planet.dist_au ? o.mag + 5 * Math.log10((planet.r_au * planet.dist_au) / (o.r_au * o.d_au)) : o.mag;
-    return { key, x, y, sep, depth, state, mag, aArcsec: o.a_km / D * ARCSEC };
+    return { key, x, y, sep, depth, state, mag, aArcsec: o.a_km / D * ARCSEC, rArcsec: o.radius_km / D * ARCSEC };
   });
   let ring = null;
   if (planet.name === "Saturno") {
@@ -141,9 +162,24 @@ export function planetView(planet, date) {
     const sinB = -dot(SATURN_POLE, u);                        // u apunta de la Tierra a Saturno
     const pe = dot(SATURN_POLE, east), pn = dot(SATURN_POLE, north);
     const poleAngle = Math.atan2(pe, pn);                      // ángulo de posición del polo (desde el norte hacia el este)
-    ring = { a: Rr, b: Rr * Math.abs(sinB), tilt: Math.asin(Math.max(-1, Math.min(1, sinB))) * 180 / Math.PI, pa: poleAngle * 180 / Math.PI };
+    ring = { a: Rr, b: Rr * Math.abs(sinB), inner: SATURN_RING_INNER_KM / D * ARCSEC, tilt: Math.asin(Math.max(-1, Math.min(1, sinB))) * 180 / Math.PI, pa: poleAngle * 180 / Math.PI };
   }
-  return { radius: R, moons, ring };
+  return { radius: R, moons, ring, orient: planetOrientation(planet.name, u), flattening: POLAR_FLATTENING[planet.name] || 0 };
+}
+
+/**
+ * Las lunas de un planeta como direcciones en el cielo (mismo marco que la del planeta, J2000 ≈ ICRF):
+ * [{ key, dir: [x, y, z] unitario, state, mag, sep (″), aArcsec }]. Para dibujarlas en la escena.
+ */
+export function moonsSky(planet, date) {
+  const n0 = Math.hypot(planet.nx, planet.ny, planet.nz), u = [planet.nx / n0, planet.ny / n0, planet.nz / n0];
+  const { east, north } = skyAxes(u);
+  return planetView(planet, date).moons.map((m) => {
+    const ex = m.x / ARCSEC, ny = m.y / ARCSEC;
+    const d = [u[0] + ex * east[0] + ny * north[0], u[1] + ex * east[1] + ny * north[1], u[2] + ex * east[2] + ny * north[2]];
+    const n = Math.hypot(d[0], d[1], d[2]);
+    return { key: m.key, dir: [d[0] / n, d[1] / n, d[2] / n], state: m.state, mag: m.mag, sep: m.sep, aArcsec: m.aArcsec };
+  });
 }
 
 /** Con qué se ve (orientativo): según magnitud y separación del planeta, que deslumbra. */

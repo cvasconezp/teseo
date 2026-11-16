@@ -347,9 +347,10 @@ export function artOptions(obj) {
  * `tex` = { data, width, height } (ImageData de la textura), `lon0` = longitud central (rad),
  * `tilt` = inclinación del eje (rad). Para la Luna, `phase` = { illum, waxing }.
  */
-export function drawSphere(ctx, tex, cx, cy, R, { lon0 = 0, tilt = 0, phase = null, sun = false } = {}) {
+export function drawSphere(ctx, tex, cx, cy, R, { lon0 = 0, tilt = 0, phase = null, sun = false, lat0 = 0 } = {}) {
+  // lat0: latitud del punto que mira al observador (rad; > 0 se ve más el hemisferio norte)
   const D = Math.ceil(R * 2), img = ctx.createImageData(D, D), out = img.data;
-  const ct = Math.cos(tilt), st = Math.sin(tilt);
+  const ct = Math.cos(tilt), st = Math.sin(tilt), cb = Math.cos(lat0), sb = Math.sin(lat0);
   const { data, width: W, height: H } = tex;
   const k = phase && phase.illum != null ? Math.max(0, Math.min(1, phase.illum)) : null;
   for (let j = 0; j < D; j++) {
@@ -359,8 +360,9 @@ export function drawSphere(ctx, tex, cx, cy, R, { lon0 = 0, tilt = 0, phase = nu
       if (d2 > 1) continue;
       const zz = Math.sqrt(1 - d2);
       // girar el punto al sistema del cuerpo (eje inclinado en el plano de la pantalla)
-      const xb = xx * ct + yy * st, yb = -xx * st + yy * ct;
-      const lat = Math.asin(yb), lon = Math.atan2(xb, zz) + lon0;
+      const xb = xx * ct + yy * st, yv = -xx * st + yy * ct;
+      const yb = yv * cb + zz * sb, zb = -yv * sb + zz * cb;      // inclinación hacia el observador
+      const lat = Math.asin(Math.max(-1, Math.min(1, yb))), lon = Math.atan2(xb, zb) + lon0;
       let u = (lon / TAU + 0.5) % 1; if (u < 0) u += 1;
       const tx = Math.min(W - 1, Math.floor(u * W)), ty = Math.min(H - 1, Math.max(0, Math.floor((0.5 - lat / Math.PI) * H)));
       const p = (ty * W + tx) * 4, q = (j * D + i) * 4;

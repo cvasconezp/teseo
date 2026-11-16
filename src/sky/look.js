@@ -15,7 +15,7 @@
 import * as THREE from "three";
 import { precessionMatrix } from "./frames.js";
 
-export const SPAN_MIN = 5;        // grados de cielo que abarca el lado largo de la pantalla (zoom máximo)
+export const SPAN_MIN = 0.2;      // grados de cielo que abarca el lado largo de la pantalla (zoom máximo: ~12′, se separan las lunas de Júpiter y Saturno)
 export const SPAN_MAX = 120;      // … y con el zoom mínimo (más allá la perspectiva deforma demasiado)
 export const SPAN_DEF = 100;      // al entrar: ~100° en vertical en el teléfono (≈ 58° en horizontal)
 export const PITCH_MIN_LOCAL = -89.9 * Math.PI / 180; // Mi cielo: hasta el nadir; el suelo es semitransparente y deja ver el cielo de abajo
