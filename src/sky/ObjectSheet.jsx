@@ -18,7 +18,8 @@ import { compassPoint8 } from "./deviceOrientation.js";
 import { citizenFor, CITIZEN_VERIFIED } from "./citizen.js";
 import { useDialogFocus } from "./focus.js";
 import SunToday from "../sun/SunToday.jsx";
-import { nasaImageFor, nasaKindKey, imageOrder, nasaStatus, setNasaStatus } from "./nasaImages.js";
+import { nasaImageFor, nasaKindKey, nasaStatus, setNasaStatus } from "./nasaImages.js";
+import { agencyImageFor, agencyKindKey, imageSources, agencyStatus, setAgencyStatus } from "./agencyImages.js";
 
 // describeObject (función pura) vive en describe.js; se reexporta aquí para quien ya lo importaba.
 import { describeObject, starHue } from "./describe.js";
@@ -50,6 +51,31 @@ function Visual({ obj, info, t, lang, wiki, wikiState, credit }) {
           <span>{nasa[lang] || nasa.es}</span>
           <span>{t.nasaCap(nasa.credit, t.nasaLib)}</span>
           <a href={nasa.page} target="_blank" rel="noopener noreferrer">{t.nasaOpen}</a>
+        </figcaption>
+      </figure>
+    );
+  };
+  // imagen de agencia u observatorio (ESA/Webb, ESA/Hubble, ESO; src/sky/agencyImages.js): primera opción en cielo profundo;
+  // si falla al cargar se pasa a la siguiente fuente (Wikipedia, y luego la NASA)
+  const agency = agencyImageFor(obj);
+  const [agencyState, setAgencyState] = useState(null);   // null | "ok" | "fail"
+  useEffect(() => { setAgencyState(agency ? agencyStatus(agency) : null); }, [agency && agency.agency + "/" + agency.id]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const agencyUsable = !!agency && agencyState !== "fail" && agencyStatus(agency) !== "fail";
+  const agencyFigure = () => {
+    const kind = t.agencyKind[agencyKindKey(agency)](agency.tel), loaded = agencyState === "ok";
+    return (
+      <figure className="sk-visual is-photo is-nasa is-agency" data-source={agency.agency} data-kind={agency.kind} data-band={agency.band || "visible"}>
+        <div className={`sk-visual-stage${loaded ? " is-loaded" : ""}`}>
+          {!loaded && <i className="sk-skeleton" aria-hidden="true" />}
+          <img key={agency.agency + agency.id} src={agency.src} alt={t.agencyAlt(kind, info.name)} decoding="async" referrerPolicy="no-referrer"
+            onLoad={() => { setAgencyStatus(agency, "ok"); setAgencyState("ok"); }}
+            onError={() => { setAgencyStatus(agency, "fail"); setAgencyState("fail"); }} />
+        </div>
+        <figcaption>
+          <b>{kind}</b>
+          <span>{agency[lang] || agency.es}</span>
+          <span>{t.agencyCap(agency.agencyName, agency.credit)}</span>
+          <a href={agency.page} target="_blank" rel="noopener noreferrer">{t.agencyOpen[agency.agency]}</a>
         </figcaption>
       </figure>
     );
@@ -96,8 +122,11 @@ function Visual({ obj, info, t, lang, wiki, wikiState, credit }) {
     );
   }
   const hasPhoto = wiki && wiki.thumb && !imgFail;
-  // orden de fuentes (imageOrder): naves y cometas → NASA curada primero; cielo profundo → Wikipedia primero
-  const nasaFirst = imageOrder(obj)[0] === "nasa";
+  // orden de fuentes (imageSources): cielo profundo con imagen de agencia → agencia, Wikipedia, NASA;
+  // naves y cometas → NASA curada primero; el resto de cielo profundo → Wikipedia primero
+  const order = imageSources(obj);
+  if (agencyUsable && order[0] === "agency") return agencyFigure();
+  const nasaFirst = order[0] === "nasa";
   if (nasaUsable && (nasaFirst || (!hasPhoto && wikiState !== "loading"))) return nasaFigure();
   if (hasPhoto) {
     const mixed = obj.layer === "star" || obj.layer === "pulsars" || obj.layer === "blackholes" || obj.layer === "exoplanets";
@@ -277,6 +306,7 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, credit, met
   const wikiFits = obj.layer !== "exoplanets" || (wiki && wiki.title && wiki.title.toLowerCase().includes(String(obj.name).toLowerCase()));
   const isNote = obj.layer === "note";
   const nasaInfo = nasaImageFor(obj);
+  const agencyInfo = agencyImageFor(obj);
   const extract = wiki && wiki.extract && wikiFits ? (wiki.extract.length > 340 ? wiki.extract.slice(0, 340).replace(/\s+\S*$/, "") + "…" : wiki.extract) : "";
 
   return (
@@ -311,6 +341,7 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, credit, met
             <summary>{t.techDetails}<Icon name="down" size={16} /></summary>
             <dl>
               {info.details.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+              {agencyInfo && <div><dt>{t.dImgAgency}</dt><dd>{agencyInfo.title} · {agencyInfo.credit} · {agencyInfo.agencyName} ({agencyInfo.id}) · {agencyInfo.license}</dd></div>}
               {nasaInfo && <div><dt>{t.dImgNasa}</dt><dd>{nasaInfo.title} · {nasaInfo.credit} · {t.nasaLib} ({nasaInfo.id})</dd></div>}
             </dl>
             {info.distNote && <p>{info.distNote}</p>}

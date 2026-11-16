@@ -47,6 +47,17 @@ export const R4 = {
     pcNasa: (kind, credit) => `${kind} · ${credit} · NASA Image and Video Library`,
     srcImgNasa: "Imagen: NASA Image and Video Library (images.nasa.gov)",
     capNoPhotoAny: "No se encontró una imagen de este objeto en NASA Images ni en Wikipedia.",
+    // ── imágenes de agencias y observatorios (ESA/Webb, ESA/Hubble, ESO; src/sky/agencyImages.js) ──
+    agencyKind: {
+      infrared: (tel) => `Luz infrarroja (${tel}) · imagen real, colores asignados`,
+      mixed: (tel) => `Imagen real (${tel}) · luz visible y no visible, colores procesados`,
+      radio: (tel) => `Imagen reconstruida con datos de radio (${tel}) · no es una fotografía`,
+      observation: (tel) => `Imagen real (${tel}) · colores compuestos a partir de filtros`,
+    },
+    agencyCap: (agency, credit) => `${agency} · Crédito: ${String(credit).replace(/\.\s*$/, "")} · CC BY 4.0`,
+    agencyOpen: { "esa-webb": "Ver en ESA/Webb", "esa-hubble": "Ver en ESA/Hubble", eso: "Ver en ESO" },
+    agencyAlt: (kind, name) => `${kind}: ${name}`,
+    dImgAgency: "Imagen (observatorio)",
     // ── medidor de rendimiento (#sky?...&fps=1) ──
     perfTitle: "Rendimiento", perfFps: "FPS medio", perfLow: "1 % bajo", perfJs: "JS por cuadro", perfObjs: "Objetos", perfLabels: "Etiquetas",
     perfRes: "Resolución", perfIdle: "en reposo", perfAria: "Medidor de rendimiento", perfFrames: "Cuadros/s dibujados",
@@ -91,6 +102,17 @@ export const R4 = {
     pcNasa: (kind, credit) => `${kind} · ${credit} · NASA Image and Video Library`,
     srcImgNasa: "Image: NASA Image and Video Library (images.nasa.gov)",
     capNoPhotoAny: "No image of this object was found on NASA Images or Wikipedia.",
+    // ── agency and observatory images (ESA/Webb, ESA/Hubble, ESO; src/sky/agencyImages.js) ──
+    agencyKind: {
+      infrared: (tel) => `Infrared light (${tel}) · real image, assigned colours`,
+      mixed: (tel) => `Real image (${tel}) · visible and non-visible light, processed colours`,
+      radio: (tel) => `Image reconstructed from radio data (${tel}) · not a photograph`,
+      observation: (tel) => `Real image (${tel}) · colours composed from filters`,
+    },
+    agencyCap: (agency, credit) => `${agency} · Credit: ${String(credit).replace(/\.\s*$/, "")} · CC BY 4.0`,
+    agencyOpen: { "esa-webb": "View on ESA/Webb", "esa-hubble": "View on ESA/Hubble", eso: "View on ESO" },
+    agencyAlt: (kind, name) => `${kind}: ${name}`,
+    dImgAgency: "Image (observatory)",
     perfTitle: "Performance", perfFps: "Mean FPS", perfLow: "1% low", perfJs: "JS per frame", perfObjs: "Objects", perfLabels: "Labels",
     perfRes: "Resolution", perfIdle: "idle", perfAria: "Performance meter", perfFrames: "Frames/s drawn",
   },

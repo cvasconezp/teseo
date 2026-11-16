@@ -206,10 +206,11 @@ const T = {
       { g: "Space agencies", items: [
         ["NASA · JPL", "Horizons (planets, comets and probes, live) · CNEOS (near-Earth asteroids)"],
         ["NASA · other centres", "Exoplanet Archive (live) · GSFC eclipse tables · Image and Video Library · Planetary Fact Sheet · SDO (the Sun today)"],
-        ["ESA", "Gaia DR3 (black holes Gaia BH1–BH3) · Planck 2018 (dark matter and dark energy)"],
+        ["ESA", "Gaia DR3 (black holes Gaia BH1–BH3) · Planck 2018 (dark matter and dark energy) · ESA/Webb and ESA/Hubble images (CC BY 4.0)"],
       ]},
       { g: "Observatories and scientific collaborations", items: [
         ["LIGO · Virgo · KAGRA", "GWTC-4.0 gravitational-wave catalogue"],
+        ["ESO (European Southern Observatory)", "Images of nebulae and galaxies from Chile (CC BY 4.0)"],
         ["Event Horizon Telescope", "Images of M87* and Sagittarius A*"],
         ["SILSO · Royal Observatory of Belgium", "Official daily sunspot number"],
         ["CSIRO (Australia)", "ATNF Pulsar Catalogue"],
@@ -390,10 +391,11 @@ const T = {
       { g: "Agencias espaciales", items: [
         ["NASA · JPL", "Horizons (planetas, cometas y sondas, en vivo) · CNEOS (asteroides cercanos)"],
         ["NASA · otros centros", "Exoplanet Archive (en vivo) · tablas de eclipses del GSFC · Image and Video Library · Planetary Fact Sheet · SDO (el Sol de hoy)"],
-        ["ESA", "Gaia DR3 (agujeros negros Gaia BH1–BH3) · Planck 2018 (materia y energía oscura)"],
+        ["ESA", "Gaia DR3 (agujeros negros Gaia BH1–BH3) · Planck 2018 (materia y energía oscura) · imágenes de ESA/Webb y ESA/Hubble (CC BY 4.0)"],
       ]},
       { g: "Observatorios y colaboraciones científicas", items: [
         ["LIGO · Virgo · KAGRA", "Catálogo de ondas gravitacionales GWTC-4.0"],
+        ["ESO (Observatorio Europeo Austral)", "Imágenes de nebulosas y galaxias desde Chile (CC BY 4.0)"],
         ["Event Horizon Telescope", "Imágenes de M87* y Sagitario A*"],
         ["SILSO · Real Observatorio de Bélgica", "Número oficial de manchas solares del día"],
         ["CSIRO (Australia)", "Catálogo de púlsares ATNF"],
