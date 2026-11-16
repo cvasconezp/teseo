@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.7.0 — 16 de noviembre de 2026
+
+- Lunas de otros planetas: 19 lunas de Marte, Júpiter, Saturno, Urano y Neptuno
+  en el buscador del Cielo («Ío», «Titán», «lunas de Júpiter», «galileanos»).
+  Su ficha muestra dónde está hoy respecto a su planeta (órbitas ajustadas a
+  JPL Horizons, con el tiempo de la luz), si pasa por delante o queda escondida,
+  con qué se ve, y un globo 3D con los mosaicos globales del USGS hechos con
+  imágenes de Viking, Galileo, Voyager y Cassini. La ficha de cada planeta
+  muestra «Sus lunas hoy».
+
 ## 1.6.0 — 16 de noviembre de 2026
 
 - Nueva pregunta, la décima: «¿Cómo terminará el universo?». Una caja de gas

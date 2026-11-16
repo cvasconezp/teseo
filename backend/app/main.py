@@ -61,7 +61,7 @@ from app import mga
 from app import img_proxy
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 _STARTED = time.time()
 
 app = FastAPI(
