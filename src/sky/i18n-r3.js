@@ -10,6 +10,7 @@ const sign = (v, lang) => `${v < 0 ? "−" : "+"}${Math.abs(v).toLocaleString(la
 export const R3 = {
   es: {
     credits: "Créditos y datos",
+    usage: "Uso de Teseo (Teseo en números)",
     // ── visual de la ficha ──
     capRep: {
       probe: "Representación esquemática de una sonda espacial. No es una foto ni el aspecto exacto de esta nave.",
@@ -146,6 +147,7 @@ export const R3 = {
   },
   en: {
     credits: "Credits and data",
+    usage: "Teseo usage (Teseo in numbers)",
     capRep: {
       probe: "Schematic representation of a space probe. Not a photo, nor this spacecraft's exact look.",
       telescope: "Schematic representation of a space telescope. Not a photo, nor this spacecraft's exact look.",

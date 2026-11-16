@@ -7,6 +7,8 @@
 //   #escala / #scale     → Preguntas, en «¿Qué tan grande es el universo?» (q: "scale")
 // Lo que siga al nombre (?c=Ori, ?drake=…, ?q=…) pertenece a cada pestaña y
 // aquí no se toca.
+// «Teseo en números» (uso público de la app) NO es una pestaña: #uso / #usage abre su
+// ventana encima de la pestaña que esté (parseHash lo ignora; ver usageHash).
 
 const ALIASES = {
   route:     ["ruta", "route"],
@@ -56,4 +58,21 @@ export function hashForTab(tab, lang = "es") {
 /** Hash de Preguntas que abre directamente un recorrido (p. ej. la escala del universo). */
 export function hashForQuestion(q, lang = "es") {
   return `#${ALIASES.questions[lang === "en" ? 1 : 0]}?q=${encodeURIComponent(q)}`;
+}
+
+// ─── «Teseo en números» ──────────────────────────────────────────────────────
+const USAGE = { es: "uso", en: "usage" };
+const USAGE_NAMES = new Set(Object.values(USAGE));
+
+/** "#uso" / "#usage" (con o sin "?days=…") → { days } | null. days solo 7, 30 o 90. */
+export function usageHash(hash) {
+  const m = /^#([a-z]+)(?:\?(.*))?$/i.exec(String(hash || ""));
+  if (!m || !USAGE_NAMES.has(m[1].toLowerCase())) return null;
+  const d = Number(new URLSearchParams(m[2] || "").get("days"));
+  return { days: [7, 30, 90].includes(d) ? d : null };
+}
+
+/** Hash de «Teseo en números» en el idioma activo. */
+export function hashForUsage(lang = "es") {
+  return `#${USAGE[lang === "en" ? "en" : "es"]}`;
 }

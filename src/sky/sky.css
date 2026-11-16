@@ -455,6 +455,13 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
   .sk-stage.is-covered .sk-artray, .sk-stage.is-covered .sk-arhelp, .sk-stage.is-covered .sk-guide { display: none; }
   .sk-stage.is-covered .sk-ar.is-error { top: 64px; bottom: auto; }
 }
+/* teléfonos bajos (360 × 640, iPhone SE): el menú desplegado (8 botones, con «Teseo en números»)
+   no debe llegar a la barra de abajo; botones de 40 px y menos aire entre ellos */
+@media (max-width: 899.98px) and (max-height: 700px) {
+  .sk-rail { gap: 4px; }
+  .sk-rail button { width: 40px; height: 40px; border-radius: 12px; }
+  .sk-rail .sk-rail-gap { height: 2px; }
+}
 
 /* escritorio / proyector */
 @media (min-width: 900px) {

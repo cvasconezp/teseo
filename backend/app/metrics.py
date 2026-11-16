@@ -104,6 +104,8 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "language_change":    {"lang": LANGS},
     "night_vision":       {"state": ON_OFF},
     "credits_open":       {},
+    # «Teseo en números» (src/usage/): desde dónde se abrió la vista pública de uso
+    "usage_open":         {"from": {"footer", "sky", "link"}},
     "coop_open":          {"from": COOP_FROM},   # enlaces a Killa Ñan (pie, cabecera, créditos)
     "data_retry":         {"tab": TABS},
     "net_error":          {"endpoint": ENDPOINTS, "kind": ERROR_KINDS},
@@ -323,6 +325,72 @@ def _prune(data: Dict[str, Any], today: str, retain: int = RETAIN_DAYS) -> None:
         del data["days"][day]
 
 
+# ─── Resumen público (GET /api/metrics/public) ────────────────────────────────
+# Umbral de las listas «lo más visto»: un valor solo se publica si se usó 5 veces o más
+# en el periodo. Con cifras pequeñas (1, 2, 3…) quien sepa que abrió algo un día concreto
+# podría reconocerse —o reconocer a otra persona— en la lista; con ≥ 5 cada fila agrupa
+# a varias sesiones. Es el mismo criterio de «celdas pequeñas» que usan las estadísticas
+# oficiales para no publicar recuentos individuales.
+PUBLIC_MIN_COUNT = 5
+# Reparto por dispositivo: solo con al menos 20 visitas que lo traigan. Con menos, un
+# porcentaje (p. ej. 1 de 3 = 33 %) dice más de cada visita que del uso de Teseo.
+PUBLIC_MIN_DEVICE_VISITS = 20
+PUBLIC_TOP = 8                                   # filas por lista
+PUBLIC_DAYS = (7, 30, 90, 365)                   # periodos que admite el endpoint
+PUBLIC_SHARE_EVENTS = ("sky_postcard", "now_share")   # imágenes para compartir (state:ok = se generó)
+
+# El parámetro `id` de sky_select es un TOKEN (texto corto de catálogo), así que un
+# cliente malintencionado podría inventarse valores. Para que nada inventado llegue a una
+# página pública, solo se publican ids que Teseo puede producir de verdad: cuerpos del
+# sistema solar (nombre en inglés), las 88 abreviaturas de la IAU, Messier M1–M110,
+# Caldwell C1–C109 y las Nubes de Magallanes, y los nombres de los catálogos que sirve la
+# app (estrellas con nombre propio y agujeros negros; app/public_sky_ids.json).
+_PUBLIC_BODIES = {"Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"}
+_IAU_ABBR = set((
+    "And Ant Aps Aqr Aql Ara Ari Aur Boo Cae Cam Cnc CVn CMa CMi Cap Car Cas Cen Cep Cet Cha Cir Col Com "
+    "CrA CrB Crv Crt Cru Cyg Del Dor Dra Equ Eri For Gem Gru Her Hor Hya Hyi Ind Lac Leo LMi Lep Lib Lup "
+    "Lyn Lyr Men Mic Mon Mus Nor Oct Oph Ori Pav Peg Per Phe Pic Psc PsA Pup Pyx Ret Sge Sgr Sco Scl Sct "
+    "Ser Sex Tau Tel Tri TrA Tuc UMa UMi Vel Vir Vol Vul"
+).split())
+_CATALOG_RE = re.compile(r"^(M(?:[1-9]\d?|10\d|110)|C(?:[1-9]\d?|10[0-9])|LMC|SMC)$")
+
+
+def _load_public_sky_names() -> set:
+    try:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public_sky_ids.json")
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return {n for k in ("stars", "blackholes") for n in data.get(k, []) if isinstance(n, str)}
+    except Exception:
+        return set()          # sin el archivo: solo cuerpos, constelaciones y catálogos numerados
+
+
+PUBLIC_SKY_NAMES = _load_public_sky_names()
+
+
+def public_sky_id(v: str) -> bool:
+    """¿Es `v` un id de sky_select que Teseo puede producir (y por tanto publicable)?"""
+    return v in _PUBLIC_BODIES or v in _IAU_ABBR or bool(_CATALOG_RE.match(v)) or v in PUBLIC_SKY_NAMES
+
+
+def _public_route(v: str) -> bool:
+    a, sep, b = v.partition(">")
+    return bool(sep) and a in BODIES and b in BODIES and a != b
+
+
+def _percentages(counts: Dict[str, int]) -> Dict[str, int]:
+    """Porcentajes ENTEROS que suman exactamente 100 (método del mayor resto)."""
+    tot = sum(counts.values())
+    if tot <= 0:
+        return {k: 0 for k in counts}
+    raw = {k: counts[k] * 100 / tot for k in counts}
+    out = {k: int(raw[k]) for k in counts}
+    rest = 100 - sum(out.values())
+    for k in sorted(counts, key=lambda k: (-(raw[k] - out[k]), -counts[k], k))[:rest]:
+        out[k] += 1
+    return out
+
+
 class MetricsStore:
     def __init__(self, directory: Optional[str] = None, clock=time.time,
                  retain_days: int = RETAIN_DAYS, flush_seconds: int = FLUSH_SECONDS):
@@ -536,6 +604,88 @@ class MetricsStore:
             },
             "utc_offset_hours": _offset_hours(),
             "note": "Recuentos anónimos y agregados por día (UTC salvo desfase configurado): sin IP, sin user-agent, sin cookies ni identificadores.",
+        }
+
+    def public_summary(self, days: int = 30) -> Dict[str, Any]:
+        """Subconjunto CURADO y publicable del uso (GET /api/metrics/public, sin token).
+
+        No reutiliza summary(): se construye campo a campo con lo que se puede mostrar
+        a cualquiera (y al sitio de Yachay Deep). Fuera quedan, a propósito, los errores
+        de red, los preajustes, el idioma, la pantalla, el almacenamiento y el desfase.
+        Reglas:
+          · listas «top» solo con valores de un conjunto conocido y count ≥ PUBLIC_MIN_COUNT;
+          · dispositivos solo con ≥ PUBLIC_MIN_DEVICE_VISITS visitas que lo traigan;
+          · nunca el valor de agrupación "_other".
+        """
+        days = max(1, min(int(days), self.retain_days))
+        snap = self.snapshot()
+        all_days = snap.get("days", {})
+        today = utc_day(self.clock())
+        start = datetime.strptime(today, "%Y-%m-%d") - timedelta(days=days - 1)
+        dates = [(start + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days)]
+
+        def total(dd: Dict[str, Any], ev: str, key: str = "_") -> int:
+            return int((dd.get(ev) or {}).get(key, 0))
+
+        by_day = []
+        totals = {"visits": 0, "page_views": 0, "shares": 0, "reminders": 0, "questions_opened": 0, "sky_selections": 0}
+        devices = {"mobile": 0, "tablet": 0, "desktop": 0}
+        params: Dict[str, Dict[str, int]] = {"tabs": {}, "tours": {}, "sky_objects": {}, "routes": {}}
+
+        def add(bucket: str, key_prefix: str, counters: Dict[str, int], accept) -> None:
+            for key, n in counters.items():
+                p, _, v = key.partition(":")
+                if p != key_prefix or v == OTHER or not accept(v):
+                    continue
+                params[bucket][v] = params[bucket].get(v, 0) + int(n)
+
+        for d in dates:
+            dd = all_days.get(d, {})
+            visits, views = total(dd, "session_start"), total(dd, "page_view")
+            by_day.append({"date": d, "visits": visits, "page_views": views})
+            totals["visits"] += visits
+            totals["page_views"] += views
+            # imágenes para compartir que SE GENERARON: postal del Cielo + imagen de un elemento de Ahora
+            totals["shares"] += sum(total(dd, ev, "state:ok") for ev in PUBLIC_SHARE_EVENTS)
+            # recordatorios ACTIVADOS (no cuenta rechazos, pruebas ni bajas)
+            totals["reminders"] += total(dd, "push_remind", "kind:on")
+            totals["questions_opened"] += total(dd, "q_open")
+            totals["sky_selections"] += total(dd, "sky_select")
+            for dev in devices:
+                devices[dev] += total(dd, "session_start", f"device:{dev}")
+            # pestañas vistas = pestaña de entrada (page_view) + cambios a esa pestaña (tab_change)
+            add("tabs", "tab", dd.get("page_view") or {}, lambda v: v in TABS)
+            add("tabs", "tab", dd.get("tab_change") or {}, lambda v: v in TABS)
+            add("tours", "q", dd.get("q_open") or {}, lambda v: v in TOURS)
+            add("sky_objects", "id", dd.get("sky_select") or {}, public_sky_id)
+            add("routes", "pair", dd.get("destination_change") or {}, _public_route)
+
+        def top(bucket: str):
+            items = [(v, n) for v, n in params[bucket].items() if n >= PUBLIC_MIN_COUNT]
+            items.sort(key=lambda kv: (-kv[1], kv[0]))
+            return [{"value": v, "count": n} for v, n in items[:PUBLIC_TOP]]
+
+        since = min((d for d, evs in all_days.items()
+                     if any(isinstance(c, dict) and c.get("_", 0) for c in evs.values())), default=None)
+        offset = _offset_hours()
+        tz = "UTC" if not offset else f"UTC{offset:+g}".replace("-", "−")
+        return {
+            "generated": datetime.fromtimestamp(self.clock(), tz=timezone.utc).isoformat(timespec="seconds"),
+            "from": dates[0],
+            "to": dates[-1],
+            "days": days,
+            "since": since,
+            "totals": totals,
+            "by_day": by_day,
+            "devices": _percentages(devices) if sum(devices.values()) >= PUBLIC_MIN_DEVICE_VISITS else None,
+            "top": {k: top(k) for k in ("tabs", "tours", "sky_objects", "routes")},
+            "all_time": {
+                "visits": sum(total(dd, "session_start") for dd in all_days.values()),
+                "page_views": sum(total(dd, "page_view") for dd in all_days.values()),
+            },
+            "note": ("Visitas = sesiones de una pestaña del navegador, no personas únicas. Teseo solo suma "
+                     f"contadores anónimos por día ({tz}): sin cookies, sin IP, sin datos personales. "
+                     f"Las listas muestran solo valores con {PUBLIC_MIN_COUNT} usos o más."),
         }
 
     def csv(self, days: int = 30) -> str:

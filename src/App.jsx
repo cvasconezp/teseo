@@ -10,6 +10,9 @@ import QuestionsBoundary from "./questions/Boundary.jsx";
 // "Ahora en el espacio": lanzamientos, naves a Marte y asteroides, en su chunk.
 const loadNow = () => import("./now/Now.jsx");
 const NowLazy = lazy(loadNow);
+// «Teseo en números»: la vista pública de uso (src/usage/), en su chunk; solo se descarga al abrirla.
+const loadUsage = () => import("./usage/UsageModal.jsx");
+const UsageLazy = lazy(loadUsage);
 import SectionBoundary from "./ui/SectionBoundary.jsx";
 // "¿Y la Luna? ¿Y el Sol?": cálculo en el cliente, aparte de Ruta y Ventanas (src/special/)
 import MoonSun from "./special/MoonSun.jsx";
@@ -29,7 +32,7 @@ import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
 import PlanetSphere from "./ui/PlanetSphere.jsx";
 import { AU_KM, helioPosition, approxDistanceKm, hohmannLocal, launchWindowsLocal } from "./ui/orbits.js";
 import { DAY_MS, parseISO, daysUntil, durationParts, relParts } from "./ui/time.js";
-import { parseHash, hashBelongsTo, hashForTab, hashForQuestion } from "./ui/hash.js";
+import { parseHash, hashBelongsTo, hashForTab, hashForQuestion, usageHash } from "./ui/hash.js";
 import { track, startSession, trackNetError } from "./ui/track.js";
 import {
   IconRoute, IconWindows, IconSky, IconLight, IconProbe, IconRocket, IconPlane,
@@ -196,6 +199,10 @@ const T = {
     whoLinks:       { web: "Website", fb: "Facebook", ig: "Instagram" },
     creditsGroups:  "Data sources by institution",
     creditsLink:    "Credits and data",
+    usageLink:      "Teseo usage",
+    usageLoading:   "Loading Teseo in numbers…",
+    usageErrTitle:  "Teseo in numbers did not load",
+    usageErrBody:   "Check your connection and try again. The rest of Teseo keeps working.",
     creditsTitle:   "Credits and data sources",
     creditsIntro:   "Teseo uses real data from official sources. MIT-licensed code.",
     creditsNote:    "Distances to deep-sky objects and pulsars are published values with uncertainty; they are shown as approximations.",
@@ -381,6 +388,10 @@ const T = {
     whoLinks:       { web: "Sitio web", fb: "Facebook", ig: "Instagram" },
     creditsGroups:  "Fuentes de datos por institución",
     creditsLink:    "Créditos y datos",
+    usageLink:      "Uso de Teseo",
+    usageLoading:   "Cargando Teseo en números…",
+    usageErrTitle:  "No se pudo abrir «Teseo en números»",
+    usageErrBody:   "Revisa tu conexión y vuelve a intentarlo. El resto de Teseo sigue funcionando.",
     creditsTitle:   "Créditos y fuentes de datos",
     creditsIntro:   "Teseo usa datos reales de fuentes oficiales. Código con licencia MIT.",
     creditsNote:    "Las distancias de objetos lejanos y púlsares son valores publicados con incertidumbre; se muestran como aproximaciones.",
@@ -1440,6 +1451,8 @@ export default function Teseo() {
   // enlace directo (#ventanas, #sky?..., #preguntas?...) se va directo al contenido.
   const [intro,    setIntro]    = useState(()=>!reducedMotion() && !(typeof location!=="undefined" && location.hash.length>1));
   const [showCredits, setShowCredits] = useState(false);
+  // «Teseo en números»: null (cerrada) o { days } con el periodo inicial (7, 30, 90 o null = por defecto)
+  const [usage, setUsage] = useState(null);
   const [lang,     setLang]     = useState(initialLang);
   useEffect(() => { applyLangToDocument(lang); try { localStorage.setItem("teseo-lang", lang); } catch { /* no-op */ } }, [lang]);
   const [from,     setFrom]     = useState(PLANETS[2]); // Earth
@@ -1489,6 +1502,16 @@ export default function Teseo() {
     window.addEventListener("teseo:credits", open);
     return () => window.removeEventListener("teseo:credits", open);
   }, []);
+  // «Teseo en números»: desde el pie, desde el menú del Cielo ("teseo:usage") y con #uso / #usage
+  const openUsage = useCallback((from, days = null) => { track("usage_open", { from }); setShowCredits(false); setUsage({ days }); }, []);
+  useEffect(() => {
+    const fromSky = () => openUsage("sky");
+    const fromHash = () => { let u = null; try { u = usageHash(window.location.hash); } catch { /* no-op */ } if (u) openUsage("link", u.days); };
+    fromHash();
+    window.addEventListener("teseo:usage", fromSky);
+    window.addEventListener("hashchange", fromHash);
+    return () => { window.removeEventListener("teseo:usage", fromSky); window.removeEventListener("hashchange", fromHash); };
+  }, [openUsage]);
   // Alto del aviso de cookies (si está): el pie deja ese hueco para no quedar tapado
   useEffect(() => {
     const root = document.documentElement;
@@ -1535,6 +1558,16 @@ export default function Teseo() {
   const t = T[lang];
   const onDone = useCallback(()=>setIntro(false),[]);
   const closeCredits = useCallback(()=>setShowCredits(false),[]);
+  // «Teseo en números»: componente lazy recreable si su chunk no cargó (como el Cielo o Preguntas)
+  const [UsageView, setUsageView] = useState(()=>UsageLazy);
+  const retryUsage = useCallback(()=>setUsageView(()=>lazy(loadUsage)),[]);
+  const closeUsage = useCallback(()=>{
+    setUsage(null);
+    // si se abrió con #uso, al cerrar el enlace vuelve a ser el de la pestaña (recargar no la reabre)
+    try {
+      if (usageHash(window.location.hash)) window.history.replaceState(null, "", hashForTab(tabRef.current, lang) || `${window.location.pathname}${window.location.search}`);
+    } catch { /* no-op */ }
+  },[lang]);
 
   // Al cambiar la selección se descartan los datos del par anterior
   useEffect(()=>{ setBackend(null); setRealDist(null); },[from,to]);
@@ -1905,9 +1938,13 @@ export default function Teseo() {
                 onClick={()=>track("coop_open", { from: "footer" })}>
                 {t.coopWith}
               </a>
-              <span aria-hidden="true" className="footer__sep"/>
+              <span aria-hidden="true" className="footer__sep footer__sep--kn"/>
               <button type="button" onClick={()=>{ track("credits_open"); setShowCredits(true); }} className="footer__link">
                 {t.creditsLink}
+              </button>
+              <span aria-hidden="true" className="footer__sep"/>
+              <button type="button" onClick={()=>openUsage("footer")} className="footer__link">
+                {t.usageLink}
               </button>
             </footer>
           )}
@@ -1915,6 +1952,15 @@ export default function Teseo() {
       </div>
 
       {showCredits && <CreditsModal lang={lang} onClose={closeCredits}/>}
+      {usage && (
+        <div className="usage-host">
+          <SectionBoundary name="Teseo en números" onReset={retryUsage} title={t.usageErrTitle} message={t.usageErrBody} retryLabel={t.retry}>
+            <Suspense fallback={<div className="modal"><p role="status" className="loading">{t.usageLoading}</p></div>}>
+              <UsageView lang={lang} api={API} initialDays={usage.days || undefined} onClose={closeUsage}/>
+            </Suspense>
+          </SectionBoundary>
+        </div>
+      )}
     </>
   );
 }

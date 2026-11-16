@@ -1,0 +1,74 @@
+/* usage.css — «Teseo en números» (prefijo usage). Mismo modal que los créditos
+   (.modal, .modal__box de index.css), algo más ancho en pantallas grandes. */
+
+.modal__box.usage { max-width: 40rem; font-variant-numeric: tabular-nums; }
+/* el diálogo recibe el foco al abrirse (para que Tab empiece dentro): sin anillo en la caja,
+   los controles de dentro sí lo muestran */
+.modal__box.usage:focus { outline: none; }
+.usage__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* selector de periodo */
+.usage__periods { display: flex; gap: 6px; margin: 4px 0 14px; }
+.usage__periods button {
+  flex: 1; min-height: 40px; padding: 0 10px; border-radius: 999px; font: inherit; font-size: 13.5px;
+  color: var(--soft); background: var(--panel); border: 1px solid var(--line); cursor: pointer; transition: border-color .2s, background .2s, color .2s;
+}
+.usage__periods button:hover { border-color: var(--line-strong); color: #fff; }
+.usage__periods button.is-on { color: #fff; background: rgba(167, 139, 250, 0.18); border-color: var(--violet); }
+.usage__periods button:focus-visible, .usage__retry:focus-visible, .usage__link:focus-visible { outline: 2px solid var(--thread); outline-offset: 2px; }
+
+/* estados */
+.usage__status { padding: 28px 0; text-align: center; font-size: 14px; color: var(--muted); }
+.usage__status--inline { padding: 0 0 10px; text-align: left; font-size: 13px; }
+.usage__error { padding: 14px; border-radius: 14px; background: rgba(242, 196, 109, 0.08); border: 1px solid rgba(242, 196, 109, 0.4); font-size: 14px; color: var(--soft); }
+.usage__retry { margin-top: 10px; min-height: 40px; padding: 0 16px; border-radius: 999px; font: inherit; font-size: 13.5px; color: #fff; background: var(--panel-strong); border: 1px solid var(--line-strong); cursor: pointer; }
+.usage__body.is-stale { opacity: .55; transition: opacity .2s; }
+
+/* cifras grandes */
+.usage__stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 18px; }
+.usage__stat { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 2px; padding: 10px 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
+.usage__stat dt { font-size: 12.5px; line-height: 1.3; color: var(--muted); }
+.usage__stat dd { font-family: var(--serif); font-size: 30px; font-weight: 600; line-height: 1.05; color: #fff; font-variant-numeric: lining-nums tabular-nums; }
+.usage__stat--hero { grid-column: 1 / -1; background: linear-gradient(135deg, rgba(167,139,250,.16), rgba(96,165,250,.08)); border-color: rgba(167, 139, 250, 0.4); }
+.usage__stat--hero dd { font-size: 44px; }
+.usage__stat--hero dt { font-size: 14px; color: var(--soft); }
+.usage__hint { display: block; font-size: 12px; color: var(--muted); }
+@media (min-width: 560px) {
+  .usage__stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* gráfica */
+.usage__chart { margin: 0 0 6px; }
+.usage__h { font-family: var(--serif); font-size: 20px; font-weight: 600; color: #fff; margin: 0 0 6px; }
+.usage__chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.usage__grid { stroke: rgba(255, 255, 255, 0.08); stroke-width: 1; }
+.usage__axis { stroke: rgba(255, 255, 255, 0.3); stroke-width: 1; }
+.usage__tick { font-family: var(--sans); font-size: 10.5px; fill: var(--muted); }
+.usage__peak { font-family: var(--sans); font-size: 11px; font-weight: 600; fill: var(--thread); }
+.usage__bar { fill: var(--violet); }
+.usage__bar.is-peak { fill: var(--thread); }
+.usage__bar.is-today { fill: rgba(167, 139, 250, 0.38); stroke: var(--violet); stroke-width: 1; stroke-dasharray: 2 2; }
+.usage__bar.is-today.is-peak { fill: rgba(242, 196, 109, 0.4); stroke: var(--thread); }
+.usage__legend { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.usage__swatch { width: 12px; height: 10px; border-radius: 2px; background: rgba(167, 139, 250, 0.38); border: 1px dashed var(--violet); }
+
+.usage__phone { margin: 12px 0 0; font-size: 14px; color: var(--soft); }
+
+/* lo más visto */
+.usage__tops { display: grid; gap: 4px 20px; }
+@media (min-width: 560px) { .usage__tops { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.usage__g { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--thread); margin: 10px 0 4px; }
+.usage__list { list-style: none; }
+.usage__list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.usage__name { color: #fff; overflow-wrap: anywhere; }
+.usage__count { color: var(--soft); font-family: var(--mono); font-size: 12.5px; }
+.usage__meter { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.usage__meter > span { display: block; height: 100%; background: var(--violet); opacity: .7; }
+.usage__empty { padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+
+.usage__since { margin-top: 16px; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); font-size: 14px; color: var(--soft); }
+
+/* privacidad */
+.usage__privacy { list-style: disc; display: grid; gap: 6px; padding-left: 18px; font-size: 13.5px; line-height: 1.5; color: var(--soft); }
+.usage__privacy li::marker { color: var(--thread); }
+.usage__link { color: var(--thread); }

@@ -24,6 +24,7 @@ Endpoints:
   GET  /api/img?u=<url>               → proxy de imágenes con CORS para las imágenes para compartir (lista blanca de hosts)
   POST /api/m  (= /api/metrics/event) → métricas de uso anónimas y agregadas (204 siempre)
   GET  /api/metrics/summary[.csv]     → resumen de uso (token TESEO_METRICS_TOKEN; 404 sin él)
+  GET  /api/metrics/public?days=      → «Teseo en números»: subconjunto curado y público (sin token)
 
 Para correr localmente:
   uvicorn app.main:app --reload --port 8000
@@ -298,6 +299,27 @@ def metrics_summary_csv(request: Request, days: int = Query(30, ge=1, le=metrics
         headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex",
                  "Content-Disposition": f'attachment; filename="teseo-metrics-{metrics.utc_day()}.csv"'},
     )
+
+
+_PUBLIC_METRICS_HEADERS = {
+    # 10 min en el navegador y en cualquier CDN: las cifras cambian despacio y así
+    # una portada con mucho tráfico (p. ej. yachaydeep.com) no golpea el backend
+    "Cache-Control": "public, max-age=600, s-maxage=600",
+    # Abierto a cualquier origen aunque ALLOWED_ORIGINS esté restringido: son datos
+    # públicos, sin cookies ni credenciales, y el sitio de Yachay Deep los lee con fetch.
+    "Access-Control-Allow-Origin": "*",
+}
+
+
+@app.get("/api/metrics/public")
+def metrics_public(days: int = Query(30, description="Periodo en días: 7, 30, 90 o 365")):
+    """«Teseo en números»: cuánto se usa Teseo, en un subconjunto CURADO y seguro de las
+    métricas anónimas (ver MetricsStore.public_summary). Sin token. Las listas solo
+    incluyen valores con 5 usos o más y el reparto por dispositivo exige 20 visitas."""
+    if days not in metrics.PUBLIC_DAYS:
+        raise HTTPException(status_code=422, detail=f"days: debe ser uno de {', '.join(map(str, metrics.PUBLIC_DAYS))}",
+                            headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"})
+    return JSONResponse(metrics_store.public_summary(min(days, metrics.RETAIN_DAYS)), headers=_PUBLIC_METRICS_HEADERS)
 
 
 @app.on_event("startup")
