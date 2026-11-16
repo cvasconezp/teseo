@@ -205,12 +205,13 @@ const T = {
     credits: [
       { g: "Space agencies", items: [
         ["NASA · JPL", "Horizons (planets, comets and probes, live) · CNEOS (near-Earth asteroids)"],
-        ["NASA · other centres", "Exoplanet Archive (live) · GSFC eclipse tables · Image and Video Library · Planetary Fact Sheet"],
+        ["NASA · other centres", "Exoplanet Archive (live) · GSFC eclipse tables · Image and Video Library · Planetary Fact Sheet · SDO (the Sun today)"],
         ["ESA", "Gaia DR3 (black holes Gaia BH1–BH3) · Planck 2018 (dark matter and dark energy)"],
       ]},
       { g: "Observatories and scientific collaborations", items: [
         ["LIGO · Virgo · KAGRA", "GWTC-4.0 gravitational-wave catalogue"],
         ["Event Horizon Telescope", "Images of M87* and Sagittarius A*"],
+        ["SILSO · Royal Observatory of Belgium", "Official daily sunspot number"],
         ["CSIRO (Australia)", "ATNF Pulsar Catalogue"],
         ["DESI · SH0ES · LUX-ZEPLIN · CERN", "Expansion of the universe and dark-matter searches (published results)"],
         ["SPARC (Case Western Reserve U.)", "Rotation curve of NGC 3198"],
@@ -218,6 +219,7 @@ const T = {
       { g: "Measurement institutes and Earth data", items: [
         ["NIST (USA)", "CODATA constants · Atomic Spectra Database (spectral lines)"],
         ["NOAA · British Geological Survey", "World Magnetic Model WMM2025 (compass)"],
+        ["NOAA SWPC (space weather)", "Active solar regions, X-ray flares (GOES), Kp index, solar cycle"],
         ["IAU · IERS", "Astronomical constants, the 88 official constellations, Earth orientation"],
       ]},
       { g: "Catalogues, tracking and community", items: [
@@ -387,12 +389,13 @@ const T = {
     credits: [
       { g: "Agencias espaciales", items: [
         ["NASA · JPL", "Horizons (planetas, cometas y sondas, en vivo) · CNEOS (asteroides cercanos)"],
-        ["NASA · otros centros", "Exoplanet Archive (en vivo) · tablas de eclipses del GSFC · Image and Video Library · Planetary Fact Sheet"],
+        ["NASA · otros centros", "Exoplanet Archive (en vivo) · tablas de eclipses del GSFC · Image and Video Library · Planetary Fact Sheet · SDO (el Sol de hoy)"],
         ["ESA", "Gaia DR3 (agujeros negros Gaia BH1–BH3) · Planck 2018 (materia y energía oscura)"],
       ]},
       { g: "Observatorios y colaboraciones científicas", items: [
         ["LIGO · Virgo · KAGRA", "Catálogo de ondas gravitacionales GWTC-4.0"],
         ["Event Horizon Telescope", "Imágenes de M87* y Sagitario A*"],
+        ["SILSO · Real Observatorio de Bélgica", "Número oficial de manchas solares del día"],
         ["CSIRO (Australia)", "Catálogo de púlsares ATNF"],
         ["DESI · SH0ES · LUX-ZEPLIN · CERN", "Expansión del universo y búsquedas de materia oscura (resultados publicados)"],
         ["SPARC (Case Western Reserve U.)", "Curva de rotación de NGC 3198"],
@@ -400,6 +403,7 @@ const T = {
       { g: "Institutos de medida y datos de la Tierra", items: [
         ["NIST (EE. UU.)", "Constantes CODATA · Atomic Spectra Database (líneas espectrales)"],
         ["NOAA · British Geological Survey", "Modelo magnético mundial WMM2025 (brújula)"],
+        ["NOAA SWPC (clima espacial)", "Regiones activas del Sol, fulguraciones (GOES), índice Kp, ciclo solar"],
         ["UAI · IERS", "Constantes astronómicas, las 88 constelaciones oficiales, orientación de la Tierra"],
       ]},
       { g: "Catálogos, seguimiento y comunidad", items: [
