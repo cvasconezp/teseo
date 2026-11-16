@@ -156,8 +156,9 @@ console.log("Integración en App.jsx (Luna y Sol como destinos especiales)");
   const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
   ok(/const SPECIALS = \[/.test(app) && /id:"moon"/.test(app) && /id:"sun"/.test(app), "Luna y Sol están en el selector de destino (SPECIALS)");
   ok(/special=\{special\} onSpecial=\{pickSpecial\}/.test(app), "el selector de destino ofrece los destinos especiales");
-  ok(/\{special && \(tab==="route" \|\| tab==="windows"\) && \(/.test(app) && /<MoonSun lang=\{lang\} only=\{special\.id\}/.test(app), "con Luna o Sol elegidos, Ruta y Ventanas muestran solo su tarjeta");
-  ok(/\{!special && tab==="windows" && \(\s*\n\s*<LaunchWindows/.test(app), "las ventanas de planetas no muestran la Luna ni el Sol sin elegirlos");
+  ok(/\{special && tab==="route" && \(/.test(app) && /<MoonSun lang=\{lang\} only=\{special\.id\}/.test(app), "con Luna o Sol elegidos, Ruta muestra solo su tarjeta");
+  { const iBlock = app.indexOf('{!special && tab==="route" && (<>'), iWin = app.indexOf("<LaunchWindows"), iEnd = app.indexOf('{tab==="sky"');
+    ok(iBlock > 0 && iWin > iBlock && iWin < iEnd, "las ventanas de planetas viven en Ruta y no se muestran con la Luna o el Sol"); }
   ok(/const PLANETS = \[\n(\s+\{ id:"\w+".*\},\n){8}\];/.test(app), "PLANETS sigue con sus 8 planetas");
   ok(/setFrom\(PLANETS\[2\]\)/.test(app.slice(app.indexOf("const pickSpecial"), app.indexOf("const pickDest"))), "la Luna y el Sol se calculan siempre desde la Tierra");
 }

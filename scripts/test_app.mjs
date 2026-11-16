@@ -3,7 +3,7 @@
 // Uso:  node scripts/test_app.mjs     (sale con código 1 si algo falla)
 import { hohmannLocal, launchWindowsLocal, helioPosition, approxDistanceKm, AU_KM, SEMI_MAJOR_AXIS_AU } from "../src/ui/orbits.js";
 import { DAY_MS, parseISO, daysUntil, durationParts, relParts, countdownParts } from "../src/ui/time.js";
-import { parseHash, hashBelongsTo, hashForTab } from "../src/ui/hash.js";
+import { parseHash, hashBelongsTo, hashForTab, hashForQuestion } from "../src/ui/hash.js";
 import { track, cleanParams, hasConsent, metricParams, optedOut, screenCategory, createMetrics, firstInSession, trackOnce, startSession, errorKind, trackNetError } from "../src/ui/track.js";
 import {
   C_KM_S, LD_KM, EARTH_DIAMETER_KM, ldToKm, kmToLd, auToKm, signalSeconds, splitSeconds, spacecraftDistances,
@@ -111,20 +111,25 @@ console.log("Fechas, duraciones y cuenta regresiva (src/ui/time.js)");
 
 console.log("Enlaces directos (src/ui/hash.js)");
 {
+  // pestañas actuales: Ruta · Ahora · Cielo · Preguntas; los enlaces antiguos siguen funcionando
   const cases = [
-    ["#ventanas", "windows", false], ["#windows", "windows", false], ["#escala", "scale", false], ["#scale", "scale", false],
-    ["#preguntas", "questions", false], ["#questions", "questions", false], ["#preguntas?drake=abc&kp=17.2", "questions", false],
-    ["#preguntas?q=agujeros-negros", "questions", false], ["#questions?q=x", "questions", false],
-    ["#sky", "sky", false], ["#sky?L=exoplanets&c=Ori", "sky", false], ["#cielo", "sky", false],
-    ["#ruta", "route", false], ["#route", "route", false], ["#ahora", "windows", true], ["#now", "windows", true], ["#VENTANAS", "windows", false],
+    ["#ahora", "now", null, null], ["#now", "now", null, null], ["#AHORA", "now", null, null],
+    ["#ventanas", "route", "windows", null], ["#windows", "route", "windows", null], ["#VENTANAS", "route", "windows", null],
+    ["#escala", "questions", null, "scale"], ["#scale", "questions", null, "scale"],
+    ["#preguntas", "questions", null, null], ["#questions", "questions", null, null], ["#preguntas?drake=abc&kp=17.2", "questions", null, null],
+    ["#preguntas?q=agujeros-negros", "questions", null, null], ["#questions?q=x", "questions", null, null],
+    ["#sky", "sky", null, null], ["#sky?L=exoplanets&c=Ori", "sky", null, null], ["#cielo", "sky", null, null],
+    ["#ruta", "route", null, null], ["#route", "route", null, null],
   ];
-  for (const [h, tab, now] of cases) eq(parseHash(h), { tab, now }, `${h} → ${tab}${now ? " + Ahora" : ""}`);
+  for (const [h, tab, section, q] of cases) eq(parseHash(h), { tab, section, q }, `${h} → ${tab}${section ? " · " + section : ""}${q ? " · q=" + q : ""}`);
   for (const h of ["", "#", "#otra", "#skyline", "#escalas", "#nowhere", "#preguntasx?q=1", null, undefined, "ventanas"]) ok(parseHash(h) === null, `${JSON.stringify(h)} no abre nada`);
   ok(hashBelongsTo("#sky?c=Ori", "sky") && !hashBelongsTo("#sky?c=Ori", "route") && !hashBelongsTo("", "route"), "hashBelongsTo distingue pestañas");
-  eq([hashForTab("windows", "es"), hashForTab("windows", "en"), hashForTab("scale", "es"), hashForTab("scale", "en")], ["#ventanas", "#windows", "#escala", "#scale"], "hash canónico por idioma");
+  ok(!hashBelongsTo("#ventanas", "route") && !hashBelongsTo("#escala", "questions"), "un enlace antiguo no se da por canónico (se reescribe)");
+  eq([hashForTab("now", "es"), hashForTab("now", "en")], ["#ahora", "#now"], "hash de Ahora por idioma");
   eq([hashForTab("route", "es"), hashForTab("sky", "es"), hashForTab("questions", "es"), hashForTab("questions", "en")], ["", "#sky", "#preguntas", "#questions"], "portada sin hash; Cielo siempre #sky");
-  eq([hashForTab("windows", "es", true), hashForTab("windows", "en", true)], ["#ahora", "#now"], "hash de Ahora en el espacio");
-  for (const tab of ["windows", "scale", "questions", "sky"]) for (const lang of ["es", "en"]) ok(parseHash(hashForTab(tab, lang)).tab === tab, `ida y vuelta: ${tab}/${lang}`);
+  eq([hashForQuestion("scale", "es"), hashForQuestion("scale", "en")], ["#preguntas?q=scale", "#questions?q=scale"], "hash directo a una pregunta");
+  eq([hashForTab("windows", "es"), hashForTab("scale", "es")], ["", ""], "ya no hay pestañas Ventanas ni Escala");
+  for (const tab of ["now", "questions", "sky"]) for (const lang of ["es", "en"]) ok(parseHash(hashForTab(tab, lang)).tab === tab, `ida y vuelta: ${tab}/${lang}`);
 }
 
 console.log("Analítica con consentimiento (src/ui/track.js)");

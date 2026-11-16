@@ -248,7 +248,7 @@ console.log("Integración en App.jsx, métricas y red");
 {
   const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
   ok(/import GravityAssists from "\.\/route\/GravityAssists\.jsx"/.test(app), "App importa la tarjeta");
-  const iRT = app.indexOf("<RealTrajectory"), iGA = app.indexOf("<GravityAssists"), iWin = app.indexOf("<LaunchWindows");
+  const iRT = app.indexOf("<RealTrajectory"), iGA = app.indexOf("<GravityAssists"), iWin = app.indexOf('{tab==="sky"');   // fin del bloque de Ruta (Ventanas vive ya dentro de Ruta)
   ok(iRT > 0 && iGA > iRT && iGA < iWin, "la tarjeta va debajo de la trayectoria realista, en Ruta");
   ok(/!special && tab==="route" && \(<>[\s\S]*<GravityAssists[\s\S]*<\/>\)/.test(app), "solo con destino planeta (no con `special`)");
   ok(/<SectionBoundary name="Catapultas"[^>]*>\s*<GravityAssists/.test(app), "envuelta en SectionBoundary como las demás");

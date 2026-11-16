@@ -158,14 +158,13 @@ strong { font-weight: 600; color: #fff; }
 .nav-grid { display: flex; flex-direction: column; }
 .nav-grid__result { margin-top: 20px; }
 /* En Ventanas (móvil) la cuenta regresiva va antes que el mapa */
-.nav-grid--windows .nav-grid__map { order: 3; margin-top: 20px; }
 @media (min-width: 1024px) {
   .nav-grid {
     display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 12fr); grid-template-rows: auto 1fr;
     grid-template-areas: "picks result" "map result"; column-gap: 44px; align-items: start;
   }
   .nav-grid__picks { grid-area: picks; }
-  .nav-grid__map, .nav-grid--windows .nav-grid__map { grid-area: map; position: sticky; top: 70px; margin-top: 0; }
+  .nav-grid__map { grid-area: map; position: sticky; top: 70px; margin-top: 0; }
   .nav-grid__result { grid-area: result; margin-top: 0; }
 }
 
@@ -173,9 +172,7 @@ strong { font-weight: 600; color: #fff; }
    disuelve (display: contents) para poder ordenarla antes del mapa; en
    escritorio queda fuera de la rejilla, a todo el ancho, y el mapa fijo no la pisa. */
 .nav-wrap { display: flex; flex-direction: column; }
-.nav-wrap__now { order: 2; margin-top: 24px; }
 @media (max-width: 1023px) { .nav-wrap > .nav-grid { display: contents; } }
-@media (min-width: 1024px) { .nav-wrap__now { margin-top: 36px; } }
 
 /* ─── Selectores de origen y destino ─────────────────────────────────────── */
 
@@ -559,6 +556,12 @@ strong { font-weight: 600; color: #fff; }
 .now__chev { transition: transform .2s; }
 .now.is-open .now__chev { transform: rotate(180deg); }
 .now__body { padding: 0 10px 12px; }
+/* Pestaña «Ahora» (desde nov-2026 es una pestaña propia, no un desplegable de Ventanas) */
+.now--page { border: none; background: none; border-radius: 0; }
+.now__head { padding: 6px 2px 18px; }
+.now__head .now__title { display: flex; align-items: center; gap: 12px; margin: 0; }
+.now--page .now__body { padding: 0; }
+.route-windows { scroll-margin-top: 70px; }
 @media (min-width: 480px) { .now__toggle { padding: 18px 20px; } .now__body { padding: 0 16px 18px; } }
 @media (max-width: 379px) { .now__state span { display: none; } .now__state { padding: 0 8px; } }
 

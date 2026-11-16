@@ -24,16 +24,15 @@ import { GA } from "./route/i18n-assists.js";
 import { MGA } from "./route/i18n-mga.js";
 // Geometría del dibujo de la ruta en el mapa: media elipse de Hohmann con ángulos reales
 import { ORBIT_R, hohmannPlan, pathD, placeLabel, routeDates } from "./route/hohmannMap.js";
-import CosmicScale from "./CosmicScale.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
 import PlanetSphere from "./ui/PlanetSphere.jsx";
 import { AU_KM, helioPosition, approxDistanceKm, hohmannLocal, launchWindowsLocal } from "./ui/orbits.js";
 import { DAY_MS, parseISO, daysUntil, durationParts, relParts } from "./ui/time.js";
-import { parseHash, hashBelongsTo, hashForTab } from "./ui/hash.js";
+import { parseHash, hashBelongsTo, hashForTab, hashForQuestion } from "./ui/hash.js";
 import { track, startSession, trackNetError } from "./ui/track.js";
 import {
-  IconRoute, IconWindows, IconSky, IconScale, IconLight, IconProbe, IconRocket, IconPlane,
+  IconRoute, IconWindows, IconSky, IconLight, IconProbe, IconRocket, IconPlane,
   IconSwap, IconChevron, IconRetry, IconClose, IconInfo, IconArrow,
 } from "./ui/icons.jsx";
 
@@ -63,9 +62,9 @@ const T = {
     choose:         (label, name) => `${label}: ${name}. Change`,
     swap:           "Swap origin and destination",
     route:          "Route",
+    now:            "Now",
     windows:        "Windows",
     sky:            "Sky",
-    scale:          "Scale",
     questions:      "Questions",
     loadingQuestions: "Loading questions…",
     questionsErrTitle: "This section could not be shown",
@@ -178,7 +177,7 @@ const T = {
 
     // Ahora en el espacio (entrada; el contenido vive en src/now/)
     nowTitle:       "Right now in space",
-    nowSub:         "Upcoming launches, spacecraft bound for Mars and asteroids passing nearby. Live data.",
+    nowSub:         "The Sun today, the sky calendar, the ISS, upcoming launches, spacecraft bound for Mars and nearby asteroids. Live data.",
     nowShow:        "Show",
     nowHide:        "Hide",
     nowLoading:     "Loading live data…",
@@ -256,9 +255,9 @@ const T = {
     choose:         (label, name) => `${label}: ${name}. Cambiar`,
     swap:           "Intercambiar origen y destino",
     route:          "Ruta",
+    now:            "Ahora",
     windows:        "Ventanas",
     sky:            "Cielo",
-    scale:          "Escala",
     questions:      "Preguntas",
     loadingQuestions: "Cargando preguntas…",
     questionsErrTitle: "No se pudo mostrar esta sección",
@@ -364,7 +363,7 @@ const T = {
     loadingSky:     "Cargando el cielo en 3D…",
 
     nowTitle:       "Ahora en el espacio",
-    nowSub:         "Próximos lanzamientos, naves rumbo a Marte y asteroides que pasan cerca. Datos en vivo.",
+    nowSub:         "El Sol de hoy, el calendario del cielo, la ISS, próximos lanzamientos, naves rumbo a Marte y asteroides cercanos. Datos en vivo.",
     nowShow:        "Ver",
     nowHide:        "Ocultar",
     nowLoading:     "Cargando datos en vivo…",
@@ -1308,9 +1307,8 @@ function IconQuestions(props) {
 
 const TABS = [
   { id:"route",   Icon:IconRoute },
-  { id:"windows", Icon:IconWindows },
+  { id:"now",     Icon:IconWindows },
   { id:"sky",     Icon:IconSky },
-  { id:"scale",   Icon:IconScale },
   { id:"questions", Icon:IconQuestions },
 ];
 function Tabs({ tab, onChange, lang }) {
@@ -1415,45 +1413,21 @@ function CreditsModal({ lang, onClose }) {
 // Aquí solo vive la puerta: el contenido (src/now/) se descarga al abrirla.
 
 // Acceso desde Ruta: lleva a la sección, ya abierta, en la pestaña Ventanas
-function NowTeaser({ lang, onOpen }) {
+// Pestaña «Ahora»: el Sol de hoy, el calendario del cielo, la ISS, lanzamientos, Marte y asteroides
+function NowPage({ lang, View, onRetry }) {
   const t = T[lang];
   return (
-    <button type="button" className="now-teaser" onClick={onOpen}>
-      <span className="now-teaser__live" aria-hidden="true"/>
-      <span className="now-teaser__text">
-        <span className="now-teaser__title">{t.nowTitle}</span>
-        <span className="now-teaser__sub">{t.nowSub}</span>
-      </span>
-      <IconArrow className="now-teaser__arrow" width={20} height={20}/>
-    </button>
-  );
-}
-
-function NowSection({ lang, open, onToggle, View, onRetry, sectionRef }) {
-  const t = T[lang];
-  return (
-    <section ref={sectionRef} id="now" className={`now ${open ? "is-open" : ""}`} aria-labelledby="now-h">
-      <h2 id="now-h" className="now__h">
-        <button type="button" className="now__toggle" aria-expanded={open} aria-controls="now-body" onClick={onToggle}>
-          <span className="now-teaser__live" aria-hidden="true"/>
-          <span className="now__text">
-            <span className="now__title">{t.nowTitle}</span>
-            <span className="now__sub">{t.nowSub}</span>
-          </span>
-          <span className="now__state">
-            <span>{open ? t.nowHide : t.nowShow}</span>
-            <IconChevron className="now__chev" width={18} height={18}/>
-          </span>
-        </button>
-      </h2>
-      <div id="now-body" className="now__body" hidden={!open}>
-        {open && (
-          <SectionBoundary name="Ahora en el espacio" onReset={onRetry} title={t.nowErrTitle} message={t.nowErrBody} retryLabel={t.retry}>
-            <Suspense fallback={<p role="status" className="loading">{t.nowLoading}</p>}>
-              <View lang={lang} api={API}/>
-            </Suspense>
-          </SectionBoundary>
-        )}
+    <section id="now" className="now now--page is-open" aria-labelledby="now-h">
+      <header className="now__head">
+        <h2 id="now-h" className="now__title"><span className="now-teaser__live" aria-hidden="true"/>{t.nowTitle}</h2>
+        <p className="now__sub">{t.nowSub}</p>
+      </header>
+      <div id="now-body" className="now__body">
+        <SectionBoundary name="Ahora en el espacio" onReset={onRetry} title={t.nowErrTitle} message={t.nowErrBody} retryLabel={t.retry}>
+          <Suspense fallback={<p role="status" className="loading">{t.nowLoading}</p>}>
+            <View lang={lang} api={API}/>
+          </Suspense>
+        </SectionBoundary>
       </div>
     </section>
   );
@@ -1472,12 +1446,11 @@ export default function Teseo() {
   const [to,       setTo]       = useState(PLANETS[3]); // Mars
   const [special,  setSpecial]  = useState(null);       // destino especial: SPECIALS[i] (Luna o Sol) o null
   const [tab,      setTab]      = useState("route");
-  // "Ahora en el espacio": abierta o no, y un contador para llevar la vista hasta ella
-  const [nowOpen,  setNowOpen]  = useState(false);
-  const [nowFocus, setNowFocus] = useState(0);
-  const nowRef = useRef(null);
-  // Enlaces directos (#ventanas, #escala, #preguntas?…, #sky?…, #ahora…): al
-  // cargar y cada vez que cambia el hash con la app abierta. Lo que sigue al
+  // «Ventanas de lanzamiento» vive dentro de Ruta: un contador para llevar la vista hasta ella
+  const [winFocus, setWinFocus] = useState(0);
+  const winRef = useRef(null);
+  // Enlaces directos (#ahora, #preguntas?…, #sky?… y los antiguos #ventanas y #escala):
+  // al cargar y cada vez que cambia el hash con la app abierta. Lo que sigue al
   // nombre lo lee cada pestaña; aquí solo se elige cuál mostrar.
   useEffect(() => {
     let initial = true;
@@ -1488,8 +1461,15 @@ export default function Teseo() {
       // un enlace interno que cambia de pestaña cuenta como cambio (la carga inicial ya es page_view)
       if (!initial && tabRef.current !== target.tab) track("tab_change", { tab: target.tab });
       initial = false;
+      // #escala → la pregunta «¿Qué tan grande es el universo?» (Preguntas lee ?q= del hash)
+      if (target.q) { try { window.history.replaceState(null, "", hashForQuestion(target.q, document.documentElement.lang === "en" ? "en" : "es")); } catch { /* no-op */ } }
       setTab(target.tab);
-      if (target.now) { setNowOpen(true); setNowFocus(n => n + 1); track("now_open", { source: "link" }); }
+      if (target.section === "windows") {
+        setWinFocus(n => n + 1);
+        // el enlace antiguo #ventanas se reescribe a la portada (Ruta), que es donde vive ahora
+        try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`); } catch { /* no-op */ }
+      }
+      if (target.tab === "now") track("now_open", { source: "link" });
     };
     check();
     initial = false;
@@ -1659,24 +1639,24 @@ export default function Teseo() {
   const posFailed = posStatus==="error";
   const distFailed = distStatus==="error" && !realDist;
   const routeFailed = routeError && !backend;
-  const showNotice = tab==="route" ? (posFailed||distFailed||routeFailed) : tab==="windows" ? (posFailed||winError) : false;
+  const showNotice = tab==="route" ? (posFailed||distFailed||routeFailed||winError) : false;
   const retryAll = ()=>{
     track("data_retry", { tab });
     if (posFailed) setPosTry(n=>n+1);
     if (tab==="route") {
       if (distFailed) setDistTry(n=>n+1);
       if (routeFailed) setRouteTry(n=>n+1);
+      if (winError) setWinTry(n=>n+1);
     }
-    if (tab==="windows" && winError) setWinTry(n=>n+1);
   };
 
   // El hash acompaña a la pestaña (para compartir o recargar donde estabas),
   // sin pisar el estado que el Cielo y Preguntas guardan tras su nombre.
-  const syncHash = useCallback((id, now = false)=>{
+  const syncHash = useCallback(id=>{
     try {
       const cur = window.location.hash || "";
-      if (!now && hashBelongsTo(cur, id) && !parseHash(cur).now) return;
-      const h = hashForTab(id, lang, now);
+      if (hashBelongsTo(cur, id)) return;
+      const h = hashForTab(id, lang);
       if (h === cur) return;
       window.history.replaceState(null, "", h || `${window.location.pathname}${window.location.search}`);
     } catch { /* no-op */ }
@@ -1689,38 +1669,26 @@ export default function Teseo() {
     syncHash(id);
     try { if (window.scrollY > 120) window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" }); } catch { /* no-op */ }
   },[syncHash]);
-  // Abrir "Ahora en el espacio" (vive en Ventanas) y llevar la vista hasta allí
-  const openNow = useCallback(source=>{
-    setTab("windows"); setNowOpen(true); setNowFocus(n=>n+1);
-    syncHash("windows", true);
-    track("now_open", { source });
+  // «Ver ventanas de lanzamiento»: bajar hasta la sección dentro de Ruta
+  const seeWindows = useCallback(()=>{
+    if (tabRef.current !== "route") { track("tab_change", { tab: "route" }); setTab("route"); syncHash("route"); }
+    setWinFocus(n=>n+1);
   },[syncHash]);
-  const toggleNow = useCallback(()=>{
-    if (!nowOpen) track("now_open", { source: "windows" });
-    // Al abrir, la vista se queda en la cabecera de la sección. Sin esto, el navegador ancla la
-    // vista al mapa que va debajo (en el teléfono la sección está antes del mapa) y, al crecer el
-    // contenido, la persona aparece al final de la lista en vez de al inicio.
-    if (!nowOpen) setNowFocus(n=>n+1);
-    setNowOpen(!nowOpen);
-  },[nowOpen]);
   useEffect(()=>{
-    if (!nowFocus || tab !== "windows") return;
+    if (!winFocus || tab !== "route") return;
     // Lleva la cabecera de la sección bajo las pestañas fijas. Mientras llegan
-    // las ventanas y el chunk, la página cambia de alto: se realinea durante un
-    // par de segundos, salvo que la persona ya esté desplazándose por su cuenta.
+    // los datos la página cambia de alto: se realinea durante un par de segundos,
+    // salvo que la persona ya esté desplazándose por su cuenta.
     let live = true;
     const align = smooth=>{
-      const el = nowRef.current;
+      const el = winRef.current;
       if (!live || !el) return;
       try {
         const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 70);
         if (Math.abs(y - window.scrollY) > 2) window.scrollTo({ top: y, behavior: smooth && !reducedMotion() ? "smooth" : "auto" });
       } catch { /* no-op */ }
     };
-    const raf = requestAnimationFrame(()=>{
-      align(true);
-      try { nowRef.current?.querySelector(".now__toggle")?.focus({ preventScroll: true }); } catch { /* no-op */ }
-    });
+    const raf = requestAnimationFrame(()=>align(true));
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(()=>align(false)) : null;
     if (ro) ro.observe(document.body);
     const stop = ()=>{ live = false; if (ro) ro.disconnect(); };
@@ -1731,7 +1699,7 @@ export default function Teseo() {
       cancelAnimationFrame(raf); clearTimeout(timer); stop();
       window.removeEventListener("wheel", stop, opts); window.removeEventListener("touchstart", stop, opts); window.removeEventListener("keydown", stop);
     };
-  },[nowFocus, tab]);
+  },[winFocus, tab]);
   // Analítica: cambio de destino (GA solo con consentimiento; métricas propias anónimas)
   const firstPair = useRef(true);
   useEffect(()=>{
@@ -1762,7 +1730,7 @@ export default function Teseo() {
   const seeVenusWindows = useCallback(()=>{
     track("special_dest", { destination: "sun", kind: "venus" });
     setSpecial(null); setFrom(PLANETS[2]); setTo(PLANETS[1]);
-    try { window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" }); } catch { /* no-op */ }
+    setWinFocus(n=>n+1);
   },[]);
   // Luna o Sol: siempre desde la Tierra (el planeta de destino queda guardado por si se vuelve)
   const pickSpecial = useCallback(s=>{
@@ -1788,7 +1756,7 @@ export default function Teseo() {
   },[from, to, special]);
   const swap = ()=>{ if (special) return; setFrom(to); setTo(from); };
 
-  const navigator_ = tab==="route" || tab==="windows";
+  const navigator_ = tab==="route";
   const notice = showNotice ? <LiveDataNotice lang={lang} onRetry={retryAll}/> : null;
 
   return (
@@ -1861,14 +1829,14 @@ export default function Teseo() {
                   </div>
 
                   <div className="nav-grid__result stack">
-                    {special && (tab==="route" || tab==="windows") && (
+                    {special && tab==="route" && (
                       <SectionBoundary name="Luna y Sol" title={TS[lang].errTitle} message={TS[lang].errBody} retryLabel={TS[lang].retry}>
                         <MoonSun lang={lang} only={special.id} onVenus={seeVenusWindows}/>
                       </SectionBoundary>
                     )}
                     {!special && tab==="route" && (<>
                       <RouteAnswer from={from} to={to} lang={lang} route={route}
-                        loading={loadingB} onSeeWindows={()=>changeTab("windows")}/>
+                        loading={loadingB} onSeeWindows={seeWindows}/>
                       {notice}
 
                       {backend?.narrative && (
@@ -1878,7 +1846,9 @@ export default function Teseo() {
                         </figure>
                       )}
 
-                      <NowTeaser lang={lang} onOpen={()=>openNow("route")}/>
+                      <div ref={winRef} id="windows" className="route-windows">
+                        <LaunchWindows from={from} to={to} lang={lang} attempt={winTry} onError={setWinError} notice={null}/>
+                      </div>
 
                       <VehicleCompare from={from} to={to} lang={lang} distKm={distKm}/>
                       <TechDetails lang={lang} route={route} distKm={distKm} distReal={!!realDist}/>
@@ -1893,19 +1863,9 @@ export default function Teseo() {
                       </SectionBoundary>
                     </>)}
 
-                    {!special && tab==="windows" && (
-                      <LaunchWindows from={from} to={to} lang={lang} attempt={winTry} onError={setWinError} notice={notice}/>
-                    )}
                   </div>
 
                 </div>
-                  {/* Fuera de la rejilla: así el mapa fijo (sticky) de escritorio no la pisa.
-                      En móvil va antes del mapa (ver .nav-wrap en index.css). */}
-                  {tab==="windows" && (
-                    <div className="nav-wrap__now">
-                      <NowSection lang={lang} open={nowOpen} onToggle={toggleNow} View={NowView} onRetry={retryNow} sectionRef={nowRef}/>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1917,8 +1877,8 @@ export default function Teseo() {
                 </ErrorBoundary>
               )}
 
-              {tab==="scale"&&(
-                <CosmicScale lang={lang}/>
+              {tab==="now"&&(
+                <NowPage lang={lang} View={NowView} onRetry={retryNow}/>
               )}
 
               {tab==="questions"&&(

@@ -210,7 +210,7 @@ console.log("Integración en App.jsx, componente, estilos y métricas");
 {
   const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
   ok(/import MgaPlanner from "\.\/route\/MgaPlanner\.jsx"/.test(app) && /import \{ MGA \} from "\.\/route\/i18n-mga\.js"/.test(app), "App importa la tarjeta y sus textos");
-  const iGA = app.indexOf("<GravityAssists"), iM = app.indexOf("<MgaPlanner"), iWin = app.indexOf("<LaunchWindows");
+  const iGA = app.indexOf("<GravityAssists"), iM = app.indexOf("<MgaPlanner"), iWin = app.indexOf('{tab==="sky"');   // fin del bloque de Ruta (Ventanas vive ya dentro de Ruta)
   ok(iGA > 0 && iM > iGA && iM < iWin, "justo debajo de «Catapultas», en Ruta");
   ok(/<SectionBoundary name="Planifica tu viaje con catapultas"[^>]*>\s*<MgaPlanner from=\{from\} to=\{to\} lang=\{lang\}\/>/.test(app), "envuelta en SectionBoundary");
   ok(/!special && tab==="route" && \(<>[\s\S]*<MgaPlanner[\s\S]*<\/>\)/.test(app), "solo con destino planeta");

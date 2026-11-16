@@ -64,7 +64,7 @@ OTHER = "_other"
 TOKEN_RE = re.compile(r"^[\w][\w .+\-*'()]{0,39}$", re.UNICODE)
 TOKEN = "token"
 
-TABS = {"route", "windows", "scale", "sky", "questions"}
+TABS = {"route", "now", "sky", "questions", "windows", "scale"}   # windows y scale: pestañas antiguas (datos históricos)
 BODIES = {"mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "light", "moon", "sun", "pluto"}
 LANGS = {"es", "en"}
 SCREENS = {"small", "medium", "large"}

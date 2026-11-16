@@ -134,8 +134,8 @@ console.log("Integración en App.jsx");
   ok((app.match(/<RealTrajectory\b/g) || []).length === 1, "la tarjeta se monta una sola vez");
   const iTech = app.indexOf("<TechDetails lang={lang} route={route}");
   const iRt = app.indexOf("<RealTrajectory");
-  const iWin = app.indexOf('{!special && tab==="windows"');
-  ok(iTech > 0 && iRt > iTech && iRt < iWin, "va justo debajo de <TechDetails> y antes de la pestaña Ventanas");
+  const iWin = app.indexOf('{tab==="sky"');   // fin del bloque de Ruta (Ventanas vive ya dentro de Ruta)
+  ok(iTech > 0 && iRt > iTech && iRt < iWin, "va justo debajo de <TechDetails>, dentro de Ruta");
   const iRoute = app.indexOf('{!special && tab==="route" && (<>');
   ok(iRoute > 0 && iRoute < iTech, "dentro del bloque !special && tab === ruta (con Luna o Sol no se muestra)");
   const around = app.slice(iRt - 260, iRt + 120);
