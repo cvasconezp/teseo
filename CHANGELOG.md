@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.5.1 — 16 de noviembre de 2026
+
+- Postal de estrellas más sintética: subtítulo «tipo · clase · magnitud», una sola
+  casilla de distancia y los bloques «Su luz» y «Su vida» sin tarjetas.
+- El Sol en la postal es la foto de hoy de NASA/SDO (HMI), con sus manchas reales.
+- Las imágenes de Wikipedia que son mapas de constelación ya no se usan como foto.
+
 ## 1.5.0 — 16 de noviembre de 2026
 
 - Imagen para compartir: distancia y «su luz salió hace…» en una sola casilla;
