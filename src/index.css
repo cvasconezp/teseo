@@ -585,6 +585,7 @@ strong { font-weight: 600; color: #fff; }
   border: 1px solid var(--line, rgba(255,255,255,.12)); background: rgba(255,255,255,.04); color: var(--muted); }
 .night-btn:hover { color: #fff; }
 .night-btn.is-on { color: #ff6b6b; border-color: rgba(255,80,80,.55); background: rgba(255,40,40,.12); }
+.night-btn--music.is-on { color: var(--thread); border-color: rgba(242,196,109,.55); background: rgba(242,196,109,.12); }
 /* La capa es bastante más grande que la pantalla: en el teléfono, al desplazar
    rápido, la barra del navegador se oculta y la ventana visible crece por
    debajo; con inset:0 quedaba una franja sin teñir. 100lvh = alto con las
@@ -595,3 +596,9 @@ strong { font-weight: 600; color: #fff; }
   background: #ff1a1a; mix-blend-mode: multiply; transform: translateZ(0); will-change: transform; }
 html.night-vision, html.night-vision body { background: #000; overscroll-behavior-y: none; }
 html.night-vision .night-vision-dim { filter: brightness(.7); }
+/* cabecera en teléfonos: con música, visión nocturna e idioma, que «Navegación interplanetaria» quepa en una línea */
+@media (max-width: 420px) {
+  .night-btn { width: 40px; height: 40px; }
+  .tagline { font-size: 12.5px; }
+}
+@media (min-width: 375px) and (max-width: 420px) { .tagline:not(.tagline--kn) { white-space: nowrap; } }

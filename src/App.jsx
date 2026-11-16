@@ -33,6 +33,7 @@ import PlanetSphere from "./ui/PlanetSphere.jsx";
 import { AU_KM, helioPosition, approxDistanceKm, hohmannLocal, launchWindowsLocal } from "./ui/orbits.js";
 import { DAY_MS, parseISO, daysUntil, durationParts, relParts } from "./ui/time.js";
 import Intro from "./intro/Intro.jsx";
+import { createAmbient, STORAGE_KEY as AMBIENT_KEY } from "./ui/ambient.js";
 import { parseHash, hashBelongsTo, hashForTab, hashForQuestion, usageHash } from "./ui/hash.js";
 import { track, startSession, trackNetError } from "./ui/track.js";
 import {
@@ -56,6 +57,8 @@ const T = {
     skip:           "Skip",
     skipIntro:      "Skip intro",
     switchLang:     "Cambiar a español",
+    ambientOn:      "Ambient music",
+    ambientOff:     "Turn off ambient music",
     nightOn:        "Night vision (red light)",
     nightOff:       "Turn off night vision",
     sections:       "Sections",
@@ -250,6 +253,8 @@ const T = {
     skip:           "Saltar",
     skipIntro:      "Saltar la introducción",
     switchLang:     "Switch to English",
+    ambientOn:      "Música ambiental",
+    ambientOff:     "Apagar la música ambiental",
     nightOn:        "Visión nocturna (luz roja)",
     nightOff:       "Quitar la visión nocturna",
     sections:       "Secciones",
@@ -1663,6 +1668,28 @@ export default function Teseo() {
     if (firstPair.current) { firstPair.current = false; return; }
     track("destination_change", { origin: from.id, destination: to.id });
   },[from.id, to.id]);
+  // Música ambiental (generada con Web Audio, src/ui/ambient.js). Empieza apagada; si la
+  // persona la dejó encendida, vuelve a sonar con su primer toque (los navegadores no
+  // permiten sonido sin un gesto).
+  const ambientRef = useRef(null);
+  const [ambient, setAmbient] = useState(false);
+  const ambientEngine = () => (ambientRef.current ||= createAmbient());
+  const toggleAmbient = useCallback(async ()=>{
+    const eng = ambientEngine();
+    const next = !eng.isOn();
+    if (next) { if (!(await eng.start())) return; } else eng.stop();
+    setAmbient(next);
+    track("ambient", { state: next ? "on" : "off" });
+    try { localStorage.setItem(AMBIENT_KEY, next ? "1" : "0"); } catch { /* no-op */ }
+  },[]);
+  useEffect(()=>{
+    let wanted = false;
+    try { wanted = localStorage.getItem(AMBIENT_KEY) === "1"; } catch { /* no-op */ }
+    if (!wanted) return;
+    const resume = async ()=>{ if (await ambientEngine().start()) setAmbient(true); };
+    window.addEventListener("pointerdown", resume, { once: true });
+    return ()=>window.removeEventListener("pointerdown", resume);
+  },[]);
   // Visión nocturna: todo en rojo tenue para no perder la adaptación del ojo a
   // la oscuridad (los bastones de la retina casi no reaccionan a la luz roja).
   const [night, setNight] = useState(()=>{ try { return localStorage.getItem("teseo-night")==="1"; } catch { return false; } });
@@ -1738,6 +1765,14 @@ export default function Teseo() {
                 title={t.coopWith} onClick={()=>track("coop_open", { from: "header" })}>{t.allianceShort}</a>
             </div>
             <div className="flex items-center gap-2">
+            <button type="button" className={`night-btn night-btn--music${ambient ? " is-on" : ""}`} aria-pressed={ambient}
+              aria-label={ambient ? t.ambientOff : t.ambientOn} title={ambient ? t.ambientOff : t.ambientOn}
+              onClick={toggleAmbient}>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>
+                {!ambient && <path d="M3 3l18 18" strokeWidth="1.6"/>}
+              </svg>
+            </button>
             <button type="button" className={`night-btn${night ? " is-on" : ""}`} aria-pressed={night}
               aria-label={night ? t.nightOff : t.nightOn} title={night ? t.nightOff : t.nightOn}
               onClick={()=>{ track("night_vision", { state: night ? "off" : "on" }); setNight(v=>!v); }}>

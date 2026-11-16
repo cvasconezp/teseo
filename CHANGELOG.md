@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.4.0 — 16 de noviembre de 2026
+
+- Música ambiental: botón ♪ en la cabecera para activarla o apagarla. Se genera
+  en el propio navegador (Web Audio): un bordón grave que respira y campanas
+  suaves de la escala pentatónica con reverberación, sin archivos ni licencias.
+  Empieza apagada, recuerda la preferencia (vuelve con el primer toque) y se
+  pausa al cambiar de pestaña o bloquear el teléfono.
+
 ## 1.3.1 — 16 de noviembre de 2026
 
 - Entrada más fluida en teléfonos: el giro de la Vía Láctea va en una capa que

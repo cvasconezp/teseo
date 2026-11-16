@@ -509,3 +509,9 @@ def test_coop_open():
     assert metrics.clean_event({"e": "coop_open", "p": {"from": "header"}}) == {"e": "coop_open", "p": {"from": "header"}}
     assert metrics.clean_event({"e": "coop_open", "p": {"from": "otro"}}) == {"e": "coop_open", "p": {}}
 
+
+
+def test_ambient():
+    # botón de música ambiental: solo on/off
+    assert metrics.clean_event({"e": "ambient", "p": {"state": "on"}}) == {"e": "ambient", "p": {"state": "on"}}
+    assert metrics.clean_event({"e": "ambient", "p": {"state": "loud"}}) == {"e": "ambient", "p": {}}

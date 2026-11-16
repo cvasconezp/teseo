@@ -103,6 +103,7 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "destination_change": {"origin": BODIES, "destination": BODIES},
     "language_change":    {"lang": LANGS},
     "night_vision":       {"state": ON_OFF},
+    "ambient":            {"state": ON_OFF},   # música ambiental (botón de la cabecera)
     "credits_open":       {},
     # «Teseo en números» (src/usage/): desde dónde se abrió la vista pública de uso
     "usage_open":         {"from": {"link"}},   # panel #admin (antes también pie y menú del Cielo)

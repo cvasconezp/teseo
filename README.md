@@ -4,7 +4,7 @@
 
 **Navegador interplanetario y planetario de bolsillo, con física orbital real
 y datos citados.** En línea: **[teseo.yachaydeep.com](https://teseo.yachaydeep.com)**
-· versión **1.3** (16-nov-2026).
+· versión **1.4** (16-nov-2026).
 
 Hecho por [Yachay Deep Labs](https://yachaydeep.com) **en cooperación con
 [Killa Ñan · Astronomía comunitaria](https://sites.google.com/view/killanan/inicio)**
