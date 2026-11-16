@@ -75,7 +75,8 @@ export default function Intro({ lang, planets, credit, skipLabel, skipAria, onDo
           <div className="intro__spin">
             <svg viewBox="-100 -100 200 200">
               {stars.map(([x, y, r, c, o], i) => <circle key={i} cx={x} cy={y} r={r} fill={c} opacity={o}/>)}
-              <circle r="9" fill="rgba(255,236,190,.35)"/>
+              {/* resplandor de la barra central (alargado, como la barra) */}
+              <ellipse rx="20" ry="7" fill="rgba(255,236,190,.16)" transform="rotate(24)"/>
             </svg>
           </div>
           <svg viewBox="-100 -100 200 200" className="intro__over">
