@@ -15,6 +15,9 @@
 //  · pársec: exacto por definición (IAU 2015 B2): 648000/π ua
 //  · año juliano: 365,25 días de 86 400 s (convención IAU); año luz = c × año juliano
 //  · g₀: gravedad estándar, exacta por convención (CGPM 1901): 9,806 65 m/s²
+//  · σ: constante de Stefan-Boltzmann, exacta en el SI de 2019 (sale de h, c y k), NIST
+//      (consultado el 16-nov-2026): https://physics.nist.gov/cgi-bin/cuu/Value?sigma
+//      → 5,670 374 419… × 10⁻⁸ W m⁻² K⁻⁴
 
 export const G = 6.67430e-11;              // m³ kg⁻¹ s⁻²
 export const C = 299792458;                // m/s
@@ -29,6 +32,7 @@ export const MPC = 1e6 * PC;
 export const YEAR = 365.25 * 86400;        // s
 export const LY = C * YEAR;                // m  (9,4607 × 10¹⁵)
 export const G0 = 9.80665;                 // m/s²
+export const SIGMA_SB = 5.670374419e-8;    // W m⁻² K⁻⁴
 
 // Derivadas (no son datos nuevos: salen de las de arriba)
 export const M_SUN_KG = GM_SUN / G;                    // 1,98841 × 10³⁰ kg

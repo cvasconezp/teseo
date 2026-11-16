@@ -5,6 +5,10 @@
 
 // Palabras clave por pregunta (ES y EN). Las preguntas que aún no existan en TOUR_IDS se ignoran.
 export const KEYWORDS = {
+  scale: {
+    es: "escala tamaño grande universo distancia distancias año luz años luz observable regla lejos lejano voyager luna sol próxima centauri andrómeda galaxia vía láctea gn-z11 fondo cósmico microondas horizonte expansión pasado velocidad luz auto avión viaje",
+    en: "scale size big universe distance distances light year light years observable ruler far distant voyager moon sun proxima centauri andromeda galaxy milky way gn-z11 cosmic background microwave horizon expansion past speed light car plane trip travel",
+  },
   mass: {
     es: "masa peso báscula gravedad densidad tamaño radio inercia órbita kepler luna planeta enana marrón enana blanca estrella neutrones schwarzschild agujero negro compresión pesar sirio betelgeuse",
     en: "mass weight scale gravity density size radius inertia orbit kepler moon planet brown dwarf white dwarf star neutron schwarzschild black hole compress weigh sirius betelgeuse",
@@ -45,7 +49,7 @@ export const SEARCH_TEXT = {
     placeholder: "Ej.: agujero negro, tiempo, luz",
     clear: "Borrar la búsqueda",
     count: (n, total) => (n === total ? `${total} preguntas` : n === 1 ? "1 pregunta encontrada" : `${n} preguntas encontradas`),
-    empty: (q) => `Ninguna pregunta habla de «${q}». Prueba con otra palabra: masa, tiempo, luz, galaxias, vida…`,
+    empty: (q) => `Ninguna pregunta habla de «${q}». Prueba con otra palabra: masa, tiempo, luz, distancia, galaxias, vida…`,
     navLabel: "Otras preguntas", navTitle: "Sigue explorando", prev: "Anterior", next: "Siguiente",
   },
   en: {
@@ -53,7 +57,7 @@ export const SEARCH_TEXT = {
     placeholder: "E.g. black hole, time, light",
     clear: "Clear search",
     count: (n, total) => (n === total ? `${total} questions` : n === 1 ? "1 question found" : `${n} questions found`),
-    empty: (q) => `No question mentions “${q}”. Try another word: mass, time, light, galaxies, life…`,
+    empty: (q) => `No question mentions “${q}”. Try another word: mass, time, light, distance, galaxies, life…`,
     navLabel: "Other questions", navTitle: "Keep exploring", prev: "Previous", next: "Next",
   },
 };

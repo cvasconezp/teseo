@@ -96,6 +96,16 @@ def test_tour_spectrum_en_lista_blanca():
     assert metrics.clean_event({"e": "q_open", "p": {"q": "espectro"}})["p"] == {}
 
 
+def test_tour_scale_en_lista_blanca():
+    # «¿Qué tan grande es el universo?» (antes la pestaña «Escala»): mismo q_open / q_preset que los demás
+    assert "scale" in metrics.TOURS
+    assert metrics.clean_event({"e": "q_open", "p": {"q": "scale"}}) == {"e": "q_open", "p": {"q": "scale"}}
+    assert metrics.clean_event({"e": "q_preset", "p": {"q": "scale", "preset": "trip-proxima"}})["p"] == {"q": "scale", "preset": "trip-proxima"}
+    assert metrics.clean_event({"e": "q_preset", "p": {"q": "scale", "preset": "z-gnz11"}})["p"] == {"q": "scale", "preset": "z-gnz11"}
+    assert metrics.clean_event({"e": "q_preset", "p": {"q": "scale", "preset": "quiz-m31"}})["p"] == {"q": "scale", "preset": "quiz-m31"}
+    assert metrics.clean_event({"e": "q_open", "p": {"q": "escala"}})["p"] == {}
+
+
 def test_special_dest_moon_sun():
     # ¿Y la Luna? ¿Y el Sol?: solo moon/sun y tres tipos cerrados
     assert metrics.clean_event({"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}) == {"e": "special_dest", "p": {"destination": "moon", "kind": "view"}}

@@ -200,7 +200,7 @@ console.log("Datos de la interfaz");
   ok(Object.values(SPEC_REFS).every(r => /^https:\/\//.test(r.url) && r.cite && r.citeEn), "cada fuente tiene enlace https y cita en ES y EN");
   const metrics = read("../backend/app/metrics.py");
   ok(/TOURS = \{[^}]*"spectrum"[^}]*\}/.test(metrics), "«spectrum» en TOURS del backend");
-  ok(/Ocho preguntas grandes/.test(read("../src/questions/i18n.js")) && /Eight big questions/.test(read("../src/questions/i18n.js")), "el índice dice «Ocho» (ES) y «Eight» (EN)");
+  ok(/Nueve preguntas grandes/.test(read("../src/questions/i18n.js")) && /Nine big questions/.test(read("../src/questions/i18n.js")), "el índice dice «Nueve» (ES) y «Nine» (EN)");
 }
 {
   // Betelgeuse: la ficha del Cielo debe poder dibujar su espectro (tipo M coherente con su color)

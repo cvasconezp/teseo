@@ -13,6 +13,7 @@ import { searchTours, SEARCH_TEXT } from "./search.js";
 import "./questions.css";
 
 const TOURS = {
+  scale: lazy(() => import("./ScaleTour.jsx")),
   mass: lazy(() => import("./MassTour.jsx")),
   bh: lazy(() => import("./BlackHoleTour.jsx")),
   expansion: lazy(() => import("./ExpansionTour.jsx")),
@@ -23,7 +24,7 @@ const TOURS = {
   spectrum: lazy(() => import("./SpectrumTour.jsx")),
 };
 // Orden del índice
-export const TOUR_IDS = ["mass", "time", "spectrum", "bh", "gw", "expansion", "dm", "drake"];
+export const TOUR_IDS = ["scale", "mass", "time", "spectrum", "bh", "gw", "expansion", "dm", "drake"];
 
 // Último lugar visitado: al cambiar de pestaña el panel se desmonta y, al
 // volver sin enlace, se retoma donde se dejó.
@@ -41,6 +42,15 @@ function currentRoute() {
 
 // Emblema de cada recorrido: un dibujo pequeño de su pieza central.
 function Emblem({ id }) {
+  if (id === "scale") return (
+    <svg viewBox="0 0 120 80" aria-hidden="true" focusable="false">
+      <defs><linearGradient id="q-em-scale" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stopColor="#9FD0FF" /><stop offset="0.45" stopColor="#FFFFFF" /><stop offset="0.62" stopColor="#67E8C8" /><stop offset="0.8" stopColor="#FF9D5C" /><stop offset="1" stopColor="#C9B8FF" /></linearGradient></defs>
+      <rect x="8" y="45" width="104" height="3" rx="1.5" fill="url(#q-em-scale)" />
+      {[14, 32, 50, 68, 86, 104].map(x => <line key={x} x1={x} x2={x} y1="51" y2="58" stroke="rgba(255,255,255,.55)" strokeWidth="1.4" />)}
+      {[[11, "#9FD0FF", 3.2], [27, "#9FD0FF", 3.6], [41, "#F2C46D", 3.2], [55, "#FFFFFF", 3.4], [63, "#FFFFFF", 2.8], [74, "#67E8C8", 3.4], [86, "#FF9D5C", 3.8], [107, "#C9B8FF", 4.4]].map(([x, c, r]) => <circle key={x} cx={x} cy="46.5" r={r} fill={c} />)}
+      <path d="M8 30C40 22 80 22 112 30" stroke="#C9B8FF" strokeWidth="1.6" strokeDasharray="3 4" fill="none" strokeLinecap="round" />
+    </svg>
+  );
   if (id === "mass") return (
     <svg viewBox="0 0 120 80" aria-hidden="true" focusable="false">
       <defs>
