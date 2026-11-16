@@ -2409,7 +2409,8 @@ export default function Constellations({ lang = "es" }) {
   const buildShare = useCallback(() => {
     const ref = sceneRef.current;
     const date = new Date(whenStr);
-    const local = localMode && lat != null && lon != null ? { lat, lon, date, place: placeKind === "me" ? TC[lang].myLocation : placeKind === "custom" ? TC[lang].customPlace : placeKind } : null;
+    // el lugar va dentro de una frase («Desde tu ubicación · …»): las etiquetas genéricas, en minúscula
+    const local = localMode && lat != null && lon != null ? { lat, lon, date, place: placeKind === "me" ? TC[lang].pcMyPlace : placeKind === "custom" ? TC[lang].pcCustomPlace : placeKind } : null;
     const loc = lang === "es" ? "es-EC" : "en-US";
     const fmt = {
       dist: (d) => fmtDist(d, lang), years: (y) => fmtYears(y, lang), km: (k) => fmtKm(k, lang), dur: (x) => fmtDuration(x, lang),
@@ -2430,7 +2431,10 @@ export default function Constellations({ lang = "es" }) {
     }
     if (so && so.name && so.layer !== "note") {
       const live = so.layer === "solar" ? { ...so, ...(bodiesRef.current.find(b => b.name === so.name) || {}) } : so;
-      return buildPostcard({ ...base, obj: live, info: describeObject(live, lang, TC[lang], false), wiki, credit });
+      const out = buildPostcard({ ...base, obj: live, info: describeObject(live, lang, TC[lang], false), wiki, credit });
+      // pruebas en navegador (&e2e=1): el informe de la postal (líneas, casillas, bloques) queda a la vista
+      if (E2E) out.then((r) => { window.__teseoPostcard = r && r.report; }).catch(() => {});
+      return out;
     }
     // sin objeto: el cielo hacia donde mira la cámara
     let center = [0, 0, 1];

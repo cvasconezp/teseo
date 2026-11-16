@@ -149,7 +149,7 @@ console.log("Ficha, postal e imagen");
   ok(caldwellCommon(byName("C13"), "es") === "Cúmulo de la Lechuza" && caldwellCommon(byName("C13"), "en") === "Owl Cluster" && caldwellCommon(byName("C3"), "es") === "", "nombre común: el primero de la lista, en el idioma de la ficha");
   for (const n of ["C80", "LMC", "C92", "C31"]) {
     const ob = L(byName(n)), info = describeObject(ob, "es", T, false);
-    const g = postcardGrid({ obj: ob, info, t: T, lang: "es", local: null, fmt: { dist: (d) => `${d}` } });
+    const g = postcardGrid({ obj: ob, info, t: T, lang: "es", local: null, fmt: { dist: (d) => `${d}`, years: (y) => `${y} años` } });
     const labels = g.map((c) => c.label);
     ok(g.length >= 4 && g.length <= GRID_MAX && labels[0] === "Distancia" && labels.includes("Catálogo") && labels.includes(T.dSize) && labels.includes("Magnitud aparente"), `postal de ${n}: ${labels.join(" · ")}`);
   }
@@ -199,7 +199,7 @@ console.log("Integración");
   const app = read("../src/App.jsx");
   ok(/Cúmulos, nebulosas y galaxias", "[^"]*Caldwell[^"]*Baumgardt[^"]*Pietrzyński[^"]*Graczyk/.test(app) && /Clusters, nebulae and galaxies", "[^"]*Caldwell[^"]*Baumgardt[^"]*Pietrzyński[^"]*Graczyk/.test(app), "créditos (es y en): Caldwell y las fuentes de las distancias");
   const pc = read("../src/sky/postcard.js");
-  ok(/L === "caldwell"\) \{ fact\(t\.fDistance\)/.test(pc), "la postal tiene cuadrícula de datos para la capa");
+  ok(/L === "caldwell"\) \{ dist\(\); det\(t\.dMagnitude, true\)/.test(pc), "la postal tiene cuadrícula de datos para la capa (con la distancia unificada)");
 }
 
 console.log(`\n${passed} pruebas correctas, ${failed} fallidas`);

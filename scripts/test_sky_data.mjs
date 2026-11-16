@@ -5,7 +5,7 @@
 // Uso:  node scripts/test_sky_data.mjs     (sale con código 1 si algo falla)
 import { readFileSync } from "node:fs";
 import { mappedTitle, wikiCandidates, normName, PROBE_TITLES, COMET_TITLES } from "../src/sky/wiki.js";
-import { wrapLines, fitLines, makeProjection, zenithDir, postcardText, postcardGrid, layoutGrid, planLayout, PC_W, PC_H, SAFE_TOP, SAFE_BOTTOM, HERO_TOP, BLOCK_BOTTOM, GRID, GRID_MAX } from "../src/sky/postcard.js";
+import { wrapLines, fitLines, makeProjection, zenithDir, postcardText, postcardGrid, layoutGrid, planLayout, slotsOf, PC_W, PC_H, SAFE_TOP, SAFE_BOTTOM, HERO_TOP, BLOCK_BOTTOM, GRID, GRID_MAX } from "../src/sky/postcard.js";
 import { describeObject } from "../src/sky/describe.js";
 import { stageHeight, pickViewportHeight, STAGE_MIN } from "../src/sky/viewport.js";
 import { CON_INFO, constellationData, conNameEs, conOrigin } from "../src/sky/constellations.js";
@@ -135,26 +135,26 @@ console.log("Postal vertical 9:16: formato, cuadrícula de datos y Killa Ñan");
   const so = { layer: "star", name: sirio[7], nx: sirio[1], ny: sirio[2], nz: sirio[3], mag: sirio[4], dist_ly: sirio[6], hex: sirio[5], bv: 0.009, spect: "A0m..." };
   const g = postcardGrid({ obj: so, info: describeObject(so, "es", T, false), t: T, lang: "es", local: null, fmt });
   const labels = g.map((c) => c.label);
-  ok(g.length === GRID_MAX && labels[0] === "Distancia" && labels.includes("Magnitud aparente") && labels.includes(T.dTemp) && labels.includes(T.dSpect), "estrella: 6 casillas con distancia, luz, magnitud, temperatura y tipo espectral", JSON.stringify(labels));
+  ok(slotsOf(g) === GRID_MAX && g.length === 5 && labels[0] === "Distancia" && g[0].wide && /^Su luz salió hace 8\.6 años: la ves como era entonces$/.test(g[0].sub) && !labels.includes(T.fLightLeft) && labels.includes("Magnitud aparente") && labels.includes(T.dTemp) && labels.includes(T.dSpect), "estrella: distancia y luz en UNA casilla ancha, magnitud, temperatura y tipo espectral (6 plazas)", JSON.stringify(labels));
   const mag = g.find((c) => c.label === "Magnitud aparente");
   ok(mag.value === so.mag.toLocaleString("es", { maximumFractionDigits: 2 }) && mag.sub === "menor es más brillante", "el valor grande es el número; la aclaración va debajo", JSON.stringify(mag));
   const bare = { ...so, bv: null, spect: "", mag: null, hex: "#zzzzzz" };
   const gb = postcardGrid({ obj: bare, info: describeObject(bare, "es", T, false), t: T, lang: "es", local: null, fmt });
-  ok(!gb.some((c) => c.label === T.dTemp || c.label === T.dSpect || c.label === "Magnitud aparente") && gb.length === 3, "sin B−V, tipo espectral ni magnitud no se inventa ninguna casilla", JSON.stringify(gb.map((c) => c.label)));
+  ok(!gb.some((c) => c.label === T.dTemp || c.label === T.dSpect || c.label === "Magnitud aparente") && gb.length === 2, "sin B−V, tipo espectral ni magnitud no se inventa ninguna casilla (la cuadrícula queda más corta)", JSON.stringify(gb.map((c) => c.label)));
   // cielo local: altura y salida/puesta al final, sin pasar de 6
   const local = { lat: 0.0389, lon: -78.1426, date: new Date("2026-11-17T04:00:00Z"), place: "Cayambe" };
   const gl = postcardGrid({ obj: so, info: describeObject(so, "es", T, false), t: T, lang: "es", local, fmt });
-  ok(gl.length === GRID_MAX && gl[4].kind === "local" && gl[5].kind === "local" && gl[4].label === T.pcGAlt, "cielo local: 4 datos + altura + salida/puesta", JSON.stringify(gl.map((c) => [c.label, c.value, c.sub])));
-  ok(/^\d+°$/.test(gl[4].value) && /^hacia el /.test(gl[4].sub) || gl[4].value === T.pcGBelow, "la altura es un número de grados con su dirección (o «bajo el horizonte»)", JSON.stringify(gl[4]));
-  ok([T.pcGSet, T.pcGRise, T.pcGHorizon].includes(gl[5].label) && (/^\d\d:\d\d$/.test(gl[5].value) || gl[5].label === T.pcGHorizon), "hora de salida o puesta (o «no se pone» / «hoy no sale»)", JSON.stringify(gl[5]));
+  ok(slotsOf(gl) === GRID_MAX && gl.length === 5 && gl[0].kind === "dist" && gl[3].kind === "local" && gl[4].kind === "local" && gl[3].label === T.pcGAlt, "cielo local: distancia (ancha) + 2 datos + altura + salida/puesta", JSON.stringify(gl.map((c) => [c.label, c.value, c.sub])));
+  ok(/^\d+°$/.test(gl[3].value) && /^hacia el /.test(gl[3].sub) || gl[3].value === T.pcGBelow, "la altura es un número de grados con su dirección (o «bajo el horizonte»)", JSON.stringify(gl[3]));
+  ok([T.pcGSet, T.pcGRise, T.pcGHorizon].includes(gl[4].label) && (/^\d\d:\d\d$/.test(gl[4].value) || gl[4].label === T.pcGHorizon), "hora de salida o puesta (o «no se pone» / «hoy no sale»)", JSON.stringify(gl[4]));
   // planeta: datos de la ficha (diámetro con su comparación)
   const jup = { layer: "solar", name: "Júpiter", nx: 1, ny: 0, nz: 0, dist_au: 4.5, mag: -2.7, body: "planet", ra: 100, dec: 20 };
   const gj = postcardGrid({ obj: jup, info: describeObject(jup, "es", T, false), t: T, lang: "es", local: null, fmt });
-  ok(gj.some((c) => c.label === "Diámetro" && /km$/.test(c.value) && /× la Tierra/.test(c.sub)) && gj.some((c) => c.label === "Su luz tarda") && gj.length >= 4 && gj.length <= GRID_MAX, "planeta: distancia, luz, diámetro (× la Tierra) y más", JSON.stringify(gj.map((c) => [c.label, c.value])));
+  ok(gj.some((c) => c.label === "Diámetro" && /km$/.test(c.value) && /× la Tierra/.test(c.sub)) && !gj.some((c) => c.label === "Su luz tarda") && /^su luz tarda .+ en llegar$/.test(gj[0].sub) && gj.length >= 4 && slotsOf(gj) <= GRID_MAX, "planeta: distancia con la luz en la misma casilla, diámetro (× la Tierra) y más", JSON.stringify(gj.map((c) => [c.label, c.value, c.sub])));
   // sonda: la luz se rotula como señal de radio
   const vg = { layer: "probes", name: "Voyager 1", nx: 0, ny: 0, nz: 1, dist_km: 2.5e10, agency: "NASA", launched: 1977 };
   const gv = postcardGrid({ obj: vg, info: describeObject(vg, "es", { ...T, typeProbe: "Nave", probeLine: () => "", fAgency: "Agencia", fLaunched: "Lanzamiento", targetName: {}, phaseName: {}, sigLine: () => "", sigBand: {} }, false), t: T, lang: "es", local: null, fmt });
-  ok(gv.some((c) => c.label === T.pcGSignal) && gv.some((c) => c.label === "Agencia" && c.value === "NASA"), "sonda: señal de radio y agencia", JSON.stringify(gv.map((c) => c.label)));
+  ok(!gv.some((c) => c.label === T.pcGSignal) && /^una señal de radio tarda .+ en llegar$/.test(gv[0].sub) && gv.some((c) => c.label === "Agencia" && c.value === "NASA"), "sonda: la señal de radio va en la casilla de distancia; y la agencia", JSON.stringify(gv.map((c) => [c.label, c.sub])));
   // lluvia de meteoros: noche máxima, actividad y tasa
   const met = { layer: "meteors", name: "Gemínidas", peak: "12-14", start: "12-04", end: "12-17", zhr: 150, parent: "3200 Faetón" };
   const gm = postcardGrid({ obj: met, info: describeObject(met, "es", T, false), t: T, lang: "es", local: null, fmt });

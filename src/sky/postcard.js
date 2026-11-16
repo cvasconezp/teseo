@@ -26,12 +26,18 @@ import { nasaImageFor, nasaKindKey, imageOrder, nasaStatus } from "./nasaImages.
 /** ¿Se pueden dibujar en la postal las imágenes de images-assets.nasa.gov? (ver fromNasa en heroFor) */
 export const NASA_CANVAS_OK = false;
 import { compassPoint8 } from "./deviceOrientation.js";
+import { starBlocks, layoutSpectrum, drawSpectrum, layoutLife, drawLife } from "./postcardStar.js";
+import { starTemperature } from "./starColor.js";
 
 export const PC_W = 1080, PC_H = 1920;
 /** Zonas que tapan las apps de historias con su interfaz: arriba la barra de progreso y el perfil; abajo, la de respuesta. */
 export const SAFE_TOP = 220, SAFE_BOTTOM = 260;
-/** Casillas de la cuadrícula de datos: como mucho 6 (y al menos 4 si hay datos para ello). */
+/**
+ * Plazas de la cuadrícula de datos: como mucho 6 (3 filas de 2) y al menos 4 si hay datos para ello.
+ * Una casilla ancha (la distancia unificada) ocupa una fila entera: cuenta como 2 plazas.
+ */
 export const GRID_MAX = 6, GRID_MIN = 4;
+export const slotsOf = (cells) => cells.reduce((a, c) => a + (c.wide ? 2 : 1), 0);
 export const PAD = 64;
 export const SERIF = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
 export const SANS = "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
@@ -44,7 +50,8 @@ export const GRID_FONTS = { label: (px) => `500 ${px}px ${SANS}`, value: (px) =>
 // ── texto que nunca se corta (funciones puras: reciben `measure(texto) → ancho`) ──
 /** Parte `text` en líneas de ancho ≤ maxW. Una palabra más ancha que la línea se parte por caracteres. */
 export function wrapLines(measure, text, maxW) {
-  const words = String(text || "").split(/\s+/).filter(Boolean), lines = [];
+  // solo espacios normales: un espacio duro (U+00A0) mantiene unidas dos palabras («NIST · finales»)
+  const words = String(text || "").split(/[ \t\n\r]+/).filter(Boolean), lines = [];
   let cur = "";
   const pushLong = (word) => {
     let part = "";
@@ -384,6 +391,31 @@ const fmtNum = (n, lang, digits = 0) => Number(n).toLocaleString(lang === "es" ?
 const splitDot = (v) => { const s = String(v), i = s.indexOf(" · "); return i < 0 ? { value: s, sub: null } : { value: s.slice(0, i), sub: s.slice(i + 3) }; };
 const timeOf = (fmt, lang) => (fmt && fmt.time) || ((d) => d.toLocaleTimeString(lang === "es" ? "es-EC" : "en-US", { hour: "2-digit", minute: "2-digit" }));
 
+// pronombre de la frase de la luz: «la ves» (estrella, galaxia, nebulosa) o «lo ves» (cúmulo, agujero negro…)
+const FEM_DEEP = new Set(["galaxy", "nebula", "planetary", "dark"]);
+const lightFem = (obj) => obj.layer === "star" || obj.layer === "galaxies" || ((obj.layer === "messier" || obj.layer === "caldwell") && FEM_DEEP.has(obj.type));
+/** A partir de un millón de años la frase lo compara con nuestra especie (Homo sapiens: ~300.000 años; Hublin et al. 2017, Nature 546, 289). */
+export const LIGHT_DEEP_YEARS = 1e6;
+
+/**
+ * La casilla ÚNICA de distancia (función pura): la distancia como valor y, en la sub-línea, cuánto
+ * tarda la luz —«Su luz salió hace 498 años: la ves como era entonces» (estrellas y cielo profundo),
+ * «su luz tarda 8,2 minutos en llegar» (Sistema Solar, cometas) o «una señal de radio tarda…» (sondas)—.
+ * Los valores son los que ya da la ficha: info.facts (describeObject) y fmt.years (= fmtYears, el mismo
+ * formateador de la ficha). Ocupa una fila entera (wide). null si la ficha no da distancia.
+ */
+export function distanceCell(obj, info, t, fmt) {
+  const facts = (info && info.facts) || [];
+  const fd = facts.find((f) => f.label === t.fDistance);
+  if (!fd || fd.value == null || !String(fd.value).trim()) return null;
+  let sub = null;
+  const takes = facts.find((f) => f.label === t.fLightTakes);
+  const yrs = obj.dist_ly > 0 && fmt && fmt.years ? fmt.years(obj.dist_ly) : null;
+  if (yrs && facts.some((f) => f.label === t.fLightLeft)) sub = t.pcLightAgo(yrs, lightFem(obj), obj.dist_ly >= LIGHT_DEEP_YEARS);
+  else if (takes && takes.value && takes.value !== "—") sub = obj.layer === "probes" ? t.pcSignalTakes(takes.value) : t.pcLightTakes(takes.value);
+  return { label: t.fDistance, value: String(fd.value), sub, kind: "dist", wide: true };
+}
+
 /**
  * Casillas de datos del cielo local para una dirección: altura y dirección de ahora, y la próxima
  * salida o puesta (objVisibility.js, lo mismo que muestra la ficha). [] si no se puede calcular.
@@ -410,7 +442,7 @@ function localCells(target, local, t, lang, fmt) {
  * Cada valor sale de lo que ya calcula la ficha (info.facts / info.details de describeObject), de
  * la constelación o del catálogo; si un dato no existe, su casilla no aparece.
  */
-export function postcardGrid({ obj, info, t, lang, local, con, fmt, sky, bodies }) {
+export function postcardGrid({ obj, info, t, lang, local, con, fmt, sky, bodies, star }) {
   const data = [];
   const add = (label, value, sub) => {
     if (!label || value == null) return;
@@ -418,6 +450,8 @@ export function postcardGrid({ obj, info, t, lang, local, con, fmt, sky, bodies 
     if (!v || v === "—") return;
     data.push({ label, value: v, sub: sub ? String(sub) : null, kind: "data" });
   };
+  // la distancia y su luz: UNA casilla ancha (antes eran dos casi iguales, «Distancia» y «Su luz salió hace»)
+  const dist = () => { const c = obj && info ? distanceCell(obj, info, t, fmt) : null; if (c) data.push(c); };
   const facts = (info && info.facts) || [], details = (info && info.details) || [];
   const fact = (label, as) => { const f = label && facts.find((x) => x.label === label); if (f) add(as || f.label, f.value, f.hint); };
   const det = (label, split, as) => {
@@ -446,41 +480,77 @@ export function postcardGrid({ obj, info, t, lang, local, con, fmt, sky, bodies 
     }
   } else {
     const L = obj.layer;
-    if (L === "star") { fact(t.fDistance); fact(t.fLightLeft); det(t.dMagnitude, true); det(t.dTemp, true); det(t.dSpect); fact(t.fVoyager); }
-    else if (L === "solar") { fact(t.fDistance); fact(t.fLightTakes); det(t.dDiameter, true); det(t.dAppMag, true); det(t.dOrbitSun); det(t.dOrbitEarth); det(t.dRotation); }
-    else if (L === "probes") { fact(t.fDistance); fact(t.fLightTakes, t.pcGSignal); det(t.fTarget); det(t.fAgency); det(t.fLaunched); det(t.dSunDist, true); }
-    else if (L === "comets") { fact(t.fDistance); fact(t.fLightTakes); det(t.dSunDist, true); fact(t.fVoyager); }
-    else if (L === "messier") { fact(t.fDistance); fact(t.fLightLeft); det(t.dMagnitude, true); det(t.dCatalog); fact(t.fVoyager); }
-    else if (L === "caldwell") { fact(t.fDistance); fact(t.fLightLeft); det(t.dMagnitude, true); det(t.dCatalog); det(t.dSize, true); fact(t.fVoyager); }
-    else if (L === "galaxies") { fact(t.fDistance); fact(t.fLightLeft); det(t.dHubble, true); det(t.dMagnitude, true); det(t.dCatalog); fact(t.fVoyager); }
-    else if (L === "blackholes") { fact(t.fDistance); fact(t.fLightLeft); det(t.dMass); det(t.dHorizon, true); fact(t.fVoyager); }
-    else if (L === "pulsars") { fact(t.fDistance); fact(t.fLightLeft); det(t.dPeriod); det(t.dKind); fact(t.fVoyager); }
-    else if (L === "exoplanets") { fact(t.fDistance); det(t.dRadius); det(t.dMass); det(t.dTemp); det(t.dYear); det(t.dHost); fact(t.fLightLeft); det(t.dDiscovered); }
+    if (star && (star.spectrum || star.life)) {
+      // postal de una estrella (o del Sol) con espectro y vida: cuadrícula compacta de 4 casillas como mucho
+      // — la distancia unificada (ancha), 2 datos y 1 del cielo local —; el resto de la información va en
+      // los bloques del espectro y de la vida
+      dist();
+      if (L === "star") { det(t.dMagnitude, true); if (star.spectrum) det(t.dSpect); else { det(t.dTemp, true); if (data.length < 3) det(t.dSpect); } }
+      else { det(t.dDiameter, true); det(t.dRotation); }
+      if (obj.nx != null) {
+        const lc = localCells(obj, local, t, lang, fmt);
+        // la altura si está sobre el horizonte; si no, cuándo sale (o «no se pone» / «hoy no sale»)
+        const pick = lc[0] && lc[0].value !== t.pcGBelow ? lc[0] : (lc[1] || lc[0]);
+        loc = pick ? [pick] : [];
+      }
+      return [...data.slice(0, 3), ...loc];
+    }
+    if (L === "star") { dist(); det(t.dMagnitude, true); det(t.dTemp, true); det(t.dSpect); fact(t.fVoyager); }
+    else if (L === "solar") { dist(); det(t.dDiameter, true); det(t.dAppMag, true); det(t.dOrbitSun); det(t.dOrbitEarth); det(t.dRotation); }
+    else if (L === "probes") { dist(); det(t.fTarget); det(t.fAgency); det(t.fLaunched); det(t.dSunDist, true); }
+    else if (L === "comets") { dist(); det(t.dSunDist, true); fact(t.fVoyager); }
+    else if (L === "messier") { dist(); det(t.dMagnitude, true); det(t.dCatalog); fact(t.fVoyager); }
+    else if (L === "caldwell") { dist(); det(t.dMagnitude, true); det(t.dCatalog); det(t.dSize, true); fact(t.fVoyager); }
+    else if (L === "galaxies") { dist(); det(t.dHubble, true); det(t.dMagnitude, true); det(t.dCatalog); fact(t.fVoyager); }
+    else if (L === "blackholes") { dist(); det(t.dMass); det(t.dHorizon, true); fact(t.fVoyager); }
+    else if (L === "pulsars") { dist(); det(t.dPeriod); det(t.dKind); fact(t.fVoyager); }
+    else if (L === "exoplanets") { dist(); det(t.dRadius); det(t.dMass); det(t.dTemp); det(t.dYear); det(t.dHost); det(t.dDiscovered); }
     else if (L === "meteors") { fact(t.fPeak); fact(t.fActive); fact(t.fRate); det(t.dParent); }
     if (obj.nx != null) loc = localCells(obj, local, t, lang, fmt);
   }
-  // sin repetir etiquetas (p. ej. dos detalles con la misma); los del cielo local van al final
+  // sin repetir etiquetas (p. ej. dos detalles con la misma); los del cielo local van al final.
+  // Se llenan las plazas por orden (la distancia ancha cuenta 2): si no hay más datos reales, la
+  // cuadrícula queda más corta — nunca se rellena
   const seen = new Set(), uniq = data.filter((c) => (seen.has(c.label) ? false : (seen.add(c.label), true)));
-  return [...uniq.slice(0, GRID_MAX - loc.length), ...loc];
+  const kept = [];
+  let used = 0;
+  for (const c of uniq) { const n = c.wide ? 2 : 1; if (used + n > GRID_MAX - loc.length) break; kept.push(c); used += n; }
+  return [...kept, ...loc];
 }
 
 /**
  * Coloca las casillas en filas de GRID.cols columnas (función pura). `measureFor(papel, px)` devuelve
- * la función de medida del papel ("label" | "value" | "sub") a ese tamaño. Con un número impar de
- * casillas, la PRIMERA ocupa todo el ancho (el dato principal, más destacado). En cada fila los
+ * la función de medida del papel ("label" | "value" | "sub") a ese tamaño. Una casilla `wide` (la
+ * distancia unificada) ocupa siempre su fila; las demás van de `cols` en `cols` (con `group`, los datos
+ * y el cielo local en filas distintas) y una que queda sola ocupa todo el ancho. Sin casillas `wide`, con
+ * un número impar de casillas, la PRIMERA ocupa todo el ancho (el dato principal). En cada fila los
  * valores van al mismo tamaño: el mayor con el que todos caben en ≤ 2 líneas (3 si ni al mínimo caben).
  * Devuelve { cells: [{ …casilla, x, y, w, h, inner, label, value, sub }], height, truncated }.
  */
-export function layoutGrid(measureFor, cells, { x = PAD, y = 0, w = PC_W - 2 * PAD } = {}) {
-  const { cols, gap, padX, padY } = GRID;
+export function layoutGrid(measureFor, cells, { x = PAD, y = 0, w = PC_W - 2 * PAD, cols = GRID.cols, group = true } = {}) {
+  const { gap, padX, padY } = GRID;
   const rows = [];
-  let i = 0;
-  if (cells.length % cols === 1) { rows.push([cells[0]]); i = 1; }
-  for (; i < cells.length; i += cols) rows.push(cells.slice(i, i + cols));
+  if (!cells.some((c) => c.wide)) {
+    let i = 0;
+    if (cells.length % cols === 1) { rows.push([cells[0]]); i = 1; }
+    for (; i < cells.length; i += cols) rows.push(cells.slice(i, i + cols));
+  } else {
+    // una casilla ancha ocupa su fila; las demás van de `cols` en `cols` (con 2 columnas, si los datos
+    // son impares el último ocupa su fila para que el cielo local quede junto); una que queda sola
+    // ocupa todo el ancho
+    let buf = [];
+    const flush = () => { for (let i = 0; i < buf.length; i += cols) rows.push(buf.slice(i, i + cols)); buf = []; };
+    for (const c of cells) {
+      if (c.wide) { flush(); rows.push([c]); continue; }
+      if (group && cols === 2 && buf.length % 2 === 1 && buf[buf.length - 1].kind !== c.kind) flush();
+      buf.push(c);
+    }
+    flush();
+  }
   const out = [], lh = (f, k) => Math.round(f.size * k) * f.lines.length;
   let cy = y, truncated = false;
   for (const row of rows) {
-    const cw = row.length === 1 ? w : (w - gap * (cols - 1)) / cols, inner = cw - padX * 2;
+    const cw = row.length === 1 ? w : (w - gap * (row.length - 1)) / row.length, inner = cw - padX * 2;
     // primero en UNA línea (hasta valueOne px: «787 millones de km» no deja «km» suelto); si no cabe,
     // en 2 líneas; solo un valor que ni al mínimo cabe en 2 (p. ej. una lista de planetas) usa 3
     const mv = (px) => measureFor("value", px);
@@ -506,11 +576,14 @@ export function layoutGrid(measureFor, cells, { x = PAD, y = 0, w = PC_W - 2 * P
 }
 
 // ── reparto vertical ─────────────────────────────────────────────────────
-export const HERO_TOP = SAFE_TOP + 22, HERO_MIN = 380, HERO_MAX = 680, HERO_W = PC_W - 2 * PAD;
+export const HERO_TOP = SAFE_TOP + 22, HERO_MIN = 360, HERO_MAX = 680, HERO_W = PC_W - 2 * PAD;
 /** Bajo el rótulo del visual: línea guía + retícula (≥ 150 px) y aire antes del título. */
 export const BAND_MIN = 150, BAND_MAX = 360;
 /** Línea inferior del bloque de texto: por encima de la zona que tapa la barra de respuesta. */
 export const BLOCK_BOTTOM = PC_H - SAFE_BOTTOM - 22;
+/** Postal de estrella: ancho de la columna del visual (a la izquierda) y de su rótulo, y alto mínimo de
+ *  la zona del visual (con el visual) o solo del cielo con la retícula (sin él). */
+export const STAR_HERO_COL = 420, STAR_CAP_W = 560, STAR_ZONE_HERO = 136, STAR_ZONE_MIN = 110;
 /**
  * Reparto vertical (función pura): textH = alto del bloque de texto; capH = alto del rótulo del visual
  * (0 sin visual). Devuelve { blockTop, heroTop, heroMaxH, fits }: el bloque se apoya en BLOCK_BOTTOM
@@ -532,8 +605,8 @@ export function planLayout(textH, capH, hasHero) {
  *   local  línea completa de cielo local (lugar, hora, altura y dirección)
  *   where  solo lugar y hora: se usa cuando la altura ya va en la cuadrícula
  */
-export function postcardText({ obj, info, lang, t, local, con, fmt, sky, bodies }) {
-  const grid = postcardGrid({ obj, info, t, lang, local, con, fmt, sky, bodies });
+export function postcardText({ obj, info, lang, t, local, con, fmt, sky, bodies, star }) {
+  const grid = postcardGrid({ obj, info, t, lang, local, con, fmt, sky, bodies, star });
   const where = local ? t.pcWhere(local.place, fmt.when(local.date)) : null;
   if (con) {
     const facts = [];
@@ -598,97 +671,165 @@ export async function buildPostcard(p) {
   const canvas = document.createElement("canvas"); canvas.width = PC_W; canvas.height = PC_H;
   const ctx = canvas.getContext("2d");
   const W = PC_W, H = PC_H, maxW = W - PAD * 2, cx = W / 2;
-  const report = { hero: "none", heroLabel: "", lines: [], grid: [], overflow: false, gridOverflow: false, truncated: false, safeZoneOk: true, w: W, h: H };
+  const report = { hero: "none", heroLabel: "", lines: [], grid: [], overflow: false, gridOverflow: false, truncated: false, safeZoneOk: true, w: W, h: H, starMode: false, spectrum: null, life: null };
   const measureAt = (font) => (px) => (s) => { ctx.font = font(px); return ctx.measureText(s).width; };
 
+  // 0 · ¿estrella (o el Sol) con espectro y/o vida? Se decide como en la ficha (postcardStar.js)
+  const sb = !con && obj ? starBlocks(obj) : null;
+  const starMode = !!(sb && (sb.spectrum || sb.life));
+  report.starMode = starMode;
+
   // 1 · textos, medidos antes de dibujar nada
-  const txt = postcardText({ obj, info, lang, t, local, con, fmt, sky, bodies });
+  const txt = postcardText({ obj, info, lang, t, local, con, fmt, sky, bodies, star: starMode ? sb : null });
   const fTitle = (px) => `600 ${px}px ${SERIF}`, fType = (px) => `500 ${px}px ${SANS}`, fFact = (px) => `400 ${px}px ${SANS}`;
   const fSmall = (px) => `400 ${px}px ${SANS}`, fUrl = (px) => `600 ${px}px ${SANS}`, fCoop = (px) => `600 ${px}px ${SANS}`, fHead = (px) => `600 ${px}px ${SANS}`, fHeadSub = (px) => `500 ${px}px ${SANS}`;
-  const title = fitLines(measureAt(fTitle), txt.title, { max: 86, min: 56, maxW, maxLines: 2 });
-  const type = fitLines(measureAt(fType), txt.type, { max: 34, min: 26, maxW, maxLines: 2 });
+  const title = fitLines(measureAt(fTitle), txt.title, { max: starMode ? 76 : 86, min: 56, maxW, maxLines: 2 });
+  const type = fitLines(measureAt(fType), txt.type, { max: starMode ? 30 : 34, min: 26, maxW, maxLines: 2 });
   const measureFor = (role, px) => measureAt(GRID_FONTS[role])(px);
-  // frases bajo la cuadrícula: el dato curioso (o, si no hay cuadrícula, las frases cortas)
-  let cells = txt.grid;
-  const bullets = (cells.length ? [txt.curio].filter(Boolean) : txt.facts);
-  const useWhere = txt.where && cells.some((c) => c.kind === "local");
-  const localText = useWhere ? txt.where : txt.local;
-  const localL = localText ? fitLines(measureAt(fFact), localText, { max: 28, min: 24, maxW: maxW - 34, maxLines: 2 }) : null;
   const lh = (f, k) => Math.round(f.size * k) * f.lines.length;
-  let curioLines = 3, grid, facts, textH, plan;
   const hero = con ? null : await heroFor(obj, wiki, credit, t);
   const capFont = (px) => `400 ${px}px ${SANS}`;
-  const cap = hero ? fitLines(measureAt(capFont), hero.label, { max: 24, min: 20, maxW, maxLines: 2 }) : null;
-  const capH = cap ? Math.round(cap.size * 1.3) * cap.lines.length : 0;
-  // si el texto no deja sitio al visual, se quitan casillas (de 6 a 4) y luego líneas del dato curioso
-  for (;;) {
-    grid = layoutGrid(measureFor, cells, { x: PAD, y: 0, w: maxW });
-    facts = bullets.map((f) => fitLines(measureAt(fFact), f, { max: 32, min: 26, maxW: maxW - 34, maxLines: curioLines }));
-    textH = lh(title, 1.02) + 10 + lh(type, 1.3) + (grid.height ? 22 + grid.height : 0) + facts.reduce((a, f) => a + 22 + lh(f, 1.32), 0) + (localL ? 16 + lh(localL, 1.3) : 0);
-    plan = planLayout(textH, capH, !!hero);
-    if (plan.fits) break;
-    const dataIdx = cells.map((c, i) => (c.kind === "data" ? i : -1)).filter((i) => i >= 0);
-    // de dos en dos (de 6 a 4): con 5 la primera ocuparía una fila entera y no se ganaría sitio
-    if (cells.length > GRID_MIN && dataIdx.length) { const drop = new Set(dataIdx.slice(-Math.min(2, cells.length - GRID_MIN))); cells = cells.filter((_, i) => !drop.has(i)); continue; }
-    if (curioLines > 2) { curioLines = 2; continue; }
-    break;
+  let cells = txt.grid, grid, facts = [], localL = null, blockTop, gridCols = GRID.cols;
+  let cap = null, capH = 0, spec = null, life = null, useHero = !!hero;
+  // dónde va cada cosa del visual (se rellena abajo según el modo)
+  let heroTop = HERO_TOP, heroCx = cx, heroMaxW = HERO_W, heroMaxH = 0, capTop = 0, capX = null, retX = cx, retY, heroBox = null, guide = null, hsz = null, veilTop;
+
+  if (starMode) {
+    // ── postal de estrella: título → distancia → espectro → vida y final → cielo local, apoyados abajo;
+    // el visual, más pequeño, a la izquierda, y su lugar en el cielo (retícula) a la derecha.
+    // Si no cabe todo se quita lo menos importante, en este orden de intentos: todo con el visual → una
+    // casilla de datos menos con el visual → todo sin el visual → solo la distancia (la altura pasa a la
+    // línea de cielo local) con o sin el visual. El texto nunca se corta.
+    spec = sb.spectrum ? layoutSpectrum(measureAt, sb.spectrum, t, lang, { w: maxW }) : null;
+    life = sb.life ? layoutLife(measureAt, sb.life, t, lang, { w: maxW }) : null;
+    const fitLocal = (s) => (s ? fitLines(measureAt(fFact), s, { max: 28, min: 24, maxW: maxW - 34, maxLines: 2 }) : null);
+    const whereL = fitLocal(txt.where), fullL = fitLocal(txt.local);
+    const capS = hero ? fitLines(measureAt(capFont), hero.label, { max: 22, min: 20, maxW: STAR_CAP_W, maxLines: 3 }) : null;   // rótulo honesto del visual
+    const capSH = capS ? Math.round(capS.size * 1.3) * capS.lines.length : 0;
+    const wideOnly = cells.filter((c) => c.wide);
+    // con una casilla de datos menos, la fila pequeña pasa a 2 columnas (más baja) y deja sitio al visual
+    const lastData = cells.map((c) => c.kind).lastIndexOf("data");
+    const minusOne = cells.filter((c) => c.kind === "data").length >= 2 ? cells.filter((_, i) => i !== lastData) : null;
+    const configs = [{ cs: cells, hero: true }, minusOne && { cs: minusOne, hero: true }, { cs: cells, hero: false }, { cs: wideOnly, hero: true }, { cs: wideOnly, hero: false }].filter(Boolean);
+    let pick = null;
+    for (const cf of configs) {
+      if (cf.hero && !hero) continue;
+      const nonWide = cf.cs.filter((c) => !c.wide).length;
+      const cols = nonWide === 3 ? 3 : 2;
+      const g = layoutGrid(measureFor, cf.cs, { x: PAD, y: 0, w: maxW, cols, group: false });
+      const ll = cf.cs.some((c) => c.kind === "local") ? whereL : fullL;
+      const textH = lh(title, 1.02) + 8 + lh(type, 1.3) + (g.height ? 18 + g.height : 0) + (spec ? 16 + spec.h : 0) + (life ? 16 + life.h : 0) + (ll ? 14 + lh(ll, 1.3) : 0);
+      const zone = BLOCK_BOTTOM - textH - 26 - HERO_TOP;
+      const cand = { ...cf, cols, g, ll, textH, zone };
+      pick = cand;
+      if (zone >= (cf.hero ? STAR_ZONE_HERO + capSH : STAR_ZONE_MIN)) break;
+    }
+    cells = pick.cs; grid = pick.g; gridCols = pick.cols; localL = pick.ll; useHero = pick.hero && !!hero;
+    blockTop = BLOCK_BOTTOM - pick.textH;
+    if (pick.zone < STAR_ZONE_MIN) report.overflow = true;
+    report.starLayout = { cells: cells.length, hero: useHero, zone: pick.zone };
+    const zTop = HERO_TOP, zH = Math.max(0, pick.zone);
+    if (useHero) {
+      cap = capS; capH = capSH;
+      heroMaxW = STAR_HERO_COL; heroMaxH = Math.max(80, zH - capH - 12);
+      hsz = heroSize(hero, heroMaxW, heroMaxH);
+      const capW = Math.max(...cap.lines.map((l) => measureAt(capFont)(cap.size)(l)));
+      const colW = Math.max(hsz.w, capW), colH = hsz.h + 12 + capH;
+      heroTop = Math.round(zTop + Math.max(0, (zH - colH) / 2));
+      heroCx = PAD + hsz.w / 2; capTop = heroTop + hsz.h + 12; capX = PAD;
+      retX = Math.round((PAD + colW + W - PAD) / 2); retY = Math.round(zTop + zH / 2);
+      heroBox = { x: PAD - 16, y: heroTop - 14, w: colW + 32, h: colH + 28 };
+      guide = { x0: PAD + hsz.w + 14, y0: heroTop + hsz.h / 2, x1: retX - 54, y1: retY };
+    } else { retX = cx; retY = Math.round(zTop + zH / 2); }
+    veilTop = blockTop - 60;
+  } else {
+    // frases bajo la cuadrícula: el dato curioso (o, si no hay cuadrícula, las frases cortas)
+    const bullets = (cells.length ? [txt.curio].filter(Boolean) : txt.facts);
+    const useWhere = txt.where && cells.some((c) => c.kind === "local");
+    const localText = useWhere ? txt.where : txt.local;
+    localL = localText ? fitLines(measureAt(fFact), localText, { max: 28, min: 24, maxW: maxW - 34, maxLines: 2 }) : null;
+    let curioLines = 3, textH, plan;
+    cap = hero ? fitLines(measureAt(capFont), hero.label, { max: 24, min: 20, maxW, maxLines: 2 }) : null;
+    capH = cap ? Math.round(cap.size * 1.3) * cap.lines.length : 0;
+    // si el texto no deja sitio al visual, se quitan casillas (de 6 plazas a 4) y luego líneas del dato curioso
+    for (;;) {
+      grid = layoutGrid(measureFor, cells, { x: PAD, y: 0, w: maxW });
+      facts = bullets.map((f) => fitLines(measureAt(fFact), f, { max: 32, min: 26, maxW: maxW - 34, maxLines: curioLines }));
+      textH = lh(title, 1.02) + 10 + lh(type, 1.3) + (grid.height ? 22 + grid.height : 0) + facts.reduce((a, f) => a + 22 + lh(f, 1.32), 0) + (localL ? 16 + lh(localL, 1.3) : 0);
+      plan = planLayout(textH, capH, !!hero);
+      if (plan.fits) break;
+      const dataIdx = cells.map((c, i) => (c.kind === "data" ? i : -1)).filter((i) => i >= 0);
+      // de dos en dos (de 6 plazas a 4): con 5 una quedaría sola en su fila y no se ganaría sitio
+      const extra = slotsOf(cells) - GRID_MIN;
+      if (extra > 0 && dataIdx.length) { const drop = new Set(dataIdx.slice(-Math.min(2, extra))); cells = cells.filter((_, i) => !drop.has(i)); continue; }
+      if (curioLines > 2) { curioLines = 2; continue; }
+      break;
+    }
+    blockTop = plan.blockTop;
+    heroTop = plan.heroTop; heroMaxH = plan.heroMaxH;
+    hsz = hero ? heroSize(hero, HERO_W, plan.heroMaxH) : null;
+    if (hero) {
+      const heroH = hsz.h;
+      let band = blockTop - (heroTop + heroH + 16 + capH);
+      // si sobra mucho sitio, el conjunto baja un poco para quedar equilibrado
+      if (band > BAND_MAX) { heroTop += Math.round((band - BAND_MAX) / 2); band = blockTop - (heroTop + heroH + 16 + capH); }
+      capTop = heroTop + heroH + 16;
+      retY = Math.round(capTop + capH + (band - 40) / 2 + 12);
+      // caja que no deben pisar los nombres del cielo: el visual y su rótulo (que puede ser más ancho)
+      const capW = Math.max(...cap.lines.map((l) => measureAt(capFont)(cap.size)(l)));
+      const boxW = Math.max(hsz.w, capW);
+      heroBox = { x: cx - boxW / 2 - 16, y: heroTop - 14, w: boxW + 32, h: heroH + 16 + capH + 30 };
+      guide = { x0: cx, y0: capTop + capH + 6, x1: cx, y1: retY - 50 };
+    } else retY = Math.round((SAFE_TOP + blockTop - 40) / 2);
+    veilTop = blockTop - 170;
   }
-  const blockTop = plan.blockTop;
-  report.truncated = [title, type, ...facts, localL, cap].some((f) => f && f.truncated) || grid.truncated;
+  report.truncated = [title, type, ...facts, localL, cap].some((f) => f && f.truncated) || grid.truncated || !!(spec && spec.truncated) || !!(life && life.truncated);
 
   // pie (zona segura inferior): URL, Yachay Deep Labs × Killa Ñan y crédito de los datos
   const url = fitLines(measureAt(fUrl), t.pcUrl, { max: 44, min: 30, maxW, maxLines: 1 });
   const coop = fitLines(measureAt(fCoop), t.pcCoop, { max: 32, min: 24, maxW, maxLines: 2 });
-  const creditL = fitLines(measureAt(fSmall), txt.credit, { max: 22, min: 20, maxW, maxLines: 2 });
+  const creditL = fitLines(measureAt(fSmall), starMode && t.pcCreditStar ? t.pcCreditStar({ sun: obj.layer === "solar", temp: !!(obj.layer === "star" && starTemperature(obj.bv) && starTemperature(obj.bv).temp != null), lines: !!sb.spectrum, est: !!(sb.life && sb.life.massKind === "estimated"), life: !!sb.life }) : txt.credit, { max: 22, min: 20, maxW, maxLines: 2 });
   const headSub = fitLines(measureAt(fHeadSub), t.pcHeadWith, { max: 28, min: 24, maxW, maxLines: 1 });
   if ([url, coop, creditL, headSub].some((f) => f.truncated)) report.truncated = true;
 
-  // 2 · visual protagonista y encuadre del cielo
-  let heroTop = plan.heroTop, heroH = 0, capTop = 0, retY;
-  const hsz = hero ? heroSize(hero, HERO_W, plan.heroMaxH) : null;
-  if (hero) {
-    heroH = hsz.h;
-    let band = blockTop - (heroTop + heroH + 16 + capH);
-    // si sobra mucho sitio, el conjunto baja un poco para quedar equilibrado
-    if (band > BAND_MAX) { heroTop += Math.round((band - BAND_MAX) / 2); band = blockTop - (heroTop + heroH + 16 + capH); }
-    capTop = heroTop + heroH + 16;
-    retY = Math.round(capTop + capH + (band - 40) / 2 + 12);
-  } else retY = Math.round((SAFE_TOP + blockTop - 40) / 2);
+  // 2 · encuadre del cielo, centrado donde va la retícula
   const centerDir = con ? con.dir : obj && obj.nx != null ? [obj.nx, obj.ny, obj.nz] : (p.center || [0, 0, 1]);
   const upHint = local ? dateToJ2000(zenithDir(local.lat, local.lon, local.date), local.date) : [0, 0, 1];
   // escala: una constelación se encuadra entera; un objeto muestra ~105° de cielo a lo ancho
   const areaH = blockTop - 40 - SAFE_TOP;
   const pxPerRad = con ? Math.min(1500, Math.max(520, Math.min(W * 0.42, areaH * 0.44) / Math.max(0.12, con.radius))) : W / (105 * Math.PI / 180);
-  const proj = makeProjection(centerDir, upHint, pxPerRad, cx, retY);
-  // caja que no deben pisar los nombres del cielo: el visual y su rótulo (que puede ser más ancho)
-  const capW = cap ? Math.max(...cap.lines.map((l) => measureAt(capFont)(cap.size)(l))) : 0;
-  const boxW = Math.max(hsz ? hsz.w : 0, capW);
-  const heroBox = hero ? { x: cx - boxW / 2 - 16, y: heroTop - 14, w: boxW + 32, h: heroH + 16 + capH + 30 } : null;
-  const guideTop = hero ? capTop + capH : retY;   // la línea guía punteada va del rótulo a la retícula
-  const avoid = (x0, y0, x1, y1) => (y0 < SAFE_TOP + 6) || (y1 > blockTop - 36) || (heroBox && x1 > heroBox.x && x0 < heroBox.x + heroBox.w && y1 > heroBox.y && y0 < heroBox.y + heroBox.h) ||
-    (!con && Math.abs((x0 + x1) / 2 - cx) < 70 + (x1 - x0) / 2 && Math.abs((y0 + y1) / 2 - retY) < 62) ||
-    (hero && x1 > cx - 24 && x0 < cx + 24 && y1 > guideTop && y0 < retY);
-  drawChart(ctx, { sky, conDirs, proj, avoid, bodies: p.showSolar === false ? [] : bodies, highlight: con ? con.ab : null, lang, local, cx, cy: retY, labelStars: con ? con.stars : null, starHex: p.starHex });
+  const proj = makeProjection(centerDir, upHint, pxPerRad, retX, retY);
+  const inBox = (b, x0, y0, x1, y1) => b && x1 > b.x && x0 < b.x + b.w && y1 > b.y && y0 < b.y + b.h;
+  const guideBox = guide ? { x: Math.min(guide.x0, guide.x1) - 24, y: Math.min(guide.y0, guide.y1) - 16, w: Math.abs(guide.x1 - guide.x0) + 48, h: Math.abs(guide.y1 - guide.y0) + 32 } : null;
+  const avoid = (x0, y0, x1, y1) => (y0 < SAFE_TOP + 6) || (y1 > blockTop - (starMode ? 20 : 36)) || (useHero && inBox(heroBox, x0, y0, x1, y1)) ||
+    (!con && Math.abs((x0 + x1) / 2 - retX) < 70 + (x1 - x0) / 2 && Math.abs((y0 + y1) / 2 - retY) < 62) ||
+    (useHero && inBox(guideBox, x0, y0, x1, y1));
+  drawChart(ctx, { sky, conDirs, proj, avoid, bodies: p.showSolar === false ? [] : bodies, highlight: con ? con.ab : null, lang, local, cx: retX, cy: retY, labelStars: con ? con.stars : null, starHex: p.starHex });
 
   const line = (ln, x, y, size, role) => {
     const w = ctx.measureText(ln).width;
     report.lines.push({ text: ln, x, w, right: x + w, y, size, role });
     return w;
   };
-  if (hero) {
-    const box = drawHero(ctx, hero, cx, heroTop, HERO_W, plan.heroMaxH);
+  if (hero && useHero) {
+    const box = drawHero(ctx, hero, heroCx, heroTop, heroMaxW, heroMaxH);
     report.hero = hero.kind; report.heroLabel = hero.label; report.heroSource = hero.source || hero.kind; report.heroBox = box;
-    // rótulo honesto bajo el visual
-    ctx.font = capFont(cap.size); ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillStyle = "rgba(226,230,246,0.92)";
+    // rótulo honesto bajo el visual (en la postal de estrella, sobre un velo para que no lo crucen las figuras)
+    ctx.font = capFont(cap.size); ctx.textAlign = "left"; ctx.textBaseline = "top";
+    if (starMode) {
+      const cw = Math.max(...cap.lines.map((l) => ctx.measureText(l).width));
+      roundRect(ctx, capX - 10, capTop - 6, cw + 20, capH + 8, 10); ctx.fillStyle = "rgba(4,7,14,0.72)"; ctx.fill();
+    }
+    ctx.fillStyle = "rgba(226,230,246,0.92)";
     ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 8;
     let y = capTop;
-    for (const ln of cap.lines) { const w = ctx.measureText(ln).width; ctx.fillText(ln, cx - w / 2, y); line(ln, cx - w / 2, y, cap.size, "caption"); y += Math.round(cap.size * 1.3); }
+    for (const ln of cap.lines) { const w = ctx.measureText(ln).width, x = capX != null ? capX : cx - w / 2; ctx.fillText(ln, x, y); line(ln, x, y, cap.size, "caption"); y += Math.round(cap.size * 1.3); }
     ctx.shadowBlur = 0;
     // del visual a su lugar en el cielo
     ctx.save(); ctx.strokeStyle = "rgba(242,198,109,0.8)"; ctx.lineWidth = 2; ctx.setLineDash([7, 8]);
-    ctx.beginPath(); ctx.moveTo(cx, y + 6); ctx.lineTo(cx, retY - 50); ctx.stroke(); ctx.restore();
-    drawReticle(ctx, cx, retY);
-  } else if (!con && obj) drawReticle(ctx, cx, retY);
+    ctx.beginPath(); ctx.moveTo(guide.x0, guide.y0); ctx.lineTo(guide.x1, guide.y1); ctx.stroke(); ctx.restore();
+    drawReticle(ctx, retX, retY);
+  } else if (!con && obj) drawReticle(ctx, retX, retY);
 
   // 3 · cabecera de marca, discreta, dentro de la zona segura superior (sobre un velo suave)
   const topVeil = ctx.createLinearGradient(0, 0, 0, SAFE_TOP + 30);
@@ -711,37 +852,51 @@ export async function buildPostcard(p) {
   }
 
   // 4 · bloque de texto sobre un velo que garantiza el contraste
-  const veil = ctx.createLinearGradient(0, blockTop - 170, 0, H);
-  veil.addColorStop(0, "rgba(4,7,14,0)"); veil.addColorStop(0.16, "rgba(4,7,14,0.86)"); veil.addColorStop(1, "rgba(4,7,14,0.97)");
-  ctx.fillStyle = veil; ctx.fillRect(0, blockTop - 170, W, H - blockTop + 170);
+  const veil = ctx.createLinearGradient(0, veilTop, 0, H);
+  const solid = Math.min(0.5, Math.max(0.04, (blockTop - veilTop) / (H - veilTop)));
+  veil.addColorStop(0, "rgba(4,7,14,0)"); veil.addColorStop(starMode ? solid : 0.16, "rgba(4,7,14,0.86)"); veil.addColorStop(1, "rgba(4,7,14,0.97)");
+  ctx.fillStyle = veil; ctx.fillRect(0, veilTop, W, H - veilTop);
   ctx.textAlign = "left"; ctx.textBaseline = "top";
   let y = blockTop;
   const put = (f, font, color, x, k, role) => {
     ctx.font = font(f.size); ctx.fillStyle = color;
     for (const ln of f.lines) { ctx.fillText(ln, x, y); line(ln, x, y, f.size, role); y += Math.round(f.size * k); }
   };
-  put(title, fTitle, "#ffffff", PAD, 1.02, "title"); y += 10;
+  put(title, fTitle, "#ffffff", PAD, 1.02, "title"); y += starMode ? 8 : 10;
   put(type, fType, "#cfc4ff", PAD, 1.3, "type");
   if (grid.cells.length) {
-    y += 22;
+    y += starMode ? 18 : 22;
     const gy = y;
     for (const c of grid.cells) {
-      const x0 = c.x, y0 = gy + c.y, loc = c.kind === "local";
-      roundRect(ctx, x0, y0, c.w, c.h, 22); ctx.fillStyle = loc ? "rgba(12,24,48,0.82)" : "rgba(18,20,46,0.82)"; ctx.fill();
-      ctx.strokeStyle = loc ? "rgba(125,180,255,0.5)" : "rgba(167,139,250,0.42)"; ctx.lineWidth = 2; ctx.stroke();
+      const x0 = c.x, y0 = gy + c.y, loc = c.kind === "local", dist = c.kind === "dist";
+      roundRect(ctx, x0, y0, c.w, c.h, 22); ctx.fillStyle = loc ? "rgba(12,24,48,0.82)" : dist ? "rgba(34,26,30,0.86)" : "rgba(18,20,46,0.82)"; ctx.fill();
+      ctx.strokeStyle = loc ? "rgba(125,180,255,0.5)" : dist ? "rgba(242,198,109,0.7)" : "rgba(167,139,250,0.42)"; ctx.lineWidth = dist ? 2.5 : 2; ctx.stroke();
       const tx = x0 + GRID.padX, limit = x0 + c.w - GRID.padX + 1;
       let yy = y0 + GRID.padY;
       const cellPut = (f, role, color, k) => {
         ctx.font = GRID_FONTS[role](f.size); ctx.fillStyle = color;
         for (const ln of f.lines) { ctx.fillText(ln, tx, yy); const w = line(ln, tx, yy, f.size, "grid-" + role); if (tx + w > limit) report.gridOverflow = true; yy += Math.round(f.size * k); }
       };
-      cellPut(c.label, "label", loc ? "#a9cdff" : "#c9b8ff", 1.22); yy += 4;
+      cellPut(c.label, "label", loc ? "#a9cdff" : dist ? "#f2c66d" : "#c9b8ff", 1.22); yy += 4;
       cellPut(c.value, "value", "#ffffff", 1.08);
-      if (c.sub) { yy += 4; cellPut(c.sub, "sub", "rgba(226,230,246,0.82)", 1.22); }
+      if (c.sub) { yy += 4; cellPut(c.sub, "sub", dist ? "rgba(248,238,214,0.94)" : "rgba(226,230,246,0.82)", 1.22); }
       if (yy > y0 + c.h - GRID.padY + 2) report.gridOverflow = true;
-      report.grid.push({ label: c.label, value: c.value, sub: c.sub, kind: c.kind, x: x0, y: y0, w: c.w, h: c.h });
+      report.grid.push({ label: c.label, value: c.value, sub: c.sub, kind: c.kind, wide: !!c.wide, x: x0, y: y0, w: c.w, h: c.h });
     }
     y = gy + grid.height;
+  }
+  const putStar = (ln, x, yy, size, role) => line(ln, x, yy, size, role);
+  if (spec) {
+    y += 16;
+    drawSpectrum(ctx, spec, sb.spectrum, PAD, y, maxW, putStar);
+    report.spectrum = { x: PAD, y, w: maxW, h: spec.h, temp: sb.spectrum.temp, letter: sb.spectrum.letter, sun: sb.spectrum.isSun, peakNm: spec.peakNm, zone: spec.zone, labels: spec.labels.map((l) => l.text), lines: sb.spectrum.lines.length };
+    y += spec.h;
+  }
+  if (life) {
+    y += 16;
+    drawLife(ctx, life, t, PAD, y, maxW, putStar);
+    report.life = { x: PAD, y, w: maxW, h: life.h, path: sb.life.path.slice(), here: sb.life.here, stage: sb.life.stage, massKind: sb.life.massKind, near: sb.life.near, assumed: sb.life.assumed, notes: life.notes.length };
+    y += life.h;
   }
   for (const f of facts) {
     y += 22;
@@ -749,11 +904,12 @@ export async function buildPostcard(p) {
     put(f, fFact, "rgba(240,242,252,0.96)", PAD + 34, 1.32, "fact");
   }
   if (localL) {
-    y += 16;
+    y += starMode ? 14 : 16;
     ctx.strokeStyle = "#7db4ff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(PAD + 9, y + localL.size * 0.62, 6, 0, TAU); ctx.stroke();
     put(localL, fFact, "#a9cdff", PAD + 34, 1.3, "local");
   }
   report.blockTop = blockTop; report.blockBottom = y;
+  if (y > BLOCK_BOTTOM + 2) report.overflow = true;
 
   // 5 · pie de marca, centrado, en la zona segura inferior
   y = H - SAFE_BOTTOM + 16;
@@ -774,6 +930,8 @@ export async function buildPostcard(p) {
   // texto importante (todo menos la marca) fuera de las zonas que tapan las apps
   const brandRoles = new Set(["header", "url", "coop", "credit"]);
   for (const l of report.lines) if (!brandRoles.has(l.role) && (l.y < SAFE_TOP || l.y + l.size > H - SAFE_BOTTOM)) report.safeZoneOk = false;
+  // ningún texto pequeño: ≥ 24 px salvo el rótulo del visual y el crédito (≥ 20) y las marcas del eje del espectro (20)
+  report.minSize = Math.min(...report.lines.filter((l) => !brandRoles.has(l.role) && l.role !== "caption" && l.role !== "spectrum-axis").map((l) => l.size));
   report.gridCells = grid.cells.length;
   return { canvas, report };
 }

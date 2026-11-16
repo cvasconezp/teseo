@@ -138,6 +138,51 @@ export const R3 = {
     pcGCatStars: "Estrellas en el mapa", pcGCatStarsSub: "catálogo HYG v4.1", pcGCons: "Constelaciones", pcGConsSub: "figuras de Stellarium",
     pcGPlanetsUp: "Planetas sobre el horizonte", pcGNone: "Ninguno ahora",
     pcGMoon: "Luna", pcGMoonSub: (w) => `iluminada · ${w ? "creciente" : "menguante"}`,
+    // lugar «propio» dentro de una frase («Desde tu ubicación»): en minúscula, no como el rótulo del botón
+    pcMyPlace: "tu ubicación", pcCustomPlace: "coordenadas propias",
+    // casilla única de distancia (la luz va en su sub-línea; los valores son los de la ficha)
+    // pronombre: «la» para estrellas, galaxias y nebulosas; «lo» para el resto (cúmulo, agujero negro…).
+    // deep (≥ 1 millón de años): nuestra especie tiene unos 300.000 años (Hublin et al. 2017, Nature 546, 289)
+    pcLightAgo: (y, fem, deep) => deep
+      ? `Su luz salió hace ${y}, antes de existir nuestra especie`
+      : `Su luz salió hace ${y}: ${fem ? "la" : "lo"} ves como era entonces`,
+    pcLightTakes: (dur) => `su luz tarda ${dur} en llegar`,
+    pcSignalTakes: (dur) => `una señal de radio tarda ${dur} en llegar`,
+    // espectro (postal de una estrella y del Sol; datos y fuentes en composition.js)
+    pcSpecTitle: "Espectro (esquemático)",
+    pcSpecPeak: (nm, zone) => zone === "visible" ? `Su luz es más intensa en ${nm} nm`
+      : zone === "uv" ? `Su luz es más intensa en ${nm} nm: ultravioleta, a la izquierda de la banda`
+      : `Su luz es más intensa en ${nm} nm: infrarrojo, a la derecha de la banda`,
+    pcSpecCap: (T, cls, lower, tio) => `Esquema, no una medición: cuerpo negro a ${lower ? "≥" : "≈"} ${T} K (estimada por su color) y líneas típicas del tipo ${cls} (NIST${tio ? "; TiO: Pavlenko et al. 2020" : ""}).`,
+    pcSpecCapSun: (T) => `Esquema: cuerpo negro a ${T} K y las principales líneas de Fraunhofer (NIST). El Sol real tiene miles más.`,
+    pcSpecHK: "Ca II H y K", pcSpecNm: "nm",
+    // vida y final (datos y fuentes en starLife.js; etapas en i18n-comp.js, LIFE.stage)
+    pcLifeTitle: "Vida y final", pcLifeNow: "HOY",
+    pcLifeMass: (m, ref) => `Masa: ${m} · publicada${ref ? ` (${ref})` : ""}`,
+    pcLifeMassEst: (m, spt) => `Masa: ${m} · estimada por su tipo (${spt}), no medida`,
+    pcLifeMassSun: "Masa: 1 M☉ · edad: unos 4.600 millones de años",
+    pcLifeMassNone: "Sin masa publicada: no damos cifra",
+    pcLifeAssumed: "Etapa deducida de su brillo: el catálogo no da su clase de luminosidad.",
+    pcLifeRefMs: "Pecaut y Mamajek 2013",
+    pcFate: {
+      redDwarf: "Vivirá billones de años y acabará como enana blanca de helio: ninguna estrella ha llegado aún a ese final.",
+      wd: "Se hinchará como gigante roja, expulsará una nebulosa planetaria y quedará como enana blanca, como el Sol.",
+      wdLate: "Expulsará sus capas externas en una nebulosa planetaria y su núcleo quedará como enana blanca, como el Sol.",
+      border: "Está en la frontera: acabará como enana blanca de oxígeno y neón o estallará como supernova.",
+      ns: "Estallará como supernova y su núcleo quedará como estrella de neutrones.",
+      nsbh: "Estallará como supernova (o colapsará) y dejará una estrella de neutrones o un agujero negro.",
+      bh: "Estallará como supernova o colapsará directamente, y dejará un agujero negro.",
+      giantUnknown: "Si nació con menos de unas 8 masas solares acabará como enana blanca; si nació con más, como supernova.",
+      superUnknown: "Lo esperable es que estalle como supernova y deje una estrella de neutrones o un agujero negro.",
+      sun: "En unos 5.000 millones de años se hinchará como gigante roja, expulsará una nebulosa planetaria y quedará como enana blanca.",
+      isWd: "Ya es una enana blanca: el núcleo apagado de una estrella que terminó su vida, y se va enfriando.",
+    },
+    // crédito corto de la postal de estrella (el de la ficha no cabe en dos líneas junto a los nuevos):
+    // solo las fuentes de lo que de verdad se dibuja (líneas, masa estimada, finales)
+    pcCreditStar: (o) => (o.sun
+      ? ["Datos: NASA (Planetary Fact Sheet y «Sun: Facts»)", "posición: efemérides de Paul Schlyter", o.lines && "líneas: NIST"]
+      : ["Datos: HYG v4.1 (Hipparcos)", o.temp && "temperatura: Ballesteros 2012, por B−V", o.lines && "líneas: NIST", o.est && "masa por tipo: Pecaut y Mamajek 2013", o.life && "finales: OpenStax y NASA"]
+    ).filter(Boolean).join("\u00a0· "),
     // ── varias naves en el mismo punto ──
     pickTitle: (n) => `${n} objetos en este punto`, pickLead: "Están tan juntos en el cielo que caen en el mismo lugar. Elige uno:",
     clusterMore: (n) => `+${n}`,
@@ -266,6 +311,43 @@ export const R3 = {
     pcGCatStars: "Stars on the map", pcGCatStarsSub: "HYG v4.1 catalogue", pcGCons: "Constellations", pcGConsSub: "Stellarium figures",
     pcGPlanetsUp: "Planets above the horizon", pcGNone: "None right now",
     pcGMoon: "Moon", pcGMoonSub: (w) => `lit · ${w ? "waxing" : "waning"}`,
+    pcMyPlace: "your location", pcCustomPlace: "custom coordinates",
+    pcLightAgo: (y, fem, deep) => deep
+      ? `Its light left ${y} ago, before our species existed`
+      : `Its light left ${y} ago: you see it as it was then`,
+    pcLightTakes: (dur) => `its light takes ${dur} to reach us`,
+    pcSignalTakes: (dur) => `a radio signal takes ${dur} to get there`,
+    pcSpecTitle: "Spectrum (schematic)",
+    pcSpecPeak: (nm, zone) => zone === "visible" ? `Its light is strongest at ${nm} nm`
+      : zone === "uv" ? `Its light is strongest at ${nm} nm: ultraviolet, left of the band`
+      : `Its light is strongest at ${nm} nm: infrared, right of the band`,
+    pcSpecCap: (T, cls, lower, tio) => `A sketch, not a measurement: blackbody at ${lower ? "≥" : "≈"} ${T} K (estimated from its colour) and lines typical of type ${cls} (NIST${tio ? "; TiO: Pavlenko et al. 2020" : ""}).`,
+    pcSpecCapSun: (T) => `A sketch: blackbody at ${T} K and the main Fraunhofer lines (NIST). The real Sun has thousands more.`,
+    pcSpecHK: "Ca II H & K", pcSpecNm: "nm",
+    pcLifeTitle: "Life and end", pcLifeNow: "NOW",
+    pcLifeMass: (m, ref) => `Mass: ${m} · published${ref ? ` (${ref})` : ""}`,
+    pcLifeMassEst: (m, spt) => `Mass: ${m} · estimated from its type (${spt}), not measured`,
+    pcLifeMassSun: "Mass: 1 M☉ · age: about 4.6 billion years",
+    pcLifeMassNone: "No published mass: we give no figure",
+    pcLifeAssumed: "Stage inferred from its brightness: the catalogue gives no luminosity class.",
+    pcLifeRefMs: "Pecaut & Mamajek 2013",
+    pcFate: {
+      redDwarf: "It will live for trillions of years and end as a helium white dwarf: no star has reached that end yet.",
+      wd: "It will swell into a red giant, shed a planetary nebula and be left as a white dwarf, like the Sun.",
+      wdLate: "It will shed its outer layers as a planetary nebula and its core will be left as a white dwarf, like the Sun.",
+      border: "It is on the borderline: it will end as an oxygen-neon white dwarf or explode as a supernova.",
+      ns: "It will explode as a supernova and its core will be left as a neutron star.",
+      nsbh: "It will explode as a supernova (or collapse) and leave a neutron star or a black hole.",
+      bh: "It will explode as a supernova or collapse directly, and leave a black hole.",
+      giantUnknown: "If it was born with less than about 8 solar masses it will end as a white dwarf; with more, as a supernova.",
+      superUnknown: "It is expected to explode as a supernova and leave a neutron star or a black hole.",
+      sun: "In about 5 billion years it will swell into a red giant, shed a planetary nebula and be left as a white dwarf.",
+      isWd: "It is already a white dwarf: the dead core of a star that ended its life, slowly cooling down.",
+    },
+    pcCreditStar: (o) => (o.sun
+      ? ["Data: NASA (Planetary Fact Sheet and \"Sun: Facts\")", "position: Paul Schlyter's ephemerides", o.lines && "lines: NIST"]
+      : ["Data: HYG v4.1 (Hipparcos)", o.temp && "temperature: Ballesteros 2012, from B−V", o.lines && "lines: NIST", o.est && "mass by type: Pecaut & Mamajek 2013", o.life && "ends: OpenStax and NASA"]
+    ).filter(Boolean).join("\u00a0· "),
     pickTitle: (n) => `${n} objects at this spot`, pickLead: "They are so close together in the sky that they land on the same place. Pick one:",
     clusterMore: (n) => `+${n}`,
     starColorLine: (c) => `Its colour on the map is ${c}: it comes from the catalogue and reflects its surface temperature (bluish stars are the hottest, reddish ones the coolest).`,
