@@ -2372,8 +2372,9 @@ export default function Constellations({ lang = "es" }) {
     if (az || pol) { e.preventDefault(); orbitBy(az, pol); }
   }, [orbitBy, zoomBy]);
 
-  // postal para compartir (src/sky/postcard.js): se dibuja en 2D a 1080 × 1350 con el
-  // visual del objeto, el cielo real a su alrededor y textos medidos que nunca se cortan.
+  // postal para compartir (src/sky/postcard.js): se dibuja en 2D a 1080 × 1920 (9:16, historias)
+  // con el visual del objeto, el cielo real a su alrededor, una cuadrícula de datos reales y
+  // textos medidos que nunca se cortan.
   const buildShare = useCallback(() => {
     const ref = sceneRef.current;
     const date = new Date(whenStr);
@@ -2382,6 +2383,7 @@ export default function Constellations({ lang = "es" }) {
     const fmt = {
       dist: (d) => fmtDist(d, lang), years: (y) => fmtYears(y, lang), km: (k) => fmtKm(k, lang), dur: (x) => fmtDuration(x, lang),
       when: (d) => d.toLocaleString(loc, lang === "es" ? { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }),
+      time: (d) => d.toLocaleTimeString(loc, lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { hour: "numeric", minute: "2-digit" }),
     };
     const base = { lang, t: TC[lang], fmt, sky, conDirs, bodies: bodiesRef.current, local, showSolar: showSolar && !viewFrom, starHex: starTint };
     const so = selObj;
@@ -2391,7 +2393,8 @@ export default function Constellations({ lang = "es" }) {
       if (d) {
         const es = conNameEs(conAb);
         return buildPostcard({ ...base, con: { ab: conAb, title: c.la, type: `${TC[lang].conType} · ${lang === "es" ? (es || c.en) : c.en}`, dir: d.dir, radius: d.radius, stars: d.hips,
-          near: d.near && { name: d.near.name, d: d.near.dist }, far: d.far && { name: d.far.name, d: d.far.dist } } });
+          near: d.near && { name: d.near.name, d: d.near.dist }, far: d.far && { name: d.far.name, d: d.far.dist },
+          bright: d.stars[0] && { name: d.stars[0].name, mag: d.stars[0].mag } } });
       }
     }
     if (so && so.name && so.layer !== "note") {

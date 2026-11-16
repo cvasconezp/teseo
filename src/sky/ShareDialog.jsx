@@ -1,4 +1,5 @@
-// Diálogo de compartir: vista previa de la postal + Compartir (Web Share con el PNG),
+// Diálogo de compartir: vista previa de la postal vertical (1080 × 1920, formato de historias)
+// + Compartir (Web Share con el PNG; el texto menciona a Killa Ñan),
 // Descargar y Copiar enlace. Es un diálogo modal: atrapa el foco, Esc lo cierra y al
 // cerrarse devuelve el foco al botón que lo abrió.
 import { useEffect, useRef, useState } from "react";
@@ -91,7 +92,7 @@ export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkS
         <div className={`sk-share-preview is-${state}`} data-hero={report ? report.hero : undefined} data-hero-source={report ? report.heroSource : undefined} data-overflow={report ? String(report.overflow) : undefined} data-truncated={report ? String(report.truncated) : undefined}>
           {state === "making" && <p role="status"><i className="sk-spin" />{t.shareMaking}</p>}
           {state === "failed" && <p role="alert"><Icon name="warn" size={18} />{t.shareFailed}</p>}
-          {state === "ready" && <img src={url} alt={name ? t.shareAlt(name) : t.shareAltSky} width="1080" height="1350" />}
+          {state === "ready" && <img src={url} alt={name ? t.shareAlt(name) : t.shareAltSky} width="1080" height="1920" />}
         </div>
         <div className="sk-share-actions">
           <button type="button" className="sk-btn primary" onClick={send} disabled={state !== "ready"} data-autofocus><Icon name="share" size={17} />{t.shareSend}</button>

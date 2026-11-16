@@ -1,10 +1,12 @@
 // Pruebas de los datos y reglas puras de la ronda 3 de la vista Cielo: mapa de títulos
-// de Wikipedia, texto de la postal que nunca se corta, alto del visor, constelaciones,
+// de Wikipedia, texto de la postal que nunca se corta, postal vertical 9:16 (cuadrícula de
+// datos, zonas seguras, Killa Ñan), alto del visor, constelaciones,
 // ciencia ciudadana y paridad de textos ES/EN.
 // Uso:  node scripts/test_sky_data.mjs     (sale con código 1 si algo falla)
 import { readFileSync } from "node:fs";
 import { mappedTitle, wikiCandidates, normName, PROBE_TITLES, COMET_TITLES } from "../src/sky/wiki.js";
-import { wrapLines, fitLines, makeProjection, zenithDir, postcardText } from "../src/sky/postcard.js";
+import { wrapLines, fitLines, makeProjection, zenithDir, postcardText, postcardGrid, layoutGrid, planLayout, PC_W, PC_H, SAFE_TOP, SAFE_BOTTOM, HERO_TOP, BLOCK_BOTTOM, GRID, GRID_MAX } from "../src/sky/postcard.js";
+import { describeObject } from "../src/sky/describe.js";
 import { stageHeight, pickViewportHeight, STAGE_MIN } from "../src/sky/viewport.js";
 import { CON_INFO, constellationData, conNameEs, conOrigin } from "../src/sky/constellations.js";
 import { CITIZEN, citizenFor, CITIZEN_VERIFIED } from "../src/sky/citizen.js";
@@ -99,6 +101,103 @@ console.log("Postal: textos y proyección del cielo");
   ok(worst < 1e-9, "proyectar y desproyectar devuelve la misma dirección", `${worst}`);
   const date = new Date("2026-11-13T02:00:00Z"), z = zenithDir(-0.2202, -78.5123, date);
   ok(Math.abs(altAz(z[0], z[1], z[2], -0.2202, -78.5123, date).alt - 90) < 1e-6, "el cenit calculado para la postal está a 90° de altura");
+}
+
+console.log("Postal vertical 9:16: formato, cuadrícula de datos y Killa Ñan");
+{
+  ok(PC_W === 1080 && PC_H === 1920, "la postal mide 1080 × 1920 (9:16, historias)", `${PC_W}×${PC_H}`);
+  ok(SAFE_TOP >= 200 && SAFE_BOTTOM >= 240 && HERO_TOP >= SAFE_TOP && BLOCK_BOTTOM <= PC_H - SAFE_BOTTOM, "zonas seguras: el visual empieza bajo los 220 px superiores y el texto acaba sobre los 260 inferiores");
+  // Killa Ñan: con presencia clara en la cabecera, en el pie y en el texto que acompaña al compartir
+  for (const L of ["es", "en"]) {
+    const T = TX[L];
+    ok(/Yachay Deep Labs × Killa Ñan · /.test(T.pcCoop) && /Killa Ñan/.test(T.pcHeadWith), `${L}: línea «Yachay Deep Labs × Killa Ñan · …» en el pie y Killa Ñan en la cabecera`, `${T.pcCoop} | ${T.pcHeadWith}`);
+    ok(T.pcUrl === "teseo.yachaydeep.com", `${L}: la URL del pie es teseo.yachaydeep.com`);
+    ok(/ · Teseo, (con|with) Killa Ñan$/.test(T.shareText("Vega")) && /Killa Ñan/.test(T.shareTextSky), `${L}: el texto de compartir menciona a Killa Ñan`, T.shareText("Vega"));
+  }
+  ok(TX.es.pcCoop === "Yachay Deep Labs × Killa Ñan · Astronomía comunitaria", "es: texto exacto de la línea de cooperación");
+  // el diálogo: la vista previa declara 1080 × 1920 y cabe en el teléfono
+  const dlg = readFileSync(new URL("../src/sky/ShareDialog.jsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/sky/sky.css", import.meta.url), "utf8");
+  const prev = (css.match(/\.sk-share-preview \{[^}]*\}/) || [""])[0];
+  ok(/width="1080" height="1920"/.test(dlg), "la vista previa declara width 1080 y height 1920");
+  ok(/aspect-ratio: 1080 \/ 1920/.test(prev) && /max-height: 70vh/.test(prev) && /object-fit: contain/.test(css.match(/\.sk-share-preview img \{[^}]*\}/)[0]), "CSS: proporción 9:16, máx. 70vh y object-fit: contain", prev);
+
+  // la ficha usa también textos de Constellations.jsx (JSX, no importable en Node): se copian aquí los que hacen falta
+  const T = { ...TX.es, fDistance: "Distancia", fLightLeft: "Su luz salió hace", fLightTakes: "Su luz tarda", fVoyager: "En la Voyager 1 tardarías", ago: (s) => s,
+    fLightHint: "lo ves como era entonces", au: "UA", typeStar: "Estrella", typePlanet: "Planeta", typeSun: "Estrella", typeMoon: "Satélite",
+    dDiameter: "Diámetro", timesEarth: (x) => `${x} × la Tierra`, dRotation: "Una vuelta sobre sí", retrograde: "al revés", dOrbitSun: "Una vuelta al Sol", dOrbitEarth: "Una vuelta a la Tierra",
+    dPosition: "Posición en el cielo", dMagnitude: "Magnitud aparente", magHint: "menor es más brillante", dSource: "Fuente", dCatalog: "Catálogo", dHubble: "Tipo de Hubble",
+    dMass: "Masa", dPeriod: "Período de giro", dKind: "Tipo", dParent: "Proviene de", dRadius: "Radio", earthRadii: "radios terrestres", earthMasses: "masas terrestres",
+    dYear: "Su año dura", dHost: "Estrella", dDiscovered: "Descubierto", fPeak: "Noche máxima", fActive: "Activa", fRate: "En su mejor momento", perHour: (n) => `~${n} por hora`,
+    zhrHint: "con cielo oscuro y despejado", typeMeteor: "Lluvia de meteoros", radiantNote: "Radiante.", meteorParent: (p) => `Viene de ${p}.`, typeExoplanet: "Exoplaneta", orbits: (h) => `orbita ${h}` };
+  const fmt = { dist: (d) => `${d} años luz`, years: (y) => `${y} años`, km: (k) => `${Math.round(k)} km`, dur: (s) => `${Math.round(s)} s`, when: () => "12 nov 2026, 21:00", time: (d) => d.toISOString().slice(11, 16) };
+  const sirio = sky.stars.find((s) => s[7] === "Sirio" || s[7] === "Sirius");
+  const so = { layer: "star", name: sirio[7], nx: sirio[1], ny: sirio[2], nz: sirio[3], mag: sirio[4], dist_ly: sirio[6], hex: sirio[5], bv: 0.009, spect: "A0m..." };
+  const g = postcardGrid({ obj: so, info: describeObject(so, "es", T, false), t: T, lang: "es", local: null, fmt });
+  const labels = g.map((c) => c.label);
+  ok(g.length === GRID_MAX && labels[0] === "Distancia" && labels.includes("Magnitud aparente") && labels.includes(T.dTemp) && labels.includes(T.dSpect), "estrella: 6 casillas con distancia, luz, magnitud, temperatura y tipo espectral", JSON.stringify(labels));
+  const mag = g.find((c) => c.label === "Magnitud aparente");
+  ok(mag.value === so.mag.toLocaleString("es", { maximumFractionDigits: 2 }) && mag.sub === "menor es más brillante", "el valor grande es el número; la aclaración va debajo", JSON.stringify(mag));
+  const bare = { ...so, bv: null, spect: "", mag: null, hex: "#zzzzzz" };
+  const gb = postcardGrid({ obj: bare, info: describeObject(bare, "es", T, false), t: T, lang: "es", local: null, fmt });
+  ok(!gb.some((c) => c.label === T.dTemp || c.label === T.dSpect || c.label === "Magnitud aparente") && gb.length === 3, "sin B−V, tipo espectral ni magnitud no se inventa ninguna casilla", JSON.stringify(gb.map((c) => c.label)));
+  // cielo local: altura y salida/puesta al final, sin pasar de 6
+  const local = { lat: 0.0389, lon: -78.1426, date: new Date("2026-11-17T04:00:00Z"), place: "Cayambe" };
+  const gl = postcardGrid({ obj: so, info: describeObject(so, "es", T, false), t: T, lang: "es", local, fmt });
+  ok(gl.length === GRID_MAX && gl[4].kind === "local" && gl[5].kind === "local" && gl[4].label === T.pcGAlt, "cielo local: 4 datos + altura + salida/puesta", JSON.stringify(gl.map((c) => [c.label, c.value, c.sub])));
+  ok(/^\d+°$/.test(gl[4].value) && /^hacia el /.test(gl[4].sub) || gl[4].value === T.pcGBelow, "la altura es un número de grados con su dirección (o «bajo el horizonte»)", JSON.stringify(gl[4]));
+  ok([T.pcGSet, T.pcGRise, T.pcGHorizon].includes(gl[5].label) && (/^\d\d:\d\d$/.test(gl[5].value) || gl[5].label === T.pcGHorizon), "hora de salida o puesta (o «no se pone» / «hoy no sale»)", JSON.stringify(gl[5]));
+  // planeta: datos de la ficha (diámetro con su comparación)
+  const jup = { layer: "solar", name: "Júpiter", nx: 1, ny: 0, nz: 0, dist_au: 4.5, mag: -2.7, body: "planet", ra: 100, dec: 20 };
+  const gj = postcardGrid({ obj: jup, info: describeObject(jup, "es", T, false), t: T, lang: "es", local: null, fmt });
+  ok(gj.some((c) => c.label === "Diámetro" && /km$/.test(c.value) && /× la Tierra/.test(c.sub)) && gj.some((c) => c.label === "Su luz tarda") && gj.length >= 4 && gj.length <= GRID_MAX, "planeta: distancia, luz, diámetro (× la Tierra) y más", JSON.stringify(gj.map((c) => [c.label, c.value])));
+  // sonda: la luz se rotula como señal de radio
+  const vg = { layer: "probes", name: "Voyager 1", nx: 0, ny: 0, nz: 1, dist_km: 2.5e10, agency: "NASA", launched: 1977 };
+  const gv = postcardGrid({ obj: vg, info: describeObject(vg, "es", { ...T, typeProbe: "Nave", probeLine: () => "", fAgency: "Agencia", fLaunched: "Lanzamiento", targetName: {}, phaseName: {}, sigLine: () => "", sigBand: {} }, false), t: T, lang: "es", local: null, fmt });
+  ok(gv.some((c) => c.label === T.pcGSignal) && gv.some((c) => c.label === "Agencia" && c.value === "NASA"), "sonda: señal de radio y agencia", JSON.stringify(gv.map((c) => c.label)));
+  // lluvia de meteoros: noche máxima, actividad y tasa
+  const met = { layer: "meteors", name: "Gemínidas", peak: "12-14", start: "12-04", end: "12-17", zhr: 150, parent: "3200 Faetón" };
+  const gm = postcardGrid({ obj: met, info: describeObject(met, "es", T, false), t: T, lang: "es", local: null, fmt });
+  ok(gm.map((c) => c.label).join("|") === "Noche máxima|Activa|En su mejor momento|Proviene de", "meteoros: noche máxima, actividad, tasa y origen", JSON.stringify(gm.map((c) => c.label)));
+  // constelación: la más cercana, la más lejana, cuántas estrellas y la más brillante
+  const ori = sky.constellations.find((c) => c.ab === "Ori"), od = constellationData(ori, sky.stars);
+  const con = { ab: "Ori", title: "Orion", type: "Constelación · Orión", dir: od.dir, radius: od.radius, stars: od.hips, near: { name: od.near.name, d: od.near.dist }, far: { name: od.far.name, d: od.far.dist }, bright: { name: od.stars[0].name, mag: od.stars[0].mag } };
+  const gc = postcardGrid({ con, t: T, lang: "es", local, fmt });
+  ok(gc.length === GRID_MAX && gc[0].label === T.conNear && gc[2].value === String(od.hips.size) && gc[3].label === T.pcGBright && gc[3].value === od.stars[0].name, "constelación: cercana, lejana, nº de estrellas, la más brillante + cielo local", JSON.stringify(gc.map((c) => [c.label, c.value])));
+  const tc = postcardText({ con, t: T, lang: "es", local, fmt });
+  ok(tc.curio.startsWith(T.pcConAligned) && /veces más lejos/.test(tc.curio) && tc.where === "Desde Cayambe · 12 nov 2026, 21:00", "constelación: dato curioso con la proporción real y lugar/hora", JSON.stringify([tc.curio, tc.where]));
+  // cielo sin objeto: lo que hay en el mapa (cifras del catálogo, no inventadas)
+  const gs = postcardGrid({ obj: null, t: T, lang: "es", local: null, fmt, sky, bodies: [] });
+  ok(gs[0].value === sky.stars.length.toLocaleString("es") && gs[1].value === String(sky.constellations.length), "cielo sin objeto: nº real de estrellas y constelaciones del mapa", JSON.stringify(gs));
+
+  // la cuadrícula nunca desborda: medidor proporcional, valores larguísimos, 1 a 6 casillas
+  const mf = (role, px) => (s) => s.length * px * (role === "value" ? 0.6 : 0.55);
+  const long = [
+    { label: "Distancia", value: "26 mil años luz", sub: "lo ves como era entonces" },
+    { label: "Masa", value: "4,3 millones de masas solares (aprox.)" },
+    { label: "Radio del horizonte", value: "12,7 millones de km", sub: "calculado a partir de su masa (2GM/c², sin rotación)" },
+    { label: "Temperatura (estimada)", value: "≈ 9.940 K", sub: "no es una medida directa · 1,7 veces la del Sol" },
+    { label: "En la Voyager 1 tardarías", value: "458 millones de años" },
+    { label: "Planetas sobre el horizonte", value: "Mercurio, Venus, Marte, Júpiter, Saturno, Urano, Neptuno" },
+  ];
+  let allIn = true, worst = "";
+  for (let n = 1; n <= 6; n++) {
+    const lay = layoutGrid(mf, long.slice(0, n), { x: 64, y: 0, w: 952 });
+    if (lay.truncated) { allIn = false; worst = `trunc n=${n}`; }
+    for (const c of lay.cells) {
+      if (c.x < 64 - 1e-6 || c.x + c.w > 1016 + 1e-6) { allIn = false; worst = `caja n=${n}`; }
+      for (const [role, f] of [["label", c.label], ["value", c.value], ["sub", c.sub]]) if (f) for (const l of f.lines) if (mf(role, f.size)(l) > c.inner + 1e-6) { allIn = false; worst = `${role} «${l}»`; }
+      if (c.value.size < GRID.valueMin || c.label.size < 24 || (c.sub && c.sub.size < 24)) { allIn = false; worst = `tamaño n=${n}`; }
+    }
+    if (n % 2 === 1 && lay.cells[0].w !== 952) { allIn = false; worst = `impar n=${n}`; }
+  }
+  ok(allIn, "cuadrícula: ninguna línea sale de su casilla ni de los márgenes, sin recortes y con texto ≥ 24 px", worst);
+  const lay6 = layoutGrid(mf, long, { x: 64, y: 0, w: 952 });
+  ok(lay6.cells.length === 6 && lay6.cells.every((c, i, a) => i % 2 === 0 || c.h === a[i - 1].h) && Math.abs(lay6.cells[1].x - (64 + lay6.cells[0].w + GRID.gap)) < 1e-6, "6 casillas en 3 filas de 2, con el mismo alto por fila");
+  // reparto vertical: el bloque acaba sobre la zona segura inferior y el visual no baja de su mínimo
+  const pl = planLayout(800, 31, true);
+  ok(pl.blockTop + 800 === BLOCK_BOTTOM && pl.heroMaxH >= 300 && pl.heroTop >= SAFE_TOP && pl.fits, "reparto: texto apoyado sobre la zona segura y visual grande", JSON.stringify(pl));
+  ok(!planLayout(1300, 62, true).fits, "si el texto es demasiado alto, el reparto avisa (y la postal quita casillas)");
 }
 
 console.log("Alto del visor");
