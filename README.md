@@ -2,27 +2,48 @@
 
 > *El universo es un laberinto. Teseo es tu hilo.*
 
-Navegación cósmica real: trayectorias interplanetarias, ventanas de
-lanzamiento y posiciones en vivo del sistema solar — calculadas con física
-orbital real, no aproximaciones inventadas.
+**Navegador interplanetario y planetario de bolsillo, con física orbital real
+y datos citados.** En línea: **[teseo.yachaydeep.com](https://teseo.yachaydeep.com)**
+· versión **1.0** (16-nov-2026).
 
-Proyecto hermano de [Yachay Deep](https://yachaydeep.com), open source
-(MIT), creado por [Carlos Vásconez](https://github.com/cvasconezp).
+Hecho por [Yachay Deep Labs](https://yachaydeep.com) **en cooperación con
+[Killa Ñan · Astronomía comunitaria](https://sites.google.com/view/killanan/inicio)**
+(Cayambe, Ecuador). Código abierto (MIT), creado por
+[Carlos Vásconez-Paredes](https://github.com/cvasconezp). Español e inglés;
+pensado para el teléfono, desde adolescentes hasta investigadores.
+
+> *Stellarium te dice qué hay en el cielo. Teseo te dice qué tan lejos está,
+> cuánto tardarías en llegar y cuándo conviene salir.*
 
 ---
 
 ## ¿Qué hace Teseo?
 
-Responde tres preguntas que ninguna app de astronomía responde de forma
-accesible:
+Cuatro pestañas:
 
-1. **¿Qué tan lejos está?** — distancia real entre cuerpos del sistema
-   solar, consultada en vivo a NASA JPL Horizons.
-2. **¿Cuánto tardaría en llegar?** — trayectoria de transferencia de
-   Hohmann real, calculada con `hapsira` (biblioteca de astrodinámica
-   validada científicamente, no inventada).
-3. **¿Cuándo es el mejor momento para salir?** — ventanas de lanzamiento
-   óptimas, calculadas a partir del período sinódico real entre planetas.
+1. **Ruta** — de un planeta a otro (o a la Luna y al Sol): distancia real
+   (NASA JPL Horizons), transferencia de Hohmann, próximas **ventanas de
+   lanzamiento**, trayectoria realista (Lambert, con porkchop), las
+   **catapultas gravitatorias** de misiones reales y un planificador de
+   viajes con asistencias (validado con Cassini).
+2. **Ahora** — el Sol de hoy (manchas solares de SILSO, regiones activas,
+   fulguraciones, índice Kp e imagen de NASA SDO), el calendario del cielo
+   para tu ciudad (Luna, eclipses, meteoros, planetas, pasadas de la ISS,
+   lanzamientos relevantes) con recordatorios, naves rumbo a Marte y
+   asteroides cercanos.
+3. **Cielo** — planetario en 3D desde tu ciudad, con atmósfera y
+   contaminación lumínica: 5.000 estrellas en su distancia real, 88
+   constelaciones, Messier, Caldwell (con las Nubes de Magallanes), galaxias, púlsares, agujeros negros,
+   exoplanetas, sondas y la ISS en vivo; fichas con composición, espectro y
+   vida de cada estrella, imágenes de NASA, ESA/Webb, ESA/Hubble y ESO, y
+   una imagen vertical para compartir en redes.
+4. **Preguntas** — nueve recorridos jugables: qué tan grande es el universo,
+   la masa, los viajes en el tiempo, el espectro, los agujeros negros, las
+   ondas gravitacionales, la expansión y la energía oscura, la materia oscura
+   y ¿estamos solos?
+
+Todas las fuentes están en la propia app («Créditos y datos»), agrupadas por
+institución.
 
 ## Principio de diseño: la IA narra, no calcula
 
@@ -226,6 +247,16 @@ MIT — usa, copia, modifica y distribuye libremente, con atribución.
 
 ## Créditos de datos
 
-- Posiciones planetarias: [NASA JPL Horizons System](https://ssd.jpl.nasa.gov/horizons/)
-- Física orbital: [hapsira](https://github.com/pleiszenburg/hapsira) (fork de poliastro, MIT)
-- Narrativa: [Groq](https://groq.com) (modelos Llama open source)
+La lista completa, agrupada por institución, está en la app («Créditos y
+datos») y en `CREDITS.md`. Las principales:
+
+- Agencias: NASA (JPL Horizons, CNEOS, Exoplanet Archive, SDO, GSFC) y ESA
+  (Gaia, Planck; imágenes de ESA/Webb y ESA/Hubble).
+- Observatorios y colaboraciones: ESO, LIGO-Virgo-KAGRA, Event Horizon
+  Telescope, SILSO (Real Observatorio de Bélgica), CSIRO (ATNF), CERN.
+- Institutos de medida: NIST, NOAA (SWPC, WMM), UAI e IERS.
+- Catálogos: HYG (Hipparcos), Stellarium, OpenNGC, IMO, CelesTrak, Launch
+  Library 2.
+- Física orbital: [hapsira](https://github.com/pleiszenburg/hapsira), astropy
+  y sgp4. Narrativa: [Groq](https://groq.com) (modelos Llama) — narra, nunca
+  calcula.

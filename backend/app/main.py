@@ -57,7 +57,7 @@ from app import lambert
 from app import mga
 from app.cache import ProviderError, iso_utc
 
-VERSION = "0.2.0"
+VERSION = "1.0.0"
 _STARTED = time.time()
 
 app = FastAPI(
