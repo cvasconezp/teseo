@@ -25,6 +25,10 @@ export const KEYWORDS = {
     es: "ondas gravitacionales onda ligo virgo chirrido sonido fusión agujeros negros estrellas neutrones einstein espaciotiempo kilonova oro lisa nobel deformación",
     en: "gravitational waves wave ligo virgo chirp sound merger black holes neutron stars einstein spacetime kilonova gold lisa nobel strain",
   },
+  end: {
+    es: "fin final terminará futuro entropía flecha tiempo desorden segunda ley termodinámica muerte térmica congelación desgarro big rip colapso big crunch vacío higgs energía oscura eras estrellas apagan agujero negro hawking evaporación protón desintegración desi",
+    en: "end ending future entropy arrow time disorder second law thermodynamics heat death freeze rip big rip crunch big crunch vacuum decay higgs dark energy eras stars black hole hawking evaporation proton decay desi",
+  },
   expansion: {
     es: "expansión universo hubble big bang edad supernovas energía oscura galaxias corrimiento rojo cosmología",
     en: "expansion universe hubble big bang age supernovae dark energy galaxies redshift cosmology",

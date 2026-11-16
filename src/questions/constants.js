@@ -18,6 +18,9 @@
 //  · σ: constante de Stefan-Boltzmann, exacta en el SI de 2019 (sale de h, c y k), NIST
 //      (consultado el 16-nov-2026): https://physics.nist.gov/cgi-bin/cuu/Value?sigma
 //      → 5,670 374 419… × 10⁻⁸ W m⁻² K⁻⁴
+//  · ħ y k: exactas en el SI de 2019, NIST (consultado el 16-nov-2026):
+//      https://physics.nist.gov/cgi-bin/cuu/Value?hbar → 1,054 571 817… × 10⁻³⁴ J s
+//      https://physics.nist.gov/cgi-bin/cuu/Value?k    → 1,380 649 × 10⁻²³ J/K
 
 export const G = 6.67430e-11;              // m³ kg⁻¹ s⁻²
 export const C = 299792458;                // m/s
@@ -33,6 +36,8 @@ export const YEAR = 365.25 * 86400;        // s
 export const LY = C * YEAR;                // m  (9,4607 × 10¹⁵)
 export const G0 = 9.80665;                 // m/s²
 export const SIGMA_SB = 5.670374419e-8;    // W m⁻² K⁻⁴
+export const HBAR = 1.054571817e-34;      // J s
+export const K_B = 1.380649e-23;           // J/K
 
 // Derivadas (no son datos nuevos: salen de las de arriba)
 export const M_SUN_KG = GM_SUN / G;                    // 1,98841 × 10³⁰ kg

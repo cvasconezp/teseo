@@ -37,9 +37,10 @@ Cuatro pestañas:
    exoplanetas, sondas y la ISS en vivo; fichas con composición, espectro y
    vida de cada estrella, imágenes de NASA, ESA/Webb, ESA/Hubble y ESO, y
    una imagen vertical para compartir en redes.
-4. **Preguntas** — nueve recorridos jugables: qué tan grande es el universo,
+4. **Preguntas** — diez recorridos jugables: qué tan grande es el universo,
    la masa, los viajes en el tiempo, el espectro, los agujeros negros, las
-   ondas gravitacionales, la expansión y la energía oscura, la materia oscura
+   ondas gravitacionales, la expansión y la energía oscura, la materia oscura,
+   cómo terminará el universo (entropía, eras del futuro y finales posibles)
    y ¿estamos solos?
 
 Todas las fuentes están en la propia app («Créditos y datos»), agrupadas por

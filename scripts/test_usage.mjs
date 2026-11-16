@@ -63,7 +63,7 @@ console.log("Nombres legibles");
 {
   eq([tabName("sky"), tabName("route", "en"), tabName("questions"), tabName("now", "en"), tabName("x")], ["Cielo", "Route", "Preguntas", "Now", "x"], "pestañas");
   const tours = Object.keys(TQ.es.tours);
-  ok(tours.length === 9 && tours.every(k => tourName(k) === TQ.es.tours[k].title && tourName(k, "en") === TQ.en.tours[k].title), "las 9 preguntas con su título de la pestaña Preguntas (es/en)");
+  ok(tours.length === 10 && tours.every(k => tourName(k) === TQ.es.tours[k].title && tourName(k, "en") === TQ.en.tours[k].title), "las 10 preguntas con su título de la pestaña Preguntas (es/en)");
   eq([tourName("drake"), tourName("bh", "en"), tourName("nueva")], ["¿Estamos solos?", "What happens near a black hole?", "nueva"], "pregunta: título o el id si no se conoce");
   eq([routeName("earth>mars"), routeName("earth>jupiter", "en"), routeName("earth>moon"), routeName("mars>pluto")], ["Tierra → Marte", "Earth → Jupiter", "Tierra → Luna", "Marte → Plutón"], "rutas origen → destino");
   eq([routeName("earth>xx"), routeName("raro")], ["Tierra → xx", "raro"], "ruta desconocida: lo que llegó");

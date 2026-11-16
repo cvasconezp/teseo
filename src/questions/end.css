@@ -1,0 +1,79 @@
+/* end.css — «¿Cómo terminará el universo?» (prefijo q-end). Reutiliza questions.css y los pasos
+   (.q-step) de time.css. Sin fondos blancos: capas translúcidas sobre el fondo oscuro, para que la
+   visión nocturna los tiña bien. */
+
+.q-end .q-step { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
+.q-end .q-step__title { margin-bottom: 8px; }
+.q-end .q-step__lead { margin-bottom: 14px; font-size: 15px; color: var(--soft); }
+.q-end .q-step__p { margin-top: 10px; font-size: 14.5px; line-height: 1.55; color: var(--soft); }
+.q-end-point { padding-left: 12px; border-left: 2px solid var(--thread); }
+
+/* 1 · Caja de gas */
+.q-end-box { display: block; width: 100%; height: auto; }
+.q-end-box__wall { fill: rgba(255, 255, 255, 0.03); stroke: rgba(255, 255, 255, 0.4); stroke-width: 1.5; }
+.q-end-box__mid { stroke: rgba(255, 255, 255, 0.28); stroke-width: 1.2; stroke-dasharray: 4 5; }
+.q-end-box__p.is-l { fill: #7DB9FF; }
+.q-end-box__p.is-r { fill: #F2C46D; }
+.q-end-box.is-all .q-end-box__wall { stroke: var(--q-measured); stroke-width: 2.4; }
+.q-end-all { color: var(--q-measured); }
+.q-end-big { margin-top: 18px; padding: 14px 16px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); }
+.q-end-big__title { font-family: var(--serif); font-weight: 600; font-size: 20px; color: #fff; }
+.q-end-big__list { margin: 10px 0 8px; display: grid; gap: 6px; }
+.q-end-big__list > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.q-end-big__list dt { color: var(--soft); }
+.q-end-big__list dd { margin: 0; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* 2 · Fotones */
+.q-end-ph { display: block; width: 100%; height: auto; }
+.q-end-ph__sun { fill: rgba(242, 196, 109, 0.85); }
+.q-end-ph__in { stroke: #FFE29A; stroke-width: 3; stroke-linecap: round; }
+.q-end-ph__head { fill: #FFE29A; }
+.q-end-ph__planet { fill: rgba(125, 185, 255, 0.55); stroke: rgba(255, 255, 255, 0.5); }
+.q-end-ph__out { stroke: #F07A5A; stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 3 3; }
+.q-end-ph__lbl { font-size: 11.5px; fill: var(--soft); }
+.q-end-ph__lbl--out { fill: #F7A58C; }
+
+/* 3 · Entropía */
+.q-end-ledger__list { list-style: none; margin: 4px 0 8px; padding: 0 4px; display: grid; gap: 8px; }
+.q-end-ledger__row { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "lbl val" "bar bar"; gap: 3px 10px; font-size: 13.5px; }
+.q-end-ledger__lbl { grid-area: lbl; color: var(--soft); }
+.q-end-ledger__val { grid-area: val; color: #fff; font-variant-numeric: tabular-nums; }
+.q-end-ledger__track { grid-area: bar; display: block; height: 8px; border-radius: 4px; background: var(--q-track); overflow: hidden; }
+.q-end-ledger__track i { display: block; height: 100%; border-radius: 4px; background: var(--q-estimated); }
+.q-end-ledger__row--measured i { background: var(--q-measured); }
+.q-end-ledger__row--unknown i { background: var(--q-unknown); }
+.q-end-ledger__row--you { padding-top: 8px; border-top: 1px dashed var(--line-strong); }
+.q-end-ledger__row--you .q-end-ledger__lbl { color: var(--thread); font-weight: 600; }
+.q-end-ledger__row--you i { background: var(--thread); }
+
+/* 4 · Línea del tiempo */
+.q-end-tl { display: block; width: 100%; height: auto; }
+.q-end-tl__ev { fill: rgba(255, 255, 255, 0.35); }
+.q-end-tl__ev.is-past { fill: rgba(255, 255, 255, 0.95); }
+.q-end-tl__now { stroke: var(--thread); stroke-width: 2.4; }
+.q-end-tl__head { fill: var(--thread); }
+.q-end-eras { list-style: none; margin: 6px 0 0; padding: 0 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
+.q-end-eras i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 3px; vertical-align: -1px; }
+.q-end-eras .is-on { color: #fff; font-weight: 600; }
+.q-end-era__name { margin-top: 2px; font-family: var(--serif); font-weight: 700; font-size: clamp(26px, 8vw, 34px); line-height: 1.1; }
+.q-end-evs { margin-top: 14px; }
+.q-end-evs__title { margin-top: 12px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.q-end-evs ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
+.q-end-ev { padding: 10px 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); display: grid; gap: 4px; }
+.q-end-ev__when { font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; }
+.q-end-ev__what { font-size: 14.5px; line-height: 1.5; color: var(--soft); }
+
+/* 5 · Finales */
+.q-end-scen { margin-bottom: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.q-end-scen__btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+.q-end-scen__name { font-weight: 600; }
+.q-end-scen__short { font-size: 12.5px; color: var(--muted); }
+.q-end-scen__btn.is-on .q-end-scen__short { color: var(--soft); }
+.q-end-sketch { stroke-dasharray: 2 5; }
+.q-end-rip { stroke: #F07A5A; stroke-width: 1.6; stroke-dasharray: 4 4; }
+
+.q-end-links { margin-top: 26px; }
+.q-end-links ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.q-end-links a { color: var(--thread); text-decoration: underline; text-underline-offset: 3px; }
+
+@media (min-width: 1024px) { .q-end .q-step__lead, .q-end-point { max-width: 42rem; } .q-end-scen { grid-template-columns: repeat(4, 1fr); } }

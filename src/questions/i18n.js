@@ -7,7 +7,7 @@ export const TQ = {
   es: {
     // ── Índice de recorridos ──
     indexTitle: "Preguntas",
-    indexLead: "Nueve preguntas grandes y lo que de verdad sabemos de cada una. En todas hay algo que mover con el dedo: los números salen de mediciones publicadas y la cuenta se hace en tu teléfono.",
+    indexLead: "Diez preguntas grandes y lo que de verdad sabemos de cada una. En todas hay algo que mover con el dedo: los números salen de mediciones publicadas y la cuenta se hace en tu teléfono.",
     indexLegend: "Cada dato lleva una de estas tres etiquetas",
     indexOpen: "Abrir el recorrido",
     allQuestions: "Todas las preguntas",
@@ -24,6 +24,7 @@ export const TQ = {
       gw: { title: "¿Qué son las ondas gravitacionales?", teaser: "Mira cómo un anillo de partículas se estira y se aplasta, elige dos masas y escucha el chirrido de su fusión.", tag: "Chirrido, anillo y sonido" },
       drake: { title: "¿Estamos solos?", teaser: "Siete números para ordenar la pregunta. Tres se han medido; de los otros cuatro nadie sabe nada.", tag: "Ecuación de Drake, Fermi y Kardashov" },
       spectrum: { title: "¿Cómo sabemos de qué están hechas las estrellas?", teaser: "Compón la atmósfera de un planeta o de una estrella y mira aparecer sus líneas. Luego adivina de qué está hecho un astro solo con su espectro.", tag: "Laboratorio y juego con el espectro de la luz" },
+      end: { title: "¿Cómo terminará el universo?", teaser: "Agita una caja de gas para ver por qué el tiempo avanza, mira cuánta entropía guarda un agujero negro y viaja era por era hasta el final que dicta la energía oscura.", tag: "Entropía, eras del futuro y finales posibles" },
     },
     // ── ¿Estamos solos? ──
     title: "¿Estamos solos?",
@@ -141,7 +142,7 @@ export const TQ = {
   en: {
     // ── Tour index ──
     indexTitle: "Questions",
-    indexLead: "Nine big questions and what we actually know about each. Every one has something to move with your finger: the numbers come from published measurements and the arithmetic runs on your phone.",
+    indexLead: "Ten big questions and what we actually know about each. Every one has something to move with your finger: the numbers come from published measurements and the arithmetic runs on your phone.",
     indexLegend: "Every figure carries one of these three labels",
     indexOpen: "Open the tour",
     allQuestions: "All questions",
@@ -158,6 +159,7 @@ export const TQ = {
       gw: { title: "What are gravitational waves?", teaser: "Watch a ring of particles stretch and squash, pick two masses and listen to the chirp of their merger.", tag: "Chirp, ring and sound" },
       drake: { title: "Are we alone?", teaser: "Seven numbers to frame the question. Three have been measured; nobody knows anything about the other four.", tag: "Drake equation, Fermi and Kardashev" },
       spectrum: { title: "How do we know what stars are made of?", teaser: "Build the atmosphere of a planet or a star and watch its lines appear. Then guess what an object is made of from its spectrum alone.", tag: "Lab and game with the spectrum of light" },
+      end: { title: "How will the universe end?", teaser: "Shake a box of gas to see why time moves forward, see how much entropy a black hole holds and travel era by era to the ending set by dark energy.", tag: "Entropy, future eras and possible endings" },
     },
     // ── Are we alone? ──
     title: "Are we alone?",
