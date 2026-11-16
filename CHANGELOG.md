@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.5.0 — 16 de noviembre de 2026
+
+- Imagen para compartir: distancia y «su luz salió hace…» en una sola casilla;
+  en las estrellas y el Sol, espectro esquemático y «Vida y final» con la marca
+  HOY. «Desde tu ubicación» en minúscula.
+
 ## 1.4.1 — 16 de noviembre de 2026
 
 - (1.4.2) Brazos más nítidos y ordenados: estrellas repartidas a lo largo de cada brazo,
