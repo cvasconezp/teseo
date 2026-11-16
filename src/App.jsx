@@ -1378,12 +1378,12 @@ function CreditsModal({ lang, onClose }) {
         </div>
         <h3 className="credits__h">{t.whoTitle}</h3>
         <div className="who">
-          <a className="who__card who__card--kn" href="https://www.killanan.org/" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>
+          <a className="who__card who__card--kn" href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>
             <span className="who__name">{t.whoKn[0]}</span>
             <span className="who__text">{t.whoKn[1]}</span>
           </a>
           <div className="who__links">
-            <a href="https://www.killanan.org/" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>{t.whoLinks.web}</a>
+            <a href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>{t.whoLinks.web}</a>
             <a href="https://www.facebook.com/KillaNanEC" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>{t.whoLinks.fb}</a>
             <a href="https://www.instagram.com/killananec/" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>{t.whoLinks.ig}</a>
           </div>
@@ -1809,7 +1809,7 @@ export default function Teseo() {
             <div>
               <h1 className="wordmark" style={{fontSize:30}}>Teseo</h1>
               <p className="tagline">{t.tagline}</p>
-              <a className="tagline tagline--kn" href="https://www.killanan.org/" target="_blank" rel="noopener noreferrer"
+              <a className="tagline tagline--kn" href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer"
                 title={t.coopWith} onClick={()=>track("coop_open", { from: "header" })}>{t.allianceShort}</a>
             </div>
             <div className="flex items-center gap-2">
@@ -1941,7 +1941,7 @@ export default function Teseo() {
                 {t.madeBy}
               </a>
               <span aria-hidden="true" className="footer__sep footer__sep--made"/>
-              <a href="https://www.killanan.org/" target="_blank" rel="noopener noreferrer" className="footer__link footer__link--kn"
+              <a href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer" className="footer__link footer__link--kn"
                 onClick={()=>track("coop_open", { from: "footer" })}>
                 {t.coopWith}
               </a>
