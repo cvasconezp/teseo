@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.2.0 — 16 de noviembre de 2026
+
+- «Teseo en números»: analíticas públicas, anónimas y agregadas (visitas,
+  páginas vistas, imágenes creadas, recordatorios y lo más visto), desde el pie
+  («Uso de Teseo»), el menú del Cielo y #uso. Endpoint /api/metrics/public, que
+  también alimenta la cifra de Teseo en yachaydeep.com.
+
 ## 1.1.0 — 16 de noviembre de 2026
 
 - «Ahora»: botón Compartir en cada evento del calendario, el Sol de hoy,
