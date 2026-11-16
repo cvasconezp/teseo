@@ -21,6 +21,7 @@ Endpoints:
   GET  /api/iss/passes                → pasadas de la ISS sobre un lugar (CelesTrak + SGP4)
   GET  /api/sun/today                 → «El Sol hoy»: manchas (SILSO), regiones, fulguraciones, Kp, ciclo (NOAA SWPC), imagen SDO
   GET  /api/missions/mars             → ventana a Marte + naves con destino Marte
+  GET  /api/img?u=<url>               → proxy de imágenes con CORS para las imágenes para compartir (lista blanca de hosts)
   POST /api/m  (= /api/metrics/event) → métricas de uso anónimas y agregadas (204 siempre)
   GET  /api/metrics/summary[.csv]     → resumen de uso (token TESEO_METRICS_TOKEN; 404 sin él)
 
@@ -55,6 +56,7 @@ from app import sun
 from app import metrics
 from app import lambert
 from app import mga
+from app import img_proxy
 from app.cache import ProviderError, iso_utc
 
 VERSION = "1.0.0"
@@ -314,6 +316,7 @@ async def _metrics_flusher():
 
 app.include_router(sun.router)  # «El Sol hoy»: /api/sun/today (app/sun.py)
 app.include_router(push.router)  # «Recordarme»: /api/push/* y su bucle de envío (arranque/parada en app/push.py)
+app.include_router(img_proxy.router)  # imágenes para compartir: /api/img (app/img_proxy.py, lista blanca de hosts)
 
 
 @app.on_event("shutdown")

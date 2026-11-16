@@ -92,6 +92,8 @@ STATES = {"on", "off", "ok", "fail", "start", "done", "skip"}
 ISS_KINDS = {"view", "show", "retry", "list_all", "remove", "sheet", "play"}
 ISS_STATES = {"ok", "empty", "stale", "fail", "hidden"}
 PUSH_KINDS = {"on", "off", "test", "denied", "unsupported", "ios_install"}
+# Imagen para compartir de la pestaña Ahora: tipo de elemento (misma lista que NOW_SHARE_KINDS en src/ui/track.js)
+NOW_SHARE_KINDS = {"moon", "eclipse", "meteor", "planet", "season", "iss", "launch", "sun", "asteroid", "mars"}
 
 EVENTS: Dict[str, Dict[str, Any]] = {
     # sesión y navegación
@@ -110,6 +112,9 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "now_card_view":      {"card": NOW_CARDS},
     "now_item":           {"card": NOW_CARDS, "kind": NOW_KINDS},
     "now_retry":          {"card": NOW_CARDS},
+    # «Compartir» de cada elemento de Ahora (src/now/share/NowShare.jsx): qué TIPO se compartió y si la
+    # imagen se generó (ok) o no (fail). Nunca cuál evento, lanzamiento, asteroide ni el lugar.
+    "now_share":          {"kind": NOW_SHARE_KINDS, "state": {"ok", "fail"}},
     # ¿Y la Luna? ¿Y el Sol? (src/special/): vista de cada tarjeta, enlace desde
     # Ruta y botón "Ver ventanas a Venus"
     "special_dest":       {"destination": SPECIAL_DESTS, "kind": SPECIAL_KINDS},

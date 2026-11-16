@@ -1,0 +1,46 @@
+/* share.css — diálogo de compartir fuera del Cielo (pestaña Ahora) y botón «Compartir».
+   El diálogo es el mismo componente del Cielo (src/sky/ShareDialog.jsx, clases sk-*); aquí se repiten SOLO
+   sus reglas, bajo .share-host, para que se vea igual aunque la hoja del Cielo (sky.css) no esté cargada,
+   y con position: fixed (en el Cielo es absolute dentro del visor). */
+.share-host {
+  --ink-solid: #0a0f1e; --line: rgba(167, 139, 250, 0.26); --line-soft: rgba(255, 255, 255, 0.1);
+  --text: #eef0fa; --mute: rgba(238, 240, 250, 0.7); --violet: #a78bfa; --gold: #f2c66d;
+  --serif: "Cormorant Garamond", Georgia, serif; --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  color: var(--text); font-family: Inter, system-ui, sans-serif; font-size: 14px;
+}
+/* el aviso de cookies (index.html) queda siempre encima: el diálogo deja su alto libre (--cookie-h, lo mide App.jsx) */
+.share-host .sk-modal { position: fixed; inset: 0; z-index: 1000; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); place-items: center; padding: 12px 12px calc(12px + var(--cookie-h, 0px)); background: rgba(2, 4, 10, 0.78); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: share-fade 0.2s var(--ease); }
+.share-host .sk-share { width: min(440px, 100%); min-width: 0; max-height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px; border-radius: 22px; background: var(--ink-solid); border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7); outline: none; }
+.share-host .sk-share-head { display: flex; align-items: center; justify-content: space-between; }
+.share-host .sk-share-head h2 { margin: 0; font-family: var(--serif); font-size: 26px; font-weight: 600; color: #fff; }
+.share-host .sk-share-preview { flex: 0 1 auto; min-height: 0; display: grid; place-items: center; border-radius: 14px; overflow: hidden; background: #05080f; border: 1px solid var(--line-soft); aspect-ratio: 1080 / 1920; height: min(70vh, 640px, calc(100vh - 260px - var(--cookie-h, 0px)), calc((100vw - 54px) * 16 / 9)); max-height: 70vh; margin: 0 auto; max-width: 100%; }
+.share-host .sk-share-preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.share-host .sk-share-preview p { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 16px; color: var(--mute); text-align: center; }
+.share-host .sk-share-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.share-host .sk-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 10px; border-radius: 13px; border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.05); color: var(--text); font-size: 14px; font-weight: 500; white-space: nowrap; cursor: pointer; }
+.share-host .sk-btn:hover:not(:disabled) { border-color: var(--violet); }
+.share-host .sk-btn:disabled { opacity: 0.55; cursor: default; }
+.share-host .sk-btn.primary { grid-column: 1 / -1; background: linear-gradient(135deg, #7c3aed, #4f5fe0); border-color: transparent; color: #fff; }
+.share-host .sk-iconbtn { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 12px; border: 0; background: none; color: var(--mute); cursor: pointer; }
+.share-host .sk-iconbtn:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+.share-host .sk-btn:focus-visible, .share-host .sk-iconbtn:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.share-host .sk-share-msg { min-height: 18px; margin: 0; font-size: 12.5px; color: var(--mute); text-align: center; }
+.share-host .sk-share-msg.tone-ok { color: #9be7b4; } .share-host .sk-share-msg.tone-warn { color: #ffd9a0; }
+.share-host .sk-spin { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); border-top-color: currentColor; animation: share-spin 0.8s linear infinite; flex: none; }
+.share-host .sk-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@keyframes share-spin { to { transform: rotate(360deg); } }
+@keyframes share-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .share-host .sk-modal { animation: none; } .share-host .sk-spin { animation-duration: 2.4s; } }
+
+/* botón «Compartir» de cada elemento de Ahora: icono, 44 × 44 px de área táctil */
+.now-share-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 44px; min-height: 44px; padding: 0; border-radius: 12px; border: 1px solid rgba(167, 139, 250, 0.35); background: rgba(167, 139, 250, 0.08); color: #d9ccff; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.now-share-btn.has-text { padding: 0 14px; font-size: 14px; }
+.now-share-btn:hover { border-color: #a78bfa; background: rgba(167, 139, 250, 0.16); }
+.now-share-btn:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; }
+.now-share-btn > svg { flex: none; }
+/* posiciones dentro de cada tarjeta */
+.now-share-row { display: flex; align-items: flex-start; gap: 8px; }
+.now-share-row > :first-child { flex: 1 1 auto; min-width: 0; }
+.now-rock__share { align-self: start; }
+.now-rock.has-share { grid-template-columns: 44px minmax(0, 1fr) 44px; column-gap: 6px; }
+.sun-card__share { display: flex; justify-content: flex-end; margin-top: 8px; }

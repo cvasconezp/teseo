@@ -23,6 +23,7 @@ import Calendar from "./calendar/Calendar.jsx";
 import { SunSummary, SunContent } from "../sun/SunToday.jsx";
 import { TS } from "../sun/i18n.js";
 import { hasAnyData, SUN_PATH } from "../sun/sun.js";
+import { NowShareProvider, ShareButton } from "./share/NowShare.jsx";
 import "./now.css";
 
 const ASTEROID_DAYS = 30, ASTEROID_LD = 10;
@@ -222,7 +223,10 @@ function Craft({ s, lang, t }) {
   const old = s.stale ? (s.data_date && Number.isFinite(+parseISO(String(s.data_date))) ? t.craftStaleDate(fmtUtcDate(s.data_date, lang)) : t.craftStale) : null;
   return (
     <li className="now-craft__item">
-      <p className="now-craft__name">{s.name}</p>
+      <div className="now-share-row">
+        <p className="now-craft__name">{s.name}</p>
+        <ShareButton spec={{ kind: "mars", craft: s }} title={s.name} />
+      </div>
       {(s.agency || launched) && <p className="now-craft__meta">{[pickText(s.agency, lang), launched].filter(Boolean).join(" · ")}</p>}
       {earthKm === null ? <p className="now-craft__none">{t.noDistance}</p> : (
         <dl className="now-facts">
@@ -341,7 +345,10 @@ function LaunchItem({ l, lang, t, featured }) {
   return (
     <li className={`now-launch ${featured ? "is-next" : ""}`}>
       {featured && <p className="now-launch__flag">{t.nextUp}</p>}
-      <p className="now-launch__name">{l.name || mission || "—"}</p>
+      <div className="now-share-row">
+        <p className="now-launch__name">{l.name || mission || "—"}</p>
+        <ShareButton spec={{ kind: "launch", launch: l }} title={l.name || mission} />
+      </div>
       <p className="now-launch__when">
         <time dateTime={Number.isFinite(Date.parse(l.net)) ? new Date(l.net).toISOString() : undefined}>{launchWhen(l, lang, t)}</time>
         <StatusBadge l={l} t={t} />
@@ -512,7 +519,7 @@ function AsteroidsBody({ data, lang, t }) {
           const when = o.date && Number.isFinite(+parseISO(o.date)) ? fmtLocal(o.date, lang, true) : null;
           const on = i === selected;
           return (
-            <li key={`${o.name}-${o.date || i}`} className={`now-rock ${on ? "is-on" : ""}`}>
+            <li key={`${o.name}-${o.date || i}`} className={`now-rock has-share ${on ? "is-on" : ""}`}>
               <button type="button" className="now-rock__pick" aria-pressed={on} aria-label={t.showInChart(o.name)} onClick={() => pick(i)}>
                 <span className="now-rock__dot" aria-hidden="true" />
               </button>
@@ -538,6 +545,7 @@ function AsteroidsBody({ data, lang, t }) {
                   </p>
                 )}
               </div>
+              <ShareButton className="now-rock__share" spec={{ kind: "asteroid", rock: o }} title={o.name} />
             </li>
           );
         })}
@@ -569,6 +577,7 @@ function SunBody({ data, lang }) {
   return (
     <div className="sun-card">
       <SunSummary data={data} lang={lang} />
+      <div className="sun-card__share"><ShareButton spec={{ kind: "sun", sun: data }} title={ts.cardTitle} withText /></div>
       <p className="now-src sun-card__warn">{ts.cardWarn}</p>
       <button type="button" className="btn btn--ghost sun-card-more" aria-expanded={open} onClick={() => setOpen(o => !o)}>
         {open ? ts.cardLess : ts.cardMore}
@@ -587,6 +596,7 @@ export default function Now({ lang = "es", api = "" }) {
   const [rocks, retryRocks] = useEndpoint(`${api}/api/asteroids?days=${ASTEROID_DAYS}&dist_ld=${ASTEROID_LD}`, undefined, "asteroids");
   const [sun, retrySun] = useEndpoint(`${api}${SUN_PATH}`, undefined, "sun_today");
   return (
+    <NowShareProvider lang={lang} api={api}>
     <div className="now-grid now-grid--cal">
       <Calendar lang={lang} api={api} />
       <Card title={(TS[lang] || TS.es).cardTitle} cert="measured" certNote={(TS[lang] || TS.es).cardCert} state={sun} retry={retrySun} t={t} lang={lang}
@@ -606,5 +616,6 @@ export default function Now({ lang = "es", api = "" }) {
         {d => <AsteroidsBody data={d} lang={lang} t={t} />}
       </Card>
     </div>
+    </NowShareProvider>
   );
 }

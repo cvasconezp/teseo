@@ -32,9 +32,9 @@ export const PC_W = 1080, PC_H = 1920;
 export const SAFE_TOP = 220, SAFE_BOTTOM = 260;
 /** Casillas de la cuadrícula de datos: como mucho 6 (y al menos 4 si hay datos para ello). */
 export const GRID_MAX = 6, GRID_MIN = 4;
-const PAD = 64;
-const SERIF = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
-const SANS = "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+export const PAD = 64;
+export const SERIF = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
+export const SANS = "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const TAU = Math.PI * 2;
 /** Tamaños de la cuadrícula (px). Mínimo de cualquier texto: 24 px (créditos: 20 px). */
 export const GRID = { cols: 2, gap: 16, padX: 22, padY: 14, label: 24, sub: 24, valueMax: 50, valueOne: 36, valueMin: 30 };
@@ -119,7 +119,7 @@ export function zenithDir(lat, lon, date) {
 }
 
 // ── utilidades de lienzo ─────────────────────────────────────────────────
-function loadImage(src, cors, ms = 9000) {
+export function loadImage(src, cors, ms = 9000) {
   return new Promise((resolve) => {
     const img = new Image();
     if (cors) img.crossOrigin = "anonymous";
@@ -131,14 +131,14 @@ function loadImage(src, cors, ms = 9000) {
   });
 }
 /** ¿Se puede leer el lienzo después de dibujar esta imagen? (false = quedaría "tainted") */
-function isClean(img) {
+export function isClean(img) {
   try {
     const c = document.createElement("canvas"); c.width = c.height = 2;
     const x = c.getContext("2d"); x.drawImage(img, 0, 0, 2, 2); x.getImageData(0, 0, 1, 1);
     return true;
   } catch { return false; }
 }
-function roundRect(ctx, x, y, w, h, r) {
+export function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
   else { ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
@@ -146,7 +146,7 @@ function roundRect(ctx, x, y, w, h, r) {
 const hexRgb = (h) => { const n = parseInt(String(h || "#ffffff").slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 
 // ── el cielo de fondo ────────────────────────────────────────────────────
-function drawChart(ctx, o) {
+export function drawChart(ctx, o) {
   const { sky, conDirs, proj, avoid, bodies, highlight, lang, local, labelStars } = o;
   const W = PC_W, H = PC_H;
   const g = ctx.createRadialGradient(o.cx, o.cy, 0, o.cx, o.cy, H * 0.8);
@@ -267,7 +267,7 @@ function drawChart(ctx, o) {
   }
 }
 
-function drawReticle(ctx, x, y, r = 30) {
+export function drawReticle(ctx, x, y, r = 30) {
   ctx.save();
   ctx.strokeStyle = "#f2c66d"; ctx.lineWidth = 3; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 6;
   ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
@@ -570,7 +570,7 @@ function localLine(dir, local, t, lang, fmt) {
 }
 
 /** Texto con «Killa Ñan» resaltado: dibuja `line` desde x (alineado a la izquierda) en dos colores. */
-function drawHighlighted(ctx, line, x, y, color, hiColor, hi = "Killa Ñan") {
+export function drawHighlighted(ctx, line, x, y, color, hiColor, hi = "Killa Ñan") {
   const parts = line.split(hi);
   let cx = x;
   parts.forEach((part, i) => {

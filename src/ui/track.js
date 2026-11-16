@@ -25,6 +25,13 @@
 //     ni cookies para esto);
 //   · nunca lanza: la analítica no puede romper la app.
 
+// Imagen para compartir de la pestaña Ahora (src/now/share/NowShare.jsx → src/sky/ShareDialog.jsx):
+//   track(NOW_SHARE_EVENT, { kind, state })   kind ∈ NOW_SHARE_KINDS · state "ok" | "fail" (se generó o no)
+// Solo el TIPO de elemento, nunca cuál (ni el evento, ni el lanzamiento, ni el lugar). El servidor tiene la
+// misma lista blanca (backend/app/metrics.py, "now_share").
+export const NOW_SHARE_EVENT = "now_share";
+export const NOW_SHARE_KINDS = ["moon", "eclipse", "meteor", "planet", "season", "iss", "launch", "sun", "asteroid", "mars"];
+
 const ALLOWED = new Set([
   "tab", "from", "to", "origin", "destination", "lang", "section", "source", "card", "layer", "id", "state",
   "q", "preset", "kind", "endpoint", "screen", "setting",

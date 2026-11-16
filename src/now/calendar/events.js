@@ -136,7 +136,9 @@ export function normalizeIss(data) {
       id: `iss-${ymd(t)}-${new Date(t).toISOString().slice(11, 16).replace(":", "")}`, type: "iss", sub: "pass", t,
       durationMin: Math.max(5, Math.round((Number(dur) || 300) / 60)), visible: true,
       data: { maxAlt: Number.isFinite(p.max_alt) ? p.max_alt : (p.max && Number.isFinite(p.max.alt) ? p.max.alt : null), maxT: Number.isFinite(max) ? max : null,
-        from: p.start || null, to: p.end || null, durationS: Number.isFinite(dur) ? dur : null, mag: Number.isFinite(p.mag) ? p.mag : null, endT: Number.isFinite(end) ? end : null },
+        from: p.start || null, to: p.end || null, durationS: Number.isFinite(dur) ? dur : null, mag: Number.isFinite(p.mag) ? p.mag : null, endT: Number.isFinite(end) ? end : null,
+        // trayectoria SGP4 del servidor ({ t, alt, az, lit } cada ~10 s): la usa la imagen para compartir
+        track: Array.isArray(p.track) && p.track.length >= 2 ? p.track : null },
     });
   }
   return out;

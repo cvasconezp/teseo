@@ -11,6 +11,7 @@ import { buildSkyEvents, buildFeedEvents, sortEvents, groupByMonth, readPlace, T
 import { TC, describeEvent } from "./i18n.js";
 import { downloadIcs } from "./ics.js";
 import { loadIssPasses } from "./issLoader.js";
+import { ShareButton } from "../share/NowShare.jsx";
 import {
   detectPush, browserEnv, permission, loadPublicKey, localReminders, leadOptions, reminderTimes, canRemind,
   addReminder, removeReminder, sendTest, PUSH_EVENT, STORE_KEY,
@@ -321,6 +322,7 @@ function EventItem({ ev, lang, fmt, t, api, push }) {
               {t.seeSky}
             </a>
           )}
+          <ShareButton spec={{ kind: ev.type, ev }} title={info.title} />
           {info.links.map(k => (
             <a key={k.href} className="now-link cal-link" href={k.href} target="_blank" rel="noopener noreferrer">{k.label}<span className="now-sr"> ({t.opensNew})</span></a>
           ))}

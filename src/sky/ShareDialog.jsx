@@ -2,6 +2,11 @@
 // + Compartir (Web Share con el PNG; el texto menciona a Killa Ñan),
 // Descargar y Copiar enlace. Es un diálogo modal: atrapa el foco, Esc lo cierra y al
 // cerrarse devuelve el foco al botón que lo abrió.
+//
+// Genérico: `build()` es cualquier generador de lienzo que devuelva { canvas, report } (la postal del Cielo,
+// src/sky/postcard.js, o las imágenes de «Ahora», src/share/card.js). Las props opcionales `shareText`,
+// `shareUrl`, `fileName` y `metric` permiten otro texto, enlace, nombre de archivo y métrica; sin ellas,
+// el comportamiento es el de siempre en el Cielo.
 import { useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { canvasBlob } from "./postcard.js";
@@ -14,7 +19,8 @@ export function canShareFile(file) {
   try { return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); } catch { return false; }
 }
 
-export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkState }) {
+export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkState, shareText, shareUrl, fileName, metric }) {
+  const m = metric || { event: "sky_postcard", params: {} };
   const [state, setState] = useState("making");        // making | ready | failed
   const [url, setUrl] = useState(null);
   const [msg, setMsg] = useState(null);                 // { tone: "ok" | "warn", text }
@@ -30,13 +36,13 @@ export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkS
         const { canvas, report } = await build();
         const blob = await canvasBlob(canvas);
         if (dead) return;
-        if (!blob) { setState("failed"); track("sky_postcard", { state: "fail" }); return; }
-        const file = new File([blob], fileNameFor(name), { type: "image/png" });
+        if (!blob) { setState("failed"); track(m.event, { ...m.params, state: "fail" }); return; }
+        const file = new File([blob], fileName || fileNameFor(name), { type: "image/png" });
         fileRef.current = file; reportRef.current = report;
         objectUrl = URL.createObjectURL(blob);
         setShareable(canShareFile(file));
-        setUrl(objectUrl); setState("ready"); track("sky_postcard", { state: "ok" });
-      } catch { if (!dead) { setState("failed"); track("sky_postcard", { state: "fail" }); } }
+        setUrl(objectUrl); setState("ready"); track(m.event, { ...m.params, state: "ok" });
+      } catch { if (!dead) { setState("failed"); track(m.event, { ...m.params, state: "fail" }); } }
     })();
     return () => { dead = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -74,7 +80,8 @@ export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkS
     const file = fileRef.current; if (!file) return;
     if (!canShareFile(file)) { download(); setMsg({ tone: "warn", text: t.shareNoFiles }); return; }
     try {
-      await navigator.share({ files: [file], title: name ? t.shareText(name) : t.shareTextSky, text: `${name ? t.shareText(name) : t.shareTextSky} · ${window.location.href}` });
+      const text = shareText || (name ? t.shareText(name) : t.shareTextSky);
+      await navigator.share({ files: [file], title: text, text: `${text} · ${shareUrl || window.location.href}` });
       setMsg({ tone: "ok", text: t.shareSent });
     } catch (e) {
       if (e && e.name === "AbortError") return;        // la persona cerró la hoja de compartir: no es un error
@@ -89,7 +96,7 @@ export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkS
           <h2 id="sk-share-title">{t.shareTitle}</h2>
           <button type="button" className="sk-iconbtn" onClick={onClose} aria-label={t.close}><Icon name="close" size={18} /></button>
         </header>
-        <div className={`sk-share-preview is-${state}`} data-hero={report ? report.hero : undefined} data-hero-source={report ? report.heroSource : undefined} data-overflow={report ? String(report.overflow) : undefined} data-truncated={report ? String(report.truncated) : undefined}>
+        <div className={`sk-share-preview is-${state}`} data-hero={report ? report.hero : undefined} data-hero-source={report ? report.heroSource : undefined} data-overflow={report ? String(report.overflow) : undefined} data-truncated={report ? String(report.truncated) : undefined} data-safe={report && report.safeZoneOk != null ? String(report.safeZoneOk) : undefined}>
           {state === "making" && <p role="status"><i className="sk-spin" />{t.shareMaking}</p>}
           {state === "failed" && <p role="alert"><Icon name="warn" size={18} />{t.shareFailed}</p>}
           {state === "ready" && <img src={url} alt={name ? t.shareAlt(name) : t.shareAltSky} width="1080" height="1920" />}

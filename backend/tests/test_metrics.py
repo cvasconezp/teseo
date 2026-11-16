@@ -439,6 +439,23 @@ def test_now_calendar_card_whitelist():
     assert ev["p"] == {"card": "calendar"}
 
 
+def test_now_share_lista_blanca(store):
+    # «Compartir» en Ahora: solo el tipo de elemento y si la imagen se generó
+    for kind in ("moon", "eclipse", "meteor", "planet", "season", "iss", "launch", "sun", "asteroid", "mars"):
+        for state in ("ok", "fail"):
+            assert metrics.clean_event({"e": "now_share", "p": {"kind": kind, "state": state}}) == {"e": "now_share", "p": {"kind": kind, "state": state}}
+    # nunca el título del evento, el lanzamiento, el lugar ni valores fuera de la lista
+    ev = metrics.clean_event({"e": "now_share", "p": {"kind": "launch", "state": "ok", "id": "Falcon 9 | Crew-13",
+                                                      "lat": -0.22, "lon": -78.51, "place": "Quito"}})
+    assert ev == {"e": "now_share", "p": {"kind": "launch", "state": "ok"}}
+    assert metrics.clean_event({"e": "now_share", "p": {"kind": "teleport", "state": "maybe"}})["p"] == {}
+    r = post({"e": "now_share", "p": {"kind": "meteor", "state": "ok", "place": "Quito"}})
+    assert r.status_code == 204
+    store.flush()
+    raw = open(store.path, encoding="utf-8").read()
+    assert "now_share" in raw and "kind:meteor" in raw and "Quito" not in raw
+
+
 def test_q_search_y_q_nav():
     # buscador del índice de Preguntas (nunca el texto escrito) y navegación entre preguntas
     assert metrics.clean_event({"e": "q_search", "p": {"state": "ok", "q": "agujero negro"}})["p"] == {"state": "ok"}
