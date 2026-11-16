@@ -19,7 +19,7 @@ ok(/A\d/.test(arcPath(10, 0, Math.PI, 1)) && (arcPath(10, 0, Math.PI, 1).match(/
 
 console.log("Vía Láctea");
 const g1 = galaxyPoints(), g2 = galaxyPoints();
-ok(g1.length === 700 && JSON.stringify(g1) === JSON.stringify(g2), "700 puntos, siempre iguales (semilla fija)");
+ok(g1.length > 1000 && JSON.stringify(g1) === JSON.stringify(g2), "unos 1100 puntos, siempre iguales (semilla fija)");
 ok(g1.every(([x, y]) => Math.hypot(x, y) <= 110), "todos dentro del dibujo");
 ok(Math.hypot(...SUN_IN_GALAXY) > 30 && Math.hypot(...SUN_IN_GALAXY) < 60, "el Sol, a medio camino del centro");
 

@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.4.1 — 16 de noviembre de 2026
+
+- Entrada: la Vía Láctea ahora se parece a la nuestra — espiral barrada con
+  barra central, dos brazos principales (Escudo-Centauro y Perseo), dos menores
+  (Norma y Sagitario) y el brazo de Orión, donde se marca el Sol.
+
 ## 1.4.0 — 16 de noviembre de 2026
 
 - Música ambiental: botón ♪ en la cabecera para activarla o apagarla. Se genera

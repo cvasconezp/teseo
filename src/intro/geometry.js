@@ -72,29 +72,71 @@ export function seeded(seed = 7) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
 
-/** Puntos de la Vía Láctea: bulbo + dos brazos en espiral logarítmica. [x, y, r, color, opacidad]. */
-export function galaxyPoints(n = 700) {
+/**
+ * Puntos de la Vía Láctea, vista de frente: una espiral BARRADA como la nuestra (barra central
+ * de ~5 kpc, dos brazos principales —Escudo-Centauro y Perseo— y dos menores —Norma y
+ * Sagitario—, con un ángulo de paso de ~12°), un disco tenue y el brazo de Orión, el
+ * pequeño brazo donde está el Sol. Es una representación, no un mapa: la forma general
+ * sigue a Churchwell et al. (2009, Spitzer/GLIMPSE) y Reid et al. (2019).
+ * Cada punto: [x, y, radio, color, opacidad].
+ */
+export const ARM_PITCH = 12 * D2R;                 // ángulo de paso de los brazos
+const BAR_HALF = 20, BAR_TILT = 27 * D2R, R_MAX = 92;
+const B = Math.tan(ARM_PITCH);
+/** Punto del brazo k (0–3) a la fracción u (0–1) de su recorrido, en el plano de la galaxia. */
+function armPoint(k, u) {
+  const th = u * Math.log(R_MAX / BAR_HALF) / B;  // de la punta de la barra al borde
+  const r = BAR_HALF * Math.exp(B * th);
+  const a = BAR_TILT + k * Math.PI / 2 + th;
+  return [r, a];
+}
+export function galaxyPoints(n = 1100) {
   const rnd = seeded(11);
+  const gauss = () => (rnd() + rnd() + rnd() + rnd() - 2) / 0.58;   // ≈ normal(0, 1)
   const pts = [];
-  const cols = ["#ffffff", "#c9b8ff", "#9ec5ff", "#ffe6b0"];
-  for (let i = 0; i < n; i++) {
-    let x, y, r;
-    if (i < n * 0.18) {                               // bulbo central
-      r = Math.abs((rnd() + rnd() + rnd() - 1.5) * 16);
-      const a = rnd() * TAU;
-      x = r * Math.cos(a); y = r * Math.sin(a) * 0.8;
-    } else {                                          // brazos
-      const arm = i % 2, t = rnd() * 3.2 + 0.3;
-      r = 7 * Math.exp(0.78 * t);
-      if (r > 92) r = 92 - rnd() * 8;
-      const a = t * 1.25 + arm * Math.PI + (rnd() - 0.5) * 0.5;
-      const spread = (rnd() - 0.5) * (4 + r * 0.12);
-      x = (r + spread) * Math.cos(a); y = (r + spread) * Math.sin(a) * 0.8;
+  const warm = ["#fff3d6", "#ffe6b0", "#ffd9a0"], cool = ["#ffffff", "#c9b8ff", "#9ec5ff", "#b9d4ff"];
+  const push = (x, y, size, col, op) => pts.push([f(x), f(y * 0.86), f(size), col, f(op)]);
+  const nBar = Math.round(n * 0.15), nDisk = Math.round(n * 0.07), nSpur = Math.round(n * 0.04);
+  const nArms = n - nBar - nDisk - nSpur;
+  // barra y bulbo: estrellas viejas, amarillentas
+  for (let i = 0; i < nBar; i++) {
+    const along = gauss() * BAR_HALF * 0.5, across = gauss() * 5.5;
+    const x = along * Math.cos(BAR_TILT) - across * Math.sin(BAR_TILT), y = along * Math.sin(BAR_TILT) + across * Math.cos(BAR_TILT);
+    push(x, y, 0.4 + rnd() * 0.8, warm[Math.floor(rnd() * warm.length)], 0.45 + rnd() * 0.5);
+  }
+  // brazos: los principales (0 y 2) con más estrellas que los menores (1 y 3)
+  const weight = [1, 0.55, 1, 0.55], wsum = weight.reduce((a, b) => a + b, 0);
+  for (let k = 0; k < 4; k++) {
+    const m = Math.round(nArms * weight[k] / wsum);
+    for (let i = 0; i < m; i++) {
+      const u = Math.pow(rnd(), 0.8);
+      const [r, a] = armPoint(k, u);
+      const w = (1.1 + r * 0.03) * gauss();
+      const along = (rnd() - 0.5) * 3;
+      const x = (r + w) * Math.cos(a) - along * Math.sin(a), y = (r + w) * Math.sin(a) + along * Math.cos(a);
+      push(x, y, 0.35 + rnd() * (k % 2 ? 0.7 : 1), cool[Math.floor(rnd() * cool.length)], (k % 2 ? 0.3 : 0.4) + rnd() * 0.55);
     }
-    pts.push([f(x), f(y), f(0.35 + rnd() * 0.9), cols[Math.floor(rnd() * cols.length)], f(0.35 + rnd() * 0.6)]);
+  }
+  // disco tenue entre los brazos
+  for (let i = 0; i < nDisk; i++) {
+    const r = BAR_HALF * 0.6 + Math.abs(gauss()) * 34, a = rnd() * TAU;
+    if (r > R_MAX) continue;
+    push(r * Math.cos(a), r * Math.sin(a), 0.3 + rnd() * 0.4, cool[0], 0.15 + rnd() * 0.25);
+  }
+  // brazo de Orión: un tramo corto donde está el Sol
+  const [sr, sa] = SUN_POLAR;
+  for (let i = 0; i < nSpur; i++) {
+    const t = (rnd() - 0.5) * 0.55, r = sr + t * 28 + gauss() * 2.2, a = sa + t * 0.9;
+    push(r * Math.cos(a), r * Math.sin(a), 0.35 + rnd() * 0.6, cool[Math.floor(rnd() * cool.length)], 0.35 + rnd() * 0.45);
   }
   return pts;
 }
 
-/** Dónde está el Sol en el dibujo de la galaxia (a unos 26 000 de 50 000 años luz del centro: ~0,55 del radio). */
-export const SUN_IN_GALAXY = (() => { const [x, y] = pt(50, -0.6); return [x, f(y * 0.8)]; })();
+/** El Sol: a ~8,2 kpc del centro de un disco de ~15 kpc (0,55 del radio dibujado), en el brazo
+ *  de Orión, entre los brazos de Perseo (principal) y Sagitario (menor). [radio, ángulo]. */
+export const SUN_POLAR = (() => {
+  const r = R_MAX * 0.55;
+  const th = Math.log(r / BAR_HALF) / B;                 // en el brazo 0 a ese radio…
+  return [r, BAR_TILT + th + Math.PI / 4];             // …y un cuarto de vuelta entre brazos más allá
+})();
+export const SUN_IN_GALAXY = (() => { const [r, a] = SUN_POLAR; return [f(r * Math.cos(a)), f(r * Math.sin(a) * 0.86)]; })();
