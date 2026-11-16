@@ -1,7 +1,8 @@
-// Now.jsx — "Ahora en el espacio": tres tarjetas con datos en vivo.
+// Now.jsx — "Ahora en el espacio": tarjetas con datos en vivo.
 //   · Rumbo a Marte ahora      GET /api/missions/mars
 //   · Próximos lanzamientos    GET /api/launches?limit=8
 //   · Asteroides que pasan     GET /api/asteroids?days=30&dist_ld=10
+//   · El Sol hoy               GET /api/sun/today
 // Se carga en su propio chunk (lazy desde App.jsx) y cada tarjeta es
 // independiente: si un endpoint aún no existe (404) o falla, esa tarjeta lo
 // dice y las demás siguen. Todo número derivado (tiempo de señal, tamaños,
@@ -19,6 +20,9 @@ import {
 import { TN } from "./i18n.jsx";
 import { track, trackOnce, trackNetError } from "../ui/track.js";
 import Calendar from "./calendar/Calendar.jsx";
+import { SunSummary, SunContent } from "../sun/SunToday.jsx";
+import { TS } from "../sun/i18n.js";
+import { hasAnyData, SUN_PATH } from "../sun/sun.js";
 import "./now.css";
 
 const ASTEROID_DAYS = 30, ASTEROID_LD = 10;
@@ -554,6 +558,26 @@ function AsteroidsBody({ data, lang, t }) {
   );
 }
 
+// ─── 4 · El Sol hoy ──────────────────────────────────────────────────────────
+// Resumen (imagen + manchas + Kp + mayor fulguración) y, al pulsar, el mismo detalle que la ficha del Sol
+// en el Cielo (src/sun/SunToday.jsx). Datos: GET /api/sun/today (SILSO, NOAA SWPC, NASA SDO).
+function SunBody({ data, lang }) {
+  const [open, setOpen] = useState(false);
+  const ts = TS[lang] || TS.es;
+  useEffect(() => { trackOnce("sun_today:now", "sun_today", { source: "now" }); }, []);
+  if (!hasAnyData(data)) return <p className="now-state__body">{ts.emptyBody}</p>;
+  return (
+    <div className="sun-card">
+      <SunSummary data={data} lang={lang} />
+      <p className="now-src sun-card__warn">{ts.cardWarn}</p>
+      <button type="button" className="btn btn--ghost sun-card-more" aria-expanded={open} onClick={() => setOpen(o => !o)}>
+        {open ? ts.cardLess : ts.cardMore}
+      </button>
+      {open && <div className="sun-card-detail"><SunContent data={data} lang={lang} /></div>}
+    </div>
+  );
+}
+
 // ─── Módulo ──────────────────────────────────────────────────────────────────
 
 export default function Now({ lang = "es", api = "" }) {
@@ -561,9 +585,14 @@ export default function Now({ lang = "es", api = "" }) {
   const [mars, retryMars] = useEndpoint(`${api}/api/missions/mars`, marsPending, "missions_mars");
   const [launches, retryLaunches] = useEndpoint(`${api}/api/launches?limit=8`, undefined, "launches");
   const [rocks, retryRocks] = useEndpoint(`${api}/api/asteroids?days=${ASTEROID_DAYS}&dist_ld=${ASTEROID_LD}`, undefined, "asteroids");
+  const [sun, retrySun] = useEndpoint(`${api}${SUN_PATH}`, undefined, "sun_today");
   return (
     <div className="now-grid now-grid--cal">
       <Calendar lang={lang} api={api} />
+      <Card title={(TS[lang] || TS.es).cardTitle} cert="measured" certNote={(TS[lang] || TS.es).cardCert} state={sun} retry={retrySun} t={t} lang={lang}
+        area="sun" fallbackSource="SILSO, NOAA SWPC, NASA SDO">
+        {d => <SunBody data={d} lang={lang} />}
+      </Card>
       <Card title={t.marsTitle} cert="measured" certNote={t.marsCert} state={mars} retry={retryMars} t={t} lang={lang}
         area="mars" fallbackSource="NASA JPL Horizons">
         {(d, st) => <MarsBody data={d} more={st.more} lang={lang} t={t} />}

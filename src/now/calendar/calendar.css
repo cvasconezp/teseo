@@ -4,7 +4,8 @@
 
 .now-card--cal { grid-column: 1 / -1; }
 @media (min-width: 1024px) {
-  .now-grid.now-grid--cal { grid-template-rows: auto auto 1fr; grid-template-areas: "cal cal" "mars launches" "asteroids launches"; }
+  .now-grid.now-grid--cal { grid-template-rows: auto auto auto 1fr; grid-template-areas: "cal cal" "sun launches" "mars launches" "asteroids launches"; }
+  .now-grid.now-grid--cal .now-card--sun { grid-area: sun; }
   .now-grid.now-grid--cal .now-card--cal { grid-area: cal; }
 }
 

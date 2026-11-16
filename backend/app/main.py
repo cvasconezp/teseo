@@ -19,6 +19,7 @@ Endpoints:
   GET  /api/launches                  → próximos lanzamientos (Launch Library 2)
   GET  /api/asteroids                 → acercamientos a la Tierra (JPL CNEOS)
   GET  /api/iss/passes                → pasadas de la ISS sobre un lugar (CelesTrak + SGP4)
+  GET  /api/sun/today                 → «El Sol hoy»: manchas (SILSO), regiones, fulguraciones, Kp, ciclo (NOAA SWPC), imagen SDO
   GET  /api/missions/mars             → ventana a Marte + naves con destino Marte
   POST /api/m  (= /api/metrics/event) → métricas de uso anónimas y agregadas (204 siempre)
   GET  /api/metrics/summary[.csv]     → resumen de uso (token TESEO_METRICS_TOKEN; 404 sin él)
@@ -50,6 +51,7 @@ from app import launches
 from app import asteroids
 from app import iss
 from app import push
+from app import sun
 from app import metrics
 from app import lambert
 from app import mga
@@ -74,6 +76,7 @@ _CACHE_SECONDS = [
     ("/api/launches", 300),
     ("/api/asteroids", 900),
     ("/api/iss", 300),
+    ("/api/sun", 600),
     ("/api/missions/", 600),
     ("/api/probes", 600),
     ("/api/comets", 600),
@@ -196,6 +199,7 @@ def api_health():
             "launches": {"provider": launches.SOURCE, **launches.resource.status()},
             "asteroids": {"provider": asteroids.SOURCE, **asteroids.resource.status()},
             "iss": {"provider": iss.SOURCE, **iss.resource.status()},
+            "sun": {"provider": "SILSO / NOAA SWPC / NASA SDO", **sun.status()},
             "exoplanets": {"provider": "NASA Exoplanet Archive", **exoplanets.resource.status()},
             "positions": {"provider": "NASA JPL Horizons", **nasa_horizons.positions_status()},
             "probes": {"provider": "NASA JPL Horizons", **nasa_horizons._probe_set.status()},
@@ -308,6 +312,7 @@ async def _metrics_flusher():
     app.state.metrics_task = asyncio.create_task(loop())
 
 
+app.include_router(sun.router)  # «El Sol hoy»: /api/sun/today (app/sun.py)
 app.include_router(push.router)  # «Recordarme»: /api/push/* y su bucle de envío (arranque/parada en app/push.py)
 
 

@@ -71,14 +71,14 @@ SCREENS = {"small", "medium", "large"}
 ON_OFF = {"on", "off"}
 TOURS = {"drake", "bh", "expansion", "dm", "mass", "time", "gw", "spectrum"}
 COOP_FROM = {"footer", "header", "credits"}
-NOW_CARDS = {"mars", "launches", "asteroids", "calendar"}
+NOW_CARDS = {"mars", "launches", "asteroids", "calendar", "sun"}
 NOW_KINDS = {"details", "webcast", "info", "show_all", "select", "ld_help", "cneos", "filter", "ics", "sky"}
 NOW_SOURCES = {"link", "windows", "route", "header", "teaser"}
 SPECIAL_DESTS = {"moon", "sun"}
 SPECIAL_KINDS = {"view", "link", "venus", "pick"}
 ENDPOINTS = {
     "missions_mars", "launches", "asteroids", "launch_windows", "position", "distance", "route",
-    "exoplanets", "comets", "probes", "blackholes_json", "trajectory", "iss_passes", "mga", "other",
+    "exoplanets", "comets", "probes", "blackholes_json", "trajectory", "iss_passes", "mga", "other", "sun_today",
 }
 ERROR_KINDS = {"timeout", "http4xx", "http5xx", "network", "parse"}
 SKY_LAYERS = {"messier", "pulsars", "blackholes", "galaxies", "meteors", "comets", "probes", "exoplanets"}
@@ -154,6 +154,9 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     # «Recordarme» del Calendario del cielo (src/now/calendar/push.js): solo qué pasó, nunca la
     # suscripción ni su endpoint ni el evento elegido.
     "push_remind":        {"kind": PUSH_KINDS},
+    # «El Sol hoy» (src/sun/): la ficha del Sol en el Cielo («sheet») o la tarjeta de Ahora en el espacio («now»).
+    # Solo cuenta que se vio, nunca el dato mostrado.
+    "sun_today":          {"source": {"sheet", "now"}},
 }
 
 # Pares que interesa contar juntos (además de por separado)

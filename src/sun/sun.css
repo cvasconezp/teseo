@@ -1,0 +1,121 @@
+/* sun.css — «El Sol hoy». Funciona dentro de la ficha del Cielo y de la tarjeta de Ahora en el espacio:
+   no depende de variables de ninguna de las dos (todo se define aquí, con prefijo sun-). */
+.sun-today, .sun-summary, .sun-content {
+  --sun-text: rgba(255, 255, 255, 0.92);
+  --sun-mute: rgba(238, 240, 250, 0.72);
+  --sun-line: rgba(255, 255, 255, 0.12);
+  --sun-panel: rgba(255, 255, 255, 0.045);
+  --sun-gold: #F2C46D;
+  --sun-warm: #FFB454;
+  --sun-blue: #7DB4FF;
+  --sun-ok: #6EE7A8;
+  --sun-bad: #FF8A7A;
+}
+.sun-today { min-width: 0; padding: 14px 14px 16px; border-radius: 16px; background: rgba(242, 196, 109, 0.06); border: 1px solid rgba(242, 196, 109, 0.28); color: var(--sun-text); }
+.sun-title { font-family: var(--serif, Georgia, serif); font-size: 24px; font-weight: 600; line-height: 1.15; color: #fff; margin: 0; }
+.sun-lead { margin: 4px 0 12px; font-size: 14px; line-height: 1.45; color: var(--sun-mute); }
+.sun-content { display: flex; flex-direction: column; gap: 14px; min-width: 0; font-size: 14px; line-height: 1.5; }
+.sun-content p, .sun-today p { margin: 0; }
+.sun-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sun-link { color: #C4B5FD; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; overflow-wrap: anywhere; }
+.sun-link:hover { color: #fff; }
+.sun-small { font-size: 12.5px; line-height: 1.45; color: var(--sun-mute); }
+.sun-stale { padding-left: 10px; border-left: 2px solid var(--sun-gold); }
+.sun-src { font-size: 12.5px; }
+
+/* Advertencia de seguridad: siempre visible, arriba */
+.sun-warn { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: rgba(255, 138, 122, 0.12); border: 1px solid rgba(255, 138, 122, 0.55); color: #FFD9D3; font-size: 13.5px; line-height: 1.45; }
+.sun-warn svg { flex: none; margin-top: 1px; color: var(--sun-bad); }
+.sun-warn strong { color: #fff; }
+
+/* Imagen */
+.sun-figure { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.sun-img { position: relative; width: 100%; max-width: 420px; aspect-ratio: 1 / 1; margin-inline: auto; border-radius: 50%; overflow: hidden; background: #000; border: 1px solid var(--sun-line); }
+.sun-img img { transform: scale(1.04); display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.4s; }
+.sun-img.is-loaded img { opacity: 1; }
+.sun-img__fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 18%; text-align: center; font-size: 13px; color: var(--sun-mute); }
+.sun-figure figcaption { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; line-height: 1.45; color: var(--sun-mute); }
+
+/* Bloques */
+.sun-block { display: flex; flex-direction: column; gap: 7px; padding: 12px; border-radius: 14px; background: var(--sun-panel); border: 1px solid var(--sun-line); min-width: 0; }
+.sun-h { margin: 0; font-family: var(--serif, Georgia, serif); font-size: 19px; font-weight: 600; line-height: 1.2; color: #fff; text-wrap: balance; }
+.sun-missing { padding-left: 10px; border-left: 2px solid var(--sun-gold); font-size: 13.5px; color: var(--sun-text); }
+.sun-missing small { display: block; margin-top: 3px; font-size: 12px; color: var(--sun-mute); overflow-wrap: anywhere; }
+
+/* Número grande (manchas, fulguración, Kp) */
+.sun-big, .sun-flare, .sun-kp { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.sun-big__n, .sun-flare__cls, .sun-kp__v { font-family: var(--serif, Georgia, serif); font-size: 46px; font-weight: 600; line-height: 1; color: var(--sun-gold); font-variant-numeric: tabular-nums; }
+.sun-big__meta, .sun-flare__meta { display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; line-height: 1.4; color: var(--sun-mute); min-width: 0; flex: 1 1 140px; }
+.sun-flare.is-medium .sun-flare__cls { color: var(--sun-warm); }
+.sun-flare.is-big .sun-flare__cls { color: var(--sun-bad); }
+.sun-flare.is-quiet .sun-flare__cls, .sun-flare.is-small .sun-flare__cls { color: var(--sun-ok); }
+.sun-kp.is-quiet .sun-kp__v { color: var(--sun-ok); }
+.sun-kp.is-active .sun-kp__v { color: var(--sun-warm); }
+.sun-kp.is-storm .sun-kp__v { color: var(--sun-bad); }
+.sun-kp__scale { display: inline-flex; gap: 3px; align-items: flex-end; }
+.sun-kp__scale i { display: block; width: 9px; height: 14px; border-radius: 2px; border: 1px solid var(--sun-line); background: transparent; }
+.sun-kp__scale i:nth-child(n+4) { height: 20px; }
+.sun-kp__scale i:nth-child(n+6) { height: 26px; }
+.sun-kp__scale i.on { background: var(--sun-gold); border-color: var(--sun-gold); }
+
+/* Regiones */
+.sun-regions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sun-regions li { padding: 9px 10px; border-radius: 12px; border: 1px solid var(--sun-line); background: rgba(0, 0, 0, 0.18); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sun-reg__head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.sun-reg__head b { color: #fff; font-size: 15px; }
+.sun-reg__loc { font-family: var(--mono, ui-monospace, monospace); font-size: 13px; color: var(--sun-blue); }
+.sun-reg__spots { font-size: 12.5px; color: var(--sun-mute); margin-left: auto; }
+.sun-reg__size { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.sun-reg__size b { color: var(--sun-gold); }
+
+/* Gráfica del ciclo */
+.sun-cycle { width: 100%; height: auto; display: block; overflow: visible; }
+.sun-cycle__grid { stroke: var(--sun-line); stroke-width: 1; }
+.sun-cycle__tick, .sun-cycle__axis { fill: var(--sun-mute); font-size: 10px; font-family: var(--sans, system-ui, sans-serif); }
+.sun-cycle__lbl { fill: var(--sun-mute); font-size: 10px; font-family: var(--sans, system-ui, sans-serif); }
+.sun-cycle__monthly { fill: none; stroke: rgba(255, 255, 255, 0.4); stroke-width: 1; stroke-linejoin: round; }
+.sun-cycle__smooth { fill: none; stroke: var(--sun-gold); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
+.sun-cycle__pred { fill: none; stroke: var(--sun-blue); stroke-width: 2; stroke-dasharray: 5 4; }
+.sun-cycle__band { fill: rgba(125, 180, 255, 0.16); stroke: none; }
+.sun-cycle__today { stroke: #fff; stroke-width: 1.2; stroke-dasharray: 2 3; }
+.sun-cycle__dot { fill: var(--sun-warm); stroke: #fff; stroke-width: 1.4; }
+.sun-cycle__todaylbl { fill: #fff; font-size: 11px; font-weight: 600; font-family: var(--sans, system-ui, sans-serif); paint-order: stroke; stroke: rgba(4, 8, 15, 0.85); stroke-width: 3px; }
+.sun-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--sun-mute); }
+.sun-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.sun-legend i { display: inline-block; width: 22px; height: 0; border-top: 2px solid; }
+.sun-legend .k-monthly { border-color: rgba(255, 255, 255, 0.5); border-top-width: 1px; }
+.sun-legend .k-smooth { border-color: var(--sun-gold); border-top-width: 3px; }
+.sun-legend .k-pred { border-color: var(--sun-blue); border-top-style: dashed; }
+
+.sun-sources { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--sun-mute); }
+
+/* Estados y botón */
+.sun-state { display: flex; flex-direction: column; gap: 8px; }
+.sun-state__title { font-weight: 600; color: #fff; }
+.sun-state--off { padding: 12px; border-radius: 12px; border: 1px dashed var(--sun-line); font-size: 13.5px; color: var(--sun-mute); }
+.sun-skel { display: block; height: 14px; border-radius: 7px; background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.14), rgba(255,255,255,.06)); background-size: 200% 100%; animation: sun-sh 1.4s linear infinite; }
+.sun-skel--short { width: 60%; }
+@keyframes sun-sh { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .sun-skel { animation: none; } .sun-img img { transition: none; } }
+.sun-btn { align-self: flex-start; min-height: 44px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.28); background: transparent; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
+.sun-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.sun-btn:focus-visible, .sun-link:focus-visible { outline: 2px solid #C4B5FD; outline-offset: 2px; }
+
+/* Resumen compacto de la tarjeta de «Ahora en el espacio» */
+.sun-summary { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.sun-summary__img { flex: none; width: 96px; height: 96px; border-radius: 50%; object-fit: cover; background: #000; border: 1px solid var(--sun-line); }
+.sun-summary__stats { flex: 1 1 auto; min-width: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sun-summary__stats > div { min-width: 0; padding: 8px 8px 9px; border-radius: 12px; border: 1px solid var(--sun-line); background: var(--sun-panel); }
+.sun-summary__stats dt { font-size: 11.5px; line-height: 1.25; color: var(--sun-mute); margin-bottom: 4px; }
+.sun-summary__stats dd { margin: 0; font-family: var(--serif, Georgia, serif); font-size: 24px; font-weight: 600; line-height: 1.05; color: var(--sun-gold); font-variant-numeric: tabular-nums; }
+.sun-summary__stats dd small { font-family: var(--sans, system-ui, sans-serif); font-size: 12px; font-weight: 400; color: var(--sun-mute); }
+.sun-summary__stats dd.is-quiet, .sun-summary__stats dd.is-small { color: var(--sun-ok); }
+.sun-summary__stats dd.is-active, .sun-summary__stats dd.is-medium { color: var(--sun-warm); }
+.sun-summary__stats dd.is-storm, .sun-summary__stats dd.is-big { color: var(--sun-bad); }
+@media (max-width: 420px) {
+  .sun-summary { flex-direction: column; align-items: stretch; }
+  .sun-summary__img { align-self: center; }
+}
+.sun-card-more { margin-top: 12px; }
+.sun-card-detail { margin-top: 12px; }
+.sun-card-detail .sun-today { padding: 0; background: none; border: 0; }

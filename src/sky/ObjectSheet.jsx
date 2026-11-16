@@ -17,6 +17,7 @@ import { visibilityOf } from "./objVisibility.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import { citizenFor, CITIZEN_VERIFIED } from "./citizen.js";
 import { useDialogFocus } from "./focus.js";
+import SunToday from "../sun/SunToday.jsx";
 import { nasaImageFor, nasaKindKey, imageOrder, nasaStatus, setNasaStatus } from "./nasaImages.js";
 
 // describeObject (función pura) vive en describe.js; se reexporta aquí para quien ya lo importaba.
@@ -290,6 +291,8 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, credit, met
         )}
         {info.note && <p className="sk-note">{info.note}</p>}
         {!isNote && <RiseSet obj={obj} t={t} lang={lang} local={local} when={when} onNeedPlace={onNeedPlace} />}
+        {/* «El Sol hoy»: manchas, regiones activas, fulguraciones, Kp y ciclo con datos reales (src/sun/) */}
+        {obj.layer === "solar" && obj.name === "Sol" && <SunToday lang={lang} source="sheet" />}
         {info.explain.length > 0 && (
           <ul className="sk-explain">
             {info.explain.map((e, i) => (
