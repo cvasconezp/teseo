@@ -1,0 +1,66 @@
+/* Animación de entrada (Intro.jsx). Línea de tiempo, en segundos:
+   0,2 Tierra · 0,5 «Estás aquí» · 1,7 sistema solar (órbitas que se dibujan) ·
+   3,8 Vía Láctea · 5,2 laberinto · 5,4 «El universo es un laberinto.» ·
+   5,6–7,2 el hilo llega al centro · 6,4 «Teseo es tu hilo.» · 7,3 «Teseo» ·
+   8,4 fundido a la app (INTRO_MS = 9 s). */
+
+.intro { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px; padding: 72px 20px calc(72px + var(--cookie-h, 0px)); background: radial-gradient(ellipse at 50% 42%, #0b1430 0%, #04080F 62%);
+  animation: intro-out .6s ease-in 8.4s forwards; cursor: pointer; overflow: hidden; }
+.intro__stage { position: relative; width: min(86vw, 50vh, 460px); aspect-ratio: 1; flex: none; }
+.intro__scene { position: absolute; inset: 0; opacity: 0; will-change: transform, opacity; }
+.intro__scene svg { width: 100%; height: 100%; overflow: visible; display: block; }
+
+/* 1 · Tierra */
+.intro__scene--earth { animation: in-fade .8s ease-out .2s both, out-shrink .7s ease-in 1.9s forwards; }
+.intro__earth { filter: drop-shadow(0 0 6px #60A5FA) drop-shadow(0 0 18px #3B82F6); }
+.intro__halo { fill: rgba(96,165,250,.14); transform-origin: center; transform-box: fill-box; animation: halo 1.8s ease-out infinite; }
+
+/* 2 · Sistema solar */
+.intro__scene--solar { animation: in-zoom 1.3s cubic-bezier(.2,.7,.2,1) 1.7s both, out-shrink .8s ease-in 3.9s forwards; }
+.intro__sun { filter: drop-shadow(0 0 5px #FCD34D) drop-shadow(0 0 14px #F59E0B); }
+.intro__orbit { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .9s ease-out both; }
+.intro__planet { opacity: 0; animation: in-fade .4s ease-out both; }
+
+/* 3 · Vía Láctea */
+.intro__scene--galaxy { animation: in-zoom 1.2s cubic-bezier(.2,.7,.2,1) 3.8s both, out-galaxy .8s ease-in 5.3s forwards; }
+.intro__spin { transform-origin: center; transform-box: fill-box; animation: spin 9s linear 3.8s both; }
+.intro__mark { transform-origin: center; transform-box: fill-box; animation: halo 1.4s ease-out 4.3s infinite both; }
+
+/* 4 · Laberinto e hilo */
+.intro__scene--maze { animation: in-maze .8s ease-out 5.2s both; }
+.intro__walls { animation: dim .8s ease-in 7.2s forwards; }
+.intro__thread { stroke-dasharray: 1; stroke-dashoffset: 1; filter: drop-shadow(0 0 3px rgba(242,196,109,.8));
+  animation: draw 1.6s cubic-bezier(.45,.05,.4,1) 5.6s forwards; }
+.intro__goal { opacity: 0; transform-origin: center; transform-box: fill-box; filter: drop-shadow(0 0 6px #F2C46D);
+  animation: pop .5s ease-out 7.15s forwards; }
+.intro__word { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; opacity: 0;
+  animation: in-word .9s ease-out 7.3s forwards; pointer-events: none; }
+.intro__word .wordmark { font-size: clamp(54px, 15vw, 84px); filter: drop-shadow(0 4px 24px rgba(4,8,15,.95)); }
+
+/* Textos */
+.intro__captions { position: relative; width: min(92vw, 520px); min-height: 92px; text-align: center; flex: none; }
+.intro__cap { position: absolute; left: 0; right: 0; top: 0; margin: 0; opacity: 0;
+  font-size: 13px; letter-spacing: .22em; text-transform: uppercase; color: var(--soft); }
+.intro__cap--here { font-size: 15px; animation: in-fade .8s ease-out .5s both, out-fade .5s ease-in 1.9s forwards; }
+.intro__cap--solar { animation: in-fade .6s ease-out 2.2s both, out-fade .5s ease-in 3.9s forwards; }
+.intro__cap--galaxy { animation: in-fade .6s ease-out 4.3s both, out-fade .5s ease-in 5.3s forwards; }
+.intro__slogan { position: absolute; left: 0; right: 0; top: 0; margin: 0; display: flex; flex-direction: column; gap: 6px;
+  font-family: var(--serif); font-size: clamp(22px, 6vw, 30px); line-height: 1.2; color: #fff; text-wrap: balance; }
+.intro__s1, .intro__s2 { opacity: 0; }
+.intro__s1 { animation: in-fade .9s ease-out 5.4s forwards; }
+.intro__s2 { color: var(--thread); font-style: italic; animation: in-fade .9s ease-out 6.4s forwards; }
+
+@keyframes in-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes out-fade { to { opacity: 0; } }
+@keyframes out-shrink { to { opacity: 0; transform: scale(.14); } }
+@keyframes in-zoom { from { opacity: 0; transform: scale(2.4); } to { opacity: 1; transform: scale(1); } }
+@keyframes out-galaxy { to { opacity: 0; transform: scale(1.18) rotate(8deg); } }
+@keyframes in-maze { from { opacity: 0; transform: scale(.88) rotate(-12deg); } to { opacity: 1; transform: none; } }
+@keyframes in-word { from { opacity: 0; transform: scale(.9); letter-spacing: .12em; } to { opacity: 1; transform: none; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(28deg); } }
+@keyframes halo { from { transform: scale(.7); opacity: .9; } to { transform: scale(1.5); opacity: 0; } }
+@keyframes pop { from { opacity: 0; transform: scale(.2); } to { opacity: 1; transform: scale(1); } }
+@keyframes dim { to { opacity: .28; } }
+@keyframes intro-out { to { opacity: 0; visibility: hidden; } }

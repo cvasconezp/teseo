@@ -32,6 +32,7 @@ import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
 import PlanetSphere from "./ui/PlanetSphere.jsx";
 import { AU_KM, helioPosition, approxDistanceKm, hohmannLocal, launchWindowsLocal } from "./ui/orbits.js";
 import { DAY_MS, parseISO, daysUntil, durationParts, relParts } from "./ui/time.js";
+import Intro from "./intro/Intro.jsx";
 import { parseHash, hashBelongsTo, hashForTab, hashForQuestion, usageHash } from "./ui/hash.js";
 import { track, startSession, trackNetError } from "./ui/track.js";
 import {
@@ -52,8 +53,6 @@ const API = import.meta.env.VITE_API_URL || "";
 const T = {
   en: {
     tagline:        "Interplanetary navigation",
-    youAreHere:     "You are here.",
-    whereToGo:      "Where do you want to go?",
     skip:           "Skip",
     skipIntro:      "Skip intro",
     switchLang:     "Cambiar a español",
@@ -248,8 +247,6 @@ const T = {
   },
   es: {
     tagline:        "Navegación interplanetaria",
-    youAreHere:     "Estás aquí.",
-    whereToGo:      "¿A dónde quieres ir?",
     skip:           "Saltar",
     skipIntro:      "Saltar la introducción",
     switchLang:     "Switch to English",
@@ -623,121 +620,9 @@ function SpaceTravel() {
 
 // ─── STAR FIELD ──────────────────────────────────────────────────────────────
 
-function StarField() {
-  const stars = Array.from({length:180},(_,i)=>({
-    x:(i*137.508)%100, y:(i*97.314)%100,
-    s:0.3+(i%5)*0.22, d:2+(i%4), dl:(i%7)*0.4,
-  }));
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {stars.map((s,i)=>(
-        <div key={i} className="absolute rounded-full bg-white" style={{
-          left:`${s.x}%`, top:`${s.y}%`,
-          width:s.s, height:s.s, opacity:0.35,
-          animation:`twinkle ${s.d}s ${s.dl}s ease-in-out infinite alternate`,
-        }}/>
-      ))}
-    </div>
-  );
-}
 // ─── INTRO ───────────────────────────────────────────────────────────────────
 // Se puede saltar tocando cualquier punto o con el botón "Saltar".
 
-function Intro({ lang, onDone }) {
-  const [phase, setPhase] = useState(0);
-  const t = T[lang];
-
-  useEffect(()=>{
-    const delays = [700,2000,1800,1800,1600];
-    let timer;
-    const next = i => { timer=setTimeout(()=>{ setPhase(i+1); if(i+1<delays.length) next(i+1); else timer=setTimeout(onDone,500); },delays[i]); };
-    next(0);
-    return ()=>clearTimeout(timer);
-  },[onDone]);
-
-  useEffect(()=>{
-    const onKey = e => { if (e.key === "Escape") onDone(); };
-    window.addEventListener("keydown", onKey);
-    return ()=>window.removeEventListener("keydown", onKey);
-  },[onDone]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#04080F]"
-      onClick={onDone}
-      style={{opacity:phase>=5?0:1, transition:"opacity 0.7s"}}>
-      <StarField/>
-      <p className="intro__credit">{t.introCredit}</p>
-
-      {/* Phase 1 — You are here */}
-      {phase>=1&&phase<3&&(
-        <div className="text-center" style={{animation:"fadeIn 0.8s ease-out"}}>
-          <div className="relative w-5 h-5 mx-auto mb-6">
-            <div className="w-5 h-5 rounded-full bg-blue-400 mx-auto"
-              style={{boxShadow:"0 0 20px #60A5FA,0 0 50px #3B82F660",animation:"pulse-glow 2s ease-in-out infinite"}}/>
-            <div className="absolute inset-0 rounded-full bg-blue-300"
-              style={{animation:"ping 2s ease-out infinite",opacity:0}}/>
-          </div>
-          <p className="intro__line">{t.youAreHere}</p>
-        </div>
-      )}
-
-      {/* Phase 2 — Solar system */}
-      {phase>=2&&phase<4&&(
-        <div className="absolute inset-0 flex items-center justify-center"
-          style={{animation:"fadeIn 0.6s ease-out",
-            transform:phase>=3?"scale(0.35)":"scale(1)",
-            transition:"transform 1.8s cubic-bezier(0.4,0,0.2,1)"}}>
-          <svg viewBox="0 0 100 100" className="w-60 h-60 opacity-60" aria-hidden="true">
-            {PLANETS.map((p,i)=>{
-              const r=Math.min((Math.log1p(p.au)/Math.log1p(32))*44,44);
-              const a=((i*53)%360)*Math.PI/180;
-              return (
-                <g key={p.id}>
-                  <circle cx={50} cy={50} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="0.3"/>
-                  <circle cx={50+r*Math.cos(a)} cy={50+r*Math.sin(a)} r={0.9} fill={p.color} opacity={0.7}/>
-                </g>
-              );
-            })}
-            <circle cx={50} cy={50} r={2.2} fill="#FCD34D" style={{filter:"drop-shadow(0 0 4px #FCD34D)"}}/>
-          </svg>
-        </div>
-      )}
-
-      {/* Phase 3 — Galaxy */}
-      {phase>=3&&phase<5&&(
-        <div className="absolute inset-0 flex items-center justify-center"
-          style={{animation:"fadeIn 0.7s ease-out",
-            transform:phase>=4?"scale(0.25)":"scale(1)",
-            transition:"transform 1.8s cubic-bezier(0.4,0,0.2,1)"}}>
-          <svg viewBox="0 0 200 200" className="w-72 h-72 opacity-40" aria-hidden="true">
-            {[0,36,72,108,144].map(deg=>(
-              <ellipse key={deg} cx={100} cy={100} rx={85} ry={16} fill="none"
-                stroke="rgba(167,139,250,0.25)" strokeWidth="12"
-                transform={`rotate(${deg},100,100)`}/>
-            ))}
-            <ellipse cx={100} cy={100} rx={20} ry={12} fill="rgba(253,224,71,0.12)"/>
-            <circle cx={100} cy={100} r={4} fill="#FEF08A" opacity={0.7}/>
-            <circle cx={128} cy={93} r={2} fill="#60A5FA" style={{filter:"drop-shadow(0 0 3px #60A5FA)"}}/>
-          </svg>
-        </div>
-      )}
-
-      {/* Phase 4 — Teseo title */}
-      {phase>=4&&(
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center"
-          style={{animation:"fadeInSlow 1.2s ease-out"}}>
-          <p className="wordmark" style={{fontSize:60}}>Teseo</p>
-          <p className="intro__line mt-4">{t.whereToGo}</p>
-        </div>
-      )}
-
-      <button type="button" className="intro__skip" aria-label={t.skipIntro}
-        onClick={e=>{ e.stopPropagation(); onDone(); }}>
-        {t.skip}
-      </button>
-    </div>
-  );
-}
 
 // ─── TÉRMINO CON EXPLICACIÓN ─────────────────────────────────────────────────
 // Un término técnico subrayado: al tocarlo despliega una explicación corta.
@@ -1833,7 +1718,7 @@ export default function Teseo() {
 
   return (
     <>
-      {intro && <Intro lang={lang} onDone={onDone}/>}
+      {intro && <Intro lang={lang} planets={PLANETS} credit={T[lang].introCredit} skipLabel={T[lang].skip} skipAria={T[lang].skipIntro} onDone={onDone}/>}
       {night && <div className="night-vision-layer" aria-hidden="true"/>}
 
       <div className={`app app--${tab}`}>

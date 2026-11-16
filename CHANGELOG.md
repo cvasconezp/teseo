@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.3.0 — 16 de noviembre de 2026
+
+- Nueva animación de entrada: «Estás aquí» → tu sistema solar con los planetas
+  donde están hoy → la Vía Láctea (y dónde está el Sol) → el laberinto del
+  universo y el hilo de Ariadna que llega al centro → «Teseo». Eslogan: «El
+  universo es un laberinto. Teseo es tu hilo.» Todo en CSS y SVG; se salta
+  tocando, con «Saltar» o con Esc, y no aparece con «reducir movimiento».
+
 ## 1.2.1 — 16 de noviembre de 2026
 
 - Las métricas de uso dejan de mostrarse al público dentro de Teseo: se quitan
