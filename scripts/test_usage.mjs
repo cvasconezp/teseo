@@ -39,7 +39,7 @@ console.log("Periodos y URL");
   eq(PERIODS, [7, 30, 90], "periodos 7 / 30 / 90");
   ok(DEFAULT_DAYS === 30, "30 días por defecto");
   eq([usageUrl("https://api.example", 7), usageUrl("", 90), usageUrl("", 365), usageUrl(undefined, "x")],
-    ["https://api.example/api/metrics/public?days=7", "/api/metrics/public?days=90", "/api/metrics/public?days=30", "/api/metrics/public?days=30"],
+    ["https://api.example/api/metrics/admin?days=7", "/api/metrics/admin?days=90", "/api/metrics/admin?days=30", "/api/metrics/admin?days=30"],
     "URL del endpoint; un periodo no admitido vuelve a 30");
   ok(PRIVACY_URL === "https://www.yachaydeep.com/privacidad", "misma política de privacidad que el aviso de cookies");
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
@@ -158,13 +158,16 @@ console.log("Textos (es/en)");
 console.log("Métrica usage_open y enlaces (cliente ↔ servidor)");
 {
   const py = readFileSync(new URL("../backend/app/metrics.py", import.meta.url), "utf8");
-  ok(/"usage_open":\s*\{"from": \{"footer", "sky", "link"\}\}/.test(py), "lista blanca del servidor: usage_open {from: footer|sky|link}");
+  // las métricas son privadas: solo el panel #admin (con clave); ni el pie ni el menú del Cielo las enlazan
+  ok(/"usage_open":\s*\{"from": \{"link"\}\}/.test(py), "lista blanca del servidor: usage_open {from: link}");
   const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
   const froms = [...app.matchAll(/openUsage\("([a-z]+)"/g)].map(m => m[1]);
-  ok(froms.length >= 3 && froms.every(f => ["footer", "sky", "link"].includes(f)), "App solo envía orígenes de la lista", froms.join(","));
-  ok(app.includes('"teseo:usage"') && app.includes('"teseo:credits"'), "App escucha teseo:usage junto a teseo:credits");
+  ok(froms.length >= 1 && froms.every(f => f === "link"), "App solo abre el panel desde el enlace #admin", froms.join(","));
+  ok(!app.includes('"teseo:usage"') && /function AdminGate/.test(app) && /api\/metrics\/summary\?days=1/.test(app), "sin enlaces públicos y con puerta de clave");
   const sky = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
-  ok(/new CustomEvent\("teseo:usage"\)/.test(sky), "el menú del Cielo abre «Teseo en números»");
+  ok(!/teseo:usage/.test(sky), "el menú del Cielo ya no abre las métricas");
+  const modal = readFileSync(new URL("../src/usage/UsageModal.jsx", import.meta.url), "utf8");
+  ok(/Authorization: `Bearer \$\{t\}`/.test(modal), "el panel manda la clave al servidor");
   ok(/PUBLIC_MIN_COUNT = 5\b/.test(py) && /PUBLIC_MIN_DEVICE_VISITS = 20\b/.test(py), "los umbrales del texto coinciden con el servidor (5 y 20)");
 }
 

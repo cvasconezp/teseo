@@ -199,7 +199,6 @@ const T = {
     whoLinks:       { web: "Website", fb: "Facebook", ig: "Instagram" },
     creditsGroups:  "Data sources by institution",
     creditsLink:    "Credits and data",
-    usageLink:      "Teseo usage",
     usageLoading:   "Loading Teseo in numbers…",
     usageErrTitle:  "Teseo in numbers did not load",
     usageErrBody:   "Check your connection and try again. The rest of Teseo keeps working.",
@@ -388,7 +387,6 @@ const T = {
     whoLinks:       { web: "Sitio web", fb: "Facebook", ig: "Instagram" },
     creditsGroups:  "Fuentes de datos por institución",
     creditsLink:    "Créditos y datos",
-    usageLink:      "Uso de Teseo",
     usageLoading:   "Cargando Teseo en números…",
     usageErrTitle:  "No se pudo abrir «Teseo en números»",
     usageErrBody:   "Revisa tu conexión y vuelve a intentarlo. El resto de Teseo sigue funcionando.",
@@ -1444,6 +1442,49 @@ function NowPage({ lang, View, onRetry }) {
   );
 }
 
+// ─── PANEL DE ADMINISTRACIÓN ─────────────────────────────────────────────────
+// Las métricas de uso solo las ve quien tiene la clave del servidor (TESEO_METRICS_TOKEN).
+// La clave se comprueba contra /api/metrics/summary y se guarda solo en esta pestaña
+// (sessionStorage). El público no tiene ningún enlace a este panel.
+const ADMIN_KEY = "teseo-admin-token";
+function AdminGate({ lang, onClose, children }) {
+  const es = lang !== "en";
+  const [ok, setOk] = useState(()=>{ try { return !!sessionStorage.getItem(ADMIN_KEY); } catch { return false; } });
+  const [val, setVal] = useState("");
+  const [state, setState] = useState(null);   // null | "checking" | "bad" | "error"
+  if (ok) return children;
+  const submit = async e => {
+    e.preventDefault();
+    const tok = val.trim();
+    if (!tok) return;
+    setState("checking");
+    try {
+      const r = await fetch(`${API}/api/metrics/summary?days=1`, { headers: { Authorization: `Bearer ${tok}` } });
+      if (r.ok) { try { sessionStorage.setItem(ADMIN_KEY, tok); } catch { /* no-op */ } setOk(true); return; }
+      setState(r.status === 401 || r.status === 404 ? "bad" : "error");
+    } catch { setState("error"); }
+  };
+  return (
+    <div className="modal" onClick={onClose}>
+      <form role="dialog" aria-modal="true" aria-labelledby="admin-h" className="modal__box" onClick={e=>e.stopPropagation()} onSubmit={submit}>
+        <div className="modal__head">
+          <h2 id="admin-h" className="modal__title">{es ? "Panel de administración" : "Admin panel"}</h2>
+          <button type="button" className="icon-btn" aria-label={es ? "Cerrar" : "Close"} onClick={onClose}><IconClose width={20} height={20}/></button>
+        </div>
+        <p className="modal__p">{es ? "Las métricas de uso de Teseo son privadas. Escribe la clave de métricas del servidor." : "Teseo's usage metrics are private. Enter the server's metrics key."}</p>
+        <label className="modal__p" style={{display:"grid",gap:6}}>
+          <span>{es ? "Clave" : "Key"}</span>
+          <input type="password" autoComplete="current-password" value={val} onChange={e=>setVal(e.target.value)}
+            style={{minHeight:44,padding:"0 12px",borderRadius:12,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.2)",color:"#fff"}}/>
+        </label>
+        {state === "bad" && <p role="alert" className="modal__p">{es ? "Clave incorrecta." : "Wrong key."}</p>}
+        {state === "error" && <p role="alert" className="modal__p">{es ? "No se pudo comprobar la clave. Inténtalo de nuevo." : "Could not check the key. Try again."}</p>}
+        <button type="submit" disabled={state === "checking"} style={{minHeight:44,width:"100%",marginTop:8,borderRadius:999,background:"var(--thread)",color:"#0A1020",fontWeight:700}}>{state === "checking" ? (es ? "Comprobando…" : "Checking…") : (es ? "Entrar" : "Enter")}</button>
+      </form>
+    </div>
+  );
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 export default function Teseo() {
@@ -1502,15 +1543,13 @@ export default function Teseo() {
     window.addEventListener("teseo:credits", open);
     return () => window.removeEventListener("teseo:credits", open);
   }, []);
-  // «Teseo en números»: desde el pie, desde el menú del Cielo ("teseo:usage") y con #uso / #usage
+  // Panel de administración de métricas: solo con #admin y la clave del servidor (sin enlaces públicos)
   const openUsage = useCallback((from, days = null) => { track("usage_open", { from }); setShowCredits(false); setUsage({ days }); }, []);
   useEffect(() => {
-    const fromSky = () => openUsage("sky");
     const fromHash = () => { let u = null; try { u = usageHash(window.location.hash); } catch { /* no-op */ } if (u) openUsage("link", u.days); };
     fromHash();
-    window.addEventListener("teseo:usage", fromSky);
     window.addEventListener("hashchange", fromHash);
-    return () => { window.removeEventListener("teseo:usage", fromSky); window.removeEventListener("hashchange", fromHash); };
+    return () => { window.removeEventListener("hashchange", fromHash); };
   }, [openUsage]);
   // Alto del aviso de cookies (si está): el pie deja ese hueco para no quedar tapado
   useEffect(() => {
@@ -1942,10 +1981,6 @@ export default function Teseo() {
               <button type="button" onClick={()=>{ track("credits_open"); setShowCredits(true); }} className="footer__link">
                 {t.creditsLink}
               </button>
-              <span aria-hidden="true" className="footer__sep"/>
-              <button type="button" onClick={()=>openUsage("footer")} className="footer__link">
-                {t.usageLink}
-              </button>
             </footer>
           )}
         </div>
@@ -1956,7 +1991,9 @@ export default function Teseo() {
         <div className="usage-host">
           <SectionBoundary name="Teseo en números" onReset={retryUsage} title={t.usageErrTitle} message={t.usageErrBody} retryLabel={t.retry}>
             <Suspense fallback={<div className="modal"><p role="status" className="loading">{t.usageLoading}</p></div>}>
-              <UsageView lang={lang} api={API} initialDays={usage.days || undefined} onClose={closeUsage}/>
+              <AdminGate lang={lang} onClose={closeUsage}>
+                <UsageView lang={lang} api={API} initialDays={usage.days || undefined} onClose={closeUsage}/>
+              </AdminGate>
             </Suspense>
           </SectionBoundary>
         </div>

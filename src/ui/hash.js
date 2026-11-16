@@ -60,11 +60,14 @@ export function hashForQuestion(q, lang = "es") {
   return `#${ALIASES.questions[lang === "en" ? 1 : 0]}?q=${encodeURIComponent(q)}`;
 }
 
-// ─── «Teseo en números» ──────────────────────────────────────────────────────
-const USAGE = { es: "uso", en: "usage" };
+// ─── Panel de administración (métricas de uso) ───────────────────────────────
+// Las métricas NO se muestran al público dentro de Teseo (decisión del 16-nov-2026):
+// solo existe un panel de administración en #admin, protegido con la clave de
+// métricas del servidor. La cifra pública vive en la landing de yachaydeep.com.
+const USAGE = { es: "admin", en: "admin" };
 const USAGE_NAMES = new Set(Object.values(USAGE));
 
-/** "#uso" / "#usage" (con o sin "?days=…") → { days } | null. days solo 7, 30 o 90. */
+/** "#admin" (con o sin "?days=…") → { days } | null. days solo 7, 30 o 90. */
 export function usageHash(hash) {
   const m = /^#([a-z]+)(?:\?(.*))?$/i.exec(String(hash || ""));
   if (!m || !USAGE_NAMES.has(m[1].toLowerCase())) return null;
@@ -72,7 +75,7 @@ export function usageHash(hash) {
   return { days: [7, 30, 90].includes(d) ? d : null };
 }
 
-/** Hash de «Teseo en números» en el idioma activo. */
+/** Hash del panel de administración. */
 export function hashForUsage(lang = "es") {
   return `#${USAGE[lang === "en" ? "en" : "es"]}`;
 }

@@ -24,7 +24,8 @@ Endpoints:
   GET  /api/img?u=<url>               → proxy de imágenes con CORS para las imágenes para compartir (lista blanca de hosts)
   POST /api/m  (= /api/metrics/event) → métricas de uso anónimas y agregadas (204 siempre)
   GET  /api/metrics/summary[.csv]     → resumen de uso (token TESEO_METRICS_TOKEN; 404 sin él)
-  GET  /api/metrics/public?days=      → «Teseo en números»: subconjunto curado y público (sin token)
+  GET  /api/metrics/public?days=      → cifras mínimas para la landing de yachaydeep.com (sin token)
+  GET  /api/metrics/admin?days=       → panel de administración #admin (token TESEO_METRICS_TOKEN)
 
 Para correr localmente:
   uvicorn app.main:app --reload --port 8000
@@ -60,7 +61,7 @@ from app import mga
 from app import img_proxy
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 _STARTED = time.time()
 
 app = FastAPI(
@@ -311,15 +312,28 @@ _PUBLIC_METRICS_HEADERS = {
 }
 
 
-@app.get("/api/metrics/public")
-def metrics_public(days: int = Query(30, description="Periodo en días: 7, 30, 90 o 365")):
-    """«Teseo en números»: cuánto se usa Teseo, en un subconjunto CURADO y seguro de las
-    métricas anónimas (ver MetricsStore.public_summary). Sin token. Las listas solo
-    incluyen valores con 5 usos o más y el reparto por dispositivo exige 20 visitas."""
+def _check_days(days: int) -> int:
     if days not in metrics.PUBLIC_DAYS:
         raise HTTPException(status_code=422, detail=f"days: debe ser uno de {', '.join(map(str, metrics.PUBLIC_DAYS))}",
                             headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"})
-    return JSONResponse(metrics_store.public_summary(min(days, metrics.RETAIN_DAYS)), headers=_PUBLIC_METRICS_HEADERS)
+    return min(days, metrics.RETAIN_DAYS)
+
+
+@app.get("/api/metrics/public")
+def metrics_public(days: int = Query(30, description="Periodo en días: 7, 30, 90 o 365")):
+    """Cifras mínimas para la landing de yachaydeep.com: visitas, páginas vistas e imágenes
+    creadas (periodo y total). Sin token. Las métricas detalladas NO son públicas: dentro
+    de Teseo solo las ve el panel #admin (GET /api/metrics/admin, con token)."""
+    return JSONResponse(metrics_store.landing_summary(_check_days(days)), headers=_PUBLIC_METRICS_HEADERS)
+
+
+@app.get("/api/metrics/admin", include_in_schema=False)
+def metrics_admin(request: Request, days: int = Query(30), token: Optional[str] = Query(None)):
+    """Panel de administración (#admin): el resumen curado completo (MetricsStore.public_summary).
+    Exige TESEO_METRICS_TOKEN, igual que /api/metrics/summary."""
+    _metrics_auth(request, token)
+    return JSONResponse(metrics_store.public_summary(_check_days(days)),
+                        headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
 
 
 @app.on_event("startup")

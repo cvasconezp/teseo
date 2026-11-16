@@ -10,7 +10,7 @@ import { CON_INFO } from "../sky/constellations.js";
 export const PERIODS = [7, 30, 90];
 export const DEFAULT_DAYS = 30;
 export const PRIVACY_URL = "https://www.yachaydeep.com/privacidad";
-export const USAGE_PATH = "/api/metrics/public";
+export const USAGE_PATH = "/api/metrics/admin";   // panel de administración: exige la clave
 
 export const usageUrl = (api, days) => `${api || ""}${USAGE_PATH}?days=${PERIODS.includes(days) ? days : DEFAULT_DAYS}`;
 
@@ -206,7 +206,7 @@ export const TU = {
   es: {
     link: "Uso de Teseo",
     title: "Teseo en números",
-    lead: "Cuánto se usa Teseo, tal como lo cuenta la propia app. Cifras públicas, anónimas y agregadas.",
+    lead: "Cuánto se usa Teseo, tal como lo cuenta la propia app. Panel privado: cifras anónimas y agregadas.",
     period: "Periodo",
     periodOpt: (d) => `${d} días`,
     loading: "Cargando las cifras…",
@@ -249,7 +249,7 @@ export const TU = {
   en: {
     link: "Teseo usage",
     title: "Teseo in numbers",
-    lead: "How much Teseo is used, as counted by the app itself. Public, anonymous and aggregated figures.",
+    lead: "How much Teseo is used, as counted by the app itself. Private panel: anonymous, aggregated figures.",
     period: "Period",
     periodOpt: (d) => `${d} days`,
     loading: "Loading the figures…",

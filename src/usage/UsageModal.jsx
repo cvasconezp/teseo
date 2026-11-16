@@ -7,6 +7,9 @@
 // muestra lo que devuelve el backend, con sus umbrales de privacidad explicados.
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { fetchJson, isAbort } from "../net.js";
+
+// clave del panel #admin (la guarda AdminGate en App.jsx, solo en esta pestaña)
+const adminHeaders = () => { try { const t = sessionStorage.getItem("teseo-admin-token"); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; } };
 import {
   PERIODS, DEFAULT_DAYS, PRIVACY_URL, TU, usageUrl, fmtInt, fmtDay, fmtLongDate, topRows, isPublicSummary,
   mobileShare, chartModel, chartSummary,
@@ -104,7 +107,7 @@ export default function UsageModal({ lang = "es", api = "", initialDays = DEFAUL
   useEffect(() => {
     const ctrl = new AbortController();
     setState(s => ({ status: "loading", data: s.data }));
-    fetchJson(usageUrl(api, days), { signal: ctrl.signal, timeout: 15000 })
+    fetchJson(usageUrl(api, days), { signal: ctrl.signal, timeout: 15000, headers: adminHeaders() })
       .then(d => { if (!isPublicSummary(d)) throw new Error("respuesta inesperada"); setState({ status: "ready", data: d }); })
       .catch(e => { if (!isAbort(e)) setState(s => ({ status: "error", data: s.data && s.data.days === days ? s.data : null })); });
     return () => ctrl.abort();

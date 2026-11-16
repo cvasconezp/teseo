@@ -1,11 +1,18 @@
 # Cambios
 
+## 1.2.1 — 16 de noviembre de 2026
+
+- Las métricas de uso dejan de mostrarse al público dentro de Teseo: se quitan
+  «Uso de Teseo» del pie y del menú del Cielo. Quedan en un panel de
+  administración (#admin) protegido con la clave de métricas del servidor
+  (/api/metrics/admin).
+- /api/metrics/public se reduce a las cifras que muestra la landing de
+  yachaydeep.com: visitas, páginas vistas e imágenes creadas.
+
 ## 1.2.0 — 16 de noviembre de 2026
 
-- «Teseo en números»: analíticas públicas, anónimas y agregadas (visitas,
-  páginas vistas, imágenes creadas, recordatorios y lo más visto), desde el pie
-  («Uso de Teseo»), el menú del Cielo y #uso. Endpoint /api/metrics/public, que
-  también alimenta la cifra de Teseo en yachaydeep.com.
+- Panel de uso de Teseo (visitas, páginas vistas, imágenes creadas,
+  recordatorios y lo más visto) y endpoint de cifras para yachaydeep.com.
 
 ## 1.1.0 — 16 de noviembre de 2026
 

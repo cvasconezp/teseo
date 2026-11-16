@@ -3095,7 +3095,6 @@ export default function Constellations({ lang = "es" }) {
           {!immersive && <button type="button" className={`is-extra${full ? " is-on" : ""}`} onClick={() => { track("sky_fullscreen", { state: full ? "off" : "on" }); setFull(f => !f); setRailOpen(false); }} aria-pressed={full} aria-label={full ? t.fullOff : t.fullOn} title={full ? t.fullOff : t.fullOn}><Icon name={full ? "shrink" : "expand"} size={20} /></button>}
           {/* el pie de la app no se ve en esta pestaña: los créditos y «Teseo en números» se abren desde aquí */}
           <button type="button" className="is-extra" onClick={() => { setRailOpen(false); window.dispatchEvent(new CustomEvent("teseo:credits")); }} aria-label={t.credits} title={t.credits}><Icon name="info" size={20} /></button>
-          <button type="button" className="is-extra" onClick={() => { setRailOpen(false); window.dispatchEvent(new CustomEvent("teseo:usage")); }} aria-label={t.usage} title={t.usage}><Icon name="chart" size={20} /></button>
         </div>
       )}
 

@@ -37,7 +37,7 @@ def store(monkeypatch, tmp_path, clock):
     monkeypatch.delenv("TESEO_METRICS_UTC_OFFSET_HOURS", raising=False)
     s = metrics.MetricsStore(str(tmp_path), clock=clock)
     monkeypatch.setattr(main, "metrics_store", s)
-    monkeypatch.delenv("TESEO_METRICS_TOKEN", raising=False)
+    monkeypatch.setenv("TESEO_METRICS_TOKEN", "secreto")   # el panel #admin y /summary la exigen
     return s
 
 
@@ -79,9 +79,19 @@ def fill(store, clock):
     store.flush()
 
 
+@pytest.fixture(autouse=True)
+def _admin_token(monkeypatch):
+    monkeypatch.setenv("TESEO_METRICS_TOKEN", "secreto")
+
+
+def admin_get(url, **kw):
+    headers = {"Authorization": "Bearer secreto", **kw.pop("headers", {})}
+    return client.get(url, headers=headers, **kw)
+
+
 def test_contract_exact(store, clock):
     fill(store, clock)
-    r = client.get("/api/metrics/public?days=7")
+    r = admin_get("/api/metrics/admin?days=7")
     assert r.status_code == 200
     d = r.json()
     assert set(d) == CONTRACT_KEYS
@@ -105,7 +115,7 @@ def test_contract_exact(store, clock):
 
 def test_threshold_and_known_values_only(store, clock):
     fill(store, clock)
-    top = client.get("/api/metrics/public?days=7").json()["top"]
+    top = admin_get("/api/metrics/admin?days=7").json()["top"]
     assert metrics.PUBLIC_MIN_COUNT == 5
     # pestañas = entrada (page_view) + cambios (tab_change); "now" (2) queda fuera
     assert top["tabs"] == [{"value": "sky", "count": 30}, {"value": "questions", "count": 7}, {"value": "route", "count": 6}]
@@ -127,7 +137,7 @@ def test_top_is_capped_at_8(store, clock):
 
 def test_nothing_outside_the_contract(store, clock):
     fill(store, clock)
-    raw = client.get("/api/metrics/public?days=30").text
+    raw = admin_get("/api/metrics/admin?days=30").text
     for word in ("net_error", "launches", "timeout", "preset", "optimista", "lang", "screen", "storage",
                  "utc_offset", "Hola mundo", "M31", "venus", "denied", "events", "_other"):
         assert word not in raw, word
@@ -181,17 +191,17 @@ def test_percentages_sum_100():
 
 def test_days_validation(store, clock):
     for bad in ("0", "1", "8", "400", "1000", "-7", "abc", "7.5"):
-        r = client.get(f"/api/metrics/public?days={bad}")
+        r = admin_get(f"/api/metrics/admin?days={bad}")
         assert r.status_code == 422, bad
         assert "no-store" in r.headers.get("cache-control", "")
     for good in (7, 30, 90, 365):
-        d = client.get(f"/api/metrics/public?days={good}").json()
+        d = admin_get(f"/api/metrics/admin?days={good}").json()
         assert d["days"] == good and len(d["by_day"]) == good
-    assert client.get("/api/metrics/public").json()["days"] == 30
+    assert admin_get("/api/metrics/admin").json()["days"] == 30
 
 
 def test_empty_store(store):
-    d = client.get("/api/metrics/public").json()
+    d = admin_get("/api/metrics/admin").json()
     assert set(d) == CONTRACT_KEYS
     assert d["since"] is None and d["devices"] is None
     assert d["totals"] == {k: 0 for k in TOTALS_KEYS}
@@ -235,6 +245,7 @@ def test_cors_open_even_with_restricted_origins(store):
 
 
 def test_summary_still_needs_token(store, monkeypatch):
+    monkeypatch.delenv("TESEO_METRICS_TOKEN", raising=False)
     assert client.get("/api/metrics/summary").status_code == 404
     monkeypatch.setenv("TESEO_METRICS_TOKEN", "secreto")
     assert client.get("/api/metrics/summary").status_code == 401
@@ -242,8 +253,10 @@ def test_summary_still_needs_token(store, monkeypatch):
 
 
 def test_usage_open_whitelist():
-    for src in ("footer", "sky", "link"):
-        assert metrics.clean_event({"e": "usage_open", "p": {"from": src}}) == {"e": "usage_open", "p": {"from": src}}
+    # el panel solo se abre con #admin: el pie y el menú del Cielo ya no lo enlazan
+    assert metrics.clean_event({"e": "usage_open", "p": {"from": "link"}}) == {"e": "usage_open", "p": {"from": "link"}}
+    for src in ("footer", "sky"):
+        assert metrics.clean_event({"e": "usage_open", "p": {"from": src}}) == {"e": "usage_open", "p": {}}
     assert metrics.clean_event({"e": "usage_open", "p": {"from": "evil", "lat": 1}}) == {"e": "usage_open", "p": {}}
     assert metrics.clean_event({"e": "usage_open"}) == {"e": "usage_open", "p": {}}
 
@@ -253,3 +266,28 @@ def test_note_mentions_offset(store, monkeypatch):
     assert "UTC−5" in store.public_summary(7)["note"]
     monkeypatch.setenv("TESEO_METRICS_UTC_OFFSET_HOURS", "0")
     assert "(UTC)" in store.public_summary(7)["note"]
+
+
+# ── lo público: solo las cifras de la landing de yachaydeep.com ──────────────
+def test_public_is_minimal(store, clock):
+    fill(store, clock)
+    r = client.get("/api/metrics/public?days=30", headers={"Origin": "https://www.yachaydeep.com"})
+    assert r.status_code == 200
+    d = r.json()
+    assert set(d) == {"generated", "from", "to", "days", "since", "totals", "all_time", "note"}
+    assert set(d["totals"]) == {"visits", "page_views", "shares"}
+    assert set(d["all_time"]) == {"visits", "page_views"}
+    assert r.headers.get("access-control-allow-origin") == "*"
+    for word in ("top", "by_day", "devices", "tours", "sky_objects", "routes", "reminders"):
+        assert word not in r.text
+
+
+def test_admin_needs_token(store):
+    assert client.get("/api/metrics/admin?days=7").status_code == 401
+    assert client.get("/api/metrics/admin?days=7", headers={"Authorization": "Bearer otro"}).status_code == 401
+    assert admin_get("/api/metrics/admin?days=7").status_code == 200
+
+
+def test_admin_is_not_cached(store):
+    r = admin_get("/api/metrics/admin?days=7")
+    assert "no-store" in r.headers["cache-control"]

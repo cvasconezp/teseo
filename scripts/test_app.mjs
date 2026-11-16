@@ -130,13 +130,13 @@ console.log("Enlaces directos (src/ui/hash.js)");
   eq([hashForQuestion("scale", "es"), hashForQuestion("scale", "en")], ["#preguntas?q=scale", "#questions?q=scale"], "hash directo a una pregunta");
   eq([hashForTab("windows", "es"), hashForTab("scale", "es")], ["", ""], "ya no hay pestañas Ventanas ni Escala");
   for (const tab of ["now", "questions", "sky"]) for (const lang of ["es", "en"]) ok(parseHash(hashForTab(tab, lang)).tab === tab, `ida y vuelta: ${tab}/${lang}`);
-  // «Teseo en números»: #uso / #usage abre una ventana, no cambia de pestaña
-  eq([hashForUsage("es"), hashForUsage("en"), hashForUsage()], ["#uso", "#usage", "#uso"], "hash de «Teseo en números» por idioma");
-  eq([usageHash("#uso"), usageHash("#usage"), usageHash("#USO"), usageHash("#uso?days=7"), usageHash("#usage?days=90")],
-    [{ days: null }, { days: null }, { days: null }, { days: 7 }, { days: 90 }], "#uso y #usage (con ?days=7|90)");
-  eq([usageHash("#uso?days=365"), usageHash("#uso?days=abc")], [{ days: null }, { days: null }], "días no admitidos en el enlace → periodo por defecto");
-  for (const h of ["", "#", "#usos", "#usage2", "#ahora", "#sky?c=Ori", "#preguntas?q=uso", null, "uso"]) ok(usageHash(h) === null, `${JSON.stringify(h)} no abre «Teseo en números»`);
-  for (const h of ["#uso", "#usage", "#uso?days=7"]) ok(parseHash(h) === null, `${h} no se toma por una pestaña (no rompe los enlaces existentes)`);
+  // panel de administración de métricas: solo #admin (no hay enlaces públicos)
+  eq([hashForUsage("es"), hashForUsage("en"), hashForUsage()], ["#admin", "#admin", "#admin"], "hash del panel de administración");
+  eq([usageHash("#admin"), usageHash("#ADMIN"), usageHash("#admin?days=7"), usageHash("#admin?days=90")],
+    [{ days: null }, { days: null }, { days: 7 }, { days: 90 }], "#admin (con ?days=7|90)");
+  eq([usageHash("#admin?days=365"), usageHash("#admin?days=abc")], [{ days: null }, { days: null }], "días no admitidos en el enlace → periodo por defecto");
+  for (const h of ["", "#", "#uso", "#usage", "#admins", "#ahora", "#sky?c=Ori", "#preguntas?q=admin", null, "admin"]) ok(usageHash(h) === null, `${JSON.stringify(h)} no abre el panel`);
+  for (const h of ["#admin", "#admin?days=7"]) ok(parseHash(h) === null, `${h} no se toma por una pestaña (no rompe los enlaces existentes)`);
   for (const lang of ["es", "en"]) ok(usageHash(hashForUsage(lang)) !== null, `ida y vuelta: uso/${lang}`);
 }
 

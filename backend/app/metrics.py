@@ -105,7 +105,7 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "night_vision":       {"state": ON_OFF},
     "credits_open":       {},
     # «Teseo en números» (src/usage/): desde dónde se abrió la vista pública de uso
-    "usage_open":         {"from": {"footer", "sky", "link"}},
+    "usage_open":         {"from": {"link"}},   # panel #admin (antes también pie y menú del Cielo)
     "coop_open":          {"from": COOP_FROM},   # enlaces a Killa Ñan (pie, cabecera, créditos)
     "data_retry":         {"tab": TABS},
     "net_error":          {"endpoint": ENDPOINTS, "kind": ERROR_KINDS},
@@ -604,6 +604,18 @@ class MetricsStore:
             },
             "utc_offset_hours": _offset_hours(),
             "note": "Recuentos anónimos y agregados por día (UTC salvo desfase configurado): sin IP, sin user-agent, sin cookies ni identificadores.",
+        }
+
+    def landing_summary(self, days: int = 30) -> Dict[str, Any]:
+        """Lo único público (GET /api/metrics/public): las cifras que muestra la landing de
+        yachaydeep.com. Nada de listas, días, dispositivos ni detalle por función."""
+        full = self.public_summary(days)
+        return {
+            "generated": full["generated"], "from": full["from"], "to": full["to"],
+            "days": full["days"], "since": full["since"],
+            "totals": {k: full["totals"][k] for k in ("visits", "page_views", "shares")},
+            "all_time": full["all_time"],
+            "note": full["note"],
         }
 
     def public_summary(self, days: int = 30) -> Dict[str, Any]:
