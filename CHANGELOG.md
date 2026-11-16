@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.6.0 — 16 de noviembre de 2026
+
+- Nueva pregunta, la décima: «¿Cómo terminará el universo?». Una caja de gas
+  para ver por qué el tiempo avanza, los fotones que la Tierra devuelve al
+  espacio, la entropía de los agujeros negros, las eras del futuro hasta
+  10¹⁰⁰ años y los finales posibles según la energía oscura (congelación,
+  Gran Desgarro, Gran Colapso y cambio de vacío), cada dato con su fuente y
+  su grado de certeza.
+
 ## 1.5.1 — 16 de noviembre de 2026
 
 - Postal de estrellas más sintética: subtítulo «tipo · clase · magnitud», una sola
