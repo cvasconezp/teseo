@@ -28,7 +28,7 @@ export function artKind(obj) {
   if (L === "galaxies") return "galaxy";
   if (L === "exoplanets") return "exoplanet";
   if (L === "star") return "star";
-  if (L === "messier") return obj.type === "galaxy" ? "galaxy" : obj.type === "globular" ? "globular" : obj.type === "open" || obj.type === "cluster" ? "open" : obj.type === "snr" ? "snr" : "nebula";
+  if (L === "messier" || L === "caldwell") return obj.type === "galaxy" ? "galaxy" : obj.type === "globular" ? "globular" : obj.type === "open" || obj.type === "cluster" ? "open" : obj.type === "snr" ? "snr" : "nebula";
   return "nebula";
 }
 
@@ -338,7 +338,7 @@ export function drawArt(ctx, kind, x, y, w, h, o = {}) {
 
 /** Opciones de dibujo para un objeto de Teseo. */
 export function artOptions(obj) {
-  return { seed: seedOf(obj.name), hex: obj.hex, hubble: obj.hubble || (obj.layer === "messier" && obj.type === "galaxy" ? "S" : null), obj };
+  return { seed: seedOf(obj.name), hex: obj.hex, hubble: obj.hubble || ((obj.layer === "messier" || obj.layer === "caldwell") && obj.type === "galaxy" ? (obj.c == null ? "I" : "S") : null), obj };
 }
 
 // ── esfera con textura real (Sol, Luna, planetas) para la postal ──────────

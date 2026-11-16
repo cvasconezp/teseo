@@ -5,16 +5,25 @@ import { fmtDist, fmtYears, fmtDuration, fmtKm, fmtMassSun, fmtSuns, num, AU_KM,
 import { starTemperature, parseSpect } from "./starColor.js";
 import { exoClass, tempBand, methodKey, starClass, schwarzschildKm, bhSizeBand, pulsarSpin, hubbleFamily, magReach, JUPITER_RE, JUPITER_ME } from "./explain.js";
 import { signalDelay } from "./riseset.js";
+import { cwSrcName } from "./i18n-caldwell.js";
 
 // parte del cielo (en %) que ocupa la zona con la que se compara cada patrón
-const NOTE_SKY_PCT = { kepler: 0.55, pulsarPlane: 17.4, avoidance: 17.4, globulars: 14.6 };
+// messierSouth: casquete al sur de −41,15° → (1 − sen 41,15°) / 2 = 17,1 %
+const NOTE_SKY_PCT = { kepler: 0.55, pulsarPlane: 17.4, avoidance: 17.4, globulars: 14.6, messierSouth: 17.1 };
 
 const MESSIER_TYPE = {
   galaxy: { es: "Galaxia", en: "Galaxy" }, globular: { es: "Cúmulo globular", en: "Globular cluster" },
   open: { es: "Cúmulo abierto", en: "Open cluster" }, nebula: { es: "Nebulosa", en: "Nebula" },
   snr: { es: "Remanente de supernova", en: "Supernova remnant" }, cluster: { es: "Cúmulo o asociación estelar", en: "Star cluster or association" },
   other: { es: "Objeto de cielo profundo", en: "Deep-sky object" },
+  // tipos que solo aparecen en la capa Caldwell
+  planetary: { es: "Nebulosa planetaria", en: "Planetary nebula" }, clneb: { es: "Cúmulo con nebulosa", en: "Cluster with nebula" },
+  dark: { es: "Nebulosa oscura", en: "Dark nebula" },
 };
+// "Owl Cluster, E.T. Cluster" → "Owl Cluster": el primero de la lista de nombres comunes
+const firstName = (s) => (s ? String(s).split(",")[0].trim() : "");
+/** Nombre común de un objeto Caldwell en el idioma de la ficha (si no hay en español, el inglés). */
+export const caldwellCommon = (o, lang) => firstName(lang === "es" ? (o.cn_es || o.cn) : o.cn);
 // Los catálogos estáticos traen estas notas solo en español: se traducen aquí.
 const BH_KIND_EN = { supermasivo: "supermassive", estelar: "stellar-mass" };
 const NOTE_EN = {
@@ -130,6 +139,28 @@ export function describeObject(o, lang, t, meteorActive) {
     const reach = magReach(o.mag); if (reach) say(null, t.reach[reach], t.reachHint);
     d.details.push([t.dSource, t.srcMessier]);
     d.distNote = t.distPublished;
+  } else if (L === "caldwell") {
+    // Caldwell y las Nubes de Magallanes (public/caldwell.json): misma ficha que Messier, con la fuente
+    // de la distancia de cada objeto, su tamaño en el cielo y, si no hay distancia verificable, se dice
+    const cloud = o.c == null, cn = caldwellCommon(o, lang);
+    const ty = MESSIER_TYPE[o.type] || MESSIER_TYPE.other;
+    const con = es ? o.const_es : (o.const_la || o.const);   // en inglés, el nombre latino de la IAU («Centaurus»)
+    d.type = (cloud ? t.cwCloudType : ty[lang]) + (con ? ` · ${t.inConst(con)}` : "");
+    d.name = cloud ? cn : `${o.name}${cn ? " · " + cn : ""}`;
+    d.visual = o.type === "galaxy" ? "galaxy" : "deep";
+    if (o.dist_ly > 0) lightFacts(o.dist_ly);
+    else d.facts.push({ label: t.fDistance, value: t.conNoDist });
+    d.details.push([t.dCatalog, cloud ? o.cat : t.cwCatalog(o.c, o.cat && o.cat !== "—" ? o.cat : "")]);
+    if (o.mag != null) d.details.push([t.dMagnitude, `${num(o.mag, lang, 1)} · ${t.magHint}`]);
+    if (o.size > 0) d.details.push([t.dSize, t.sizeVal(o.size, lang)]);
+    say(null, cloud ? t.cwCloudWhat : t.deepWhat[o.type]);
+    if (o.origin) d.note = t.cwOrigin;
+    const reach = o.type === "dark" ? null : magReach(o.mag); if (reach) say(null, t.reach[reach], t.reachHint);
+    if (o.size >= 62) say(null, t.sizeLine(num(o.size / 31, lang, 0)));
+    if (!(o.dist_ly > 0)) say(null, t.cwNoDist);
+    else if (o.dist_unc && o.dist_alt_ly > 0) say(null, t.cwUnc(fmtDist(o.dist_alt_ly, lang), t.cwAltSrc[o.dist_alt_src] || o.dist_alt_src));
+    d.details.push([t.dSource, t.srcCaldwell(o.dist_ly > 0 ? cwSrcName(o.dist_src, lang) : "")]);
+    d.distNote = o.dist_ly > 0 ? (t.cwDistNote[o.dist_note] || t.cwDistNote[o.dist_kind] || t.distPublished) : "";
   } else if (L === "galaxies") {
     d.type = t.typeGalaxy + ((es ? o.const_es : o.const) ? ` · ${t.inConst(es ? o.const_es : o.const)}` : "");
     d.visual = "galaxy";

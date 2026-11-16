@@ -12,6 +12,7 @@ capa y un orquestador.
 | `public/pulsars.json` | ATNF Pulsar Catalogue | catálogo / medida de dispersión (DM) | ~4.000 |
 | `public/deepsky.json` | Messier curado + OpenNGC | curada SEDS/NASA | 110 |
 | `public/galaxies.json` | OpenNGC (tipo galaxia) | redshift → ley de Hubble (H0=70) | ~2.000 |
+| `public/caldwell.json` | Caldwell (P. Moore) + Nubes de Magallanes; posiciones OpenNGC (`build_caldwell.py`) | publicada por objeto: artículos, NASA, referencias citadas | 111 (90 se dibujan) |
 | `public/blackholes.json` | tabla curada (`build_blackholes.py`) | literatura publicada | ~18 |
 | `public/sky.json` | HYG Database v4.1 (`build_sky.py`) | paralaje Hipparcos | 5.044 estrellas + 88 constelaciones |
 
@@ -31,7 +32,7 @@ lo opcional.
 
 `build_data.py` descarga lo que falte:
 
-- **OpenNGC** `NGC.csv` — se descarga solo desde GitHub.
+- **OpenNGC** `NGC.csv` y `addendum.csv` — se descargan solos desde GitHub.
 - **ATNF** `psrcat.tar.gz` — el servidor de CSIRO a veces corta la conexión
   por el proxy. Si la descarga automática falla, bájalo a mano de
   <https://www.atnf.csiro.au/research/pulsar/psrcat/> y déjalo en
@@ -52,6 +53,45 @@ lo opcional.
 - Cada JSON lleva su `meta.source` con la procedencia. Coincide con el
   principio del proyecto: datos reales y verificables, la IA narra pero no
   inventa números.
+
+## Caldwell: `public/caldwell.json` (`build_caldwell.py`)
+
+```bash
+python3 scripts/build_caldwell.py              # regenera (necesita galaxies.json y deepsky.json)
+python3 scripts/build_caldwell.py --verificar  # además compara, en línea, con NASA y con la tabla de Baumgardt
+```
+
+Los 109 objetos del catálogo Caldwell (Patrick Moore, *Sky & Telescope*, dic. 1995), que complementa a
+Messier y cubre el cielo sur, más la **Gran y la Pequeña Nube de Magallanes**, que no son Caldwell y lo
+dicen (`origin`). Licencias: OpenNGC y Wikipedia, CC BY-SA 4.0; contenido de NASA, sin copyright.
+
+- **Posición, tipo, magnitud, tamaño y constelación:** OpenNGC (`NGC.csv` y, para Hiades, Cueva, Doble
+  Cúmulo, Saco de Carbón y Gran Nube, `addendum.csv`), cruzado por número NGC/IC; las entradas «Dup» se
+  siguen hasta su designación. Magnitud: V; si no, B; si V − B > 1 (errata evidente: NGC 253, NGC 246),
+  la de la ficha de NASA; como último respaldo, la tabla de Wikipedia (se marca en `mag_src`).
+- **Caldwell → NGC/IC:** tabla del artículo «Caldwell catalogue» de Wikipedia (con C89 = NGC 6087).
+- **Distancia, siempre con fuente (`dist_src`, `dist_ref`, `dist_kind`):**
+  1. artículo con revisión por pares, leído en su resumen o tabla (`paper`): Baumgardt y Vasiliev 2021
+     para los **18 cúmulos globulares** (Omega Centauri 5,43 kpc ≈ 17.700 a. l.; 47 Tucanae 4,52 kpc ≈
+     14.700 a. l.), Pietrzyński et al. 2019 para la Gran Nube (49,59 kpc ≈ 162.000 a. l.), Graczyk et al.
+     2020 para la Pequeña (62,44 kpc ≈ 204.000 a. l.), Rekola et al. 2005 para NGC 253 (3,34 Mpc),
+     Gieren et al. 2005 para NGC 300 y Perryman et al. 1998 para las Hiades;
+  2. la ficha del objeto en el **catálogo Caldwell del Hubble de NASA** (`nasa`, 46 objetos);
+  3. si NASA no tiene ficha, la referencia que cita el artículo de Wikipedia del objeto (`wiki`, marcada
+     «vía Wikipedia», 17 objetos);
+  4. suposiciones explícitas (`assumed`): la Tarántula, a la distancia de la Gran Nube (está dentro);
+     NGC 2244, a la de la Nebulosa Roseta que ilumina (marcada incierta).
+  - **Sin distancia:** IC 405 y NGC 6885 (no hay fuente verificable). La ficha lo dice; no se inventa.
+  - **Incierta (`dist_unc`):** si es una suposición o si otra fuente (tabla de Wikipedia o NASA) difiere
+    más de un 30 %; la ficha da el otro valor (`dist_alt_ly`, `dist_alt_src`).
+  - La ficha de NASA de NGC 300 (C70) da 7.500 a. l. en su recuadro y «unos 6 millones» en el texto: es
+    una errata, por eso NGC 300 usa Gieren et al. 2005.
+- **Duplicados:** Caldwell no repite Messier (el script lo comprueba), pero 21 de sus galaxias ya están en
+  `galaxies.json`: se guardan con `in: "galaxies"` e `in_name`, el buscador las encuentra por «C77» o
+  «Caldwell 77» y abre su ficha en «Galaxias», y la capa Caldwell no las dibuja (`count` = 90).
+- `--verificar` vuelve a leer las 87 fichas de NASA y la tabla de Baumgardt y avisa de cualquier diferencia
+  con los valores transcritos en el script (verificado el 2026-11-16: sin diferencias).
+- Pruebas: `node scripts/test_sky_caldwell.mjs`.
 
 ## Convención de coordenadas
 

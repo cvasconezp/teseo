@@ -6,7 +6,7 @@
 // nasaImages.js (NASA) y a las miniaturas de Wikipedia; el orden de fuentes está en imageSources().
 //
 // Por qué un mapa hecho a mano y no una búsqueda: cada entrada se eligió mirando la imagen
-// (contactos de las 34 versiones «screen») y se comprobó contra la página oficial de la imagen
+// (contactos de las versiones «screen») y se comprobó contra la página oficial de la imagen
 // (fecha en AGENCY_VERIFIED): id, título, crédito y tipo «Observation» (se descartaron collages,
 // ilustraciones y paneles anotados), que la imagen muestra ese objeto, y que la URL «screen»
 // existe y es un JPEG.
@@ -45,7 +45,8 @@
 // (postcard.js) NO usa estas imágenes todavía: decidirlo es cosa de quien la mantiene.
 //
 // Claves: "messier:<n>" (catálogo de Messier), "gal:<NGC…>" (capa de galaxias, por su designación
-// OpenNGC tal como viene en el catálogo, p. ej. «NGC5128») y "bh:<nombre>" (capa de agujeros negros).
+// OpenNGC tal como viene en el catálogo, p. ej. «NGC5128»), "bh:<nombre>" (capa de agujeros negros) y
+// "caldwell:<n>" (capa Caldwell; las Nubes de Magallanes, que no tienen número: "caldwell:LMC" / "caldwell:SMC").
 import { imageOrder } from "./nasaImages.js";
 
 export const AGENCY_VERIFIED = "2026-11-16";
@@ -93,23 +94,35 @@ export const AGENCY_IMAGES = {
   "messier:7": {"agency":"eso","id":"eso1406a","title":"The star cluster Messier 7","credit":"ESO","date":"2014-02-19","kind":"photo","processed":false,"tel":"MPG/ESO 2.2 m","es":"El cúmulo abierto M7, en Escorpio, con la cámara WFI del telescopio MPG/ESO de 2,2 m","en":"The open cluster M7, in Scorpius, with the WFI camera on the MPG/ESO 2.2-metre telescope"},
   "gal:NGC4945": {"agency":"eso","id":"eso0931a","title":"Spiral galaxy NGC 4945","credit":"ESO","date":"2009-09-02","kind":"photo","processed":false,"tel":"MPG/ESO 2.2 m","es":"La galaxia espiral NGC 4945, vista de canto, con el telescopio MPG/ESO de 2,2 m","en":"The edge-on spiral galaxy NGC 4945, with the MPG/ESO 2.2-metre telescope"},
   "gal:NGC2442": {"agency":"eso","id":"ngc2442","title":"Distorted galaxy NGC 2442","credit":"ESO/IDA/Danish 1.5 m/R. Gendler, J.-E. Ovaldsen, C. C. Thöne and C. Féron","date":"2009-12-03","kind":"photo","processed":false,"tel":"Danish 1.5 m","es":"La galaxia deformada NGC 2442 («del gancho de carnicero»), con el telescopio danés de 1,5 m en La Silla","en":"The distorted galaxy NGC 2442 (the «Meathook Galaxy»), with the Danish 1.5-metre telescope at La Silla"},
+  // capa Caldwell (public/caldwell.json): verificadas el 2026-11-16 en la página oficial de cada imagen (tipo
+  // «Observation», título, crédito, fecha y filtros) y mirando la versión «screen». ESO marca con «*» algunas
+  // imágenes destacadas en el título de la página: ese asterisco no forma parte del título y no se copia.
+  "caldwell:92": {"agency":"eso","id":"eso1250a","title":"The Carina Nebula imaged by the VLT Survey Telescope","credit":"ESO. Acknowledgement: VPHAS+ Consortium/Cambridge Astronomical Survey Unit","date":"2012-12-06","kind":"photo","processed":false,"tel":"VST","es":"La Nebulosa de Carina (C92) entera, con el telescopio VST de ESO en Paranal","en":"The whole Carina Nebula (C92), with ESO's VST telescope at Paranal"},
+  "caldwell:103": {"agency":"eso","id":"eso0613a","title":"Cosmic spider: the Tarantula Nebula","credit":"ESO","date":"2006-04-07","kind":"photo","processed":false,"tel":"VLT","es":"La Nebulosa de la Tarántula (C103), en la Gran Nube de Magallanes, con el instrumento FORS1 del VLT","en":"The Tarantula Nebula (C103), in the Large Magellanic Cloud, with the FORS1 instrument on the VLT"},
+  "caldwell:63": {"agency":"eso","id":"eso0907a","title":"The Helix Nebula","credit":"ESO","date":"2009-02-25","kind":"photo","processed":false,"tel":"MPG/ESO 2.2 m","es":"La Nebulosa de la Hélice (C63), una nebulosa planetaria, con la cámara WFI del telescopio MPG/ESO de 2,2 m","en":"The Helix Nebula (C63), a planetary nebula, with the WFI camera on the MPG/ESO 2.2-metre telescope"},
+  "caldwell:65": {"agency":"eso","id":"eso1152a","title":"Wide-field view of NGC 253 from the VLT Survey Telescope","credit":"ESO/INAF-VST Acknowledgement: A. Grado/L. Limatola/INAF-Capodimonte Observatory","date":"2011-12-15","kind":"photo","processed":true,"band":"mixed","tel":"VST","es":"La galaxia del Escultor (NGC 253) con el telescopio VST de ESO, en luz visible y en el borde del infrarrojo (filtro i)","en":"The Sculptor Galaxy (NGC 253) with ESO's VST telescope, in visible light and at the edge of the infrared (i filter)"},
+  "caldwell:80": {"agency":"eso","id":"eso1119b","title":"VST image of the giant globular cluster Omega Centauri","credit":"ESO/INAF-VST/OmegaCAM. Acknowledgement: A. Grado, L. Limatola/INAF-Capodimonte Observatory","date":"2011-06-08","kind":"photo","processed":true,"band":"mixed","tel":"VST","es":"El cúmulo globular Omega Centauri (C80) con el telescopio VST de ESO, en luz visible y en el borde del infrarrojo (filtro i)","en":"The globular cluster Omega Centauri (C80) with ESO's VST telescope, in visible light and at the edge of the infrared (i filter)"},
+  "caldwell:106": {"agency":"eso","id":"eso1302a","title":"The globular star cluster 47 Tucanae","credit":"ESO/M.-R. Cioni/VISTA Magellanic Cloud survey. Acknowledgment: Cambridge Astronomical Survey Unit","date":"2013-01-10","kind":"photo","processed":true,"band":"infrared","tel":"VISTA","es":"El cúmulo globular 47 Tucanae (C106) en infrarrojo cercano, con el telescopio VISTA de ESO","en":"The globular cluster 47 Tucanae (C106) in near-infrared light, with ESO's VISTA telescope"},
+  "caldwell:94": {"agency":"eso","id":"eso0940a","title":"A snapshot of the Jewel Box cluster with the ESO VLT","credit":"ESO/Y. Beletsky","date":"2009-10-29","kind":"photo","processed":false,"tel":"VLT","es":"El cúmulo del Joyero (C94), en la Cruz del Sur, con el instrumento FORS1 del VLT","en":"The Jewel Box cluster (C94), in the Southern Cross, with the FORS1 instrument on the VLT"},
+  "caldwell:SMC": {"agency":"eso","id":"eso1714a","title":"VISTA’s view of the Small Magellanic Cloud","credit":"ESO/VISTA VMC","date":"2017-05-03","kind":"photo","processed":true,"band":"infrared","tel":"VISTA","es":"La Pequeña Nube de Magallanes en infrarrojo cercano, con el telescopio VISTA de ESO (a la derecha, el cúmulo 47 Tucanae)","en":"The Small Magellanic Cloud in near-infrared light, with ESO's VISTA telescope (on the right, the cluster 47 Tucanae)"},
 };
 
 // Objetos que se pidieron y NO tienen entrada, con el motivo (decisión visible, no un olvido).
 // Se revisaron las categorías de nebulosas, galaxias y cúmulos de ESA/Webb y ESA/Hubble (primeras páginas) y de ESO (primera página).
 export const AGENCY_NONE = {
-  "NGC 253, NGC 3372 (Carina), NGC 7293 (Hélice), Omega Centauri, 47 Tucanae, Tarántula, Nubes de Magallanes": "no están en las capas de cielo profundo de Teseo (Messier, galaxias OpenNGC con magnitud ≤ 13, agujeros negros): no hay ficha donde mostrarlas",
+  "caldwell:LMC": "Gran Nube de Magallanes: la búsqueda «large magellanic cloud» de ESO (16-nov-2026) solo da regiones dentro de ella o fotos de paisaje, no una observación de la galaxia entera; Hubble y Webb solo cubren campos de minutos de arco y la Nube mide unos 10°",
   "messier:45": "Pléyades: no se encontró (16-nov-2026) en las categorías revisadas de ESA/Webb, ESA/Hubble y ESO una observación del cúmulo entero",
   "messier:43, messier:64, messier:2, messier:13": "no se encontró (16-nov-2026) en las categorías revisadas una observación del objeto que cumpla los criterios",
 };
 
 const GAL = /^(NGC|IC)\d+[A-Z]?$/;
-/** Clave del mapa para un objeto ("messier:42", "gal:NGC5128", "bh:Sgr A*"), o null. */
+/** Clave del mapa para un objeto ("messier:42", "gal:NGC5128", "bh:Sgr A*", "caldwell:80"), o null. */
 export function agencyKey(obj) {
   if (!obj || !obj.layer) return null;
   if (obj.layer === "messier") return obj.m != null ? "messier:" + obj.m : null;
   if (obj.layer === "galaxies") return obj.cat && GAL.test(obj.cat) ? "gal:" + obj.cat : null;
   if (obj.layer === "blackholes") return obj.name ? "bh:" + obj.name : null;
+  if (obj.layer === "caldwell") return obj.c != null ? "caldwell:" + obj.c : obj.name ? "caldwell:" + obj.name : null;
   return null;
 }
 

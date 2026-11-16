@@ -451,6 +451,7 @@ export function postcardGrid({ obj, info, t, lang, local, con, fmt, sky, bodies 
     else if (L === "probes") { fact(t.fDistance); fact(t.fLightTakes, t.pcGSignal); det(t.fTarget); det(t.fAgency); det(t.fLaunched); det(t.dSunDist, true); }
     else if (L === "comets") { fact(t.fDistance); fact(t.fLightTakes); det(t.dSunDist, true); fact(t.fVoyager); }
     else if (L === "messier") { fact(t.fDistance); fact(t.fLightLeft); det(t.dMagnitude, true); det(t.dCatalog); fact(t.fVoyager); }
+    else if (L === "caldwell") { fact(t.fDistance); fact(t.fLightLeft); det(t.dMagnitude, true); det(t.dCatalog); det(t.dSize, true); fact(t.fVoyager); }
     else if (L === "galaxies") { fact(t.fDistance); fact(t.fLightLeft); det(t.dHubble, true); det(t.dMagnitude, true); det(t.dCatalog); fact(t.fVoyager); }
     else if (L === "blackholes") { fact(t.fDistance); fact(t.fLightLeft); det(t.dMass); det(t.dHorizon, true); fact(t.fVoyager); }
     else if (L === "pulsars") { fact(t.fDistance); fact(t.fLightLeft); det(t.dPeriod); det(t.dKind); fact(t.fVoyager); }

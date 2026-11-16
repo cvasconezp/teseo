@@ -5,6 +5,7 @@ Regenera todos los catálogos de public/ desde sus fuentes:
   - pulsars.json     <- ATNF Pulsar Catalogue
   - deepsky.json     <- Messier (curado) enriquecido con OpenNGC
   - galaxies.json    <- galaxias brillantes con distancia por redshift (OpenNGC)
+  - caldwell.json    <- catálogo Caldwell + Nubes de Magallanes (OpenNGC + distancias publicadas)
   - blackholes.json  <- tabla curada (en build_blackholes.py)
 
 Uso:
@@ -25,6 +26,8 @@ from lib_astro import RAW  # noqa: E402
 DOWNLOADS = {
     "NGC.csv": ("https://raw.githubusercontent.com/mattiaverga/OpenNGC/"
                 "master/database_files/NGC.csv"),
+    "addendum.csv": ("https://raw.githubusercontent.com/mattiaverga/OpenNGC/"
+                     "master/database_files/addendum.csv"),
     "psrcat.tar.gz": ("https://www.atnf.csiro.au/research/pulsar/psrcat/"
                       "downloads/psrcat_pkg.tar.gz"),
 }
@@ -51,12 +54,15 @@ def main():
     fetch_missing()
     import build_pulsars
     import build_deepsky
+    import build_caldwell
     import build_blackholes
     import build_meteors
     print("Púlsares (ATNF):")
     build_pulsars.build()
     print("Cielo profundo (OpenNGC):")
     build_deepsky.build()
+    print("Caldwell + Nubes de Magallanes (OpenNGC + distancias publicadas):")
+    build_caldwell.build()      # después de galaxies.json: no repite las galaxias que ya están allí
     print("Agujeros negros (curado):")
     build_blackholes.build()
     print("Lluvias de meteoros (curado):")

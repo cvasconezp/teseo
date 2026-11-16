@@ -326,6 +326,9 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .art-globulars .bulge { fill: #fff3d2; }
 .art-globulars .dot { fill: #67e8c8; }
 .art-globulars .sun { fill: var(--gold); stroke: #fff; stroke-width: 0.8; }
+.art-messierSouth .dot { fill: #b48cff; }
+.art-messierSouth .dot.is-dim { fill: rgba(214, 222, 255, 0.45); }
+.art-messierSouth .cut { stroke: var(--gold); stroke-width: 1; stroke-dasharray: 3 3; }
 /* esta noche */
 .sk-tonight-btn { border-color: rgba(242, 198, 109, 0.5) !important; }
 .sk-tonight-btn svg { color: var(--gold); }

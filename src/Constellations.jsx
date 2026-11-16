@@ -13,6 +13,8 @@ import { createResumeDetector, isDragToManual } from "./sky/arResume.js";
 import { guideArrow, turnHint, altAz } from "./sky/guide.js";
 import { computeTonight } from "./sky/tonight.js";
 import { buildSkyNotes } from "./sky/explain.js";
+import { caldwellCommon } from "./sky/describe.js";
+import { caldwellMatch } from "./sky/caldwell.js";
 import { TX } from "./sky/i18n.js";
 import { createPointing, pointingSupported } from "./sky/pointing.js";
 import ObjectSheet, { describeObject, visibilityOf } from "./sky/ObjectSheet.jsx";
@@ -49,6 +51,8 @@ import "./sky/sky.css";
 const API = import.meta.env.VITE_API_URL || "";
 const LAYERS = [
   { key: "messier",    file: "/deepsky.json",    es: "Messier",          en: "Messier",      color: 0x67e8c8, size: 8 },
+  // Caldwell + Nubes de Magallanes (~10 KB con gzip): se carga al encender la capa o al empezar a buscar
+  { key: "caldwell",   file: "/caldwell.json",   es: "Caldwell",         en: "Caldwell",     color: 0xb48cff, size: 8, lazy: true },
   { key: "pulsars",    file: "/pulsars.json",    es: "Púlsares",         en: "Pulsars",      color: 0xff5dc8, size: 6, lazy: true },
   { key: "blackholes", file: "/blackholes.json", es: "Agujeros negros",  en: "Black holes",  color: 0xff7a3c, size: 11 },
   { key: "galaxies",   file: "/galaxies.json",   es: "Galaxias",         en: "Galaxies",     color: 0x9db4ff, size: 5, lazy: true },
@@ -58,12 +62,13 @@ const LAYERS = [
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
+const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
 // Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
 // de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
 // en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
 function isNotable(key, ob, when) {
   if (key === "messier") return !!ob.cn || (ob.mag != null && ob.mag <= 6);
+  if (key === "caldwell") return !!ob.cn || (ob.mag != null && ob.mag <= 6);
   if (key === "galaxies") return !!ob.cat && ob.cat !== ob.name;
   if (key === "pulsars" || key === "exoplanets") return false;
   if (key === "meteors") return meteorActive(ob, when);
@@ -86,9 +91,9 @@ const ATM_KEY = "teseo_atm";           // interruptor "Atmósfera" (1/0)
 const BORTLE_KEY = "teseo_bortle_v1";  // { lugar: clase } elegida por la persona
 // Penalización (mag) para objetos extensos: su luz se reparte en un área, así que se ven peor que una
 // estrella de la misma magnitud integrada. APROXIMACIÓN declarada en la interfaz (deepNote).
-const EXTENDED_PENALTY = { galaxy: 1.5, nebula: 1.5, snr: 1.5, open: 1.0, globular: 1.0, cluster: 1.0, planetary: 1.0, other: 1.5 };
+const EXTENDED_PENALTY = { galaxy: 1.5, nebula: 1.5, snr: 1.5, open: 1.0, globular: 1.0, cluster: 1.0, planetary: 1.0, clneb: 1.0, dark: 1.5, other: 1.5 };
 const extPenalty = (key, ob) => key === "galaxies" ? 1.5 : (EXTENDED_PENALTY[ob.type] ?? 1.5);
-const MAG_LAYERS = new Set(["messier", "galaxies"]);   // símbolo según su magnitud y visibilidad con atmósfera
+const MAG_LAYERS = new Set(["messier", "caldwell", "galaxies"]);   // símbolo según su magnitud y visibilidad con atmósfera
 const loadBortleMap = () => { try { return JSON.parse(localStorage.getItem(BORTLE_KEY) || "{}") || {}; } catch { return {}; } };
 // Sol, Luna y planetas con su magnitud aparente (planetas: Mallama y Hilton 2018; Luna: Schaefer 1998, aprox.)
 // Lugar de "Mi cielo" al abrir: la última elección explícita (localStorage) o, si nunca se eligió, Quito
@@ -157,6 +162,7 @@ const CATEGORY_TERMS = [
   { key: "galaxies",   terms: ["galaxia", "galaxias", "galaxy", "galaxies"] },
   { key: "comets",     terms: ["cometa", "cometas", "comet", "comets"] },
   { key: "meteors",    terms: ["meteoro", "meteoros", "lluvia de meteoros", "lluvias", "meteor", "meteor shower"] },
+  { key: "caldwell",   terms: ["caldwell"] },
   { key: "messier",    terms: ["messier", "nebulosa", "nebulosas", "cúmulo", "cumulo", "cúmulos", "nebula", "cluster"] },
   { key: "exoplanets", terms: ["exoplaneta", "exoplanetas", "exoplanet", "exoplanets"] },
   { key: "probes",     terms: ["sonda", "sondas", "telescopio", "telescopios", "telescopio espacial", "nave", "naves", "satélite", "satelite", "satélites", "satelites", "misión", "mision", "misiones", "probe", "probes", "spacecraft", "telescope", "telescopes", "satellite", "satellites", "mission", "missions", "voyager"] },
@@ -164,6 +170,7 @@ const CATEGORY_TERMS = [
 function labelForObj(key, o, lang) {
   if (key === "messier") return `${o.name}${o.cn ? " · " + o.cn : ""}`;
   if (key === "galaxies") return o.name + (o.cat && o.cat !== o.name ? " · " + o.cat : "");
+  if (key === "caldwell") { const cn = caldwellCommon(o, lang); return o.c == null ? (cn || o.name) : `${o.name}${cn ? " · " + cn : ""}`; }
   if (key === "meteors") return lang === "en" ? (o.name_en || o.name) : o.name;
   return o.name;
 }
@@ -720,7 +727,8 @@ export default function Constellations({ lang = "es" }) {
       if (first.length === 3 && abbrevExpand[first]) extra += " " + abbrevExpand[first];
       return extra;
     };
-    const score = (label) => {
+    const score = (label, exact) => {
+      if (exact) return -1;                         // «C8» o «NGC 104» escritos enteros: ese objeto primero
       const l = label.toLowerCase();
       return l.startsWith(q) ? 0 : (" " + l).includes(" " + q) ? 1 : 2;
     };
@@ -737,17 +745,27 @@ export default function Constellations({ lang = "es" }) {
     });
     // capas de objetos: Messier / agujeros negros / meteoros siempre están
     // cargadas; el resto solo si el usuario activó su capa.
-    for (const key of ["messier", "blackholes", "meteors", "galaxies", "pulsars", "comets", "probes", "exoplanets"]) {
+    for (const key of ["messier", "caldwell", "blackholes", "meteors", "galaxies", "pulsars", "comets", "probes", "exoplanets"]) {
       const ds = datasets[key];
       if (!ds || !ds.objects) continue;
       const layerName = LAYERS.find(l => l.key === key)?.[lang] || key;
+      if (key === "caldwell") {
+        // «C80», «Caldwell 80», «NGC 5139», nombres en español e inglés, sin acentos (src/sky/caldwell.js). Las
+        // galaxias que viven en «Galaxias» se abren allí; si esa capa ya está cargada, solo por su número Caldwell
+        const galName = LAYERS.find(l => l.key === "galaxies")?.[lang] || "galaxies";
+        for (const o of ds.objects) {
+          const m = caldwellMatch(o, q, { extra: conExp("", o.const), otherLoaded: !!(o.in && datasets[o.in]) });
+          if (m) r.push({ type: "layer", layer: key, obj: o, label: labelForObj(key, o, lang), kind: o.in ? galName : layerName, exact: m.exact });
+        }
+        continue;
+      }
       for (const o of ds.objects) {
         const hay = (o.name + " " + (o.cn || "") + " " + (o.cat || "") + " " + (o.name_en || "") + conExp(o.name, o.const)).toLowerCase();
         if (hay.includes(q)) r.push({ type: "layer", layer: key, obj: o, label: labelForObj(key, o, lang), kind: layerName });
       }
       if (r.length > 60) break;
     }
-    r.sort((a, b) => score(a.label) - score(b.label));
+    r.sort((a, b) => score(a.label, a.exact) - score(b.label, b.exact));
     return r.slice(0, 8);
   }, [query, sky, datasets, bodies, abbrevExpand, catMatch, lang, layerError]);
   const depthRef = useRef(0);
@@ -810,6 +828,10 @@ export default function Constellations({ lang = "es" }) {
   useEffect(() => {
     if (query.trim().length >= 3 && !datasets.probes && !loadingLayer.probes && !layerError.probes) {
       const cfg = LAYERS.find(l => l.key === "probes"); if (cfg) loadLayer(cfg);
+    }
+    // Caldwell (Omega Centauri, la Tarántula, las Nubes de Magallanes…): también se encuentra con la capa apagada
+    if (query.trim().length >= 2 && !datasets.caldwell && !loadingLayer.caldwell && !layerError.caldwell) {
+      const cfg = LAYERS.find(l => l.key === "caldwell"); if (cfg) loadLayer(cfg);
     }
   }, [query, datasets, loadingLayer, layerError, loadLayer]);
 
@@ -1746,7 +1768,7 @@ export default function Constellations({ lang = "es" }) {
               const ob = objs[q];
               if (ov && !ov[q]) continue;
               if (!inCone(ob.nx*870, ob.ny*870, ob.nz*870) || !proj(ob.nx*870, ob.ny*870, ob.nz*870, cls)) continue;
-              const nm = (o.key === "meteors" && ref.lang === "en" && ob.name_en) || ob.name;
+              const nm = (o.key === "meteors" && ref.lang === "en" && ob.name_en) || (o.key === "caldwell" && caldwellCommon(ob, ref.lang)) || ob.name;
               if (isNotable(o.key, ob, ref.when)) place(psx, psy, nm, cls, null, undefined, { pk: { layer: o.key, ob } });
               else if (++nCat <= lim) cat.push(psx, psy, nm, ob);
             }
@@ -1856,8 +1878,10 @@ export default function Constellations({ lang = "es" }) {
     ref.layerObjs = [];
     const R = 870;
     LAYERS.forEach(cfg => {
-      const data = datasets[cfg.key];
-      if (!data || !data.objects) return;
+      const raw = datasets[cfg.key];
+      if (!raw || !raw.objects) return;
+      // Caldwell: las galaxias que ya están en «Galaxias» (campo `in`) no se dibujan dos veces
+      const data = cfg.key === "caldwell" ? { ...raw, objects: raw.objects.filter(o => !o.in) } : raw;
       // Messier y galaxias: el símbolo crece y brilla según su magnitud integrada (tres tamaños) y, con la
       // atmósfera, se oculta si no se vería (applyAtm). El resto de capas: símbolo fijo por capa.
       const byMag = MAG_LAYERS.has(cfg.key);
@@ -1937,9 +1961,9 @@ export default function Constellations({ lang = "es" }) {
     if (!selObj) return;
     const L = selObj.layer;
     const kind = L === "solar" ? (selObj.name === "Sol" ? "sun" : selObj.name === "Luna" ? "moon" : "planet") : L === "con" ? "constellation"
-      : ["star", "messier", "pulsars", "blackholes", "galaxies", "meteors", "comets", "probes", "exoplanets"].includes(L) ? L : "other";
+      : ["star", "messier", "caldwell", "pulsars", "blackholes", "galaxies", "meteors", "comets", "probes", "exoplanets"].includes(L) ? L : "other";
     // id: solo nombres de catálogo cortos (planeta en inglés, M31, Sgr A*, Ori, estrella con nombre propio)
-    const id = L === "solar" ? (BODIES[selObj.name] || {}).en : L === "con" ? selObj.ab : (L === "star" || L === "messier" || L === "blackholes") ? selObj.name : undefined;
+    const id = L === "solar" ? (BODIES[selObj.name] || {}).en : L === "con" ? selObj.ab : (L === "star" || L === "messier" || L === "caldwell" || L === "blackholes") ? selObj.name : undefined;
     track("sky_select", id ? { kind, id } : { kind });
   }, [selObj && selObj.name, selObj && selObj.layer]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -2299,6 +2323,13 @@ export default function Constellations({ lang = "es" }) {
       return;
     }
     if (!isWideRef.current) setPanel(null);
+    // un objeto Caldwell que vive en otra capa (p. ej. C77 = Centauro A en «Galaxias»): se abre allí, cuando cargue
+    if (res.type === "layer" && res.obj && res.obj.in) {
+      setEnabled(e => ({ ...e, [res.obj.in]: true }));
+      pendingObjRef.current = res.obj.in + "~" + encodeURIComponent(res.obj.in_name);
+      setHashTick(n => n + 1);
+      return;
+    }
     if (res.type === "con") { setSel(null); setDepth(0); setSelObj(conObjRef.current(res.ab)); }
     else if (res.type === "star") setSelObj(starObj(res.st, res.si));
     else if (res.type === "solar") { setShowSolar(true); setSelObj({ ...res.body, layer: "solar" }); }
@@ -2984,12 +3015,12 @@ export default function Constellations({ lang = "es" }) {
   const conInside = useMemo(() => {
     if (!selCon) return [];
     const out = [];
-    for (const key of ["messier", "galaxies"]) {
+    for (const key of ["messier", "caldwell", "galaxies"]) {
       const ds = datasets[key]; if (!ds || !ds.objects) continue;
-      for (const o of ds.objects) if (o.const === selCon.ab) out.push({ layer: key, obj: o, label: labelForObj(key, o, lang) });
+      for (const o of ds.objects) if (o.const === selCon.ab && !o.in) out.push({ layer: key, obj: o, label: labelForObj(key, o, lang) });
     }
     return out;
-  }, [selCon, datasets.messier, datasets.galaxies, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selCon, datasets.messier, datasets.caldwell, datasets.galaxies, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
   const showActions = !!(sky && !tourActive && !arOn && ar !== "paused" && !arError && inMySky && !covered && !showOnboard && !viewFrom && !showDepth);
   // compartiendo en el teléfono, el visor pasa a pantalla completa: la vista previa necesita todo el alto
   const stageClass = "sk-stage" + (full || immersive || (share && !isWide) ? " is-full" : "") + (immersive ? " is-immersive" : "") + (arOn && arCtl ? " ar-ctl" : "") + (covered ? " is-covered" : "") + (selObj || issSheetOn ? " has-sheet" : "")

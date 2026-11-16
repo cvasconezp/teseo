@@ -13,8 +13,22 @@ function dots(seed, n, fn) {
 }
 const inOval = (x, y) => (x * x) / (92 * 92) + (y * y) / (46 * 46) <= 1;
 
-/** Dibujo de un patrón del cielo. `id`: kepler | pulsarPlane | avoidance | globulars. */
+/** Dibujo de un patrón del cielo. `id`: kepler | pulsarPlane | avoidance | globulars | messierSouth. */
 export function NoteArt({ id }) {
+  if (id === "messierSouth") {
+    // la esfera celeste de perfil: el casquete al sur de −41° (nunca sale en París) sombreado, con sus objetos
+    const R = 52, yCut = R * Math.sin(41.15 * Math.PI / 180);
+    const half = Math.sqrt(R * R - yCut * yCut);
+    const pts = dots(23, 40, (r) => { const x = (r() * 2 - 1) * R, y = (r() * 2 - 1) * R; return x * x + y * y < (R - 3) * (R - 3) ? { x, y, s: y > yCut } : null; });
+    return (
+      <svg className="sk-noteart art-messierSouth" viewBox="-100 -60 200 120" aria-hidden="true">
+        <circle className="sky" cx="0" cy="0" r={R} />
+        <path className="band" d={`M ${-half} ${yCut} A ${R} ${R} 0 0 0 ${half} ${yCut} Z`} />
+        <line className="cut" x1={-R - 14} y1={yCut} x2={R + 14} y2={yCut} />
+        {pts.map((p, i) => <circle key={i} className={p.s ? "dot" : "dot is-dim"} cx={p.x} cy={p.y} r={p.s ? 2 : 1.4} />)}
+      </svg>
+    );
+  }
   if (id === "kepler") {
     // plano focal de Kepler: 5 × 5 módulos sin las cuatro esquinas = 21, cada uno con 2 CCD
     const cells = [];

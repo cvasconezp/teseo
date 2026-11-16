@@ -105,6 +105,14 @@ export function wikiCandidates(obj, lang) {
   else if (L === "star") both((lg) => add(lg, obj.name));
   else if (L === "blackholes") { const m = BH_WIKI[obj.name]; both((lg) => add(lg, m ? (m[lg] || m.en) : outside(obj.name))); }
   else if (L === "pulsars") both((lg) => { add(lg, outside(obj.name)); if (/^[JB]\d/.test(obj.name)) add(lg, "PSR " + outside(obj.name)); });
+  else if (L === "caldwell") {
+    // título del artículo en inglés que enlaza la tabla del catálogo (y, para las Nubes, el español); si no, la
+    // designación ("NGC 5139"), que en ambas Wikipedias suele redirigir al artículo del objeto
+    const des = obj.cat && obj.cat !== "—" ? obj.cat.split(" + ")[0] : null;
+    if (lang === "es") { if (obj.wiki_es) add("es", obj.wiki_es); if (des) add("es", des); }
+    add("en", obj.wiki || des || obj.name); if (des) add("en", des);
+    if (lang === "en" && obj.wiki_es) add("es", obj.wiki_es);
+  }
   else if (L === "galaxies") {
     // nombre común si lo hay; si no, el catálogo "NGC0055" → "NGC 55"
     const cat = (obj.cat || obj.name || "").replace(/^(NGC|IC)0*(\d+)/i, "$1 $2");

@@ -394,4 +394,12 @@ import { R4 } from "./i18n-r4.js";
 import { R5 } from "./i18n-r5.js";
 // atmósfera, contaminación lumínica y magnitudes (src/sky/i18n-atm.js)
 import { ATM } from "./i18n-atm.js";
+// capa Caldwell (src/sky/i18n-caldwell.js): sus objetos anidados se suman a los que ya existen
+import { CALDWELL } from "./i18n-caldwell.js";
 for (const k of ["es", "en"]) Object.assign(TX[k], R3[k], R4[k], R5[k], ATM[k]);
+for (const k of ["es", "en"]) {
+  for (const [key, v] of Object.entries(CALDWELL[k])) {
+    const cur = TX[k][key];
+    TX[k][key] = v && typeof v === "object" && !Array.isArray(v) && cur && typeof cur === "object" ? { ...cur, ...v } : v;
+  }
+}

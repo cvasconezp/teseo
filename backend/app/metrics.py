@@ -81,9 +81,9 @@ ENDPOINTS = {
     "exoplanets", "comets", "probes", "blackholes_json", "trajectory", "iss_passes", "mga", "other", "sun_today",
 }
 ERROR_KINDS = {"timeout", "http4xx", "http5xx", "network", "parse"}
-SKY_LAYERS = {"messier", "pulsars", "blackholes", "galaxies", "meteors", "comets", "probes", "exoplanets"}
+SKY_LAYERS = {"messier", "caldwell", "pulsars", "blackholes", "galaxies", "meteors", "comets", "probes", "exoplanets"}
 SKY_KINDS = {
-    "planet", "moon", "sun", "star", "constellation", "messier", "pulsars", "blackholes", "galaxies",
+    "planet", "moon", "sun", "star", "constellation", "messier", "caldwell", "pulsars", "blackholes", "galaxies",
     "meteors", "comets", "probes", "exoplanets", "other",
 }
 SKY_AR = {"on", "off", "denied", "nosensor", "pending"}

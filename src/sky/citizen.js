@@ -71,7 +71,7 @@ export function citizenFor(obj, local = false) {
   const L = obj.layer;
   return CITIZEN.filter((p) => {
     if (p.localOnly && !local) return false;
-    if (L === "messier") return !!(p.messier && p.messier.includes(obj.type));
+    if (L === "messier" || L === "caldwell") return !!(p.messier && p.messier.includes(obj.type));
     return p.layers.includes(L);
   }).slice(0, 2);
 }

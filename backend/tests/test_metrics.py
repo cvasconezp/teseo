@@ -58,6 +58,12 @@ def test_whitelist_events_and_params():
     assert ev["p"] == {"origin": "earth", "destination": "mars"}
     # tokens: cortos y sin caracteres raros
     assert metrics.clean_event({"e": "sky_select", "p": {"kind": "messier", "id": "M31"}})["p"] == {"kind": "messier", "id": "M31"}
+    # capa Caldwell: la capa, el tipo de objeto y su número de catálogo (C80) o la Nube (LMC) se aceptan
+    assert metrics.clean_event({"e": "sky_layer", "p": {"layer": "caldwell", "state": "on"}})["p"] == {"layer": "caldwell", "state": "on"}
+    assert metrics.clean_event({"e": "sky_select", "p": {"kind": "caldwell", "id": "C80"}})["p"] == {"kind": "caldwell", "id": "C80"}
+    assert metrics.clean_event({"e": "sky_select", "p": {"kind": "caldwell", "id": "LMC"}})["p"] == {"kind": "caldwell", "id": "LMC"}
+    assert metrics.clean_event({"e": "sky_search", "p": {"state": "ok", "kind": "caldwell"}})["p"] == {"state": "ok", "kind": "caldwell"}
+    assert metrics.clean_event({"e": "sky_layer", "p": {"layer": "caldwel"}})["p"] == {}
     assert metrics.clean_event({"e": "sky_select", "p": {"id": "Sgr A*"}})["p"] == {"id": "Sgr A*"}
     assert metrics.clean_event({"e": "sky_select", "p": {"id": "x" * 41}})["p"] == {}
     assert metrics.clean_event({"e": "sky_select", "p": {"id": "<script>"}})["p"] == {}

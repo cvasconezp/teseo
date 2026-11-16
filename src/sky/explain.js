@@ -120,6 +120,8 @@ const D2R = Math.PI / 180;
 const eq = (raDeg, decDeg) => [Math.cos(decDeg * D2R) * Math.cos(raDeg * D2R), Math.cos(decDeg * D2R) * Math.sin(raDeg * D2R), Math.sin(decDeg * D2R)];
 export const KEPLER_CENTER = eq(290.667, 44.5);   // centro del campo de Kepler (AR 19 h 22 m 40 s, Dec +44° 30′)
 export const KEPLER_RADIUS = 8.5;                 // grados: el campo abarca ~16° de esquina a esquina
+export const PARIS_LAT = 48.85;                  // París (Observatorio), donde trabajaba Messier
+const PARIS_NEVER_NZ = -Math.cos(PARIS_LAT * D2R);  // sen(−41,15°): por debajo, nunca sale en París
 const share = (list, test) => { let n = 0; for (const o of list) if (test(o)) n++; return n; };
 
 export function buildSkyNotes(datasets) {
@@ -148,6 +150,14 @@ export function buildSkyNotes(datasets) {
     const n = share(glob, (o) => sepDirs(o.nx, o.ny, o.nz, GAL_CENTER[0], GAL_CENTER[1], GAL_CENTER[2]) <= 45);
     // un círculo de 45° es el 15 % del cielo
     if (glob.length >= 10 && n / glob.length >= 0.4) notes.push({ id: "globulars", layer: "messier", dir: galToEq(8, 15), n, total: glob.length });
+  }
+  const cw = objs("caldwell");
+  if (cw) {
+    // lo que se dibuja (las galaxias que viven en «Galaxias» no cuentan) al sur de −41,15°: bajo el horizonte
+    // de París siempre. El casquete es el 17 % del cielo: se muestra si concentra al menos el 25 % de la capa.
+    const list = cw.filter((o) => !o.in);
+    const n = share(list, (o) => o.nz < PARIS_NEVER_NZ);
+    if (list.length >= 20 && n / list.length >= 0.25) notes.push({ id: "messierSouth", layer: "caldwell", dir: eq(150, -72), n, total: list.length });   // entre Carina y Chamaeleon, lejos de la Cruz
   }
   return notes;
 }

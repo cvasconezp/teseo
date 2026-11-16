@@ -225,7 +225,7 @@ const T = {
       { g: "Catalogues, tracking and community", items: [
         ["Stars and distances", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],
         ["Constellation figures", "Stellarium western/modern · CC BY-SA"],
-        ["Clusters, nebulae and galaxies", "OpenNGC · SEDS Messier · distances from redshift (approx.)"],
+        ["Clusters, nebulae and galaxies", "OpenNGC (CC BY-SA 4.0) · SEDS Messier · Caldwell catalogue (P. Moore, 1995) + Magellanic Clouds · Caldwell distances: NASA Hubble Caldwell catalog, Baumgardt & Vasiliev 2021 (globular clusters), Pietrzyński et al. 2019 (LMC), Graczyk et al. 2020 (SMC) and other published papers · distances from redshift (approx.)"],
         ["Meteor showers", "International Meteor Organization (IMO)"],
         ["International Space Station", "CelesTrak orbital elements · SGP4"],
         ["Upcoming launches", "Launch Library 2 · The Space Devs"],
@@ -410,7 +410,7 @@ const T = {
       { g: "Catálogos, seguimiento y comunidad", items: [
         ["Estrellas y distancias", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],
         ["Figuras de constelaciones", "Stellarium western/modern · CC BY-SA"],
-        ["Cúmulos, nebulosas y galaxias", "OpenNGC · SEDS Messier · distancias por redshift (aprox.)"],
+        ["Cúmulos, nebulosas y galaxias", "OpenNGC (CC BY-SA 4.0) · SEDS Messier · catálogo Caldwell (P. Moore, 1995) + Nubes de Magallanes · distancias Caldwell: catálogo Caldwell del Hubble (NASA), Baumgardt y Vasiliev 2021 (cúmulos globulares), Pietrzyński et al. 2019 (Gran Nube), Graczyk et al. 2020 (Pequeña Nube) y otros artículos publicados · distancias por redshift (aprox.)"],
         ["Lluvias de meteoros", "Organización Internacional de Meteoros (IMO)"],
         ["Estación Espacial Internacional", "Elementos orbitales de CelesTrak · SGP4"],
         ["Próximos lanzamientos", "Launch Library 2 · The Space Devs"],
