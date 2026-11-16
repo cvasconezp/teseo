@@ -396,7 +396,9 @@ import { R5 } from "./i18n-r5.js";
 import { ATM } from "./i18n-atm.js";
 // capa Caldwell (src/sky/i18n-caldwell.js): sus objetos anidados se suman a los que ya existen
 import { CALDWELL } from "./i18n-caldwell.js";
-for (const k of ["es", "en"]) Object.assign(TX[k], R3[k], R4[k], R5[k], ATM[k]);
+// lunas de otros planetas (src/sky/i18n-moons.js)
+import { MOONS_TX } from "./i18n-moons.js";
+for (const k of ["es", "en"]) Object.assign(TX[k], R3[k], R4[k], R5[k], ATM[k], MOONS_TX[k]);
 for (const k of ["es", "en"]) {
   for (const [key, v] of Object.entries(CALDWELL[k])) {
     const cur = TX[k][key];

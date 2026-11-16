@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { BODIES, textureUrl, RING_URL, makeFallbackCanvas } from "./bodies.js";
+import { moonBody } from "./moons.js";
 
 const reducedMotion = () => {
   try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
@@ -19,7 +20,7 @@ export default function Planet3D({ bodyKey, phase, ariaLabel, onStatus }) {
   const statusRef = useRef(onStatus);
   statusRef.current = onStatus;
   const [failed, setFailed] = useState(false);       // sin WebGL: se muestra un disco CSS
-  const body = BODIES[bodyKey];
+  const body = BODIES[bodyKey] || moonBody(bodyKey);          // planetas, Sol y Luna; o una luna de otro planeta
 
   useEffect(() => {
     const host = hostRef.current;

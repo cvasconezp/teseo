@@ -211,7 +211,7 @@ const T = {
     close:          "Close",
     credits: [
       { g: "Space agencies", items: [
-        ["NASA · JPL", "Horizons (planets, comets and probes, live) · CNEOS (near-Earth asteroids)"],
+        ["NASA · JPL", "Horizons (planets, comets and probes, live; orbits of 19 moons of other planets) · CNEOS (near-Earth asteroids) · SSD satellite physical parameters"],
         ["NASA · other centres", "Exoplanet Archive (live) · GSFC eclipse tables · Image and Video Library · Planetary Fact Sheet · SDO (the Sun today)"],
         ["ESA", "Gaia DR3 (black holes Gaia BH1–BH3) · Planck 2018 (dark matter and dark energy) · ESA/Webb and ESA/Hubble images (CC BY 4.0)"],
       ]},
@@ -238,7 +238,7 @@ const T = {
         ["International Space Station", "CelesTrak orbital elements · SGP4"],
         ["Upcoming launches", "Launch Library 2 · The Space Devs"],
         ["Ephemerides and sky", "Paul Schlyter · J. Meeus · Bortle scale · Schaefer atmosphere model"],
-        ["Planetary textures", "Solar System Scope (CC BY 4.0), NASA"],
+        ["Planetary textures", "Solar System Scope (CC BY 4.0), NASA · moons: USGS Astrogeology global mosaics from Viking, Galileo, Voyager and Cassini images (public domain)"],
         ["Fact sheets and images", "Wikipedia · CC BY-SA"],
       ]},
       { g: "Software", items: [
@@ -399,7 +399,7 @@ const T = {
     close:          "Cerrar",
     credits: [
       { g: "Agencias espaciales", items: [
-        ["NASA · JPL", "Horizons (planetas, cometas y sondas, en vivo) · CNEOS (asteroides cercanos)"],
+        ["NASA · JPL", "Horizons (planetas, cometas y sondas, en vivo; órbitas de 19 lunas de otros planetas) · CNEOS (asteroides cercanos) · parámetros físicos de satélites (SSD)"],
         ["NASA · otros centros", "Exoplanet Archive (en vivo) · tablas de eclipses del GSFC · Image and Video Library · Planetary Fact Sheet · SDO (el Sol de hoy)"],
         ["ESA", "Gaia DR3 (agujeros negros Gaia BH1–BH3) · Planck 2018 (materia y energía oscura) · imágenes de ESA/Webb y ESA/Hubble (CC BY 4.0)"],
       ]},
@@ -426,7 +426,7 @@ const T = {
         ["Estación Espacial Internacional", "Elementos orbitales de CelesTrak · SGP4"],
         ["Próximos lanzamientos", "Launch Library 2 · The Space Devs"],
         ["Efemérides y cielo", "Paul Schlyter · J. Meeus · escala de Bortle · modelo de atmósfera de Schaefer"],
-        ["Texturas planetarias", "Solar System Scope (CC BY 4.0), NASA"],
+        ["Texturas planetarias", "Solar System Scope (CC BY 4.0), NASA · lunas: mosaicos globales del USGS Astrogeology con imágenes de Viking, Galileo, Voyager y Cassini (dominio público)"],
         ["Fichas e imágenes", "Wikipedia · CC BY-SA"],
       ]},
       { g: "Software", items: [

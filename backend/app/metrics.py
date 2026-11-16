@@ -84,7 +84,7 @@ ERROR_KINDS = {"timeout", "http4xx", "http5xx", "network", "parse"}
 SKY_LAYERS = {"messier", "caldwell", "pulsars", "blackholes", "galaxies", "meteors", "comets", "probes", "exoplanets"}
 SKY_KINDS = {
     "planet", "moon", "sun", "star", "constellation", "messier", "caldwell", "pulsars", "blackholes", "galaxies",
-    "meteors", "comets", "probes", "exoplanets", "other",
+    "meteors", "comets", "probes", "exoplanets", "satellite", "other",
 }
 SKY_AR = {"on", "off", "denied", "nosensor", "pending"}
 SKY_SETTINGS = {"atmosphere", "light_pollution", "labels", "lines", "art", "grid", "horizon", "night", "guides", "other"}
@@ -346,7 +346,10 @@ PUBLIC_SHARE_EVENTS = ("sky_postcard", "now_share")   # imágenes para compartir
 # sistema solar (nombre en inglés), las 88 abreviaturas de la IAU, Messier M1–M110,
 # Caldwell C1–C109 y las Nubes de Magallanes, y los nombres de los catálogos que sirve la
 # app (estrellas con nombre propio y agujeros negros; app/public_sky_ids.json).
-_PUBLIC_BODIES = {"Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"}
+_PUBLIC_BODIES = {"Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune",
+                  # lunas de otros planetas (src/sky/moons.js): su clave en inglés
+                  "Phobos", "Deimos", "Io", "Europa", "Ganymede", "Callisto", "Mimas", "Enceladus", "Tethys", "Dione",
+                  "Rhea", "Titan", "Iapetus", "Miranda", "Ariel", "Umbriel", "Titania", "Oberon", "Triton"}
 _IAU_ABBR = set((
     "And Ant Aps Aqr Aql Ara Ari Aur Boo Cae Cam Cnc CVn CMa CMi Cap Car Cas Cen Cep Cet Cha Cir Col Com "
     "CrA CrB Crv Crt Cru Cyg Del Dor Dra Equ Eri For Gem Gru Her Hor Hya Hyi Ind Lac Leo LMi Lep Lib Lup "

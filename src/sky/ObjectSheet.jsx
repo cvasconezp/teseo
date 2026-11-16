@@ -18,6 +18,8 @@ import { compassPoint8 } from "./deviceOrientation.js";
 import { citizenFor, CITIZEN_VERIFIED } from "./citizen.js";
 import { useDialogFocus } from "./focus.js";
 import SunToday from "../sun/SunToday.jsx";
+import MoonsView from "./MoonsView.jsx";
+import { hasMoons, moonBody } from "./moons.js";
 import { nasaImageFor, nasaKindKey, nasaStatus, setNasaStatus } from "./nasaImages.js";
 import { agencyImageFor, agencyKindKey, imageSources, agencyStatus, setAgencyStatus } from "./agencyImages.js";
 
@@ -84,7 +86,7 @@ function Visual({ obj, info, t, lang, wiki, wikiState, credit }) {
   useEffect(() => { setImgOk(false); setImgFail(false); }, [wiki && wiki.thumb]);
 
   if (info.visual === "3d") {
-    const b = BODIES[obj.name] || {};
+    const b = BODIES[obj.name] || moonBody(obj.name) || {};
     const real = texStatus === "real";
     return (<>
       <figure className="sk-visual is-3d">
@@ -97,7 +99,7 @@ function Visual({ obj, info, t, lang, wiki, wikiState, credit }) {
         </div>
         <figcaption>
           <b>{texStatus === "fallback" || texStatus === "nowebgl" ? t.cap3dFallback : t.cap3dReal}</b>
-          {real && <span>{t.texCredit[b.credit] || t.texCredit.sss}</span>}
+          {real && <span>{b.mission ? t.texMoon(b.mission[lang] || b.mission.es) : (t.texCredit[b.credit] || t.texCredit.sss)}</span>}
           {obj.name === "Luna" && obj.illum != null && <span className="sk-cap-extra">{t.capMoonPhase}</span>}
         </figcaption>
       </figure>
@@ -154,6 +156,8 @@ function Visual({ obj, info, t, lang, wiki, wikiState, credit }) {
       </figure>
     );
   }
+  // una luna sin foto no lleva ilustración genérica: su visual es el diagrama «Así se ve hoy» (MoonsView)
+  if (obj.layer === "moon") return null;
   // sin imagen: representación propia del tipo de objeto, siempre rotulada
   const kind = artKind(obj);
   return (
@@ -323,6 +327,9 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, credit, met
         {!isNote && <RiseSet obj={obj} t={t} lang={lang} local={local} when={when} onNeedPlace={onNeedPlace} />}
         {/* «El Sol hoy»: manchas, regiones activas, fulguraciones, Kp y ciclo con datos reales (src/sun/) */}
         {obj.layer === "solar" && obj.name === "Sol" && <SunToday lang={lang} source="sheet" />}
+        {/* lunas de otros planetas: dónde están hoy (src/sky/MoonsView.jsx) */}
+        {obj.layer === "moon" && when && <MoonsView parent={obj.parent} focus={obj.name} lang={lang} t={t} when={when} />}
+        {obj.layer === "solar" && hasMoons(obj.name) && when && <MoonsView parent={obj.name} lang={lang} t={t} when={when} />}
         {info.explain.length > 0 && (
           <ul className="sk-explain">
             {info.explain.map((e, i) => (

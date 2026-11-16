@@ -87,6 +87,16 @@ export function mappedTitle(layer, name) {
 // una desambiguación, se descarta y se sigue el enlace interlingüístico del artículo en inglés).
 const SOLAR_WIKI = { "Sol": T("Sun", "Sol"), "Luna": T("Moon", "Luna"), "Mercurio": T("Mercury (planet)", "Mercurio (planeta)"), "Venus": T("Venus", "Venus (planeta)"), "Marte": T("Mars", "Marte"), "Júpiter": T("Jupiter", "Júpiter (planeta)"), "Saturno": T("Saturn", "Saturno (planeta)"), "Urano": T("Uranus", "Urano (planeta)"), "Neptuno": T("Neptune", "Neptuno (planeta)") };
 const BH_WIKI = { "Sgr A*": T("Sagittarius A*", "Sagittarius A*"), "M87*": T("Messier 87", "Messier 87"), "M31* (Andrómeda)": T("Andromeda Galaxy", "Andromeda Galaxy"), "Gaia BH1": T("Gaia BH1", "Gaia BH1"), "Gaia BH3": T("Gaia BH3", "Gaia BH3") };
+// Lunas de otros planetas: título del artículo en inglés (el español se sigue por el enlace interlingüístico).
+const MOON_WIKI = { Phobos: "Phobos (moon)", Deimos: "Deimos (moon)", Io: "Io (moon)", Europa: "Europa (moon)", Ganymede: "Ganymede (moon)",
+  Callisto: "Callisto (moon)", Mimas: "Mimas (moon)", Enceladus: "Enceladus", Tethys: "Tethys (moon)", Dione: "Dione (moon)", Rhea: "Rhea (moon)",
+  Titan: "Titan (moon)", Iapetus: "Iapetus (moon)", Miranda: "Miranda (moon)", Ariel: "Ariel (moon)", Umbriel: "Umbriel", Titania: "Titania (moon)",
+  Oberon: "Oberon (moon)", Triton: "Triton (moon)" };
+const MOON_ES = { Phobos: "Fobos (satélite)", Deimos: "Deimos (satélite)", Io: "Ío (satélite)", Europa: "Europa (satélite)", Ganymede: "Ganimedes (satélite)",
+  Callisto: "Calisto (satélite)", Mimas: "Mimas (satélite)", Enceladus: "Encélado (satélite)", Tethys: "Tetis (satélite)", Dione: "Dione (satélite)",
+  Rhea: "Rea (satélite)", Titan: "Titán (satélite)", Iapetus: "Jápeto (satélite)", Miranda: "Miranda (satélite)", Ariel: "Ariel (satélite)",
+  Umbriel: "Umbriel (satélite)", Titania: "Titania (satélite)", Oberon: "Oberón (satélite)", Triton: "Tritón (satélite)" };
+const MOON_RE = /moon|satellite|luna|sat[eé]lite/i;
 const SPACECRAFT_RE = /spacecraft|space probe|space telescope|telescope|satellite|space station|mission|orbiter|lander|rover|observatory|nasa|\besa\b|jaxa|sonda|telescopio|sat[eé]lite|estaci[oó]n espacial|misi[oó]n|nave|orbitador|observatorio|astromóvil/i;
 const COMET_RE = /comet|cometa/i;
 
@@ -102,6 +112,12 @@ export function wikiCandidates(obj, lang) {
   const both = (fn) => { fn(lang); fn(other); };
   if (L === "solar") { const m = SOLAR_WIKI[obj.name]; both((lg) => add(lg, m ? (m[lg] || m.en) : obj.name)); }
   else if (L === "messier") both((lg) => add(lg, `Messier ${obj.m}`));
+  else if (L === "moon") {
+    const ok = (x) => MOON_RE.test(x || "");
+    if (lang === "es") add("es", MOON_ES[obj.name], ok);
+    add("en", MOON_WIKI[obj.name] || `${obj.name} (moon)`, ok);
+    if (lang === "en") add("es", MOON_ES[obj.name], ok);
+  }
   else if (L === "star") both((lg) => add(lg, obj.name));
   else if (L === "blackholes") { const m = BH_WIKI[obj.name]; both((lg) => add(lg, m ? (m[lg] || m.en) : outside(obj.name))); }
   else if (L === "pulsars") both((lg) => { add(lg, outside(obj.name)); if (/^[JB]\d/.test(obj.name)) add(lg, "PSR " + outside(obj.name)); });

@@ -6,6 +6,7 @@ import { starTemperature, parseSpect } from "./starColor.js";
 import { exoClass, tempBand, methodKey, starClass, schwarzschildKm, bhSizeBand, pulsarSpin, hubbleFamily, magReach, JUPITER_RE, JUPITER_ME } from "./explain.js";
 import { signalDelay } from "./riseset.js";
 import { cwSrcName } from "./i18n-caldwell.js";
+import { MOON_INFO, moonName, moonOrbit, moonBody } from "./moons.js";
 
 // parte del cielo (en %) que ocupa la zona con la que se compara cada patrón
 // messierSouth: casquete al sur de −41,15° → (1 − sen 41,15°) / 2 = 17,1 %
@@ -104,6 +105,22 @@ export function describeObject(o, lang, t, meteorActive) {
     }
     d.details.push([t.dSource, t.srcSolar]);
     d.distNote = t.ephemNote;
+  } else if (L === "moon") {
+    // lunas de otros planetas (src/sky/moons.js): o.name = clave en inglés ("Io"), o.parent = clave de BODIES
+    const info = MOON_INFO[o.name] || {}, orb = moonOrbit(o.name);
+    const parent = bodyName(o.parent, lang);
+    d.name = moonName(o.name, lang);
+    d.type = t.typeMoonOf(parent);
+    if (moonBody(o.name)) d.visual = "3d";                      // globo con el mosaico del USGS; si no, la foto
+    if (o.dist_au != null) nearFacts(o.dist_au * AU_KM, o.dist_au);
+    if (info.note) d.note = info.note[lang] || info.note.es;
+    if (orb) {
+      d.details.push([t.dMoonDiameter, fmtKm(2 * orb.radius_km, lang)]);
+      d.details.push([t.dMoonOrbit, fmtDuration((2 * Math.PI / Math.abs(orb.n)) * 86400, lang)]);
+      d.details.push([t.dMoonDist, fmtKm(orb.a_km, lang)]);
+    }
+    if (info.year) d.details.push([t.dDiscovered, t.discovered(info.year, info.by)]);
+    d.details.push([t.dSource, t.srcMoons]);
   } else if (L === "star") {
     d.type = t.typeStar; d.visual = "star";
     if (o.dist_ly > 0) lightFacts(o.dist_ly);

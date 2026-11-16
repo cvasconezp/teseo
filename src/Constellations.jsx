@@ -5,6 +5,16 @@ import { ephemeris } from "./ephemeris.js";
 import { ErrorNotice } from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS } from "./net.js";
 import { BODIES, BODY_NAMES, bodyName, textureUrl, drawBodySprite, SPRITE_PX } from "./sky/bodies.js";
+import { searchMoons, moonName, moonOrbit, MOON_INFO } from "./sky/moons.js";
+
+// Luna de otro planeta como objeto de la escena: va donde su planeta (a menos de un cuarto de grado) y lleva su clave
+// en inglés («Io») como nombre; dónde está respecto al planeta lo dibuja la ficha (src/sky/MoonsView.jsx).
+function moonObjFrom(bodies, key) {
+  const o = moonOrbit(key); if (!o) return null;
+  const b = (bodies || []).find((x) => x.name === o.parent); if (!b) return null;
+  return { nx: b.nx, ny: b.ny, nz: b.nz, ra: b.ra, dec: b.dec, eqDate: b.eqDate, dist_au: b.dist_au, r_au: b.r_au, layer: "moon", name: key, parent: o.parent };
+}
+const foldTxt = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 import { fmtDist, fmtYears, fmtWhenShort, fmtKm, fmtDuration } from "./sky/format.js";
 import Icon from "./sky/icons.jsx";
 import { PerfMeter, SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TimePanel, TourCard, Onboarding, PointingBar, SkyActions, GuideHud, TonightPanel } from "./sky/panels.jsx";
@@ -366,7 +376,7 @@ const TC = {
     horizonsNote: "Real position for today, from NASA/JPL Horizons.",
     model3dAria: (n) => `3D model of ${n}. Drag, or use the left and right arrows, to spin it.`, dragToSpin: "Drag to spin",
     cap3dReal: "3D model · texture based on real NASA data", cap3dFallback: "3D model · approximate colours (real texture not available yet)",
-    texCredit: { sss: "Texture: Solar System Scope (CC BY 4.0)", svs: "Texture: NASA Scientific Visualization Studio", messenger: "Texture: NASA / JHUAPL / Carnegie (MESSENGER)" },
+    texCredit: { sss: "Texture: Solar System Scope (CC BY 4.0)", svs: "Texture: NASA Scientific Visualization Studio", messenger: "Texture: NASA / JHUAPL / Carnegie (MESSENGER)", usgs: "Texture: USGS / NASA mosaic (public domain)" },
     capMoonPhase: "Lit as it is at the chosen moment. Drag to see its far side.",
     capSunWarn: "Never look at the Sun directly, or through a telescope without a certified solar filter.",
     capWiki: "Image: Wikipedia / Wikimedia Commons", capWikiMixed: "Image from Wikipedia: it may be a real observation or an illustration",
@@ -504,7 +514,7 @@ const TC = {
     horizonsNote: "Posición real de hoy, de NASA/JPL Horizons.",
     model3dAria: (n) => `Modelo 3D de ${n}. Arrastra, o usa las flechas izquierda y derecha, para girarlo.`, dragToSpin: "Arrastra para girar",
     cap3dReal: "Modelo 3D · textura basada en datos reales de NASA", cap3dFallback: "Modelo 3D · colores aproximados (textura real aún no disponible)",
-    texCredit: { sss: "Textura: Solar System Scope (CC BY 4.0)", svs: "Textura: NASA Scientific Visualization Studio", messenger: "Textura: NASA / JHUAPL / Carnegie (MESSENGER)" },
+    texCredit: { sss: "Textura: Solar System Scope (CC BY 4.0)", svs: "Textura: NASA Scientific Visualization Studio", messenger: "Textura: NASA / JHUAPL / Carnegie (MESSENGER)", usgs: "Textura: mosaico de USGS / NASA (dominio público)" },
     capMoonPhase: "Iluminada como está en el momento elegido. Arrastra para ver su cara oculta.",
     capSunWarn: "Nunca mires al Sol directamente ni con un telescopio sin filtro solar certificado.",
     capWiki: "Imagen: Wikipedia / Wikimedia Commons", capWikiMixed: "Imagen de Wikipedia: puede ser una observación real o una ilustración",
@@ -735,6 +745,12 @@ export default function Constellations({ lang = "es" }) {
     const r = [];
     const kinds = TC[lang].kinds;
     for (const b of bodies) if ((b.name + " " + bodyName(b.name, "en")).toLowerCase().includes(q)) r.push({ type: "solar", body: b, label: bodyName(b.name, lang), kind: kinds.solar });
+    // lunas de otros planetas (src/sky/moons.js): «Ío», «Titán», «lunas de Júpiter», «galileanos»
+    for (const key of searchMoons(q)) {
+      const mo = moonObjFrom(bodies, key); if (!mo) continue;
+      const exact = [MOON_INFO[key].es, MOON_INFO[key].en].some((n) => foldTxt(n) === foldTxt(q));
+      r.push({ type: "moon", obj: mo, label: TC[lang].moonResult(moonName(key, lang), bodyName(mo.parent, lang)), kind: TC[lang].kindMoonOther, exact });
+    }
     for (const c of sky.constellations) if ((c.la + " " + c.en).toLowerCase().includes(q)) r.push({ type: "con", ab: c.ab, label: `${c.la} · ${c.en}`, kind: kinds.con });
     // nombres en español de estrellas brillantes ("Sirio" → Sirius, "Estrella Polar" → Polaris)
     const esAlias = new Set(Object.entries(STAR_ES).filter(([es]) => es.includes(q)).map(([, en]) => en.toLowerCase()));
@@ -884,6 +900,12 @@ export default function Constellations({ lang = "es" }) {
     if (layer === "solar") {
       const b = bodiesRef.current.find(x => x.name === name);
       if (b) setSelObj({ ...b, layer: "solar" });
+      pendingObjRef.current = null;
+      return;
+    }
+    if (layer === "moon") {
+      const mo = moonObjFrom(bodiesRef.current, name);
+      if (mo) { setShowSolar(true); setSelObj(mo); }
       pendingObjRef.current = null;
       return;
     }
@@ -1960,10 +1982,10 @@ export default function Constellations({ lang = "es" }) {
   useEffect(() => {
     if (!selObj) return;
     const L = selObj.layer;
-    const kind = L === "solar" ? (selObj.name === "Sol" ? "sun" : selObj.name === "Luna" ? "moon" : "planet") : L === "con" ? "constellation"
+    const kind = L === "solar" ? (selObj.name === "Sol" ? "sun" : selObj.name === "Luna" ? "moon" : "planet") : L === "moon" ? "satellite" : L === "con" ? "constellation"
       : ["star", "messier", "caldwell", "pulsars", "blackholes", "galaxies", "meteors", "comets", "probes", "exoplanets"].includes(L) ? L : "other";
     // id: solo nombres de catálogo cortos (planeta en inglés, M31, Sgr A*, Ori, estrella con nombre propio)
-    const id = L === "solar" ? (BODIES[selObj.name] || {}).en : L === "con" ? selObj.ab : (L === "star" || L === "messier" || L === "caldwell" || L === "blackholes") ? selObj.name : undefined;
+    const id = L === "solar" ? (BODIES[selObj.name] || {}).en : L === "moon" ? selObj.name : L === "con" ? selObj.ab : (L === "star" || L === "messier" || L === "caldwell" || L === "blackholes") ? selObj.name : undefined;
     track("sky_select", id ? { kind, id } : { kind });
   }, [selObj && selObj.name, selObj && selObj.layer]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -2310,7 +2332,7 @@ export default function Constellations({ lang = "es" }) {
 
   const onResult = useCallback((res) => {
     if (res.type === "loading") return;   // fila informativa, no navegable
-    track("sky_search", { state: "ok", kind: res.type === "layer" ? res.layer : res.type === "con" ? "constellation" : res.type });   // nunca el texto buscado
+    track("sky_search", { state: "ok", kind: res.type === "layer" ? res.layer : res.type === "con" ? "constellation" : res.type === "moon" ? "satellite" : res.type });   // nunca el texto buscado
     setQuery("");
     if (arOnRef.current) {
       // apuntando: en vez de abrir la ficha, la flecha guía lleva hasta el objeto
@@ -2333,6 +2355,7 @@ export default function Constellations({ lang = "es" }) {
     if (res.type === "con") { setSel(null); setDepth(0); setSelObj(conObjRef.current(res.ab)); }
     else if (res.type === "star") setSelObj(starObj(res.st, res.si));
     else if (res.type === "solar") { setShowSolar(true); setSelObj({ ...res.body, layer: "solar" }); }
+    else if (res.type === "moon") { setShowSolar(true); setSelObj(res.obj); }
     else if (res.type === "layer") { setEnabled(e => ({ ...e, [res.layer]: true })); setSelObj({ ...res.obj, layer: res.layer }); }
   }, []);
 
@@ -2924,6 +2947,7 @@ export default function Constellations({ lang = "es" }) {
     if (!selObj) return null;
     let o = selObj;
     if (selObj.layer === "solar") { const b = bodies.find(x => x.name === selObj.name); if (b) o = { ...selObj, ...b }; }
+    if (selObj.layer === "moon") { const mo = moonObjFrom(bodies, selObj.name); if (mo) o = mo; }   // sigue a su planeta al pasar el tiempo
     // con atmósfera: ¿se ve ahora a simple vista? (solo para lo que tiene magnitud; bajo el horizonte lo dice la ficha)
     if (atmState && o.nx != null && o.mag != null && o.name !== "Sol" && (o.layer === "solar" || o.layer === "star" || MAG_LAYERS.has(o.layer))) {
       try {

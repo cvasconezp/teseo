@@ -31,6 +31,7 @@ import { nasaImageFor, nasaKindKey, imageOrder, nasaStatus } from "./nasaImages.
 export const NASA_CANVAS_OK = false;
 import { compassPoint8 } from "./deviceOrientation.js";
 import { loadRemoteImage } from "../share/images.js";
+import { moonBody } from "./moons.js";
 import { API as SUN_API } from "../sun/sun.js";
 /** Imagen del Sol de hoy (NASA/SDO, HMI: luz visible continua, donde se ven las manchas). */
 /** Fracción del lado de la imagen de SDO que ocupa el disco solar (medido en latest_1024_HMIIF: ~0,925). */
@@ -298,10 +299,11 @@ async function heroFor(obj, wiki, credit, t) {
   // la Luna siempre va con el modelo: muestra su fase de ese momento, que una foto de archivo no da
   const nasa = obj.layer === "solar" && obj.name === "Luna" ? null : nasaImageFor(obj);
   let model = null;
-  if (obj.layer === "solar") {
-    const b = BODIES[obj.name];
+  if (obj.layer === "solar" || obj.layer === "moon") {
+    const b = obj.layer === "solar" ? BODIES[obj.name] : moonBody(obj.name);   // una luna: globo con el mosaico del USGS
     if (b) {
       const img = await loadImage(textureUrl(b.id), false);
+      if (!img && obj.layer === "moon") { /* sin textura no se inventa el globo de una luna */ } else {
       const src = img || makeFallbackCanvas(b.id, 512, 256);
       const c = document.createElement("canvas"); c.width = 720; c.height = 360;
       const x = c.getContext("2d"); x.drawImage(src, 0, 0, 720, 360);
@@ -309,6 +311,7 @@ async function heroFor(obj, wiki, credit, t) {
       try { tex = x.getImageData(0, 0, 720, 360); } catch { tex = null; }
       if (tex) model = { kind: "model", tex, body: b, key: obj.name, phase: obj.name === "Luna" && obj.illum != null ? { illum: obj.illum, waxing: obj.waxing } : null,
         label: img ? t.pcModel(t.texCredit[b.credit] || t.texCredit.sss) : t.pcModelFallback };
+      }
     }
   }
   const fromWiki = async () => {
@@ -349,7 +352,8 @@ async function heroFor(obj, wiki, credit, t) {
       if (h) return h;
     }
   }
-  if (obj.layer === "note") return null;
+  if (obj.layer === "moon") { const w = await fromWiki(); return w || model; }   // foto de la luna; si no, su globo; nunca una nebulosa
+  if (obj.layer === "note") return null;     // una luna sin foto: postal sin visual, nunca una nebulosa genérica
   return { kind: "art", art: artKind(obj), opts: artOptions(obj), label: t.pcArt };
 }
 
@@ -540,6 +544,7 @@ export function postcardGrid({ obj, info, t, lang, local, con, fmt, sky, bodies,
     }
     if (L === "star") { dist(); det(t.dMagnitude, true); det(t.dTemp, true); det(t.dSpect); fact(t.fVoyager); }
     else if (L === "solar") { dist(); det(t.dDiameter, true); det(t.dAppMag, true); det(t.dOrbitSun); det(t.dOrbitEarth); det(t.dRotation); }
+    else if (L === "moon") { dist(); det(t.dMoonDiameter, true); det(t.dMoonOrbit); det(t.dDiscovered); }
     else if (L === "probes") { dist(); det(t.fTarget); det(t.fAgency); det(t.fLaunched); det(t.dSunDist, true); }
     else if (L === "comets") { dist(); det(t.dSunDist, true); fact(t.fVoyager); }
     else if (L === "messier") { dist(); det(t.dMagnitude, true); det(t.dCatalog); fact(t.fVoyager); }

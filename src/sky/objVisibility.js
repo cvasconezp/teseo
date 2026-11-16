@@ -32,11 +32,13 @@ const dirOfBody = (b) => [b.nx, b.ny, b.nz];
  */
 export function visibilityOf(obj, local, when) {
   if (!obj || obj.nx == null || !local) return null;
-  const solar = obj.layer === "solar";
-  const isSun = solar && obj.name === "Sol", isMoon = solar && obj.name === "Luna";
+  // una luna de otro planeta sale, culmina y se pone con su planeta
+  const solar = obj.layer === "solar" || (obj.layer === "moon" && !!obj.parent);
+  const key = obj.layer === "moon" ? obj.parent : obj.name;
+  const isSun = solar && key === "Sol", isMoon = solar && key === "Luna";
   let dirAt, minAlt, nowDir;
   if (solar) {
-    const at = bodyCache(obj.name);
+    const at = bodyCache(key);
     dirAt = (d) => dirOfBody(at(d));
     minAlt = isMoon ? (ms) => moonH0(at(new Date(ms)).dist_km) : horizonFor(isSun ? "sun" : "star");
     const b0 = at(when), km = bodyDistKm(b0);
