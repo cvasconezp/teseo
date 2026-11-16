@@ -123,6 +123,7 @@ export const R3 = {
     pcSkyFrom: (place) => `El cielo desde ${place}`, pcSky: "El cielo real", pcSkySub: "Cada punto es una estrella real, en su posición real",
     pcSkyFact: "Las estrellas, las figuras y los planetas están donde están de verdad en este momento.",
     pcPhoto: (who) => `Imagen: ${who} · Wikimedia Commons`, pcPhotoGeneric: "Imagen: Wikipedia / Wikimedia Commons (autor y licencia en el artículo)",
+    pcSdo: "Foto de hoy: NASA/SDO (HMI) · las manchas son reales",
     pcModel: (credit) => `Modelo con textura real · ${credit}`, pcModelFallback: "Modelo con colores aproximados: no es una imagen real",
     pcArt: "Representación esquemática: no es una imagen real",
     pcHead: "TESEO", pcHeadWith: "con Killa Ñan · Astronomía comunitaria",
@@ -148,21 +149,32 @@ export const R3 = {
       : `Su luz salió hace ${y}: ${fem ? "la" : "lo"} ves como era entonces`,
     pcLightTakes: (dur) => `su luz tarda ${dur} en llegar`,
     pcSignalTakes: (dur) => `una señal de radio tarda ${dur} en llegar`,
-    // espectro (postal de una estrella y del Sol; datos y fuentes en composition.js)
-    pcSpecTitle: "Espectro (esquemático)",
-    pcSpecPeak: (nm, zone) => zone === "visible" ? `Su luz es más intensa en ${nm} nm`
-      : zone === "uv" ? `Su luz es más intensa en ${nm} nm: ultravioleta, a la izquierda de la banda`
-      : `Su luz es más intensa en ${nm} nm: infrarrojo, a la derecha de la banda`,
-    pcSpecCap: (T, cls, lower, tio) => `Esquema, no una medición: cuerpo negro a ${lower ? "≥" : "≈"} ${T} K (estimada por su color) y líneas típicas del tipo ${cls} (NIST${tio ? "; TiO: Pavlenko et al. 2020" : ""}).`,
-    pcSpecCapSun: (T) => `Esquema: cuerpo negro a ${T} K y las principales líneas de Fraunhofer (NIST). El Sol real tiene miles más.`,
+    // postal de estrella, versión sintética: subtítulo («Supergigante roja · M2Ib · magnitud 0,45»), con la
+    // etapa de lifePlan y el color de su letra (LIFE, los de la ficha). null → se usa el tipo de la ficha
+    pcStarKind: (stage, letter, assumed, c) => !c && stage !== "wd" ? null
+      : stage === "wd" ? "Enana blanca"
+      : stage === "ms" && !assumed && letter === "M" ? "Enana roja"
+      : stage === "ms" && !assumed && letter === "G" ? "Enana amarilla"
+      : stage === "subgiant" ? `Subgigante ${c}` : stage === "giant" ? `Gigante ${c}` : stage === "supergiant" ? `Supergigante ${c}`
+      : `Estrella ${c}`,
+    // cielo local de la postal de estrella, en una línea: la altura ahora o, bajo el horizonte, cuándo sale
+    pcLocalStar: (place, when, what) => `Desde ${place} · ${when} · ${what}`,
+    pcLsUp: (alt, p) => `a ${alt}° de altura, al ${DIRS.es[p]}`,
+    pcLsRise: (time, tomorrow) => `sale ${tomorrow ? "mañana " : ""}a las ${time}`,
+    pcLsNever: "hoy no sale", pcLsDown: "bajo el horizonte",
+    // «Su luz» (datos y fuentes en composition.js): que es un esquema lo dice el crédito del pie
+    pcSpecTitle: "Su luz",
+    pcSpecPeak: (nm, zone) => zone === "visible" ? `más intensa en ${nm} nm`
+      : zone === "uv" ? `más intensa en ${nm} nm · ← ultravioleta`
+      : `más intensa en ${nm} nm · infrarrojo →`,
     pcSpecHK: "Ca II H y K", pcSpecNm: "nm",
-    // vida y final (datos y fuentes en starLife.js; etapas en i18n-comp.js, LIFE.stage)
-    pcLifeTitle: "Vida y final", pcLifeNow: "HOY",
-    pcLifeMass: (m, ref) => `Masa: ${m} · publicada${ref ? ` (${ref})` : ""}`,
-    pcLifeMassEst: (m, spt) => `Masa: ${m} · estimada por su tipo (${spt}), no medida`,
-    pcLifeMassSun: "Masa: 1 M☉ · edad: unos 4.600 millones de años",
-    pcLifeMassNone: "Sin masa publicada: no damos cifra",
-    pcLifeAssumed: "Etapa deducida de su brillo: el catálogo no da su clase de luminosidad.",
+    // «Su vida» (datos y fuentes en starLife.js; etapas en i18n-comp.js, LIFE.stage); la referencia de la masa va al pie
+    pcLifeTitle: "Su vida", pcLifeNow: "HOY",
+    pcLifeMass: (m) => `masa ${m}, publicada`,
+    pcLifeMassEst: (m) => `masa ${m}, estimada por su tipo`,
+    pcLifeMassSun: "masa 1 M☉ · edad ≈ 4.600 millones de años",
+    pcLifeMassNone: "sin masa publicada: no damos cifra",
+    pcLifeAssumed: "Etapa deducida de su brillo: el catálogo no da su clase.",
     pcLifeRefMs: "Pecaut y Mamajek 2013",
     pcFate: {
       redDwarf: "Vivirá billones de años y acabará como enana blanca de helio: ninguna estrella ha llegado aún a ese final.",
@@ -177,11 +189,15 @@ export const R3 = {
       sun: "En unos 5.000 millones de años se hinchará como gigante roja, expulsará una nebulosa planetaria y quedará como enana blanca.",
       isWd: "Ya es una enana blanca: el núcleo apagado de una estrella que terminó su vida, y se va enfriando.",
     },
-    // crédito corto de la postal de estrella (el de la ficha no cabe en dos líneas junto a los nuevos):
-    // solo las fuentes de lo que de verdad se dibuja (líneas, masa estimada, finales)
+    // crédito de la postal de estrella: solo las fuentes de lo que de verdad se dibuja, y la advertencia
+    // de que el espectro es un esquema (antes era una nota de dos líneas dentro del bloque)
+    // o = { sun, spec: { T, lower, tio } | null, est, life, massRef }
     pcCreditStar: (o) => (o.sun
-      ? ["Datos: NASA (Planetary Fact Sheet y «Sun: Facts»)", "posición: efemérides de Paul Schlyter", o.lines && "líneas: NIST"]
-      : ["Datos: HYG v4.1 (Hipparcos)", o.temp && "temperatura: Ballesteros 2012, por B−V", o.lines && "líneas: NIST", o.est && "masa por tipo: Pecaut y Mamajek 2013", o.life && "finales: OpenStax y NASA"]
+      ? ["Datos: NASA (Planetary Fact Sheet y «Sun: Facts»)", "posición: efemérides de Paul Schlyter",
+        o.spec && `espectro: esquema, cuerpo negro a ${o.spec.T} K y líneas de Fraunhofer (NIST)`]
+      : ["Datos: HYG v4.1 (Hipparcos)",
+        o.spec && `espectro: esquema, no medición: cuerpo negro a ${o.spec.lower ? "≥" : "≈"}\u00a0${o.spec.T}\u00a0K por B−V (Ballesteros 2012) y líneas típicas (NIST${o.spec.tio ? "; TiO: Pavlenko et al. 2020" : ""})`,
+        o.massRef && `masa:\u00a0${o.massRef}`, o.est && "masa por tipo: Pecaut y Mamajek 2013", o.life && "finales: OpenStax\u00a0y\u00a0NASA"]
     ).filter(Boolean).join("\u00a0· "),
     // ── varias naves en el mismo punto ──
     pickTitle: (n) => `${n} objetos en este punto`, pickLead: "Están tan juntos en el cielo que caen en el mismo lugar. Elige uno:",
@@ -296,6 +312,7 @@ export const R3 = {
     pcSkyFrom: (place) => `The sky from ${place}`, pcSky: "The real sky", pcSkySub: "Every dot is a real star, in its real position",
     pcSkyFact: "The stars, the figures and the planets are where they really are at this moment.",
     pcPhoto: (who) => `Image: ${who} · Wikimedia Commons`, pcPhotoGeneric: "Image: Wikipedia / Wikimedia Commons (author and licence in the article)",
+    pcSdo: "Today's photo: NASA/SDO (HMI) · the sunspots are real",
     pcModel: (credit) => `Model with real texture · ${credit}`, pcModelFallback: "Model with approximate colours: not a real image",
     pcArt: "Schematic representation: not a real image",
     pcHead: "TESEO", pcHeadWith: "with Killa Ñan · Community astronomy",
@@ -317,19 +334,26 @@ export const R3 = {
       : `Its light left ${y} ago: you see it as it was then`,
     pcLightTakes: (dur) => `its light takes ${dur} to reach us`,
     pcSignalTakes: (dur) => `a radio signal takes ${dur} to get there`,
-    pcSpecTitle: "Spectrum (schematic)",
-    pcSpecPeak: (nm, zone) => zone === "visible" ? `Its light is strongest at ${nm} nm`
-      : zone === "uv" ? `Its light is strongest at ${nm} nm: ultraviolet, left of the band`
-      : `Its light is strongest at ${nm} nm: infrared, right of the band`,
-    pcSpecCap: (T, cls, lower, tio) => `A sketch, not a measurement: blackbody at ${lower ? "≥" : "≈"} ${T} K (estimated from its colour) and lines typical of type ${cls} (NIST${tio ? "; TiO: Pavlenko et al. 2020" : ""}).`,
-    pcSpecCapSun: (T) => `A sketch: blackbody at ${T} K and the main Fraunhofer lines (NIST). The real Sun has thousands more.`,
+    pcStarKind: (stage, letter, assumed, c) => !c && stage !== "wd" ? null
+      : stage === "wd" ? "White dwarf"
+      : stage === "ms" && !assumed && letter === "M" ? "Red dwarf"
+      : stage === "ms" && !assumed && letter === "G" ? "Yellow dwarf"
+      : `${c[0].toUpperCase()}${c.slice(1)} ${stage === "subgiant" ? "subgiant" : stage === "giant" ? "giant" : stage === "supergiant" ? "supergiant" : "star"}`,
+    pcLocalStar: (place, when, what) => `From ${place} · ${when} · ${what}`,
+    pcLsUp: (alt, p) => `${alt}° up, to the ${DIRS.en[p]}`,
+    pcLsRise: (time, tomorrow) => `rises ${tomorrow ? "tomorrow " : ""}at ${time}`,
+    pcLsNever: "does not rise today", pcLsDown: "below the horizon",
+    pcSpecTitle: "Its light",
+    pcSpecPeak: (nm, zone) => zone === "visible" ? `strongest at ${nm} nm`
+      : zone === "uv" ? `strongest at ${nm} nm · ← ultraviolet`
+      : `strongest at ${nm} nm · infrared →`,
     pcSpecHK: "Ca II H & K", pcSpecNm: "nm",
-    pcLifeTitle: "Life and end", pcLifeNow: "NOW",
-    pcLifeMass: (m, ref) => `Mass: ${m} · published${ref ? ` (${ref})` : ""}`,
-    pcLifeMassEst: (m, spt) => `Mass: ${m} · estimated from its type (${spt}), not measured`,
-    pcLifeMassSun: "Mass: 1 M☉ · age: about 4.6 billion years",
-    pcLifeMassNone: "No published mass: we give no figure",
-    pcLifeAssumed: "Stage inferred from its brightness: the catalogue gives no luminosity class.",
+    pcLifeTitle: "Its life", pcLifeNow: "NOW",
+    pcLifeMass: (m) => `mass ${m}, published`,
+    pcLifeMassEst: (m) => `mass ${m}, estimated from its type`,
+    pcLifeMassSun: "mass 1 M☉ · age ≈ 4.6 billion years",
+    pcLifeMassNone: "no published mass: we give no figure",
+    pcLifeAssumed: "Stage inferred from its brightness: the catalogue gives no class.",
     pcLifeRefMs: "Pecaut & Mamajek 2013",
     pcFate: {
       redDwarf: "It will live for trillions of years and end as a helium white dwarf: no star has reached that end yet.",
@@ -345,8 +369,11 @@ export const R3 = {
       isWd: "It is already a white dwarf: the dead core of a star that ended its life, slowly cooling down.",
     },
     pcCreditStar: (o) => (o.sun
-      ? ["Data: NASA (Planetary Fact Sheet and \"Sun: Facts\")", "position: Paul Schlyter's ephemerides", o.lines && "lines: NIST"]
-      : ["Data: HYG v4.1 (Hipparcos)", o.temp && "temperature: Ballesteros 2012, from B−V", o.lines && "lines: NIST", o.est && "mass by type: Pecaut & Mamajek 2013", o.life && "ends: OpenStax and NASA"]
+      ? ["Data: NASA (Planetary Fact Sheet and \"Sun: Facts\")", "position: Paul Schlyter's ephemerides",
+        o.spec && `spectrum: a sketch, blackbody at ${o.spec.T} K and Fraunhofer lines (NIST)`]
+      : ["Data: HYG v4.1 (Hipparcos)",
+        o.spec && `spectrum: a sketch, not a measurement: blackbody at ${o.spec.lower ? "≥" : "≈"}\u00a0${o.spec.T}\u00a0K from B−V (Ballesteros 2012) and typical lines (NIST${o.spec.tio ? "; TiO: Pavlenko et al. 2020" : ""})`,
+        o.massRef && `mass:\u00a0${o.massRef}`, o.est && "mass by type: Pecaut & Mamajek 2013", o.life && "ends: OpenStax\u00a0and\u00a0NASA"]
     ).filter(Boolean).join("\u00a0· "),
     pickTitle: (n) => `${n} objects at this spot`, pickLead: "They are so close together in the sky that they land on the same place. Pick one:",
     clusterMore: (n) => `+${n}`,

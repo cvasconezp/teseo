@@ -169,6 +169,15 @@ export async function fetchWiki(title, lang) {
  *   { thumb, file, imgUrl, imgLang } imagen (puede venir del artículo en el otro idioma)
  * o null si no hay nada utilizable. `isStale()` permite abandonar si la selección cambió.
  */
+/**
+ * ¿La imagen principal del artículo muestra el objeto? En muchas estrellas (p. ej. «Sirius»)
+ * la imagen del artículo es un MAPA de la constelación o un diagrama: no se usa como «foto».
+ */
+export function isObjectPicture(file) {
+  if (!file) return false;
+  return !/(constellation|_map\b|map\.|_map_|locator|chart|carta|mapa|diagram|diagrama|position|sky_?map|finder|iau_)/i.test(String(file));
+}
+
 export async function fetchWikiFor(obj, lang, isStale = () => false) {
   const cands = wikiCandidates(obj, lang);
   let text = null, image = null, tried = 0;
@@ -187,9 +196,9 @@ export async function fetchWikiFor(obj, lang, isStale = () => false) {
       // el artículo del otro idioma dice cuál es su equivalente exacto en el tuyo
       const w2 = await fetchWiki(w.langlink, lang);
       if (isStale()) return null;
-      if (usable(w2, null)) { text = w2; if (!image && w2.thumb) image = w2; }
+      if (usable(w2, null)) { text = w2; if (!image && w2.thumb && isObjectPicture(w2.file)) image = w2; }
     }
-    if (!image && w.thumb) image = w;
+    if (!image && w.thumb && isObjectPicture(w.file)) image = w;
   }
   if (!text && !image) return null;
   const base = text || image;

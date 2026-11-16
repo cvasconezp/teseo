@@ -14,6 +14,10 @@
 //      una frase de dato curioso y, en cielo local, lugar y hora;
 //   4. zona segura inferior (~260 px, la tapa la barra de respuesta): solo la marca — URL,
 //      «Yachay Deep Labs × Killa Ñan · Astronomía comunitaria» y el crédito de los datos.
+// Postal de una ESTRELLA (o del Sol) con espectro y/o vida (postcardStar.js), versión sintética: el
+// mismo visual centrado; subtítulo «tipo · clase · magnitud»; solo la casilla de la distancia; «Su luz»
+// y «Su vida» sin tarjetas (un separador fino); la altura o la hora de salida en la línea del cielo
+// local, y la advertencia de que el espectro es un esquema, en el crédito del pie.
 // Ningún texto se corta: cada línea se mide con measureText y se ajusta de tamaño o se parte
 // (fitLines). El resultado incluye un informe con el ancho y la posición de cada línea, que las
 // pruebas usan para comprobarlo.
@@ -26,8 +30,13 @@ import { nasaImageFor, nasaKindKey, imageOrder, nasaStatus } from "./nasaImages.
 /** ¿Se pueden dibujar en la postal las imágenes de images-assets.nasa.gov? (ver fromNasa en heroFor) */
 export const NASA_CANVAS_OK = false;
 import { compassPoint8 } from "./deviceOrientation.js";
-import { starBlocks, layoutSpectrum, drawSpectrum, layoutLife, drawLife } from "./postcardStar.js";
-import { starTemperature } from "./starColor.js";
+import { loadRemoteImage } from "../share/images.js";
+import { API as SUN_API } from "../sun/sun.js";
+/** Imagen del Sol de hoy (NASA/SDO, HMI: luz visible continua, donde se ven las manchas). */
+/** Fracción del lado de la imagen de SDO que ocupa el disco solar (medido en latest_1024_HMIIF: ~0,925). */
+export const SDO_DISK = 0.93;
+export const SDO_LATEST = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMIIF.jpg";
+import { starBlocks, starSubtitle, layoutSpectrum, drawSpectrum, layoutLife, drawLife, drawRule, shortRef } from "./postcardStar.js";
 
 export const PC_W = 1080, PC_H = 1920;
 /** Zonas que tapan las apps de historias con su interfaz: arriba la barra de progreso y el perfil; abajo, la de respuesta. */
@@ -321,7 +330,16 @@ async function heroFor(obj, wiki, credit, t) {
     if (!(img && isClean(img))) return null;
     return { kind: "photo", img, label: t.pcNasa(t.nasaKind[nasaKindKey(nasa)], nasa.credit), source: "nasa", nasaKind: nasa.kind };
   };
+  // El Sol: la imagen REAL de hoy de NASA/SDO (instrumento HMI), donde se ven las manchas solares;
+  // pasa por el intermediario /api/img (sdo.gsfc.nasa.gov no manda CORS). Si falla, el modelo con textura.
+  const fromSdo = async () => {
+    if (!(obj.layer === "solar" && obj.name === "Sol")) return null;
+    const r = await loadRemoteImage(SDO_LATEST, SUN_API, 9000);
+    return r ? { kind: "photo", img: r.img, label: t.pcSdo, source: "sdo", disk: SDO_DISK } : null;
+  };
   if (obj.layer === "solar") {
+    const s = await fromSdo();
+    if (s) return s;
     const h = await fromNasa();
     if (h) return h;
     if (model) return model;
@@ -372,6 +390,18 @@ function drawHero(ctx, hero, cx, top, maxW, maxH) {
     drawSphere(ctx, hero.tex, cx, cy, R, { lon0: 0.6, tilt: hero.body.ring ? -0.38 : Math.max(-0.45, Math.min(0.45, (hero.body.tilt || 0) * Math.PI / 180)), phase: hero.phase, sun: hero.key === "Sol" });
     if (hero.body.ring) ring(true);
     return { x: cx - size.w / 2, y: cy - R, w: size.w, h: R * 2 };
+  }
+  if (hero.disk) {
+    // foto del Sol de SDO: el disco ocupa ~93 % del cuadro; se recorta en círculo, sin marco, con resplandor
+    const R = Math.min(size.w, size.h) / 2, cy = top + R;
+    const gl = ctx.createRadialGradient(cx, cy, R * 0.95, cx, cy, R * 1.6);
+    gl.addColorStop(0, "rgba(255,190,90,0.55)"); gl.addColorStop(1, "rgba(255,190,90,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(cx, cy, R * 1.6, 0, TAU); ctx.fill();
+    const iw = hero.img.naturalWidth, ih = hero.img.naturalHeight, d = Math.min(iw, ih) * hero.disk;
+    ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.clip();
+    ctx.drawImage(hero.img, (iw - d) / 2, (ih - d) / 2, d, d, cx - R, cy - R, 2 * R, 2 * R);
+    ctx.restore();
+    return { x: cx - R, y: top, w: 2 * R, h: 2 * R };
   }
   const { w, h } = size;
   const draw = hero.kind === "photo"
@@ -438,6 +468,27 @@ function localCells(target, local, t, lang, fmt) {
 }
 
 /**
+ * Línea del cielo local de la postal de estrella (una sola frase, en vez de la casilla): la altura y la
+ * dirección si está sobre el horizonte; si no, cuándo sale (hoy o mañana) o que hoy no sale. Usa
+ * visibilityOf (objVisibility.js), lo mismo que la ficha. null sin lugar o sin dirección.
+ */
+export function starLocalLine(obj, local, t, lang, fmt) {
+  if (!local || !obj || obj.nx == null) return null;
+  let vis = null;
+  try { vis = visibilityOf(obj, local, local.date); } catch { vis = null; }
+  const line = (what) => t.pcLocalStar(local.place, fmt.when(local.date), what);
+  if (!vis || !vis.now) {
+    const p = altAzJ2000(obj.nx, obj.ny, obj.nz, local.lat, local.lon, local.date);
+    return line(p.alt > 0 ? t.pcLsUp(Math.round(p.alt), compassPoint8(p.az)) : t.pcLsDown);
+  }
+  if (vis.now.alt > 0) return line(t.pcLsUp(Math.round(vis.now.alt), compassPoint8(vis.now.az)));
+  const r = vis.rts;
+  if (r && r.state === "never") return line(t.pcLsNever);
+  if (r && !r.upNow && r.rise) return line(t.pcLsRise(timeOf(fmt, lang)(r.rise.date), r.rise.date.toDateString() !== local.date.toDateString()));
+  return line(t.pcLsDown);
+}
+
+/**
  * Casillas de la cuadrícula (función pura): [{ label, value, sub, kind }], como mucho GRID_MAX.
  * Cada valor sale de lo que ya calcula la ficha (info.facts / info.details de describeObject), de
  * la constelación o del catálogo; si un dato no existe, su casilla no aparece.
@@ -481,19 +532,11 @@ export function postcardGrid({ obj, info, t, lang, local, con, fmt, sky, bodies,
   } else {
     const L = obj.layer;
     if (star && (star.spectrum || star.life)) {
-      // postal de una estrella (o del Sol) con espectro y vida: cuadrícula compacta de 4 casillas como mucho
-      // — la distancia unificada (ancha), 2 datos y 1 del cielo local —; el resto de la información va en
-      // los bloques del espectro y de la vida
+      // postal de una estrella (o del Sol) con espectro y/o vida, versión sintética: SOLO la distancia
+      // unificada (ancha). La clase y la magnitud van en el subtítulo (starSubtitle) y la altura o la
+      // hora de salida, en la línea del cielo local (starLocalLine)
       dist();
-      if (L === "star") { det(t.dMagnitude, true); if (star.spectrum) det(t.dSpect); else { det(t.dTemp, true); if (data.length < 3) det(t.dSpect); } }
-      else { det(t.dDiameter, true); det(t.dRotation); }
-      if (obj.nx != null) {
-        const lc = localCells(obj, local, t, lang, fmt);
-        // la altura si está sobre el horizonte; si no, cuándo sale (o «no se pone» / «hoy no sale»)
-        const pick = lc[0] && lc[0].value !== t.pcGBelow ? lc[0] : (lc[1] || lc[0]);
-        loc = pick ? [pick] : [];
-      }
-      return [...data.slice(0, 3), ...loc];
+      return data.slice(0, 1);
     }
     if (L === "star") { dist(); det(t.dMagnitude, true); det(t.dTemp, true); det(t.dSpect); fact(t.fVoyager); }
     else if (L === "solar") { dist(); det(t.dDiameter, true); det(t.dAppMag, true); det(t.dOrbitSun); det(t.dOrbitEarth); det(t.dRotation); }
@@ -581,9 +624,17 @@ export const HERO_TOP = SAFE_TOP + 22, HERO_MIN = 360, HERO_MAX = 680, HERO_W = 
 export const BAND_MIN = 150, BAND_MAX = 360;
 /** Línea inferior del bloque de texto: por encima de la zona que tapa la barra de respuesta. */
 export const BLOCK_BOTTOM = PC_H - SAFE_BOTTOM - 22;
-/** Postal de estrella: ancho de la columna del visual (a la izquierda) y de su rótulo, y alto mínimo de
- *  la zona del visual (con el visual) o solo del cielo con la retícula (sin él). */
-export const STAR_HERO_COL = 420, STAR_CAP_W = 560, STAR_ZONE_HERO = 136, STAR_ZONE_MIN = 110;
+/** Postal de estrella (versión sintética): el visual va centrado, como en las demás capas, con un alto
+ *  mínimo algo menor (STAR_HERO_MIN) y una franja para la retícula de al menos STAR_BAND_MIN; sin visual,
+ *  el cielo con la retícula necesita STAR_ZONE_MIN. STAR_GAP: aire entre la distancia, «Su luz» y «Su vida»
+ *  (con un separador fino en medio). */
+export const STAR_HERO_MIN = 240, STAR_BAND_MIN = 140, STAR_ZONE_MIN = 110, STAR_GAP = 48;
+/** Si así no cabe, antes de quitar el visual se prueba con una franja y un visual algo menores. */
+export const STAR_HERO_MIN2 = 190, STAR_BAND_MIN2 = 112;
+/** Alto del bloque de texto de la postal de estrella (función pura; las piezas ya medidas). */
+export function starTextH({ titleH, typeH, gridH, specH, lifeH, localH }) {
+  return titleH + 12 + typeH + (gridH ? 30 + gridH : 0) + (specH ? STAR_GAP + specH : 0) + (lifeH ? STAR_GAP + lifeH : 0) + (localH ? 34 + localH : 0);
+}
 /**
  * Reparto vertical (función pura): textH = alto del bloque de texto; capH = alto del rótulo del visual
  * (0 sin visual). Devuelve { blockTop, heroTop, heroMaxH, fits }: el bloque se apoya en BLOCK_BOTTOM
@@ -634,8 +685,9 @@ export function postcardText({ obj, info, lang, t, local, con, fmt, sky, bodies,
   const extra = [...(info.explain || []).filter((e) => e.title !== t.sigTitle && e.title !== t.sigTitleComet).map((e) => e.text), info.note].filter((s) => s && s.length <= 150)[0];
   if (extra && facts.length < 3) facts.push(extra);
   const src = (info.details.find((d) => d[0] === t.dSource) || [])[1];
-  return { title: info.name, type: info.type + (info.badge ? ` · ${info.badge}` : ""), facts: facts.slice(0, 3), grid, curio: extra || null,
-    local: local && obj.nx != null ? localLine([obj.nx, obj.ny, obj.nz], local, t, lang, fmt) : null, where, credit: t.pcData(src || t.pcSrcSky) };
+  const starPc = !!(star && (star.spectrum || star.life));
+  return { title: info.name, type: starPc ? starSubtitle(obj, info, t, lang) : info.type + (info.badge ? ` · ${info.badge}` : ""), facts: facts.slice(0, 3), grid, curio: extra || null,
+    local: local && obj.nx != null ? (starPc ? starLocalLine(obj, local, t, lang, fmt) : localLine([obj.nx, obj.ny, obj.nz], local, t, lang, fmt)) : null, where, credit: t.pcData(src || t.pcSrcSky) };
 }
 function localLine(dir, local, t, lang, fmt) {
   const p = altAzJ2000(dir[0], dir[1], dir[2], local.lat, local.lon, local.date);   // dir: J2000, como la escena
@@ -683,65 +735,41 @@ export async function buildPostcard(p) {
   const txt = postcardText({ obj, info, lang, t, local, con, fmt, sky, bodies, star: starMode ? sb : null });
   const fTitle = (px) => `600 ${px}px ${SERIF}`, fType = (px) => `500 ${px}px ${SANS}`, fFact = (px) => `400 ${px}px ${SANS}`;
   const fSmall = (px) => `400 ${px}px ${SANS}`, fUrl = (px) => `600 ${px}px ${SANS}`, fCoop = (px) => `600 ${px}px ${SANS}`, fHead = (px) => `600 ${px}px ${SANS}`, fHeadSub = (px) => `500 ${px}px ${SANS}`;
-  const title = fitLines(measureAt(fTitle), txt.title, { max: starMode ? 76 : 86, min: 56, maxW, maxLines: 2 });
-  const type = fitLines(measureAt(fType), txt.type, { max: starMode ? 30 : 34, min: 26, maxW, maxLines: 2 });
+  const title = fitLines(measureAt(fTitle), txt.title, { max: 86, min: 56, maxW, maxLines: 2 });
+  const type = fitLines(measureAt(fType), txt.type, { max: starMode ? 32 : 34, min: 26, maxW, maxLines: 2 });
   const measureFor = (role, px) => measureAt(GRID_FONTS[role])(px);
   const lh = (f, k) => Math.round(f.size * k) * f.lines.length;
   const hero = con ? null : await heroFor(obj, wiki, credit, t);
   const capFont = (px) => `400 ${px}px ${SANS}`;
-  let cells = txt.grid, grid, facts = [], localL = null, blockTop, gridCols = GRID.cols;
-  let cap = null, capH = 0, spec = null, life = null, useHero = !!hero;
-  // dónde va cada cosa del visual (se rellena abajo según el modo)
-  let heroTop = HERO_TOP, heroCx = cx, heroMaxW = HERO_W, heroMaxH = 0, capTop = 0, capX = null, retX = cx, retY, heroBox = null, guide = null, hsz = null, veilTop;
+  let cells = txt.grid, grid, facts = [], localL = null, blockTop;
+  let spec = null, life = null, useHero = !!hero, heroMaxH = 0;
+  // rótulo honesto del visual (en la postal de estrella, en una línea siempre que quepa a ≥ 20 px)
+  let cap = hero && starMode ? fitLines(measureAt(capFont), hero.label, { max: 24, min: 20, maxW, maxLines: 1 }) : null;
+  if (hero && (!cap || cap.truncated)) cap = fitLines(measureAt(capFont), hero.label, { max: 24, min: 20, maxW, maxLines: 2 });
+  let capH = cap ? Math.round(cap.size * 1.3) * cap.lines.length : 0;
+  // dónde va cada cosa del visual (se calcula abajo)
+  let heroTop = HERO_TOP, capTop = 0, retX = cx, retY, heroBox = null, guide = null, hsz = null, veilTop;
 
   if (starMode) {
-    // ── postal de estrella: título → distancia → espectro → vida y final → cielo local, apoyados abajo;
-    // el visual, más pequeño, a la izquierda, y su lugar en el cielo (retícula) a la derecha.
-    // Si no cabe todo se quita lo menos importante, en este orden de intentos: todo con el visual → una
-    // casilla de datos menos con el visual → todo sin el visual → solo la distancia (la altura pasa a la
-    // línea de cielo local) con o sin el visual. El texto nunca se corta.
+    // ── postal de estrella, sintética: el visual centrado (como en las demás capas) y, apoyados abajo,
+    // título → subtítulo (tipo · clase · magnitud) → la distancia → «Su luz» → «Su vida» → cielo local.
+    // Sin la fila de casillas pequeñas. Si el texto no deja sitio al visual, la postal va sin él (solo el
+    // cielo con la retícula); el texto nunca se corta.
     spec = sb.spectrum ? layoutSpectrum(measureAt, sb.spectrum, t, lang, { w: maxW }) : null;
     life = sb.life ? layoutLife(measureAt, sb.life, t, lang, { w: maxW }) : null;
-    const fitLocal = (s) => (s ? fitLines(measureAt(fFact), s, { max: 28, min: 24, maxW: maxW - 34, maxLines: 2 }) : null);
-    const whereL = fitLocal(txt.where), fullL = fitLocal(txt.local);
-    const capS = hero ? fitLines(measureAt(capFont), hero.label, { max: 22, min: 20, maxW: STAR_CAP_W, maxLines: 3 }) : null;   // rótulo honesto del visual
-    const capSH = capS ? Math.round(capS.size * 1.3) * capS.lines.length : 0;
-    const wideOnly = cells.filter((c) => c.wide);
-    // con una casilla de datos menos, la fila pequeña pasa a 2 columnas (más baja) y deja sitio al visual
-    const lastData = cells.map((c) => c.kind).lastIndexOf("data");
-    const minusOne = cells.filter((c) => c.kind === "data").length >= 2 ? cells.filter((_, i) => i !== lastData) : null;
-    const configs = [{ cs: cells, hero: true }, minusOne && { cs: minusOne, hero: true }, { cs: cells, hero: false }, { cs: wideOnly, hero: true }, { cs: wideOnly, hero: false }].filter(Boolean);
-    let pick = null;
-    for (const cf of configs) {
-      if (cf.hero && !hero) continue;
-      const nonWide = cf.cs.filter((c) => !c.wide).length;
-      const cols = nonWide === 3 ? 3 : 2;
-      const g = layoutGrid(measureFor, cf.cs, { x: PAD, y: 0, w: maxW, cols, group: false });
-      const ll = cf.cs.some((c) => c.kind === "local") ? whereL : fullL;
-      const textH = lh(title, 1.02) + 8 + lh(type, 1.3) + (g.height ? 18 + g.height : 0) + (spec ? 16 + spec.h : 0) + (life ? 16 + life.h : 0) + (ll ? 14 + lh(ll, 1.3) : 0);
-      const zone = BLOCK_BOTTOM - textH - 26 - HERO_TOP;
-      const cand = { ...cf, cols, g, ll, textH, zone };
-      pick = cand;
-      if (zone >= (cf.hero ? STAR_ZONE_HERO + capSH : STAR_ZONE_MIN)) break;
-    }
-    cells = pick.cs; grid = pick.g; gridCols = pick.cols; localL = pick.ll; useHero = pick.hero && !!hero;
-    blockTop = BLOCK_BOTTOM - pick.textH;
-    if (pick.zone < STAR_ZONE_MIN) report.overflow = true;
-    report.starLayout = { cells: cells.length, hero: useHero, zone: pick.zone };
-    const zTop = HERO_TOP, zH = Math.max(0, pick.zone);
-    if (useHero) {
-      cap = capS; capH = capSH;
-      heroMaxW = STAR_HERO_COL; heroMaxH = Math.max(80, zH - capH - 12);
-      hsz = heroSize(hero, heroMaxW, heroMaxH);
-      const capW = Math.max(...cap.lines.map((l) => measureAt(capFont)(cap.size)(l)));
-      const colW = Math.max(hsz.w, capW), colH = hsz.h + 12 + capH;
-      heroTop = Math.round(zTop + Math.max(0, (zH - colH) / 2));
-      heroCx = PAD + hsz.w / 2; capTop = heroTop + hsz.h + 12; capX = PAD;
-      retX = Math.round((PAD + colW + W - PAD) / 2); retY = Math.round(zTop + zH / 2);
-      heroBox = { x: PAD - 16, y: heroTop - 14, w: colW + 32, h: colH + 28 };
-      guide = { x0: PAD + hsz.w + 14, y0: heroTop + hsz.h / 2, x1: retX - 54, y1: retY };
-    } else { retX = cx; retY = Math.round(zTop + zH / 2); }
-    veilTop = blockTop - 60;
+    // la línea del cielo local, en UNA línea si cabe (≥ 24 px); si no, en dos
+    localL = txt.local ? fitLines(measureAt(fFact), txt.local, { max: 28, min: 24, maxW: maxW - 34, maxLines: 1 }) : null;
+    if (localL && localL.truncated) localL = fitLines(measureAt(fFact), txt.local, { max: 28, min: 24, maxW: maxW - 34, maxLines: 2 });
+    grid = layoutGrid(measureFor, cells, { x: PAD, y: 0, w: maxW });
+    const textH = starTextH({ titleH: lh(title, 1.02), typeH: lh(type, 1.3), gridH: grid.height, specH: spec ? spec.h : 0, lifeH: life ? life.h : 0, localH: localL ? lh(localL, 1.3) : 0 });
+    blockTop = BLOCK_BOTTOM - textH;
+    // el visual: con la franja normal de la retícula; si no cabe, con una algo menor; si ni así, sin visual
+    const free = blockTop - HERO_TOP - capH - 16 - STAR_BAND_MIN, free2 = blockTop - HERO_TOP - capH - 16 - STAR_BAND_MIN2;
+    useHero = !!hero && (free >= STAR_HERO_MIN || free2 >= STAR_HERO_MIN2);
+    heroMaxH = !useHero ? 0 : free >= STAR_HERO_MIN ? Math.min(HERO_MAX, free) : free2;
+    const zone = blockTop - HERO_TOP;
+    if (zone < STAR_ZONE_MIN) report.overflow = true;
+    report.starLayout = { cells: cells.length, hero: useHero, heroMaxH: Math.round(heroMaxH), zone: Math.round(zone) };
   } else {
     // frases bajo la cuadrícula: el dato curioso (o, si no hay cuadrícula, las frases cortas)
     const bullets = (cells.length ? [txt.curio].filter(Boolean) : txt.facts);
@@ -749,8 +777,6 @@ export async function buildPostcard(p) {
     const localText = useWhere ? txt.where : txt.local;
     localL = localText ? fitLines(measureAt(fFact), localText, { max: 28, min: 24, maxW: maxW - 34, maxLines: 2 }) : null;
     let curioLines = 3, textH, plan;
-    cap = hero ? fitLines(measureAt(capFont), hero.label, { max: 24, min: 20, maxW, maxLines: 2 }) : null;
-    capH = cap ? Math.round(cap.size * 1.3) * cap.lines.length : 0;
     // si el texto no deja sitio al visual, se quitan casillas (de 6 plazas a 4) y luego líneas del dato curioso
     for (;;) {
       grid = layoutGrid(measureFor, cells, { x: PAD, y: 0, w: maxW });
@@ -767,28 +793,41 @@ export async function buildPostcard(p) {
     }
     blockTop = plan.blockTop;
     heroTop = plan.heroTop; heroMaxH = plan.heroMaxH;
-    hsz = hero ? heroSize(hero, HERO_W, plan.heroMaxH) : null;
-    if (hero) {
-      const heroH = hsz.h;
-      let band = blockTop - (heroTop + heroH + 16 + capH);
-      // si sobra mucho sitio, el conjunto baja un poco para quedar equilibrado
-      if (band > BAND_MAX) { heroTop += Math.round((band - BAND_MAX) / 2); band = blockTop - (heroTop + heroH + 16 + capH); }
-      capTop = heroTop + heroH + 16;
-      retY = Math.round(capTop + capH + (band - 40) / 2 + 12);
-      // caja que no deben pisar los nombres del cielo: el visual y su rótulo (que puede ser más ancho)
-      const capW = Math.max(...cap.lines.map((l) => measureAt(capFont)(cap.size)(l)));
-      const boxW = Math.max(hsz.w, capW);
-      heroBox = { x: cx - boxW / 2 - 16, y: heroTop - 14, w: boxW + 32, h: heroH + 16 + capH + 30 };
-      guide = { x0: cx, y0: capTop + capH + 6, x1: cx, y1: retY - 50 };
-    } else retY = Math.round((SAFE_TOP + blockTop - 40) / 2);
-    veilTop = blockTop - 170;
   }
+  if (!useHero) { cap = null; capH = 0; }
+  // el visual, centrado; debajo su rótulo y, en la franja que queda hasta el texto, la retícula
+  hsz = useHero ? heroSize(hero, HERO_W, heroMaxH) : null;
+  if (useHero) {
+    const heroH = hsz.h;
+    let band = blockTop - (heroTop + heroH + 16 + capH);
+    // si sobra mucho sitio, el conjunto baja un poco para quedar equilibrado
+    if (band > BAND_MAX) { heroTop += Math.round((band - BAND_MAX) / 2); band = blockTop - (heroTop + heroH + 16 + capH); }
+    capTop = heroTop + heroH + 16;
+    // la retícula en la franja libre (en la postal de estrella, centrada: la franja puede ser estrecha)
+    retY = Math.round(starMode ? capTop + capH + band / 2 : capTop + capH + (band - 40) / 2 + 12);
+    // caja que no deben pisar los nombres del cielo: el visual y su rótulo (que puede ser más ancho)
+    const capW = Math.max(...cap.lines.map((l) => measureAt(capFont)(cap.size)(l)));
+    const boxW = Math.max(hsz.w, capW);
+    heroBox = { x: cx - boxW / 2 - 16, y: heroTop - 14, w: boxW + 32, h: heroH + 16 + capH + 30 };
+    guide = { x0: cx, y0: capTop + capH + 6, x1: cx, y1: retY - 50 };
+  } else retY = Math.round((SAFE_TOP + blockTop - 40) / 2);
+  veilTop = blockTop - 170;
   report.truncated = [title, type, ...facts, localL, cap].some((f) => f && f.truncated) || grid.truncated || !!(spec && spec.truncated) || !!(life && life.truncated);
 
   // pie (zona segura inferior): URL, Yachay Deep Labs × Killa Ñan y crédito de los datos
   const url = fitLines(measureAt(fUrl), t.pcUrl, { max: 44, min: 30, maxW, maxLines: 1 });
   const coop = fitLines(measureAt(fCoop), t.pcCoop, { max: 32, min: 24, maxW, maxLines: 2 });
-  const creditL = fitLines(measureAt(fSmall), starMode && t.pcCreditStar ? t.pcCreditStar({ sun: obj.layer === "solar", temp: !!(obj.layer === "star" && starTemperature(obj.bv) && starTemperature(obj.bv).temp != null), lines: !!sb.spectrum, est: !!(sb.life && sb.life.massKind === "estimated"), life: !!sb.life }) : txt.credit, { max: 22, min: 20, maxW, maxLines: 2 });
+  // crédito: en la postal de estrella, solo las fuentes de lo dibujado, que el espectro es un esquema y la
+  // referencia de la masa (hasta 3 líneas de 20–22 px; el pie se aprieta un poco para que quepan)
+  const kFmt = (v) => Math.round(v).toLocaleString(lang === "es" ? "es" : "en-US", { useGrouping: "always" });
+  const creditText = starMode && t.pcCreditStar ? t.pcCreditStar({
+    sun: obj.layer === "solar",
+    spec: sb.spectrum ? { T: kFmt(sb.spectrum.temp), lower: !!sb.spectrum.lowerBound, tio: (sb.spectrum.lines || []).some((l) => l.group === "tio") } : null,
+    est: !!(sb.life && sb.life.massKind === "estimated"), life: !!sb.life && obj.layer === "star",
+    massRef: sb.life && sb.life.massKind === "curated" ? shortRef(sb.life.ref && sb.life.ref[0]).replace(/ /g, "\u00a0") || null : null,   // la referencia no se parte
+  }) : txt.credit;
+  let creditL = fitLines(measureAt(fSmall), creditText, { max: 22, min: 20, maxW, maxLines: 2 });
+  if (creditL.truncated && starMode) creditL = fitLines(measureAt(fSmall), creditText, { max: 20, min: 20, maxW, maxLines: 3 });
   const headSub = fitLines(measureAt(fHeadSub), t.pcHeadWith, { max: 28, min: 24, maxW, maxLines: 1 });
   if ([url, coop, creditL, headSub].some((f) => f.truncated)) report.truncated = true;
 
@@ -801,7 +840,7 @@ export async function buildPostcard(p) {
   const proj = makeProjection(centerDir, upHint, pxPerRad, retX, retY);
   const inBox = (b, x0, y0, x1, y1) => b && x1 > b.x && x0 < b.x + b.w && y1 > b.y && y0 < b.y + b.h;
   const guideBox = guide ? { x: Math.min(guide.x0, guide.x1) - 24, y: Math.min(guide.y0, guide.y1) - 16, w: Math.abs(guide.x1 - guide.x0) + 48, h: Math.abs(guide.y1 - guide.y0) + 32 } : null;
-  const avoid = (x0, y0, x1, y1) => (y0 < SAFE_TOP + 6) || (y1 > blockTop - (starMode ? 20 : 36)) || (useHero && inBox(heroBox, x0, y0, x1, y1)) ||
+  const avoid = (x0, y0, x1, y1) => (y0 < SAFE_TOP + 6) || (y1 > blockTop - 36) || (useHero && inBox(heroBox, x0, y0, x1, y1)) ||
     (!con && Math.abs((x0 + x1) / 2 - retX) < 70 + (x1 - x0) / 2 && Math.abs((y0 + y1) / 2 - retY) < 62) ||
     (useHero && inBox(guideBox, x0, y0, x1, y1));
   drawChart(ctx, { sky, conDirs, proj, avoid, bodies: p.showSolar === false ? [] : bodies, highlight: con ? con.ab : null, lang, local, cx: retX, cy: retY, labelStars: con ? con.stars : null, starHex: p.starHex });
@@ -812,22 +851,20 @@ export async function buildPostcard(p) {
     return w;
   };
   if (hero && useHero) {
-    const box = drawHero(ctx, hero, heroCx, heroTop, heroMaxW, heroMaxH);
+    const box = drawHero(ctx, hero, cx, heroTop, HERO_W, heroMaxH);
     report.hero = hero.kind; report.heroLabel = hero.label; report.heroSource = hero.source || hero.kind; report.heroBox = box;
-    // rótulo honesto bajo el visual (en la postal de estrella, sobre un velo para que no lo crucen las figuras)
+    // rótulo honesto bajo el visual
     ctx.font = capFont(cap.size); ctx.textAlign = "left"; ctx.textBaseline = "top";
-    if (starMode) {
-      const cw = Math.max(...cap.lines.map((l) => ctx.measureText(l).width));
-      roundRect(ctx, capX - 10, capTop - 6, cw + 20, capH + 8, 10); ctx.fillStyle = "rgba(4,7,14,0.72)"; ctx.fill();
-    }
     ctx.fillStyle = "rgba(226,230,246,0.92)";
     ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 8;
     let y = capTop;
-    for (const ln of cap.lines) { const w = ctx.measureText(ln).width, x = capX != null ? capX : cx - w / 2; ctx.fillText(ln, x, y); line(ln, x, y, cap.size, "caption"); y += Math.round(cap.size * 1.3); }
+    for (const ln of cap.lines) { const w = ctx.measureText(ln).width, x = cx - w / 2; ctx.fillText(ln, x, y); line(ln, x, y, cap.size, "caption"); y += Math.round(cap.size * 1.3); }
     ctx.shadowBlur = 0;
     // del visual a su lugar en el cielo
-    ctx.save(); ctx.strokeStyle = "rgba(242,198,109,0.8)"; ctx.lineWidth = 2; ctx.setLineDash([7, 8]);
-    ctx.beginPath(); ctx.moveTo(guide.x0, guide.y0); ctx.lineTo(guide.x1, guide.y1); ctx.stroke(); ctx.restore();
+    if (guide.y1 - guide.y0 >= 10) {
+      ctx.save(); ctx.strokeStyle = "rgba(242,198,109,0.8)"; ctx.lineWidth = 2; ctx.setLineDash([7, 8]);
+      ctx.beginPath(); ctx.moveTo(guide.x0, guide.y0); ctx.lineTo(guide.x1, guide.y1); ctx.stroke(); ctx.restore();
+    }
     drawReticle(ctx, retX, retY);
   } else if (!con && obj) drawReticle(ctx, retX, retY);
 
@@ -854,7 +891,7 @@ export async function buildPostcard(p) {
   // 4 · bloque de texto sobre un velo que garantiza el contraste
   const veil = ctx.createLinearGradient(0, veilTop, 0, H);
   const solid = Math.min(0.5, Math.max(0.04, (blockTop - veilTop) / (H - veilTop)));
-  veil.addColorStop(0, "rgba(4,7,14,0)"); veil.addColorStop(starMode ? solid : 0.16, "rgba(4,7,14,0.86)"); veil.addColorStop(1, "rgba(4,7,14,0.97)");
+  veil.addColorStop(0, "rgba(4,7,14,0)"); veil.addColorStop(0.16, "rgba(4,7,14,0.86)"); veil.addColorStop(1, "rgba(4,7,14,0.97)");
   ctx.fillStyle = veil; ctx.fillRect(0, veilTop, W, H - veilTop);
   ctx.textAlign = "left"; ctx.textBaseline = "top";
   let y = blockTop;
@@ -862,10 +899,10 @@ export async function buildPostcard(p) {
     ctx.font = font(f.size); ctx.fillStyle = color;
     for (const ln of f.lines) { ctx.fillText(ln, x, y); line(ln, x, y, f.size, role); y += Math.round(f.size * k); }
   };
-  put(title, fTitle, "#ffffff", PAD, 1.02, "title"); y += starMode ? 8 : 10;
+  put(title, fTitle, "#ffffff", PAD, 1.02, "title"); y += starMode ? 12 : 10;
   put(type, fType, "#cfc4ff", PAD, 1.3, "type");
   if (grid.cells.length) {
-    y += starMode ? 18 : 22;
+    y += starMode ? 30 : 22;
     const gy = y;
     for (const c of grid.cells) {
       const x0 = c.x, y0 = gy + c.y, loc = c.kind === "local", dist = c.kind === "dist";
@@ -887,13 +924,15 @@ export async function buildPostcard(p) {
   }
   const putStar = (ln, x, yy, size, role) => line(ln, x, yy, size, role);
   if (spec) {
-    y += 16;
+    drawRule(ctx, PAD, y + STAR_GAP / 2 - 1, maxW);
+    y += STAR_GAP;
     drawSpectrum(ctx, spec, sb.spectrum, PAD, y, maxW, putStar);
     report.spectrum = { x: PAD, y, w: maxW, h: spec.h, temp: sb.spectrum.temp, letter: sb.spectrum.letter, sun: sb.spectrum.isSun, peakNm: spec.peakNm, zone: spec.zone, labels: spec.labels.map((l) => l.text), lines: sb.spectrum.lines.length };
     y += spec.h;
   }
   if (life) {
-    y += 16;
+    drawRule(ctx, PAD, y + STAR_GAP / 2 - 1, maxW);
+    y += STAR_GAP;
     drawLife(ctx, life, t, PAD, y, maxW, putStar);
     report.life = { x: PAD, y, w: maxW, h: life.h, path: sb.life.path.slice(), here: sb.life.here, stage: sb.life.stage, massKind: sb.life.massKind, near: sb.life.near, assumed: sb.life.assumed, notes: life.notes.length };
     y += life.h;
@@ -904,7 +943,7 @@ export async function buildPostcard(p) {
     put(f, fFact, "rgba(240,242,252,0.96)", PAD + 34, 1.32, "fact");
   }
   if (localL) {
-    y += starMode ? 14 : 16;
+    y += starMode ? 34 : 16;
     ctx.strokeStyle = "#7db4ff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(PAD + 9, y + localL.size * 0.62, 6, 0, TAU); ctx.stroke();
     put(localL, fFact, "#a9cdff", PAD + 34, 1.3, "local");
   }
@@ -920,8 +959,9 @@ export async function buildPostcard(p) {
     ctx.font = font(f.size);
     for (const ln of f.lines) { const w = ctx.measureText(ln).width, x = cx - w / 2; draw(ln, x, y); line(ln, x, y, f.size, role); y += Math.round(f.size * k); }
   };
-  center(url, fUrl, "url", 1.2, (ln, x, yy) => { ctx.fillStyle = "#ffffff"; ctx.fillText(ln, x, yy); }); y += 12;
-  center(coop, fCoop, "coop", 1.25, (ln, x, yy) => drawHighlighted(ctx, ln, x, yy, "#e6deff", "#f2c66d")); y += 12;
+  const footGap = creditL.lines.length > 2 ? 9 : 12;
+  center(url, fUrl, "url", 1.2, (ln, x, yy) => { ctx.fillStyle = "#ffffff"; ctx.fillText(ln, x, yy); }); y += footGap;
+  center(coop, fCoop, "coop", 1.25, (ln, x, yy) => drawHighlighted(ctx, ln, x, yy, "#e6deff", "#f2c66d")); y += footGap;
   center(creditL, fSmall, "credit", 1.3, (ln, x, yy) => { ctx.fillStyle = "rgba(226,230,246,0.78)"; ctx.fillText(ln, x, yy); });
   report.bottom = y;
   if (y > H - 24) report.overflow = true;

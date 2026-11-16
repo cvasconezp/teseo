@@ -1,13 +1,15 @@
-// postcardStar.js — los dos bloques extra de la postal de una ESTRELLA y del Sol (postcard.js):
-//   · «Espectro (esquemático)»: banda del visible 380–750 nm, curva de cuerpo negro a la temperatura
-//     de la estrella y sus líneas de absorción típicas. Decide si se dibuja con compositionPlan(),
-//     EXACTAMENTE como la ficha (CompositionBlock.jsx / Spectrum.jsx): sin temperatura o con una clase
-//     que no cuadra con el color, la ficha no lo muestra y la postal tampoco.
-//   · «Vida y final»: la línea de tiempo de lifePlan() (starLife.js), como StarLifeBlock.jsx, con
-//     «HOY» en la etapa actual, la masa (publicada o estimada, rotulada) y una frase de su final.
+// postcardStar.js — los dos bloques extra de la postal de una ESTRELLA y del Sol (postcard.js), en
+// versión sintética (sin tarjetas: un fino separador y un encabezado de una fila):
+//   · «Su luz»: banda del visible 380–750 nm con sus líneas oscuras de absorción y la curva de cuerpo
+//     negro encima; UN rótulo (dónde es más intensa su luz) y como mucho 2 nombres de líneas. Decide si
+//     se dibuja con compositionPlan(), EXACTAMENTE como la ficha (CompositionBlock.jsx / Spectrum.jsx):
+//     sin temperatura o con una clase que no cuadra con el color, la ficha no lo muestra y la postal
+//     tampoco. Que es un esquema (y no una medición) lo dice el crédito del pie.
+//   · «Su vida»: la línea de tiempo de lifePlan() (starLife.js), como StarLifeBlock.jsx, con «HOY» en
+//     la etapa actual, la masa en la misma fila del título y UNA frase de su final.
 // Todo se mide antes de dibujar (funciones layout* puras: reciben `measureAt(fuente)(px)(texto)`) y
-// ningún texto se corta: si no cabe, se parte en líneas o se achica dentro de su mínimo (≥ 24 px;
-// las marcas del eje, 20 px). Las cifras y sus fuentes están en composition.js y starLife.js.
+// ningún texto se corta: si no cabe, se parte en líneas (≥ 24 px; las marcas del eje, 20 px). Las
+// cifras y sus fuentes están en composition.js y starLife.js.
 import { compositionPlan, wavelengthHex, wienPeak, peakZone, spectrumCurve, VIS_MIN, VIS_MAX } from "./composition.js";
 import { lifePlan } from "./starLife.js";
 import { starTemperature, parseSpect } from "./starColor.js";
@@ -21,8 +23,9 @@ export const SB_FONTS = {
   strong: (px) => `600 ${px}px ${SANS}`,
   tick: (px) => `500 ${px}px ${SANS}`,
 };
-/** Medidas de los bloques (px). Texto ≥ 24 px salvo las marcas del eje (20 px). */
-export const SB = { padX: 24, padY: 16, title: 26, text: 24, tick: 20, labelRow: 32, plotH: 80, stripH: 26, tickRow: 28, nodeRow: 42, maxLabels: 4 };
+/** Medidas de los bloques (px). Texto ≥ 24 px salvo las marcas del eje (20 px). Sin relleno: los
+ *  bloques ocupan el ancho de la columna de texto, alineados con la casilla de la distancia. */
+export const SB = { title: 28, text: 24, tick: 20, headGap: 16, plotH: 64, stripH: 24, nameRow: 30, nodeRow: 40, maxLabels: 2 };
 
 const loc = (lang) => (lang === "es" ? "es" : "en-US");
 const k0 = (v, lang) => Math.round(v).toLocaleString(loc(lang), { useGrouping: "always" });
@@ -43,6 +46,36 @@ export function starBlocks(obj) {
   const lp = lifePlan(obj, obj.layer === "star" ? parseSpect(obj.spect) : null);
   const life = lp && lp.path && lp.path.length ? lp : null;
   return { spectrum, life };
+}
+
+/**
+ * Subtítulo de la postal de estrella (función pura): «Supergigante roja · M2Ib · magnitud 0,45».
+ * Todo sale de lo que ya usa la ficha: la etapa de lifePlan() y el color de su letra (LIFE, los mismos
+ * de «Es una supergigante roja…»), el tipo espectral y la magnitud de describeObject (info.details).
+ * Si la etapa o el color no se conocen, se usa el tipo de la ficha («Estrella»); nada se inventa.
+ */
+export function starSubtitle(obj, info, t, lang) {
+  const lt = LIFE[lang] || LIFE.es;
+  const details = (info && info.details) || [];
+  const det = (label) => { const d = label && details.find((x) => x[0] === label); return d ? String(d[1]).split(" · ")[0].trim() : null; };
+  const isSun = obj.layer === "solar" && obj.name === "Sol";
+  const sp = isSun ? { letter: "G", sub: 2 } : parseSpect(obj.spect);
+  const lp = lifePlan(obj, isSun ? null : sp);
+  const color = sp && lt.color[sp.letter];
+  const kind = (lp && t.pcStarKind && t.pcStarKind(lp.stage, sp.letter, !!lp.assumed, color)) || (info && info.type ? String(info.type).split(" · ")[0] : "");
+  const parts = [kind];
+  if (isSun) {
+    parts.push("G2\u00a0V");
+    const rest = info && info.type && String(info.type).split(" · ").slice(1).join(" · ");
+    if (rest) parts.push(rest);
+  } else {
+    // el tipo del catálogo tal cual (sin los puntos suspensivos con que HYG marca lo dudoso: «A0m...»)
+    const spt = det(t.dSpect);
+    if (spt && spt !== "—") parts.push(spt.replace(/\.+$/, ""));
+    const mag = det(t.dMagnitude);
+    if (mag && mag !== "—") parts.push(t.pcGMag(mag));
+  }
+  return parts.filter(Boolean).join(" · ");
 }
 
 /**
@@ -86,6 +119,7 @@ export function spectrumLabels(sp, t) {
   return out.slice(0, SB.maxLabels).sort((a, b) => a.nm - b.nm);
 }
 
+
 // ── texto que no se corta (copia mínima de fitLines para no depender de postcard.js) ──
 function wrap(measure, text, maxW) {
   // se parte solo por espacios normales: un espacio duro (U+00A0) mantiene unidas dos palabras
@@ -110,53 +144,63 @@ export function fitText(measureAt, text, { max, min, maxW, maxLines }) {
 }
 const linesH = (f, k = 1.24) => (f ? Math.round(f.size * k) * f.lines.length : 0);
 
-// ── espectro ────────────────────────────────────────────────────────────
 /**
- * Mide y coloca el bloque del espectro (función pura). `measureAt(fontFn)(px)(texto)`.
- * Devuelve { h, title, peak, caption, labels:[{text,nm,cx,tx,w,row}], rows, geo, truncated }.
+ * Encabezado de un bloque (función pura): el título y, en la MISMA fila si cabe, su dato principal
+ * («Su luz · más intensa en 763 nm · infrarrojo →»). Si no cabe, el dato va debajo (≤ 2 líneas).
+ * Devuelve { title, sub, inline, subX, h, truncated }.
  */
-export function layoutSpectrum(measureAt, sp, t, lang, { w }) {
-  const inner = w - 2 * SB.padX;
-  const title = fitText(measureAt(SB_FONTS.title), t.pcSpecTitle, { max: SB.title, min: 24, maxW: inner, maxLines: 1 });
-  const peakNm = wienPeak(sp.temp), zone = peakZone(sp.temp);
-  const peak = fitText(measureAt(SB_FONTS.text), t.pcSpecPeak(k0(peakNm, lang), zone), { max: SB.text, min: 24, maxW: inner, maxLines: 2 });
-  const tio = (sp.lines || []).some((l) => l.group === "tio");
-  const capText = sp.isSun ? t.pcSpecCapSun(k0(sp.temp, lang)) : t.pcSpecCap(k0(sp.temp, lang), sp.letter, sp.lowerBound, tio);
-  const caption = fitText(measureAt(SB_FONTS.text), capText, { max: SB.text, min: 24, maxW: inner, maxLines: 3 });
-  // rótulos de líneas: en una fila si caben sin pisarse; si no, en dos; si ni así, se omite el rótulo
-  const xOf = (nm) => SB.padX + ((nm - VIS_MIN) / (VIS_MAX - VIS_MIN)) * inner;
-  const mL = measureAt(SB_FONTS.strong)(SB.text);
-  const rowEnd = [-Infinity, -Infinity], labels = [];
-  for (const lb of spectrumLabels(sp, t)) {
-    const cx = xOf(lb.nm), lw = mL(lb.text);
-    const left = Math.max(SB.padX, Math.min(SB.padX + inner - lw, cx - lw / 2));
-    const row = left > rowEnd[0] + 14 ? 0 : left > rowEnd[1] + 14 ? 1 : -1;
-    if (row < 0) continue;
-    rowEnd[row] = left + lw;
-    labels.push({ ...lb, cx, tx: left, w: lw, row });
-  }
-  const rows = labels.some((l) => l.row === 1) ? 2 : 1;
-  const geo = {};
-  let y = SB.padY;
-  geo.title = y; y += linesH(title, 1.2);
-  geo.peak = y; y += linesH(peak) + 8;
-  geo.labels = y; y += rows * SB.labelRow;
-  geo.plotTop = y + 6; y += SB.plotH;
-  geo.plotBot = y;
-  geo.strip = y + 4; y += 4 + SB.stripH;
-  geo.ticks = y + 6; y += SB.tickRow;
-  geo.caption = y + 6; y += 6 + linesH(caption);
-  const h = y + SB.padY;
-  return { h, title, peak, caption, labels, rows, geo, zone, peakNm, inner, nmLabel: t.pcSpecNm, truncated: [title, peak, caption].some((f) => f.truncated) };
+export function layoutHead(measureAt, titleText, subText, inner) {
+  const title = fitText(measureAt(SB_FONTS.title), titleText, { max: SB.title, min: 26, maxW: inner, maxLines: 1 });
+  if (!subText) return { title, sub: null, inline: true, subX: 0, h: linesH(title, 1.2), truncated: title.truncated };
+  const tw = measureAt(SB_FONTS.title)(title.size)(title.lines[0]), dotW = measureAt(SB_FONTS.text)(SB.text)("·");
+  const subX = tw + 14 + dotW + 14;
+  const one = fitText(measureAt(SB_FONTS.text), subText, { max: SB.text, min: SB.text, maxW: inner - subX, maxLines: 1 });
+  if (!one.truncated) return { title, sub: one, inline: true, subX, dotX: tw + 14, h: linesH(title, 1.2), truncated: title.truncated };
+  const sub = fitText(measureAt(SB_FONTS.text), subText, { max: SB.text, min: SB.text, maxW: inner, maxLines: 2 });
+  return { title, sub, inline: false, subX: 0, h: linesH(title, 1.2) + 4 + linesH(sub), truncated: title.truncated || sub.truncated };
 }
 
-/** Dibuja el espectro en (x, y) con el ancho w. `put(texto, x, y, px, rol)` anota cada línea en el informe. */
+// ── su luz (espectro) ───────────────────────────────────────────────────
+/**
+ * Mide y coloca el bloque «Su luz» (función pura). `measureAt(fontFn)(px)(texto)`.
+ * Devuelve { h, head, labels:[{text,nm,cx,tx,w}], ticks:[{text,nm,tx,w}], geo, peakNm, zone, inner, truncated }.
+ * Bajo la banda: los nombres de ≤ 2 líneas en su longitud de onda y, si no los pisan, «400» y «700 nm».
+ */
+export function layoutSpectrum(measureAt, sp, t, lang, { w }) {
+  const inner = w;
+  const peakNm = wienPeak(sp.temp), zone = peakZone(sp.temp);
+  const head = layoutHead(measureAt, t.pcSpecTitle, t.pcSpecPeak(k0(peakNm, lang), zone), inner);
+  const xOf = (nm) => ((nm - VIS_MIN) / (VIS_MAX - VIS_MIN)) * inner;
+  const mL = measureAt(SB_FONTS.strong)(SB.text), mT = measureAt(SB_FONTS.tick)(SB.tick);
+  const taken = [], labels = [], ticks = [];
+  const free = (a, b) => taken.every(([c, d]) => b + 16 <= c || a >= d + 16);
+  for (const lb of spectrumLabels(sp, t)) {
+    const cx = xOf(lb.nm), lw = mL(lb.text), left = Math.max(0, Math.min(inner - lw, cx - lw / 2));
+    if (!free(left, left + lw)) continue;
+    taken.push([left, left + lw]); labels.push({ ...lb, cx, tx: left, w: lw });
+  }
+  // marcas discretas del eje: solo los extremos, para dar escala a los nm del rótulo
+  for (const nm of [400, 700]) {
+    const s = nm === 700 ? `${nm} ${t.pcSpecNm || "nm"}` : String(nm);
+    const tw = mT(s), cx = xOf(nm);
+    const left = nm === 700 ? Math.min(inner - tw, cx - mT(String(nm)) / 2) : Math.max(0, cx - tw / 2);
+    if (!free(left, left + tw)) continue;
+    taken.push([left, left + tw]); ticks.push({ text: s, nm, cx, tx: left, w: tw });
+  }
+  const geo = {};
+  let y = 0;
+  geo.head = y; y += head.h;
+  geo.plotTop = y + SB.headGap + 4; y = geo.plotTop + SB.plotH;
+  geo.plotBot = y;
+  geo.strip = y + 2; y += 2 + SB.stripH;
+  geo.names = y + 8; y += 8 + SB.nameRow;
+  return { h: y, head, labels, ticks, geo, zone, peakNm, inner, truncated: head.truncated };
+}
+
+/** Dibuja «Su luz» en (x, y) con el ancho w. `put(texto, x, y, px, rol)` anota cada línea en el informe. */
 export function drawSpectrum(ctx, L, sp, x, y, w, put) {
-  const inner = L.inner, x0 = x + SB.padX, xOf = (nm) => x0 + ((nm - VIS_MIN) / (VIS_MAX - VIS_MIN)) * inner;
-  panel(ctx, x, y, w, L.h);
-  ctx.textAlign = "left"; ctx.textBaseline = "top";
-  text(ctx, L.title, SB_FONTS.title, "#c9b8ff", x0, y + L.geo.title, 1.2, put);
-  text(ctx, L.peak, SB_FONTS.text, "#f2c66d", x0, y + L.geo.peak, 1.24, put);
+  const inner = L.inner, x0 = x, xOf = (nm) => x0 + ((nm - VIS_MIN) / (VIS_MAX - VIS_MIN)) * inner;
+  drawHead(ctx, L.head, x0, y + L.geo.head, "#f2c66d", put, "spectrum");
   const top = y + L.geo.plotTop, bot = y + L.geo.plotBot, stripY = y + L.geo.strip;
   const yOf = (v) => bot - v * (bot - top);
   // la curva, con las mismas líneas que la ficha (absorciones de spectrumCurve)
@@ -166,32 +210,23 @@ export function drawSpectrum(ctx, L, sp, x, y, w, put) {
   ctx.beginPath();
   curve.forEach((p, i) => (i ? ctx.lineTo(xOf(p.nm), yOf(p.y)) : ctx.moveTo(xOf(p.nm), yOf(p.y))));
   ctx.lineTo(xOf(VIS_MAX), bot); ctx.lineTo(xOf(VIS_MIN), bot); ctx.closePath();
-  ctx.save(); ctx.globalAlpha = 0.3; ctx.fillStyle = grad; ctx.fill(); ctx.restore();
-  ctx.strokeStyle = "rgba(226,230,246,0.35)"; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(xOf(VIS_MIN), bot); ctx.lineTo(xOf(VIS_MAX), bot); ctx.stroke();
-  // guías de las líneas rotuladas (del rótulo a la banda)
-  ctx.save(); ctx.strokeStyle = "rgba(226,230,246,0.45)"; ctx.lineWidth = 1.5; ctx.setLineDash([4, 5]);
-  for (const lb of L.labels) {
-    const ly = y + L.geo.labels + lb.row * SB.labelRow + SB.text + 4;
-    ctx.beginPath(); ctx.moveTo(x + lb.cx, ly); ctx.lineTo(x + lb.cx, stripY); ctx.stroke();
-  }
-  ctx.restore();
+  ctx.save(); ctx.globalAlpha = 0.22; ctx.fillStyle = grad; ctx.fill(); ctx.restore();
   ctx.beginPath();
   curve.forEach((p, i) => (i ? ctx.lineTo(xOf(p.nm), yOf(p.y)) : ctx.moveTo(xOf(p.nm), yOf(p.y))));
-  ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.stroke();
-  // pico de Wien: en el visible, línea dorada; fuera, flecha hacia ese lado
+  ctx.strokeStyle = "rgba(255,255,255,0.92)"; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke();
+  // pico de Wien: en el visible, marca dorada; fuera, flecha hacia ese lado
   ctx.fillStyle = "#f2c66d"; ctx.strokeStyle = "#f2c66d"; ctx.lineWidth = 2.5;
   if (L.zone === "visible") {
     const px = xOf(L.peakNm);
-    ctx.save(); ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.moveTo(px, top - 4); ctx.lineTo(px, bot); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.setLineDash([5, 5]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, top - 2); ctx.lineTo(px, bot); ctx.stroke(); ctx.restore();
     ctx.beginPath(); ctx.moveTo(px - 8, top - 12); ctx.lineTo(px + 8, top - 12); ctx.lineTo(px, top - 2); ctx.closePath(); ctx.fill();
   } else {
-    const ax = L.zone === "uv" ? x0 + 2 : x0 + inner - 2, dir = L.zone === "uv" ? -1 : 1, ay = top + 12;
+    const ax = L.zone === "uv" ? x0 + 2 : x0 + inner - 2, dir = L.zone === "uv" ? -1 : 1, ay = top - 6;   // justo sobre la curva
     ctx.beginPath(); ctx.moveTo(ax - dir * 34, ay); ctx.lineTo(ax - dir * 6, ay); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax - dir * 14, ay - 9); ctx.lineTo(ax - dir * 14, ay + 9); ctx.closePath(); ctx.fill();
   }
   // banda del visible con las líneas oscuras
-  ctx.save(); roundRect(ctx, x0, stripY, inner, SB.stripH, 5); ctx.clip();
+  ctx.save(); roundRect(ctx, x0, stripY, inner, SB.stripH, 6); ctx.clip();
   ctx.fillStyle = grad; ctx.fillRect(x0, stripY, inner, SB.stripH);
   for (const l of sp.lines) {
     if (l.band) {
@@ -204,26 +239,22 @@ export function drawSpectrum(ctx, L, sp, x, y, w, put) {
     }
   }
   ctx.restore();
-  ctx.strokeStyle = "rgba(226,230,246,0.4)"; ctx.lineWidth = 1.5; roundRect(ctx, x0, stripY, inner, SB.stripH, 5); ctx.stroke();
-  // rótulos de las líneas
-  ctx.font = SB_FONTS.strong(SB.text); ctx.fillStyle = "#ffffff";
+  // bajo la banda: los nombres de las líneas (con su marca) y, discretas, las marcas del eje
+  const ny = y + L.geo.names;
+  ctx.textAlign = "left"; ctx.textBaseline = "top";
+  ctx.font = SB_FONTS.strong(SB.text); ctx.fillStyle = "rgba(240,242,252,0.95)";
   for (const lb of L.labels) {
-    const ly = y + L.geo.labels + lb.row * SB.labelRow;
-    ctx.fillText(lb.text, x + lb.tx, ly); put(lb.text, x + lb.tx, ly, SB.text, "spectrum");
+    ctx.fillRect(x + lb.cx - 1, stripY + SB.stripH + 1, 2, 7);
+    ctx.fillText(lb.text, x + lb.tx, ny); put(lb.text, x + lb.tx, ny, SB.text, "spectrum");
   }
-  // marcas del eje (20 px)
-  ctx.font = SB_FONTS.tick(SB.tick); ctx.fillStyle = "rgba(226,230,246,0.8)";
-  const ty = y + L.geo.ticks;
-  for (const nm of [400, 500, 600, 700]) {
-    const s = nm === 700 ? `${nm} ${L.nmLabel || "nm"}` : String(nm);
-    const tw = ctx.measureText(s).width, tx = Math.min(x0 + inner - tw, xOf(nm) - (nm === 700 ? ctx.measureText(String(nm)).width / 2 : tw / 2));
-    ctx.fillRect(xOf(nm) - 1, stripY + SB.stripH, 2, 6);
-    ctx.fillText(s, tx, ty); put(s, tx, ty, SB.tick, "spectrum-axis");
+  ctx.font = SB_FONTS.tick(SB.tick); ctx.fillStyle = "rgba(226,230,246,0.55)";
+  for (const tk of L.ticks) {
+    ctx.fillRect(x + tk.cx - 1, stripY + SB.stripH + 1, 2, 5);
+    ctx.fillText(tk.text, x + tk.tx, ny + 2); put(tk.text, x + tk.tx, ny + 2, SB.tick, "spectrum-axis");
   }
-  text(ctx, L.caption, SB_FONTS.text, "rgba(226,230,246,0.86)", x0, y + L.geo.caption, 1.24, put);
 }
 
-// ── vida y final ────────────────────────────────────────────────────────
+// ── su vida ─────────────────────────────────────────────────────────────
 /** Frase del final, como la ficha (StarLifeBlock.jsx), en su forma corta de postal. */
 export function fateKey(plan) {
   if (plan.kind === "sun") return "sun";
@@ -231,87 +262,88 @@ export function fateKey(plan) {
   if (!plan.fate) return null;
   return plan.fate === "wd" && (plan.stage === "giant" || plan.stage === "supergiant") ? "wdLate" : plan.fate;
 }
-/** «Neuhäuser et al. 2022, MNRAS 516, 693» → «Neuhäuser et al. 2022» */
-const shortRef = (r) => (r ? String(r).split(",")[0].trim() : "");
+/** «Neuhäuser et al. 2022, MNRAS 516, 693» → «Neuhäuser et al. 2022» (va al crédito del pie) */
+export const shortRef = (r) => (r ? String(r).split(",")[0].trim() : "");
+
+/** La masa, corta, para la fila del título («masa ≈ 14–19 M☉, publicada»). null si no aplica. */
+export function lifeMassText(plan, t, lang) {
+  const lt = LIFE[lang] || LIFE.es;
+  if (plan.kind === "sun") return t.pcLifeMassSun;
+  if (plan.massKind === "curated") return t.pcLifeMass(lt.mass(plan.mass));
+  if (plan.massKind === "estimated") return t.pcLifeMassEst(lt.mass(plan.mass));
+  if (plan.stage && plan.stage !== "wd") return t.pcLifeMassNone;
+  return null;
+}
 
 /**
- * Mide y coloca el bloque «Vida y final» (función pura). Devuelve
- * { h, title, mass, nodes:[{x, label, here, past}], here, fate, notes:[…], geo, truncated }.
+ * Mide y coloca el bloque «Su vida» (función pura). Devuelve
+ * { h, head, nodes:[{x, label, here, past}], here, fate, notes:[…], geo, truncated }.
+ * * Las etapas van en UNA línea si caben todas así; si no, en dos (tres solo para un nombre muy largo).
  */
 export function layoutLife(measureAt, plan, t, lang, { w }) {
   const lt = LIFE[lang] || LIFE.es;
-  const inner = w - 2 * SB.padX;
-  const title = fitText(measureAt(SB_FONTS.title), t.pcLifeTitle, { max: SB.title, min: 24, maxW: inner, maxLines: 1 });
-  let massTxt = null;
-  if (plan.kind === "sun") massTxt = t.pcLifeMassSun;
-  else if (plan.massKind === "curated") massTxt = t.pcLifeMass(lt.mass(plan.mass), shortRef(plan.ref && plan.ref[0]));
-  else if (plan.massKind === "estimated") massTxt = t.pcLifeMassEst(lt.mass(plan.mass), `${plan.letter}${plan.sub}V`);
-  else if (plan.stage && plan.stage !== "wd") massTxt = t.pcLifeMassNone;
-  const mass = massTxt ? fitText(measureAt(SB_FONTS.text), massTxt, { max: SB.text, min: 24, maxW: inner, maxLines: 2 }) : null;
+  const inner = w;
+  const head = layoutHead(measureAt, t.pcLifeTitle, lifeMassText(plan, t, lang), inner);
   // nodos repartidos a lo ancho: cada rótulo ocupa su tramo y nunca sale del bloque
   const n = plan.path.length, seg = inner / n;
-  const nodes = plan.path.map((s, i) => {
+  const fitNode = (maxLines) => plan.path.map((s, i) => {
     const font = i === plan.here ? SB_FONTS.strong : SB_FONTS.text;
-    const label = fitText(measureAt(font), lt.stage[s] || s, { max: SB.text, min: 24, maxW: seg - 12, maxLines: 3 });
-    return { key: s, x: SB.padX + seg * (i + 0.5), label, here: i === plan.here, past: plan.here >= 0 && i < plan.here };
+    const label = fitText(measureAt(font), lt.stage[s] || s, { max: SB.text, min: SB.text, maxW: seg - 12, maxLines });
+    return { key: s, x: seg * (i + 0.5), label, here: i === plan.here, past: plan.here >= 0 && i < plan.here };
   });
+  let nodes = fitNode(1);
+  for (let k = 2; k <= 3 && nodes.some((nd) => nd.label.truncated); k++) nodes = fitNode(k);
   const fk = fateKey(plan);
-  const fate = fk && t.pcFate[fk] ? fitText(measureAt(SB_FONTS.text), t.pcFate[fk], { max: SB.text, min: 24, maxW: inner, maxLines: 3 }) : null;
+  const fate = fk && t.pcFate[fk] ? fitText(measureAt(SB_FONTS.text), t.pcFate[fk], { max: SB.text, min: SB.text, maxW: inner, maxLines: 3 }) : null;
+  // avisos de incertidumbre: en una línea discreta (dos solo si no cabe)
   const notes = [];
-  if (plan.near && plan.fate !== "nsbh" && plan.fate !== "border") notes.push(fitText(measureAt(SB_FONTS.text), lt.near, { max: SB.text, min: 24, maxW: inner - 30, maxLines: 2 }));
-  if (plan.assumed) notes.push(fitText(measureAt(SB_FONTS.text), t.pcLifeAssumed, { max: SB.text, min: 24, maxW: inner - 30, maxLines: 2 }));
+  if (plan.near && plan.fate !== "nsbh" && plan.fate !== "border") notes.push(fitText(measureAt(SB_FONTS.text), lt.near, { max: SB.text, min: SB.text, maxW: inner, maxLines: 2 }));
+  if (plan.assumed) notes.push(fitText(measureAt(SB_FONTS.text), t.pcLifeAssumed, { max: SB.text, min: SB.text, maxW: inner, maxLines: 2 }));
   const hereW = measureAt(SB_FONTS.strong)(SB.text)(t.pcLifeNow);
   const geo = {};
-  let y = SB.padY;
-  geo.title = y; y += linesH(title, 1.2);
-  if (mass) { geo.mass = y; y += linesH(mass); }
-  y += 10;
-  // la etapa actual se marca con una píldora dorada «HOY» sobre la propia línea (no ocupa una fila aparte)
+  let y = 0;
+  geo.head = y; y += head.h + SB.headGap + 4;
+  // la etapa actual se marca con una píldora dorada «HOY» sobre la propia línea
   geo.node = y + SB.nodeRow / 2; y += SB.nodeRow;
-  geo.labels = y + 4; y += 4 + Math.max(...nodes.map((nd) => linesH(nd.label, 1.2)));
-  if (fate) { geo.fate = y + 10; y += 10 + linesH(fate); }
+  geo.labels = y + 8; y += 8 + Math.max(...nodes.map((nd) => linesH(nd.label, 1.2)));
+  if (fate) { geo.fate = y + 16; y += 16 + linesH(fate); }
   geo.notes = [];
-  for (const nt of notes) { geo.notes.push(y + 6); y += 6 + linesH(nt); }
-  const h = y + SB.padY;
-  const truncated = [title, mass, fate, ...notes, ...nodes.map((nd) => nd.label)].some((f) => f && f.truncated);
-  return { h, title, mass, nodes, here: plan.here, fate, notes, geo, inner, hereW, truncated };
+  for (const nt of notes) { geo.notes.push(y + 8); y += 8 + linesH(nt); }
+  const truncated = [head, fate, ...notes, ...nodes.map((nd) => nd.label)].some((f) => f && f.truncated);
+  return { h: y, head, nodes, here: plan.here, fate, notes, geo, inner, hereW, truncated };
 }
 
 export function drawLife(ctx, L, t, x, y, w, put) {
-  const x0 = x + SB.padX;
-  panel(ctx, x, y, w, L.h);
-  ctx.textAlign = "left"; ctx.textBaseline = "top";
-  text(ctx, L.title, SB_FONTS.title, "#c9b8ff", x0, y + L.geo.title, 1.2, put, "life");
-  if (L.mass) text(ctx, L.mass, SB_FONTS.text, "rgba(240,242,252,0.95)", x0, y + L.geo.mass, 1.24, put, "life");
+  const x0 = x;
+  drawHead(ctx, L.head, x0, y + L.geo.head, "rgba(226,230,246,0.86)", put, "life");
   const ny = y + L.geo.node, first = x + L.nodes[0].x, last = x + L.nodes[L.nodes.length - 1].x;
   // la línea: recorrida (hasta HOY) continua; lo que falta, punteada
   const hereX = L.here >= 0 ? x + L.nodes[L.here].x : first;
-  ctx.lineWidth = 4; ctx.lineCap = "round";
+  ctx.lineWidth = 3; ctx.lineCap = "round";
   if (L.here > 0) { ctx.strokeStyle = "rgba(201,184,255,0.85)"; ctx.beginPath(); ctx.moveTo(first, ny); ctx.lineTo(hereX, ny); ctx.stroke(); }
-  ctx.save(); ctx.setLineDash([10, 9]); ctx.strokeStyle = "rgba(201,184,255,0.55)"; ctx.beginPath(); ctx.moveTo(hereX, ny); ctx.lineTo(last, ny); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.setLineDash([8, 9]); ctx.strokeStyle = "rgba(201,184,255,0.5)"; ctx.beginPath(); ctx.moveTo(hereX, ny); ctx.lineTo(last, ny); ctx.stroke(); ctx.restore();
   for (const nd of L.nodes) {
     const cx = x + nd.x;
     if (nd.here) {
       // píldora «HOY», centrada en su nodo y siempre dentro del bloque
-      const pw = L.hereW + 30, ph = 38;
-      const px = Math.max(x0, Math.min(x + w - SB.padX - pw, cx - pw / 2));
+      const pw = L.hereW + 30, ph = 36;
+      const px = Math.max(x0, Math.min(x + w - pw, cx - pw / 2));
       const g = ctx.createRadialGradient(px + pw / 2, ny, 0, px + pw / 2, ny, pw * 0.8);
-      g.addColorStop(0, "rgba(242,198,109,0.55)"); g.addColorStop(1, "rgba(242,198,109,0)");
+      g.addColorStop(0, "rgba(242,198,109,0.45)"); g.addColorStop(1, "rgba(242,198,109,0)");
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px + pw / 2, ny, pw * 0.8, 0, TAU); ctx.fill();
       roundRect(ctx, px, ny - ph / 2, pw, ph, ph / 2); ctx.fillStyle = "#f2c66d"; ctx.fill();
-      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.stroke();
       ctx.font = SB_FONTS.strong(SB.text); ctx.fillStyle = "#1a1306"; ctx.textBaseline = "middle";
       ctx.fillText(t.pcLifeNow, px + 15, ny + 1); put(t.pcLifeNow, px + 15, ny - SB.text / 2, SB.text, "life");
       ctx.textBaseline = "top";
     } else if (nd.past) {
-      ctx.fillStyle = "#c9b8ff"; ctx.beginPath(); ctx.arc(cx, ny, 10, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#c9b8ff"; ctx.beginPath(); ctx.arc(cx, ny, 9, 0, TAU); ctx.fill();
     } else {
-      ctx.fillStyle = "#0b0f22"; ctx.beginPath(); ctx.arc(cx, ny, 10, 0, TAU); ctx.fill();
-      ctx.strokeStyle = "rgba(201,184,255,0.9)"; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = "#0b0f22"; ctx.beginPath(); ctx.arc(cx, ny, 9, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "rgba(201,184,255,0.85)"; ctx.lineWidth = 2.5; ctx.stroke();
     }
     // rótulo de la etapa, centrado bajo su nodo
     const f = nd.label, font = nd.here ? SB_FONTS.strong : SB_FONTS.text;
-    ctx.font = font(f.size); ctx.fillStyle = nd.here ? "#ffffff" : "rgba(226,230,246,0.82)";
+    ctx.font = font(f.size); ctx.fillStyle = nd.here ? "#ffffff" : "rgba(226,230,246,0.78)";
     let ly = y + L.geo.labels;
     for (const ln of f.lines) {
       const lw = ctx.measureText(ln).width, lx = cx - lw / 2;
@@ -320,12 +352,14 @@ export function drawLife(ctx, L, t, x, y, w, put) {
     }
   }
   if (L.fate) text(ctx, L.fate, SB_FONTS.text, "rgba(240,242,252,0.96)", x0, y + L.geo.fate, 1.24, put, "life");
-  L.notes.forEach((nt, i) => {
-    const ny2 = y + L.geo.notes[i];
-    ctx.strokeStyle = "#f2c66d"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x0 + 9, ny2 + nt.size * 0.6, 8, 0, TAU); ctx.stroke();
-    ctx.fillStyle = "#f2c66d"; ctx.fillRect(x0 + 8, ny2 + nt.size * 0.6 - 4, 2, 5); ctx.fillRect(x0 + 8, ny2 + nt.size * 0.6 + 3, 2, 2);
-    text(ctx, nt, SB_FONTS.text, "#f6dfa6", x0 + 30, ny2, 1.24, put, "life");
-  });
+  L.notes.forEach((nt, i) => text(ctx, nt, SB_FONTS.text, "rgba(246,223,166,0.82)", x0, y + L.geo.notes[i], 1.24, put, "life"));
+}
+
+/** Separador fino entre bloques (sin tarjetas): una línea que se desvanece hacia los lados. */
+export function drawRule(ctx, x, y, w) {
+  const g = ctx.createLinearGradient(x, 0, x + w, 0);
+  g.addColorStop(0, "rgba(167,139,250,0.05)"); g.addColorStop(0.5, "rgba(201,184,255,0.4)"); g.addColorStop(1, "rgba(167,139,250,0.05)");
+  ctx.fillStyle = g; ctx.fillRect(x, Math.round(y), w, 2);
 }
 
 // ── utilidades de dibujo ────────────────────────────────────────────────
@@ -334,11 +368,19 @@ function roundRect(ctx, x, y, w, h, r) {
   if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
   else { ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 }
-function panel(ctx, x, y, w, h) {
-  roundRect(ctx, x, y, w, h, 22); ctx.fillStyle = "rgba(14,16,38,0.9)"; ctx.fill();
-  ctx.strokeStyle = "rgba(167,139,250,0.42)"; ctx.lineWidth = 2; ctx.stroke();
-}
 function text(ctx, f, font, color, x, y, k, put, role = "spectrum") {
   ctx.font = font(f.size); ctx.fillStyle = color;
   for (const ln of f.lines) { ctx.fillText(ln, x, y); put(ln, x, y, f.size, role); y += Math.round(f.size * k); }
+}
+/** Encabezado: título (lila) y su dato, en la misma fila tras un «·» o debajo. */
+function drawHead(ctx, H, x, y, subColor, put, role) {
+  ctx.textAlign = "left"; ctx.textBaseline = "top";
+  text(ctx, H.title, SB_FONTS.title, "#c9b8ff", x, y, 1.2, put, role);
+  if (!H.sub) return;
+  if (H.inline) {
+    // misma línea de base aproximada: el dato (24 px) baja lo que le falta al título (28 px)
+    const dy = Math.round((H.title.size - H.sub.size) * 0.8);
+    ctx.font = SB_FONTS.text(H.sub.size); ctx.fillStyle = "rgba(201,184,255,0.7)"; ctx.fillText("·", x + H.dotX, y + dy);
+    text(ctx, H.sub, SB_FONTS.text, subColor, x + H.subX, y + dy, 1.24, put, role);
+  } else text(ctx, H.sub, SB_FONTS.text, subColor, x, y + linesH(H.title, 1.2) + 4, 1.24, put, role);
 }
