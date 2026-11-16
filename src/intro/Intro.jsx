@@ -71,11 +71,14 @@ export default function Intro({ lang, planets, credit, skipLabel, skipAria, onDo
 
         {/* 3 · La Vía Láctea y dónde está el Sol */}
         <div className="intro__scene intro__scene--galaxy">
-          <svg viewBox="-100 -100 200 200">
-            <g className="intro__spin">
+          {/* el giro va en una capa HTML propia (se compone en la GPU, sin repintar los puntos) */}
+          <div className="intro__spin">
+            <svg viewBox="-100 -100 200 200">
               {stars.map(([x, y, r, c, o], i) => <circle key={i} cx={x} cy={y} r={r} fill={c} opacity={o}/>)}
               <circle r="9" fill="rgba(255,236,190,.35)"/>
-            </g>
+            </svg>
+          </div>
+          <svg viewBox="-100 -100 200 200" className="intro__over">
             <circle cx={SUN_IN_GALAXY[0]} cy={SUN_IN_GALAXY[1]} r="3" fill="none" stroke="#F2C46D" strokeWidth="1" className="intro__mark"/>
             <circle cx={SUN_IN_GALAXY[0]} cy={SUN_IN_GALAXY[1]} r="1.2" fill="#F2C46D"/>
           </svg>
@@ -88,6 +91,9 @@ export default function Intro({ lang, planets, credit, skipLabel, skipAria, onDo
               {maze.walls.map((d, i) => <path key={i} d={d}/>)}
               {maze.spokes.map((d, i) => <path key={`s${i}`} d={d}/>)}
             </g>
+            {/* brillo del hilo: un trazo ancho y translúcido debajo (sin filtros: no repinta cada cuadro) */}
+            <path d={thread} pathLength="1" fill="none" stroke="rgba(242,196,109,.28)" strokeWidth="7" strokeLinecap="round"
+              strokeLinejoin="round" className="intro__thread"/>
             <path d={thread} pathLength="1" fill="none" stroke="#F2C46D" strokeWidth="2.4" strokeLinecap="round"
               strokeLinejoin="round" className="intro__thread"/>
             <circle r="3.4" fill="#F2C46D" className="intro__goal"/>

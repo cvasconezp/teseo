@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.3.1 — 16 de noviembre de 2026
+
+- Entrada más fluida en teléfonos: el giro de la Vía Láctea va en una capa que
+  compone la GPU, el brillo del hilo ya no usa filtros que se repintan en cada
+  cuadro y la galaxia tiene menos puntos (700).
+
 ## 1.3.0 — 16 de noviembre de 2026
 
 - Nueva animación de entrada: «Estás aquí» → tu sistema solar con los planetas

@@ -73,7 +73,7 @@ export function seeded(seed = 7) {
 }
 
 /** Puntos de la Vía Láctea: bulbo + dos brazos en espiral logarítmica. [x, y, r, color, opacidad]. */
-export function galaxyPoints(n = 900) {
+export function galaxyPoints(n = 700) {
   const rnd = seeded(11);
   const pts = [];
   const cols = ["#ffffff", "#c9b8ff", "#9ec5ff", "#ffe6b0"];
