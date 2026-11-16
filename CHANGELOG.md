@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.1.0 — 16 de noviembre de 2026
+
+- «Ahora»: botón Compartir en cada evento del calendario, el Sol de hoy,
+  lanzamientos, asteroides y naves rumbo a Marte. Genera una imagen vertical
+  con foto real (Launch Library 2, NASA SDO) o representación rotulada (Luna y
+  planetas con textura real, cielo de la noche con el radiante, trayectoria de
+  la ISS), cuadrícula de datos y Killa Ñan.
+- Backend: intermediario de imágenes seguro (/api/img) para fuentes sin CORS.
+
 ## 1.0.0 — 16 de noviembre de 2026 · Teseo deja de ser prototipo
 
 Primera versión estable, presentada en la reunión de AstroCiencias Ecuador
