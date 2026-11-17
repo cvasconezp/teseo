@@ -74,7 +74,7 @@ def test_solo_las_cumbres_de_la_silueta(net):
 def test_consulta_y_cache(net):
     client.get(f"/api/peaks?lat={LAT0}&lon={LON0}")
     q = unquote_plus(net["query"])
-    assert q.count("node[") == 2 and "number(t" in q and "volcano" in q and "around" not in q
+    assert q.count("node[") == 4 and "number(t" not in q and '"natural"="volcano"' in q and "around" not in q
     n = net["over"]
     assert 1 <= n <= len(pk.OVERPASS)                                              # los servidores, a la vez
     client.get(f"/api/peaks?lat={LAT0 + 0.0005}&lon={LON0}")                  # misma celda: sin otra consulta
@@ -88,9 +88,16 @@ def test_servidor_de_respaldo(net):
 
 
 def test_sin_overpass_502(net):
-    net["fail"].update(["overpass-api.de", "kumi.systems", "mail.ru"])
+    net["fail"].update(["overpass-api.de", "kumi.systems", "mail.ru", "private.coffee"])
     r = client.get(f"/api/peaks?lat={LAT0}&lon={LON0}")
-    assert r.status_code == 502 and "montañas" in r.json()["detail"] and r.json()["detail"].count("HTTP 429") == 3
+    assert r.status_code == 502 and "montañas" in r.json()["detail"] and r.json()["detail"].count("HTTP 429") == len(pk.OVERPASS)
+
+
+def test_filtro_de_lejanas():
+    near = {"id": 1, "lat": 0.1, "lon": 0.0, "tags": {"ele": "100"}}
+    far_low = {"id": 2, "lat": 1.0, "lon": 0.0, "tags": {"ele": "2000"}}
+    far_high = {"id": 3, "lat": 1.0, "lon": 0.0, "tags": {"ele": "5000"}}
+    assert pk.far_ok(near, 0, 0, 3000) and not pk.far_ok(far_low, 0, 0, 3000) and pk.far_ok(far_high, 0, 0, 3000)
 
 
 def test_recuadro():

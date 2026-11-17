@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.13.1 — 17 de noviembre de 2026
+
+- «Mi cielo»: fuera la lista fija «O elige un lugar» (Quito, Cayambe, Guayaquil,
+  Cuenca); el buscador de lugares del mundo y los sitios astronómicos la
+  sustituyen.
+- Nombres de las montañas: consulta a OpenStreetMap más ligera (sin filtros
+  costosos en el servidor de mapas), un cuarto servidor de respaldo y más
+  paciencia con los que van cargados.
+
 ## 1.13.0 — 17 de noviembre de 2026
 
 - Postal «tal como lo ves»: sin un objeto abierto, la postal del cielo ya no es

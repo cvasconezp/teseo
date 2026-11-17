@@ -315,14 +315,6 @@ export function LocationPanel({ t, lang = "es", localMode, lat, lon, placeName, 
         </div>
       )}
       <PlaceSearch lang={lang} onPlace={onPlace} />
-      <div className="sk-group">
-        <h3>{t.orPickPlace}</h3>
-        <div className="sk-quick">
-          {places.map((p) => (
-            <button key={p.name} type="button" aria-pressed={localMode && placeName === p.name} onClick={() => onPlace(p)}>{p.name}</button>
-          ))}
-        </div>
-      </div>
       <SiteChips lang={lang} placeName={placeName} localMode={localMode} onPlace={onPlace} />
       <form className="sk-group" onSubmit={submit} noValidate>
         <h3>{t.orCoords}</h3>

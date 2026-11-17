@@ -37,12 +37,13 @@ OVERPASS = (
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
 )
 NEAR_KM = 40.0          # hasta aquí, todas las cumbres con nombre
 MAX_KM = 150.0          # más lejos, solo las que tienen altura y superan la del lugar en ≥ 300 m
 MIN_KM = 0.5
 MAX_PEAKS = 40
-TIMEOUT_S = 40.0
+TIMEOUT_S = 75.0            # los servidores públicos van cargados: a veces tardan
 RESULT_CACHE_MAX = 400
 CACHE_SECONDS = 3 * 86400
 
@@ -103,13 +104,28 @@ def bbox(lat: float, lon: float, km: float) -> str:
 
 
 def overpass_query(lat: float, lon: float, min_far_ele: float) -> str:
-    sel = 'node["natural"~"^(peak|volcano)$"]["name"]'
+    """Consulta ligera para servidores cargados: etiquetas exactas (usan el índice, sin expresiones regulares ni
+    «if») y el filtro de altura de las lejanas se hace aquí (`far_ok`)."""
+    near, far = bbox(lat, lon, NEAR_KM), bbox(lat, lon, MAX_KM)
     return (
-        "[out:json][timeout:25];("
-        f"{sel}({bbox(lat, lon, NEAR_KM)});"
-        f'{sel}["ele"]({bbox(lat, lon, MAX_KM)})(if: number(t["ele"]) >= {int(min_far_ele)});'
+        "[out:json][timeout:60];("
+        f'node["natural"="peak"]["name"]({near});'
+        f'node["natural"="volcano"]["name"]({near});'
+        f'node["natural"="peak"]["name"]["ele"]({far});'
+        f'node["natural"="volcano"]["name"]({far});'
         ");out body qt;"
     )
+
+
+def far_ok(el: dict, lat: float, lon: float, min_far_ele: float) -> bool:
+    """Cerca, toda cumbre con nombre; lejos, solo las que superan en altura al lugar (las demás no asoman)."""
+    if "lat" not in el or "lon" not in el:
+        return False
+    _, d = bearing_dist(lat, lon, float(el["lat"]), float(el["lon"]))
+    if d <= NEAR_KM:
+        return True
+    e = parse_ele((el.get("tags") or {}).get("ele"))
+    return e is None or e >= min_far_ele
 
 
 def visible_peaks(prof: dict, nodes: list, lang_keys=("es", "en")) -> list:
@@ -176,7 +192,8 @@ def visible_peaks(prof: dict, nodes: list, lang_keys=("es", "en")) -> list:
 async def fetch_nodes(lat: float, lon: float, ground_m: float) -> list:
     """Pregunta a los servidores Overpass a la vez y se queda con la primera respuesta buena (suelen ir
     cargados: uno solo puede tardar un minuto o fallar)."""
-    q = overpass_query(lat, lon, ground_m + 300.0)
+    min_far = ground_m + 300.0
+    q = overpass_query(lat, lon, min_far)
     errors = []
     async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=_transport, headers=provider_headers()) as client:
         async def one(url):
@@ -193,7 +210,12 @@ async def fetch_nodes(lat: float, lon: float, ground_m: float) -> list:
                 try:
                     url, els = await fut
                     stats["last_endpoint"] = url
-                    return els
+                    seen, out = set(), []
+                    for el in els:
+                        if el.get("id") in seen or not far_ok(el, lat, lon, min_far):
+                            continue
+                        seen.add(el.get("id")); out.append(el)
+                    return out
                 except Exception as e:                     # noqa: BLE001 — se prueba el siguiente
                     errors.append(str(e) or type(e).__name__)
         finally:
