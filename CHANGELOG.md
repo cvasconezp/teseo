@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.17.1 — 17 de noviembre de 2026
+
+- En el ordenador, el Cielo se usa igual que en el teléfono: la columna de la
+  derecha (Tiempo, Lugar, Capas, Tour) en lugar de la barra de abajo, las
+  herramientas (acercar, alejar, centrar, postal, pantalla completa,
+  información) en el menú «…», y el mismo control de tiempo tipo Stellarium.
+
 ## 1.17.0 — 17 de noviembre de 2026
 
 - Cielo a pantalla completa en el teléfono: la cabecera (Teseo, música, visión

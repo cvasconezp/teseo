@@ -23,7 +23,7 @@ function moonObjFrom(bodies, key, date = new Date()) {
 const foldTxt = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 import { fmtDist, fmtYears, fmtWhenShort, fmtKm, fmtDuration } from "./sky/format.js";
 import Icon from "./sky/icons.jsx";
-import { PerfMeter, SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TimePanel, TourCard, Onboarding, PointingBar, SkyActions, GuideHud, TonightPanel } from "./sky/panels.jsx";
+import { PerfMeter, SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TourCard, Onboarding, PointingBar, SkyActions, GuideHud, TonightPanel } from "./sky/panels.jsx";
 import { cameraQuat, lookFromQuat } from "./sky/deviceOrientation.js";
 import { createResumeDetector, isDragToManual } from "./sky/arResume.js";
 import { guideArrow, turnHint, altAz } from "./sky/guide.js";
@@ -3348,7 +3348,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // barra de "Apuntar al cielo": invitación (dentro de Mi cielo), indicador activo o aviso de error
   const arBar = !sky || tourActive ? null : arOn ? "on" : ar === "paused" ? "paused" : arError ? "error" : null;
   // la columna de la derecha también al mirar arrastrando en el teléfono (sin la barra de abajo)
-  const railView = !!(sky && !isWide && !tourActive && !arBar);
+  // (también en el ordenador: los mismos botones que en el teléfono)
+  const railView = !!(sky && !tourActive && !arBar);
   useEffect(() => { if (arBar !== "on" && arBar !== "paused" && !railView) setTsOpen(false); }, [arBar, railView]);
   // el menú «…» y la columna comparten el lado derecho: con el menú abierto, la columna (y el tiempo) se apartan
   useEffect(() => { if (railOpen) setTsOpen(false); }, [railOpen]);
@@ -3567,7 +3568,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         </section>
       )}
 
-      {/* teléfono, mirando arrastrando: la columna de la derecha (como al apuntar) en lugar de la barra de abajo */}
+      {/* mirando arrastrando (teléfono y ordenador): la columna de la derecha, como al apuntar, en lugar de la barra de abajo */}
       {railView && !covered && !railOpen && (
         <ArRail lang={lang} timeOpen={tsOpen} timeMoved={timeMoved} placeOn={localMode} layersOn={layersOn}
           onTime={() => setTsOpen((v) => !v)} onPlace={() => { setTsOpen(false); openPanel("location"); }}
@@ -3636,12 +3637,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           iss={lat != null && lon != null ? { lat, lon, altM: elev || 0, onShow: showIss } : null} />
       )}
       {sky && panel === "time" && (
-        <TimePanel t={t} lang={lang} when={when} whenStr={whenStr} isNow={!timeMoved} playing={playing}
-          onShift={(m) => { track("sky_time", { kind: m > 0 ? "forward" : "back" }); shiftMin(m); }} onTogglePlay={() => { setTimeMoved(true); setPlaying(pl => !pl); }}
-          onNow={() => { track("sky_time", { kind: "now" }); setPlaying(false); setTimeMoved(false); setWhenStr(nowLocalInput()); }}
-          onSet={(v) => { track("sky_time", { kind: "custom" }); setPlaying(false); setTimeMoved(true); setWhenStr(v); }}
-          onClose={() => setPanel(null)}
-          extra={issOn ? (
+        // el mismo control de tiempo que en el teléfono (tipo Stellarium), sobre la barra de abajo
+        <TimeSheet lang={lang} date={when} lat={localMode ? lat : null} lon={localMode ? lon : null} isNow={!timeMoved} rateIdx={rateIdx}
+          onRate={setRate} onStep={tsStep} onNow={tsNow} onNight={tsNight} onSetMinute={tsMinute} onClose={() => setPanel(null)}
+          docked extra={issOn ? (
             <div className="sk-quick sk-iss-rates" role="group" aria-label={ISS_TX[lang].issSheetTitle}>
               {ISS_RATES.map((r) => (
                 <button key={r} type="button" aria-pressed={issRate === r} onClick={() => setIssRate(r)} aria-label={ISS_TX[lang].issSpeedAria(r)}>

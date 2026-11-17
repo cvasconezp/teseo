@@ -29,7 +29,7 @@ function HoldArrow({ dir, label, onStep }) {
   );
 }
 
-export default function TimeSheet({ lang = "es", date, lat, lon, isNow, rateIdx = REAL, onRate, onStep, onNow, onNight, onSetMinute, onClose }) {
+export default function TimeSheet({ lang = "es", date, lat, lon, isNow, rateIdx = REAL, onRate, onStep, onNow, onNight, onSetMinute, onClose, docked = false, extra = null }) {
   const tx = TX[lang] || TX.es;
   const z = (n, w = 2) => String(n).padStart(w, "0");
   const fields = [["year", z(date.getFullYear(), 4)], ["month", z(date.getMonth() + 1)], ["day", z(date.getDate())], ["hour", z(date.getHours())], ["minute", z(date.getMinutes())]];
@@ -38,7 +38,7 @@ export default function TimeSheet({ lang = "es", date, lat, lon, isNow, rateIdx 
   const minOfDay = date.getHours() * 60 + date.getMinutes();
   const paused = RATES[rateIdx] === 0;
   return (
-    <section className="sk-ts" role="dialog" aria-label={tx.title}>
+    <section className={`sk-ts${docked ? " is-docked" : ""}`} role="dialog" aria-label={tx.title}>
       <div className="sk-ts-head">
         <i className="sk-ts-grip" aria-hidden="true" />
         <button type="button" className="sk-ts-close" onClick={onClose} aria-label={tx.close}><Icon name="close" size={18} /></button>
@@ -70,6 +70,7 @@ export default function TimeSheet({ lang = "es", date, lat, lon, isNow, rateIdx 
         <button type="button" onClick={onNow}><Icon name="clock" size={20} /><span>{tx.now}</span></button>
         <button type="button" onClick={() => onNight(1)}><Icon name="next" size={20} /><span>{tx.nextNight}</span></button>
       </div>
+      {extra}
       <div className="sk-ts-day">
         <input type="range" min={0} max={1439} step={1} value={minOfDay} aria-label={tx.dayBar} className="sk-ts-dayrange"
           style={{ background: dayGradient(profile) }} onChange={(e) => onSetMinute(Number(e.target.value))} />
