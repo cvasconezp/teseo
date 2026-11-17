@@ -26,5 +26,8 @@ ok(/help=\{false\}/.test(sky), "la ayuda de alinear el norte ya no sale sola");
 ok(/const railView = !!\(sky && !isWide && !tourActive && !arBar\)/.test(sky) && /onTour=\{\(\) => \{ setTsOpen\(false\); startTour\(\); \}\}/.test(sky) && /!tourActive && !railView && \(\s*<Dock/.test(sky), "en el teléfono, al mirar arrastrando, la misma columna (con el tour) en lugar de la barra de abajo");
 ok((sky.match(/!covered && !railOpen && \(\s*<ArRail/g) || []).length === 2 && /if \(railOpen\) setTsOpen\(false\)/.test(sky), "con el menú «…» abierto, la columna y el tiempo se apartan");
 
+const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8"), css = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
+ok(/<SkyView lang=\{lang\} onMenu=/.test(app) && /function AppMenu\(/.test(app) && /className="sk-menu-btn"/.test(sky), "en el teléfono, en Cielo: botón ☰ con las secciones, la música, la visión nocturna y el idioma");
+ok(/\.app--sky \.app__body > header\.shell, \.app--sky \.tabs \{ display: none; \}/.test(css), "y sin cabecera ni pestañas: la vista ocupa toda la pantalla");
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

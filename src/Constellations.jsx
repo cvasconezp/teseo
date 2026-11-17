@@ -338,7 +338,7 @@ const TC = {
     coordsHint: "South and west are negative. Quito: −0.22, −78.51.",
     customPlace: "Custom coordinates", exitMySky: "Leave",
     // ── apuntar al cielo ──
-    pointSky: "Point at the sky", experimental: "experimental",
+    pointSky: "Point at the sky", experimental: "experimental", menuOpen: "Menu: sections, music, night vision and language",
     pointLead: "Hold your phone up and the sky turns with you. No camera: it uses your phone's compass and gyroscope.",
     pointPickPlace: "One more step: pick your location below. As soon as you do, the sky will follow your phone.",
     pointActive: "Pointing at the sky", pointExit: "Exit", pointExitAria: "Exit Point at the sky",
@@ -476,7 +476,7 @@ const TC = {
     coordsHint: "Sur y oeste van en negativo. Quito: −0.22, −78.51.",
     customPlace: "Coordenadas propias", exitMySky: "Salir",
     // ── apuntar al cielo ──
-    pointSky: "Apuntar al cielo", experimental: "experimental",
+    pointSky: "Apuntar al cielo", experimental: "experimental", menuOpen: "Menú: secciones, música, visión nocturna e idioma",
     pointLead: "Levanta el teléfono y el cielo girará contigo. Sin cámara: usa la brújula y el giroscopio de tu teléfono.",
     pointPickPlace: "Falta un paso: elige tu ubicación aquí abajo. En cuanto la tengas, el cielo seguirá a tu teléfono.",
     pointActive: "Apuntando al cielo", pointExit: "Salir", pointExitAria: "Salir de Apuntar al cielo",
@@ -568,7 +568,7 @@ const prefersReducedMotion = () => {
   try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
 };
 
-export default function Constellations({ lang = "es" }) {
+export default function Constellations({ lang = "es", onMenu = null }) {
   const t = TC[lang];
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
@@ -1799,7 +1799,7 @@ export default function Constellations({ lang = "es" }) {
         // zonas tapadas por la ficha o un panel: ahí no se dibujan nombres (ni a medias)
         if (ref._occN++ % 6 === 0) {
           const stEl = mount.parentElement, sr = stEl.getBoundingClientRect();
-          ref.occl = [...stEl.querySelectorAll(".sk-sheet, .sk-panel, .sk-search-field, .sk-rail button, .sk-dock, .sk-cta-btn, .sk-arpill, .sk-artray, .sk-arrail, .sk-ts, .sk-guide-msg, .sk-depth, .sk-tour, .sk-onboard, .sk-chip")].map(el => { const r = el.getBoundingClientRect(); return [r.left - sr.left - 8, r.top - sr.top - 6, r.right - sr.left + 8, r.bottom - sr.top]; });
+          ref.occl = [...stEl.querySelectorAll(".sk-sheet, .sk-panel, .sk-search-field, .sk-menu-btn, .sk-rail button, .sk-dock, .sk-cta-btn, .sk-arpill, .sk-artray, .sk-arrail, .sk-ts, .sk-guide-msg, .sk-depth, .sk-tour, .sk-onboard, .sk-chip")].map(el => { const r = el.getBoundingClientRect(); return [r.left - sr.left - 8, r.top - sr.top - 6, r.right - sr.left + 8, r.bottom - sr.top]; });
         }
         const occl = ref.occl;
         const free = (x0, y0, x1, y1) => {
@@ -3488,8 +3488,13 @@ export default function Constellations({ lang = "es" }) {
         {failedLayers.length > 0 ? `${t.layersError} ${failedLayers.map(c => c[lang] || c.es).join(", ")}.` : ""}
       </p>
 
+      {sky && onMenu && !isWide && !arOn && ar !== "paused" && (
+        <button type="button" className="sk-menu-btn" onClick={onMenu} aria-label={TC[lang].menuOpen || "Menú"} title={TC[lang].menuOpen || "Menú"}>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+      )}
       {sky && (
-        <div className="sk-top">
+        <div className={`sk-top${onMenu && !isWide ? " has-menu" : ""}`}>
           <SearchBox t={t} query={query} setQuery={setQuery} results={results} onResult={onResult} quick={quick} compact={!isWide} />
           {dayWarn && <DayWarning lang={lang} planets={dayPlanets} onNightfall={goNightfall}
             onAtmOff={() => { setAtmOn(false); track("sky_setting", { setting: "atmosphere", state: "off" }); }} onDismiss={() => setDayHidden(true)} />}

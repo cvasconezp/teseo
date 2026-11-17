@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.17.0 — 17 de noviembre de 2026
+
+- Cielo a pantalla completa en el teléfono: la cabecera (Teseo, música, visión
+  nocturna, idioma) y las pestañas pasan a un menú ☰ arriba a la izquierda de
+  la vista, que se abre como un panel lateral con las secciones (Ruta, Ahora,
+  Cielo, Preguntas) y esas opciones. En el ordenador no cambia nada.
+
 ## 1.16.1 — 17 de noviembre de 2026
 
 - En el teléfono, al mirar el cielo arrastrando, la misma columna de la derecha

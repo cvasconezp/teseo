@@ -63,6 +63,9 @@ const T = {
     nightOn:        "Night vision (red light)",
     nightOff:       "Turn off night vision",
     sections:       "Sections",
+    menu:           "Menu",
+    menuClose:      "Close menu",
+    menuOpen:       "Open menu: sections, music, night vision and language",
     origin:         "From",
     destination:    "To",
     choose:         (label, name) => `${label}: ${name}. Change`,
@@ -261,6 +264,9 @@ const T = {
     nightOn:        "Visión nocturna (luz roja)",
     nightOff:       "Quitar la visión nocturna",
     sections:       "Secciones",
+    menu:           "Menú",
+    menuClose:      "Cerrar el menú",
+    menuOpen:       "Abrir el menú: secciones, música, visión nocturna e idioma",
     origin:         "Origen",
     destination:    "Destino",
     choose:         (label, name) => `${label}: ${name}. Cambiar`,
@@ -1255,6 +1261,62 @@ function Tabs({ tab, onChange, lang }) {
   );
 }
 
+// ─── MENÚ (teléfono, en Cielo) ────────────────────────────────────────────────
+// En el teléfono, la vista Cielo ocupa toda la pantalla: la cabecera (marca, música, visión nocturna, idioma) y
+// las pestañas pasan a este panel lateral, que se abre con el botón ☰ de la propia vista.
+function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight, onLang }) {
+  const t = T[lang];
+  const boxRef = useRef(null);
+  useEffect(()=>{
+    const before = document.activeElement;
+    boxRef.current?.querySelector("button")?.focus();
+    const onKey = e => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return ()=>{ document.removeEventListener("keydown", onKey); before?.focus?.(); };
+  },[onClose]);
+  return (
+    <div className="app-menu" role="presentation" onClick={e=>{ if (e.target === e.currentTarget) onClose(); }}>
+      <aside ref={boxRef} className="app-menu__panel" role="dialog" aria-modal="true" aria-label={t.menu}>
+        <div className="app-menu__head">
+          <div>
+            <p className="wordmark" style={{fontSize:28, margin:0}}>Teseo</p>
+            <p className="tagline">{t.tagline}</p>
+            <a className="tagline tagline--kn" href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer"
+              onClick={()=>track("coop_open", { from: "menu" })}>{t.allianceShort}</a>
+          </div>
+          <button type="button" className="app-menu__close" onClick={onClose} aria-label={t.menuClose}>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <nav className="app-menu__tabs" aria-label={t.sections}>
+          {TABS.map(({ id, Icon })=>(
+            <button key={id} type="button" aria-current={tab===id ? "page" : undefined} className={tab===id ? "is-active" : ""}
+              onClick={()=>{ onTab(id); onClose(); }}>
+              <Icon/><span>{t[id]}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="app-menu__opts">
+          <button type="button" aria-pressed={ambient} onClick={onAmbient}>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>{!ambient && <path d="M3 3l18 18" strokeWidth="1.6"/>}
+            </svg>
+            <span>{ambient ? t.ambientOff : t.ambientOn}</span>
+          </button>
+          <button type="button" aria-pressed={night} onClick={onNight}>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
+            <span>{night ? t.nightOff : t.nightOn}</span>
+          </button>
+          <button type="button" className="lang" aria-label={t.switchLang} onClick={onLang}>
+            <span className={lang==="es" ? "is-on" : ""} aria-hidden="true">ES</span>
+            <span className={lang==="en" ? "is-on" : ""} aria-hidden="true">EN</span>
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 // ─── CRÉDITOS ────────────────────────────────────────────────────────────────
 
 function CreditsModal({ lang, onClose }) {
@@ -1704,6 +1766,8 @@ export default function Teseo() {
   },[]);
   // Visión nocturna: todo en rojo tenue para no perder la adaptación del ojo a
   // la oscuridad (los bastones de la retina casi no reaccionan a la luz roja).
+  const [menuOpen, setMenuOpen] = useState(false);       // menú ☰ (teléfono, en Cielo)
+  const closeMenu = useCallback(()=>setMenuOpen(false),[]);
   const [night, setNight] = useState(()=>{ try { return localStorage.getItem("teseo-night")==="1"; } catch { return false; } });
   useEffect(()=>{
     try { localStorage.setItem("teseo-night", night ? "1" : "0"); } catch { /* no-op */ }
@@ -1760,6 +1824,8 @@ export default function Teseo() {
       {intro && <Intro lang={lang} planets={PLANETS} credit={T[lang].introCredit} skipLabel={T[lang].skip} skipAria={T[lang].skipIntro} onDone={onDone}/>}
       {night && <div className="night-vision-layer" aria-hidden="true"/>}
 
+      {menuOpen && <AppMenu lang={lang} tab={tab} onTab={changeTab} onClose={closeMenu} ambient={ambient} onAmbient={toggleAmbient}
+        night={night} onNight={()=>{ track("night_vision", { state: night ? "off" : "on" }); setNight(v=>!v); }} onLang={toggleLang}/>}
       <div className={`app app--${tab}`}>
         <SpaceTravel/>
 
@@ -1876,7 +1942,7 @@ export default function Teseo() {
               {tab==="sky"&&(
                 <ErrorBoundary variant="sky" lang={lang} onReset={retrySky}>
                   <Suspense fallback={<p role="status" className="loading">{t.loadingSky}</p>}>
-                    <SkyView lang={lang}/>
+                    <SkyView lang={lang} onMenu={()=>setMenuOpen(true)}/>
                   </Suspense>
                 </ErrorBoundary>
               )}

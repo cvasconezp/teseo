@@ -690,3 +690,8 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 /* al mirar arrastrando en el teléfono, la columna sustituye a la barra de abajo: el botón «Esta noche» baja */
 .sk-stage.has-rail .sk-cta { bottom: calc(14px + var(--sk-safe, 0px) + env(safe-area-inset-bottom, 0px)); }
 .sk-stage.has-rail .sk-ts { bottom: calc(14px + var(--sk-safe, 0px) + env(safe-area-inset-bottom, 0px)); }
+
+/* ── teléfono: botón ☰ (la cabecera y las pestañas de la app van en el menú; la vista ocupa toda la pantalla) ── */
+.sk-stage .sk-menu-btn { position: absolute; z-index: 31; top: calc(12px + env(safe-area-inset-top, 0px)); left: 12px; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 16px; color: #e8ecff; background: rgba(8, 12, 24, 0.72); border: 1px solid rgba(167, 139, 250, 0.35); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.sk-stage .sk-top.has-menu { left: 68px; top: calc(12px + env(safe-area-inset-top, 0px)); }
+@media (min-width: 900px) { .sk-stage .sk-menu-btn { display: none; } .sk-stage .sk-top.has-menu { left: 16px; } }

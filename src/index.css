@@ -602,3 +602,24 @@ html.night-vision .night-vision-dim { filter: brightness(.7); }
   .tagline { font-size: 12.5px; }
 }
 @media (min-width: 375px) and (max-width: 420px) { .tagline:not(.tagline--kn) { white-space: nowrap; } }
+
+/* ── teléfono, en Cielo: sin cabecera ni pestañas (van en el menú ☰ de la vista) ── */
+@media (max-width: 899.98px) {
+  .app--sky .app__body > header.shell, .app--sky .tabs { display: none; }
+  .app--sky .app__main { padding-top: 0; }
+}
+.app-menu { position: fixed; inset: 0; z-index: 200; background: rgba(2, 4, 10, 0.55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: app-menu-fade 0.2s ease; }
+.app-menu__panel { position: absolute; top: 0; bottom: 0; left: 0; width: min(330px, 86vw); padding: calc(18px + env(safe-area-inset-top, 0px)) 18px calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 18px; overflow-y: auto; background: #070b17; border-right: 1px solid rgba(167, 139, 250, 0.25); box-shadow: 12px 0 40px rgba(0, 0, 0, 0.6); animation: app-menu-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.app-menu__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.app-menu__close { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; color: rgba(238, 240, 250, 0.8); background: rgba(255, 255, 255, 0.05); border: 0; }
+.app-menu__tabs { display: flex; flex-direction: column; gap: 4px; }
+.app-menu__tabs button { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px; font-size: 17px; font-weight: 600; color: rgba(238, 240, 250, 0.82); background: none; border: 0; text-align: left; }
+.app-menu__tabs button svg { width: 24px; height: 24px; }
+.app-menu__tabs button.is-active { color: #fff; background: rgba(124, 58, 237, 0.22); box-shadow: inset 3px 0 0 #f2c66d; }
+.app-menu__opts { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px; }
+.app-menu__opts > button:not(.lang) { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; color: rgba(238, 240, 250, 0.85); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06); font-size: 15px; text-align: left; }
+.app-menu__opts > button[aria-pressed="true"] { color: #fff; border-color: rgba(242, 198, 109, 0.5); }
+.app-menu__opts .lang { align-self: flex-start; margin-top: 4px; }
+@keyframes app-menu-in { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes app-menu-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .app-menu, .app-menu__panel { animation: none; } }
