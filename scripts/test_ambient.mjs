@@ -1,18 +1,20 @@
 // Pruebas de la música ambiental (src/ui/ambient.js) y su botón.
-import { nextBell, BELL_NOTES, DRONE_NOTES, MASTER_GAIN, STORAGE_KEY } from "../src/ui/ambient.js";
+import { PROGRESSION, BAR_SECONDS, OVERLAP, BPM, ARP_ORDER, MASTER_GAIN, STORAGE_KEY, midiToHz, arpeggio } from "../src/ui/ambient.js";
 import { readFileSync } from "node:fs";
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log("  ok   ", m); } else { fail++; console.log("  FALLA", m); } };
 
 console.log("Motor");
-ok(BELL_NOTES.length === 6 && BELL_NOTES[0] === 440 && BELL_NOTES.at(-1) === 880, "campanas: la menor pentatónica de A4 a A5");
-ok(DRONE_NOTES.every((f, i) => i === 0 || f > DRONE_NOTES[i - 1]) && DRONE_NOTES[0] === 110, "bordón grave: la2 · mi3 · la3");
+ok(Math.abs(midiToHz(69) - 440) < 1e-9 && Math.abs(midiToHz(57) - 220) < 1e-9, "notas MIDI a Hz: la4 = 440, la3 = 220");
+ok(PROGRESSION.length === 4 && PROGRESSION.every(c => c.length === 5), "cuatro acordes de cinco notas");
+ok(PROGRESSION.map(c => c[0] % 12).join() === "9,5,0,7", "raíces: la · fa · do · sol (la m9, fa maj7, do, sol)");
+ok(PROGRESSION.flat().every(m => m >= 48 && m <= 74), "colchón en registro medio (do3 a re5)");
+ok(BAR_SECONDS === 8 && OVERLAP > 0 && OVERLAP < BAR_SECONDS && BPM === 72, "un acorde cada 8 s, fundido con el siguiente, arpegio a 72 pulsos");
+const arp = arpeggio(PROGRESSION[0]);
+ok(arp.length === 19 && Math.abs(arp[1][0] - 60 / BPM / 2) < 1e-9, "arpegio en corcheas: 19 notas por compás");
+ok(arp.every(([t, m, v, p]) => t >= 0 && t < BAR_SECONDS && PROGRESSION[0].includes(m - 12) && v > 0 && v <= 0.8 && p >= -1 && p <= 1), "cada nota del arpegio es del acorde, una octava arriba, suave y dentro del estéreo");
+ok(ARP_ORDER.every(i => i >= 0 && i < 5), "orden del arpegio válido");
 ok(MASTER_GAIN > 0 && MASTER_GAIN <= 0.2, "volumen de fondo, bajo");
-let seq = [0, 0.999, 0.5], i = 0; const rnd = () => seq[i++ % seq.length];
-const b = nextBell(rnd);
-ok(BELL_NOTES.includes(b.freq) && b.wait >= 3 && b.wait <= 8 && b.gain > 0 && b.gain <= 0.1, "la siguiente campana: nota de la escala, espera de 3 a 8 s, volumen suave");
-for (let k = 0; k < 200; k++) { const x = nextBell(); if (!BELL_NOTES.includes(x.freq)) { ok(false, "nota fuera de la escala"); break; } }
-ok(true, "200 campanas al azar, todas en la escala");
 
 console.log("Botón");
 const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");

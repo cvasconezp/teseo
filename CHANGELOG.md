@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.8.1 — 17 de noviembre de 2026
+
+- Nueva música ambiental: la misma de los videos de Teseo. Un colchón de acordes
+  (la menor con novena, fa mayor con séptima, do mayor y sol mayor, uno cada 8
+  segundos), un bajo y un arpegio suave a 72 pulsos por minuto. Se sigue
+  generando en el navegador, sin archivos de audio, y empieza apagada.
+
 ## 1.8.0 — 16 de noviembre de 2026
 
 - Cielo: el zoom llega hasta 0,2° (antes 5°). Con mucho zoom se ven las lunas

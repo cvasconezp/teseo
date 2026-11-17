@@ -1,83 +1,120 @@
 // ambient.js — música ambiental generada en el propio navegador (Web Audio API).
 //
 // Por qué generada y no una pista grabada: no hay licencias que cuidar, no pesa nada
-// (ni un archivo de audio que descargar) y nunca se repite igual. Es un paisaje sonoro
-// tranquilo: un bordón grave que respira (tres osciladores levemente desafinados con un
-// filtro que se abre y se cierra muy despacio) y, de vez en cuando, una campana suave de
-// la escala pentatónica de la menor, con una reverberación larga como de espacio abierto.
+// (ni un archivo de audio que descargar) y nunca se corta ni se repite con un salto.
+//
+// Es la misma música de los videos de Teseo: un colchón de acordes que respira
+// (la menor con novena, fa mayor con séptima, do mayor, sol mayor; un acorde cada
+// 8 segundos, que entra y sale despacio y se funde con el siguiente), un bajo una
+// octava por debajo y un arpegio suave en corcheas a 72 pulsos por minuto. Cada voz
+// lleva dos osciladores levemente desafinados, abiertos a izquierda y derecha.
 //
 // Empieza siempre apagada y solo suena después de un toque de la persona (los navegadores
 // lo exigen). Se silencia sola al cambiar de pestaña o bloquear el teléfono.
 
-/** Notas de las campanas: la menor pentatónica (A4–A5), en Hz. */
-export const BELL_NOTES = [440, 523.25, 587.33, 659.25, 783.99, 880];
-/** Bordón: la (A2), mi (E3) y la (A3). */
-export const DRONE_NOTES = [110, 164.81, 220];
-export const MASTER_GAIN = 0.16;      // volumen final (bajo a propósito: es fondo)
+/** Acordes en notas MIDI: la m9, fa maj7, do, sol (la primera nota de cada uno es su raíz). */
+export const PROGRESSION = [[57, 64, 69, 71, 72], [53, 60, 65, 69, 72], [48, 55, 64, 67, 72], [55, 62, 67, 71, 74]];
+export const BAR_SECONDS = 8;          // un acorde cada 8 s
+export const OVERLAP = 2.5;            // cada acorde se funde 2,5 s con el siguiente
+export const BPM = 72;                 // pulso del arpegio (corcheas)
+export const ARP_ORDER = [0, 2, 1, 3, 4, 3, 1, 2];
+export const MASTER_GAIN = 0.16;       // volumen final (bajo a propósito: es fondo)
 export const STORAGE_KEY = "teseo-ambient";
 
-/** Siguiente campana: nota y espera (s), con un generador aleatorio inyectable para las pruebas. */
-export function nextBell(rnd = Math.random) {
-  return { freq: BELL_NOTES[Math.floor(rnd() * BELL_NOTES.length)], wait: 3 + rnd() * 5, gain: 0.05 + rnd() * 0.05 };
+export const midiToHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+/** Notas del arpegio de un compás: [segundo dentro del compás, nota MIDI, volumen, paneo −1…1]. */
+export function arpeggio(chord, bpm = BPM, bar = BAR_SECONDS) {
+  const step = 60 / bpm / 2, out = [];
+  for (let j = 0; j < Math.floor(bar / step); j++) {
+    const pan = 0.35 + 0.3 * ((j % 4) / 3);
+    out.push([j * step, chord[ARP_ORDER[j % 8]] + 12, j % 2 === 0 ? 0.8 : 0.5, 2 * pan - 1]);
+  }
+  return out;
 }
 
-/** Respuesta al impulso de la reverberación: ruido estéreo que decae (dur s). */
-function impulse(ctx, dur = 4.5, decay = 2.6) {
-  const n = Math.floor(ctx.sampleRate * dur), buf = ctx.createBuffer(2, n, ctx.sampleRate);
-  for (let c = 0; c < 2; c++) {
-    const d = buf.getChannelData(c);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay);
+/**
+ * Arma el grafo de sonido sobre un contexto (en vivo u «offline» para las pruebas) y
+ * devuelve `until(t)`, que programa los compases necesarios hasta el segundo t.
+ */
+export function buildMusic(ctx, out) {
+  // salida: filtro de banda suave (60 Hz – 6,5 kHz) para que no retumbe ni chille
+  const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 60;
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 6500;
+  const bus = ctx.createGain(); bus.gain.value = 1;
+  bus.connect(hp); hp.connect(lp); lp.connect(out);
+  // timbre del colchón: fundamental + octava al 25 %
+  const padWave = ctx.createPeriodicWave(new Float32Array([0, 0, 0]), new Float32Array([0, 1, 0.25]));
+  // paneos compartidos (pocos valores distintos): no se crea un nodo nuevo por cada nota
+  const panners = new Map();
+  const pan = (v) => {
+    if (!ctx.createStereoPanner) return bus;
+    const k = v.toFixed(2);
+    if (!panners.has(k)) { const p = ctx.createStereoPanner(); p.pan.value = v; p.connect(bus); panners.set(k, p); }
+    return panners.get(k);
+  };
+  const PAD = 0.08, ARP = 0.056;                                      // mismo balance que en los videos
+  let bar = 0, next = null;
+
+  function scheduleBar(t0, chord) {
+    const len = BAR_SECONDS + OVERLAP, end = t0 + len;
+    // una envolvente por lado (izquierda, centro, derecha): entra en 2,2 s y sale en 3 s
+    const envelope = (p) => {
+      const env = ctx.createGain(); env.connect(pan(p));
+      env.gain.setValueAtTime(0, t0);
+      env.gain.linearRampToValueAtTime(PAD, t0 + 2.2);
+      env.gain.setValueAtTime(PAD, end - 3);
+      env.gain.linearRampToValueAtTime(0, end);
+      return env;
+    };
+    const left = envelope(-0.4), right = envelope(0.4), center = envelope(0);
+    const voices = [];
+    chord.forEach((m) => {
+      for (const [cents, env] of [[-1, left], [1.2, right]]) {          // dos voces desafinadas, abiertas
+        const o = ctx.createOscillator(); o.setPeriodicWave(padWave);
+        o.frequency.value = midiToHz(m); o.detune.value = cents;
+        o.connect(env); voices.push(o);
+      }
+    });
+    const bass = ctx.createOscillator(); bass.frequency.value = midiToHz(chord[0] - 12);
+    const bg = ctx.createGain(); bg.gain.value = 1.6; bass.connect(bg); bg.connect(center); voices.push(bass);
+    voices.forEach((o) => { o.start(t0); o.stop(end + 0.05); });
+    for (const [dt, m, vol, p] of arpeggio(chord)) {
+      const t = t0 + dt, o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = midiToHz(m);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(ARP * vol, t + 0.008);
+      g.gain.setTargetAtTime(0, t + 0.008, 1 / 3.2);                  // se apaga como una campana
+      o.connect(g); g.connect(pan(p));
+      o.start(t); o.stop(t + 1.6);
+    }
   }
-  return buf;
+
+  return {
+    until(t) {
+      if (next === null || next < ctx.currentTime - 0.5) next = ctx.currentTime + 0.05;
+      while (next < t) { scheduleBar(next, PROGRESSION[bar % PROGRESSION.length]); bar++; next += BAR_SECONDS; }
+    },
+  };
 }
 
 export function createAmbient() {
-  let ctx = null, master = null, timer = null, on = false;
-  const nodes = [];
+  let ctx = null, master = null, music = null, timer = null, on = false;
 
   function build() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return false;
     ctx = new AC();
     master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
-    const reverb = ctx.createConvolver(); reverb.buffer = impulse(ctx);
-    const wet = ctx.createGain(); wet.gain.value = 0.55; reverb.connect(wet); wet.connect(master);
-
-    // bordón: filtro paso bajo que «respira» con un LFO muy lento
-    const filter = ctx.createBiquadFilter(); filter.type = "lowpass"; filter.frequency.value = 520; filter.Q.value = 0.7;
-    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.045;
-    const lfoGain = ctx.createGain(); lfoGain.gain.value = 260;
-    lfo.connect(lfoGain); lfoGain.connect(filter.frequency); lfo.start();
-    const droneGain = ctx.createGain(); droneGain.gain.value = 0.5;
-    filter.connect(droneGain); droneGain.connect(master); droneGain.connect(reverb);
-    DRONE_NOTES.forEach((f, i) => {
-      for (const det of [-5, 5]) {
-        const o = ctx.createOscillator(); o.type = i === 0 ? "sine" : "triangle";
-        o.frequency.value = f; o.detune.value = det;
-        const g = ctx.createGain(); g.gain.value = i === 0 ? 0.22 : 0.08;
-        o.connect(g); g.connect(filter); o.start();
-        nodes.push(o);
-      }
-    });
-    nodes.push(lfo);
-    master._reverb = reverb;
+    music = buildMusic(ctx, master);
     return true;
   }
 
-  function bell() {
+  // programa siempre unos segundos por delante; así no hay cortes aunque el teléfono vaya lento
+  function tick() {
     if (!on || !ctx) return;
-    const { freq, wait, gain } = nextBell();
-    const t = ctx.currentTime;
-    const env = ctx.createGain(); env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(gain, t + 0.02);
-    env.gain.exponentialRampToValueAtTime(0.0001, t + 4.5);
-    for (const [mult, type, g] of [[1, "sine", 1], [2.01, "sine", 0.25], [3, "triangle", 0.08]]) {
-      const o = ctx.createOscillator(); o.type = type; o.frequency.value = freq * mult;
-      const og = ctx.createGain(); og.gain.value = g;
-      o.connect(og); og.connect(env); o.start(t); o.stop(t + 4.6);
-    }
-    env.connect(master); env.connect(master._reverb);
-    timer = setTimeout(bell, wait * 1000);
+    music.until(ctx.currentTime + BAR_SECONDS + 1);
+    timer = setTimeout(tick, 2000);
   }
 
   async function start() {
@@ -88,7 +125,7 @@ export function createAmbient() {
     master.gain.cancelScheduledValues(t);
     master.gain.setValueAtTime(master.gain.value, t);
     master.gain.linearRampToValueAtTime(MASTER_GAIN, t + 3);        // entra despacio
-    clearTimeout(timer); timer = setTimeout(bell, 1800);
+    clearTimeout(timer); tick();
     return true;
   }
 
@@ -106,7 +143,7 @@ export function createAmbient() {
   const onVis = () => {
     if (!ctx) return;
     if (document.hidden) { clearTimeout(timer); ctx.suspend().catch(() => {}); }
-    else if (on) { ctx.resume().catch(() => {}); clearTimeout(timer); timer = setTimeout(bell, 1500); }
+    else if (on) { ctx.resume().catch(() => {}); clearTimeout(timer); tick(); }
   };
   if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVis);
 
