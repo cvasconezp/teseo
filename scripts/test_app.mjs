@@ -126,7 +126,7 @@ console.log("Enlaces directos (src/ui/hash.js)");
   ok(hashBelongsTo("#sky?c=Ori", "sky") && !hashBelongsTo("#sky?c=Ori", "route") && !hashBelongsTo("", "route"), "hashBelongsTo distingue pestañas");
   ok(!hashBelongsTo("#ventanas", "route") && !hashBelongsTo("#escala", "questions"), "un enlace antiguo no se da por canónico (se reescribe)");
   eq([hashForTab("now", "es"), hashForTab("now", "en")], ["#ahora", "#now"], "hash de Ahora por idioma");
-  eq([hashForTab("route", "es"), hashForTab("sky", "es"), hashForTab("questions", "es"), hashForTab("questions", "en")], ["", "#sky", "#preguntas", "#questions"], "portada sin hash; Cielo siempre #sky");
+  eq([hashForTab("route", "es"), hashForTab("route", "en"), hashForTab("sky", "es"), hashForTab("questions", "es"), hashForTab("questions", "en")], ["#ruta", "#route", "#sky", "#preguntas", "#questions"], "Ruta con su propio enlace (la portada es el Cielo); Cielo siempre #sky");
   eq([hashForQuestion("scale", "es"), hashForQuestion("scale", "en")], ["#preguntas?q=scale", "#questions?q=scale"], "hash directo a una pregunta");
   eq([hashForTab("windows", "es"), hashForTab("scale", "es")], ["", ""], "ya no hay pestañas Ventanas ni Escala");
   for (const tab of ["now", "questions", "sky"]) for (const lang of ["es", "en"]) ok(parseHash(hashForTab(tab, lang)).tab === tab, `ida y vuelta: ${tab}/${lang}`);

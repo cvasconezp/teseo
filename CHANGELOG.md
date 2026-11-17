@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.18.0 — 17 de noviembre de 2026
+
+- La pantalla principal es ahora el Cielo: después de la animación de entrada
+  (en el teléfono y en el ordenador) se abre el Cielo. Ruta tiene su propio
+  enlace (#ruta), y los enlaces antiguos (#ventanas) siguen llevando a Ruta.
+- La primera vez, lo primero que se pide es la ubicación: «¿Desde dónde miras
+  el cielo?», con «Usar mi ubicación», el buscador de lugares y los sitios
+  astronómicos. «Ahora no» sigue con Quito. No se vuelve a preguntar, y no
+  aparece a quien ya eligió un lugar o llega con un enlace a una vista.
+
 ## 1.17.1 — 17 de noviembre de 2026
 
 - En el ordenador, el Cielo se usa igual que en el teléfono: la columna de la

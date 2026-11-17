@@ -1463,7 +1463,7 @@ export default function Teseo() {
   const [from,     setFrom]     = useState(PLANETS[2]); // Earth
   const [to,       setTo]       = useState(PLANETS[3]); // Mars
   const [special,  setSpecial]  = useState(null);       // destino especial: SPECIALS[i] (Luna o Sol) o null
-  const [tab,      setTab]      = useState("route");
+  const [tab,      setTab]      = useState("sky");   // la pantalla principal es el Cielo (sin hash)
   // «Ventanas de lanzamiento» vive dentro de Ruta: un contador para llevar la vista hasta ella
   const [winFocus, setWinFocus] = useState(0);
   const winRef = useRef(null);
@@ -1484,8 +1484,8 @@ export default function Teseo() {
       setTab(target.tab);
       if (target.section === "windows") {
         setWinFocus(n => n + 1);
-        // el enlace antiguo #ventanas se reescribe a la portada (Ruta), que es donde vive ahora
-        try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`); } catch { /* no-op */ }
+        // el enlace antiguo #ventanas se reescribe a Ruta (#ruta), que es donde vive ahora
+        try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hashForTab("route", document.documentElement.lang === "en" ? "en" : "es")}`); } catch { /* no-op */ }
       }
       if (target.tab === "now") track("now_open", { source: "link" });
     };
@@ -1497,7 +1497,7 @@ export default function Teseo() {
   // Métricas anónimas: una vista por carga (con la pestaña inicial) y una
   // "visita" por pestaña del navegador (session_start, marca en sessionStorage).
   useEffect(() => {
-    let first = "route";
+    let first = "sky";
     try { const h = parseHash(window.location.hash); if (h) first = h.tab; } catch { /* no-op */ }
     startSession({ lang, tab: first });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

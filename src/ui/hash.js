@@ -1,6 +1,6 @@
 // hash.js — enlaces directos a cada pestaña. Puro (se prueba en Node).
 //
-// Pestañas (desde el 16-nov-2026): Ruta · Ahora · Cielo · Preguntas.
+// Pestañas (desde el 16-nov-2026): Ruta · Ahora · Cielo · Preguntas. Sin hash se abre el Cielo (17-nov-2026).
 //   #ruta / #route · #ahora / #now · #cielo / #sky · #preguntas / #questions
 // Enlaces antiguos que siguen funcionando:
 //   #ventanas / #windows → Ruta, bajando a «Ventanas de lanzamiento» (section: "windows")
@@ -47,9 +47,11 @@ export function hashBelongsTo(hash, tab) {
   return !!p && p.tab === tab && !p.section && !p.q;
 }
 
-/** Hash canónico de una pestaña en el idioma activo ("" para la portada). */
+/**
+ * Hash canónico de una pestaña en el idioma activo. Desde el 17-nov-2026 la portada (sin hash) es el Cielo,
+ * así que Ruta lleva su propio hash (#ruta / #route).
+ */
 export function hashForTab(tab, lang = "es") {
-  if (tab === "route") return "";
   if (tab === "sky") return "#sky";            // el visor lee y escribe siempre "#sky?…"
   const names = ALIASES[tab];
   return names ? `#${names[lang === "en" ? 1 : 0]}` : "";

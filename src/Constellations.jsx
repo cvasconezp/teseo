@@ -162,6 +162,7 @@ function withMags(list) {
 let pointAzOffset = 0;
 const POINT_SPAN = 75;              // grados de cielo que abarca el lado largo de la pantalla al empezar
 const HINT_KEY = "teseo_hint_v2";   // primeros pasos vistos (v1 era el párrafo antiguo)
+const ASK_PLACE_KEY = "teseo_place_asked_v1";   // ya se preguntó «¿desde dónde miras el cielo?» la primera vez
 // medidor de rendimiento: #sky?...&fps=1 o ?perf=1 (se lee una vez, al cargar)
 const PERF_ON = typeof window !== "undefined" && perfFlag(window.location.hash, window.location.search);
 // &adapt=0: resolución fija (sin bajada adaptativa), para comparar mediciones
@@ -326,6 +327,7 @@ const TC = {
     labelDensity: "Names on the sky", densFew: "Few", densNormal: "Normal", densMany: "Many",
     scaleNote: "The Sun, the Moon and the planets are drawn larger so you can find them: they are not to scale.",
     // ── mi cielo ──
+    welcomeTitle: "Where are you looking at the sky from?", welcomeLead: "To see your real sky — with your mountains, and the Sun, Moon and planets where they are — choose your place: use your location or search for a town. You can change it any time in «Place».", welcomeSkip: "Not now (use Quito)",
     mySkyTitle: "My sky", mySkyLead: "See the sky as it looks from one place, with its horizon and compass points.",
     useMyLocation: "Use my location", geoAskingBtn: "Asking for permission…",
     geoAsking: "Your browser is asking for permission. Accept to see your sky.",
@@ -464,6 +466,7 @@ const TC = {
     labelDensity: "Nombres en el cielo", densFew: "Pocos", densNormal: "Normal", densMany: "Muchos",
     scaleNote: "El Sol, la Luna y los planetas se dibujan agrandados para que puedas encontrarlos: no están a escala.",
     // ── mi cielo ──
+    welcomeTitle: "¿Desde dónde miras el cielo?", welcomeLead: "Para ver tu cielo de verdad —con tus montañas, y el Sol, la Luna y los planetas en su sitio— elige tu lugar: usa tu ubicación o busca una ciudad. Puedes cambiarlo cuando quieras en «Lugar».", welcomeSkip: "Ahora no (usar Quito)",
     mySkyTitle: "Mi cielo", mySkyLead: "Mira el cielo tal como se ve desde un lugar, con su horizonte y sus puntos cardinales.",
     useMyLocation: "Usar mi ubicación", geoAskingBtn: "Pidiendo permiso…",
     geoAsking: "Tu navegador te está pidiendo permiso. Acéptalo para ver tu cielo.",
@@ -592,6 +595,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [elev, setElev] = useState(place0.elev);   // altitud del lugar (m) o null si no se conoce (GPS sin altitud)
   const [elevPreset, setElevPreset] = useState(place0.preset);
   const [placeDefault, setPlaceDefault] = useState(place0.isDefault);   // Quito puesto por Teseo, no elegido
+  // primera visita sin lugar elegido: lo primero que se pide es la ubicación (antes que los primeros pasos)
+  const [welcomePlace, setWelcomePlace] = useState(() => {
+    if (!place0.isDefault || !place0.local || E2E) return false;
+    try { return !localStorage.getItem(ASK_PLACE_KEY); } catch { return false; }
+  });
+  const endWelcome = useCallback(() => { setWelcomePlace(false); try { localStorage.setItem(ASK_PLACE_KEY, "1"); } catch { /* no-op */ } }, []);
   useEffect(() => { if (place0.isDefault && place0.local) track("sky_location", { kind: "default" }); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   // atmósfera (solo en Mi cielo) y contaminación lumínica elegida por lugar (localStorage)
   const [atmOn, setAtmOn] = useState(() => { try { return localStorage.getItem(ATM_KEY) !== "0"; } catch { return true; } });
@@ -3343,6 +3352,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const tourReady = !!(ready && datasets.messier && datasets.blackholes);
   const issSheetOn = !!(issSheet && issSel && issSel.pass && !selObj);
   const covered = !isWide && (!!selObj || !!panel || !!pick || issSheetOn);
+  useEffect(() => { if (welcomePlace && sky) setPanel("location"); }, [!!sky]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (welcomePlace && !placeDefault) { endWelcome(); setPanel(null); } }, [placeDefault]);   // eslint-disable-line react-hooks/exhaustive-deps
   const showDepth = !!(sky && selMeta && !localMode && !tourActive);
   const showOnboard = !!(showHint && sky && !selObj && !issSheetOn && !panel && !tourActive && !showDepth && !arOn);
   // barra de "Apuntar al cielo": invitación (dentro de Mi cielo), indicador activo o aviso de error
@@ -3626,7 +3637,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       {sky && panel === "location" && (
         <LocationPanel t={t} localMode={localMode} lat={lat} lon={lon} placeName={placeLabel} geo={geo}
           lang={lang} onUseMyLocation={useMyLocation} places={PLACES} onPlace={pickPlace} onManual={setManualPlace}
-          onExit={leaveMySky} onClose={() => setPanel(null)} onTonight={() => setPanel("tonight")}
+          welcome={welcomePlace} onSkip={() => { track("sky_location", { kind: "skip" }); endWelcome(); setPanel(null); }}
+          onExit={leaveMySky} onClose={() => { if (welcomePlace) endWelcome(); setPanel(null); }} onTonight={() => setPanel("tonight")}
           pointing={arCapable ? { state: ar, onStart: ar === "off" ? startAr : stopAr } : null} />
       )}
       {sky && panel === "tonight" && (

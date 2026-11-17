@@ -30,5 +30,8 @@ ok(/panel === "time" && \([\s\S]{0,200}<TimeSheet [\s\S]{0,400}docked extra=/.te
 const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8"), css = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
 ok(/<SkyView lang=\{lang\} onMenu=/.test(app) && /function AppMenu\(/.test(app) && /className="sk-menu-btn"/.test(sky), "en el teléfono, en Cielo: botón ☰ con las secciones, la música, la visión nocturna y el idioma");
 ok(/\.app--sky \.app__body > header\.shell, \.app--sky \.tabs \{ display: none; \}/.test(css), "y sin cabecera ni pestañas: la vista ocupa toda la pantalla");
+ok(/const \[tab,\s*setTab\]\s*= useState\("sky"\)/.test(app), "la pantalla principal (sin enlace) es el Cielo, después de la animación");
+ok(/teseo_place_asked_v1/.test(sky) && /welcome=\{welcomePlace\}/.test(sky) && /if \(welcomePlace && sky\) setPanel\("location"\)/.test(sky), "la primera vez, lo primero que se pide es la ubicación (y no se vuelve a pedir)");
+ok(/welcomeSkip: "Ahora no \(usar Quito\)"/.test(sky) && /!place0\.isDefault \|\| !place0\.local/.test(sky), "con «Ahora no» sigue con Quito; quien ya eligió lugar o llega con un enlace no lo ve");
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

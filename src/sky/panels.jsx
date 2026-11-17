@@ -272,7 +272,7 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
 }
 
 // ── Mi cielo (ubicación) ─────────────────────────────────────────────────
-export function LocationPanel({ t, lang = "es", localMode, lat, lon, placeName, geo, onUseMyLocation, places, onPlace, onManual, onExit, onClose, pointing, onTonight }) {
+export function LocationPanel({ t, lang = "es", localMode, lat, lon, placeName, geo, onUseMyLocation, places, onPlace, onManual, onExit, onClose, pointing, onTonight, welcome = false, onSkip }) {
   const [mLat, setMLat] = useState(lat != null ? String(lat) : "");
   const [mLon, setMLon] = useState(lon != null ? String(lon) : "");
   const [bad, setBad] = useState(false);
@@ -286,19 +286,19 @@ export function LocationPanel({ t, lang = "es", localMode, lat, lon, placeName, 
   const geoMsg = geo === "asking" ? t.geoAsking : geo === "denied" ? t.geoDenied : geo === "unavailable" ? t.geoUnavailable
     : geo === "timeout" ? t.geoTimeout : geo === "unsupported" ? t.geoUnsupported : null;
   return (
-    <PanelShell t={t} title={t.mySkyTitle} onClose={onClose} labelledBy="sk-loc-title">
-      <p className="sk-panel-lead">{t.mySkyLead}</p>
-      {localMode && lat != null && (
+    <PanelShell t={t} title={welcome ? t.welcomeTitle : t.mySkyTitle} onClose={onClose} labelledBy="sk-loc-title" className={welcome ? "is-welcome" : ""}>
+      <p className="sk-panel-lead">{welcome ? t.welcomeLead : t.mySkyLead}</p>
+      {!welcome && localMode && lat != null && (
         <div className="sk-loc-now">
           <Icon name="pin" size={18} />
           <div><b>{placeName || t.customPlace}</b><small>{t.latLon(lat, lon)}</small></div>
           <button type="button" className="sk-btn ghost" onClick={onExit}>{t.exitMySky}</button>
         </div>
       )}
-      {localMode && lat != null && onTonight && (
+      {!welcome && localMode && lat != null && onTonight && (
         <button type="button" className="sk-btn wide sk-tonight-btn" onClick={onTonight}><Icon name="moon" size={19} />{t.tonightTitle}</button>
       )}
-      <button type="button" className={`sk-btn wide${localMode ? "" : " primary"}`} onClick={onUseMyLocation} disabled={geo === "asking"}>
+      <button type="button" className={`sk-btn wide${localMode && !welcome ? "" : " primary"}`} onClick={onUseMyLocation} disabled={geo === "asking"}>
         {geo === "asking" ? <i className="sk-spin" /> : <Icon name="locate" size={19} />}
         {geo === "asking" ? t.geoAskingBtn : t.useMyLocation}
       </button>
@@ -306,7 +306,7 @@ export function LocationPanel({ t, lang = "es", localMode, lat, lon, placeName, 
         <p className={`sk-geo-msg${geo === "asking" ? "" : " is-error"}`} role={geo === "asking" ? "status" : "alert"}>{geoMsg}</p>
       )}
       {/* solo en teléfonos y tabletas con sensores de orientación */}
-      {pointing && (
+      {!welcome && pointing && (
         <div className={`sk-point-card${pointing.state !== "off" ? " is-armed" : ""}`}>
           <button type="button" className="sk-btn wide sk-point-btn" onClick={pointing.onStart} aria-pressed={pointing.state !== "off"}>
             <Icon name="point" size={20} /><span>{t.pointSky}</span><em className="sk-exp">{t.experimental}</em>
@@ -316,7 +316,8 @@ export function LocationPanel({ t, lang = "es", localMode, lat, lon, placeName, 
       )}
       <PlaceSearch lang={lang} onPlace={onPlace} />
       <SiteChips lang={lang} placeName={placeName} localMode={localMode} onPlace={onPlace} />
-      <form className="sk-group" onSubmit={submit} noValidate>
+      {welcome && onSkip && <button type="button" className="sk-btn ghost wide" onClick={onSkip}>{t.welcomeSkip}</button>}
+      {!welcome && <form className="sk-group" onSubmit={submit} noValidate>
         <h3>{t.orCoords}</h3>
         <div className="sk-coords">
           <label><span>{t.latitude}</span><input inputMode="decimal" value={mLat} onChange={(e) => setMLat(e.target.value)} placeholder="-0.18" aria-invalid={bad} /></label>
@@ -325,7 +326,7 @@ export function LocationPanel({ t, lang = "es", localMode, lat, lon, placeName, 
         </div>
         {bad && <p className="sk-geo-msg is-error" role="alert">{t.coordsBad}</p>}
         <small className="sk-hint">{t.coordsHint}</small>
-      </form>
+      </form>}
     </PanelShell>
   );
 }
