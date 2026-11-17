@@ -230,6 +230,7 @@ const T = {
         ["NOAA · British Geological Survey", "World Magnetic Model WMM2025 (compass)"],
         ["NOAA SWPC (space weather)", "Active solar regions, X-ray flares (GOES), Kp index, solar cycle"],
         ["IAU · IERS", "Astronomical constants, the 88 official constellations, Earth orientation"],
+        ["Clouds and weather", "Open-Meteo.com forecast (CC BY 4.0) · satellite images: NASA GIBS (GOES GeoColor by NOAA/CIRA, VIIRS) and EUMETSAT (Meteosat)"],
       ]},
       { g: "Catalogues, tracking and community", items: [
         ["Stars and distances", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],
@@ -418,6 +419,7 @@ const T = {
         ["NOAA · British Geological Survey", "Modelo magnético mundial WMM2025 (brújula)"],
         ["NOAA SWPC (clima espacial)", "Regiones activas del Sol, fulguraciones (GOES), índice Kp, ciclo solar"],
         ["UAI · IERS", "Constantes astronómicas, las 88 constelaciones oficiales, orientación de la Tierra"],
+        ["Nubes y clima", "Pronóstico de Open-Meteo.com (CC BY 4.0) · imágenes de satélite: NASA GIBS (GeoColor de los GOES, de NOAA/CIRA; VIIRS) y EUMETSAT (Meteosat)"],
       ]},
       { g: "Catálogos, seguimiento y comunidad", items: [
         ["Estrellas y distancias", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],

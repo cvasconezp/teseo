@@ -43,12 +43,24 @@ copia; nuestro render 3D es propio, con Three.js.)
 | Texturas de 14 lunas de otros planetas (`public/textures/moon-*.jpg`, `scripts/build_moon_textures.py`) | [USGS Astrogeology](https://astrogeology.usgs.gov/) — mosaicos globales con imágenes de Viking, Galileo, Voyager y Cassini (NASA) | dominio público (US gov) |
 | Trayectoria de Cassini en la animación de entrada (`src/intro/cassiniPath.js`, `scripts/build_intro_cassini.py`) | [NASA JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) | dominio público (US gov); crédito "NASA/JPL-Caltech" |
 | Órbitas de 19 lunas de otros planetas (`src/sky/moonsData.js`, `scripts/build_moons.py`) | [NASA JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) (ajuste propio) y [JPL SSD, parámetros físicos](https://ssd.jpl.nasa.gov/sats/phys_par/) | dominio público (US gov) |
+| Pronóstico de nubes de la vista Cielo (`src/sky/weather.js`) | [Open-Meteo.com](https://open-meteo.com/) (modelos meteorológicos nacionales), consultado desde el navegador | datos CC BY 4.0; API gratuita para uso no comercial (ver abajo) |
+| Nubes vistas desde el satélite: GOES-19 y GOES-18 «GeoColor», VIIRS del NOAA-20 (`src/sky/satellite.js`) | [NASA GIBS](https://gibs.earthdata.nasa.gov/) (Global Imagery Browse Services, NASA EOSDIS); GeoColor de NOAA/CIRA | sin restricciones de uso; crédito "NASA GIBS" y "NOAA/CIRA" |
+| Nubes vistas desde el satélite: Meteosat-12 (MTG) «GeoColour» (`src/sky/satellite.js`) | [EUMETSAT — EUMETView](https://view.eumetsat.int/) | imágenes de EUMETSAT con atribución "EUMETSAT" |
 | Narrativa | Groq (modelos Llama) | — servicio |
 | Render 3D | Three.js | MIT |
 
 > Las distancias de objetos de cielo profundo y púlsares son valores publicados
 > con incertidumbre real; se muestran como aproximaciones, fieles al principio
 > de honestidad científica de Teseo.
+
+## Nubes y clima (desde el navegador)
+
+- **Open-Meteo** (<https://open-meteo.com/en/terms>): API gratuita y sin clave para uso no comercial, con
+  atribución; los datos se publican con licencia CC BY 4.0. Teseo la llama desde el navegador de cada persona
+  (la cuota es por dirección IP), con el lugar redondeado a 0,1° y la respuesta guardada 30 minutos.
+- **NASA GIBS** (<https://nasa-gibs.github.io/gibs-api-docs/>): imágenes de NASA EOSDIS sin restricciones de uso;
+  se pide citar la fuente. GeoColor es un producto de NOAA/CIRA.
+- **EUMETSAT EUMETView** (<https://view.eumetsat.int/>): servicio WMS público de EUMETSAT; se cita "EUMETSAT".
 
 ## Condiciones de uso de las API en vivo (backend)
 

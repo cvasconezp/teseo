@@ -1,0 +1,26 @@
+/* Nubes y clima (WeatherPanel.jsx) — vista Cielo. Bajo .sk-stage, con las variables de sky.css. */
+.sk-stage .sk-wx { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.sk-stage .sk-wx-title { margin: 4px 10px 0; font-size: 12.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+.sk-stage .sk-wx-dot { background: radial-gradient(circle at 35% 35%, #fff 0%, #cfd6e6 45%, #7d879c 100%); box-shadow: 0 0 9px rgba(220, 228, 245, 0.55); }
+.sk-stage .sk-wx-box { display: flex; flex-direction: column; gap: 8px; margin: 0 10px 0 34px; padding: 12px; border-radius: 14px; border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.03); }
+.sk-stage .sk-wx-now { display: flex; flex-direction: column; gap: 1px; }
+.sk-stage .sk-wx-when { font-size: 12.5px; color: var(--mute); font-variant-numeric: tabular-nums; }
+.sk-stage .sk-wx-now b { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--text); line-height: 1.15; }
+.sk-stage .sk-wx-chart { width: 100%; height: 64px; display: block; }
+.sk-stage .sk-wx-night { fill: rgba(96, 130, 220, 0.16); }
+.sk-stage .sk-wx-bar { fill: rgba(226, 232, 245, 0.82); }
+.sk-stage .sk-wx-tick { font-size: 7.5px; fill: var(--mute); font-variant-numeric: tabular-nums; }
+.sk-stage .sk-wx-err { color: #f1d7a8; }
+.sk-stage .sk-wx-link { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 8px; border-radius: 8px; color: var(--gold); text-decoration: underline; }
+.sk-stage .sk-wx-satbtn svg { color: var(--gold); }
+.sk-stage .sk-wx-sat { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid rgba(242, 198, 109, 0.4); background: rgba(242, 198, 109, 0.05); animation: sk-fade 0.18s var(--ease) both; }
+.sk-stage .sk-wx-sat h4 { margin: 0; font-family: var(--serif); font-size: 18px; font-weight: 600; color: #fff; }
+.sk-stage .sk-wx-seg { align-self: flex-start; }
+.sk-stage .sk-wx-stage { position: relative; width: 100%; max-width: 380px; aspect-ratio: 1; margin: 0 auto; border-radius: 14px; overflow: hidden; background: #03060c; }
+.sk-stage .sk-wx-globe, .sk-stage .sk-wx-zone { display: block; width: 100%; height: 100%; object-fit: cover; }
+.sk-stage .sk-wx-globe[hidden] { display: none; }
+.sk-stage .sk-wx-pin { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 2px solid #F2C46D; box-shadow: 0 0 0 1px rgba(4, 8, 15, 0.7), 0 0 10px rgba(4, 8, 15, 0.8); }
+.sk-stage .sk-wx-pin::after { content: ""; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: #F2C46D; }
+.sk-stage .sk-wx-pinlbl { position: absolute; left: 50%; top: calc(50% + 15px); transform: translateX(-50%); padding: 1px 6px; border-radius: 6px; background: rgba(4, 8, 15, 0.72); font-size: 12px; font-weight: 600; color: #F2C46D; white-space: nowrap; }
+.sk-stage .sk-wx-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; padding: 16px; text-align: center; font-size: 13px; color: var(--mute); }
+.sk-stage .sk-wx-satwhen { margin: 0; font-size: 13px; font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; }
