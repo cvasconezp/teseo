@@ -46,6 +46,8 @@ copia; nuestro render 3D es propio, con Three.js.)
 | Pronóstico de nubes de la vista Cielo (`src/sky/weather.js`) | [Open-Meteo.com](https://open-meteo.com/) (modelos meteorológicos nacionales), consultado desde el navegador | datos CC BY 4.0; API gratuita para uso no comercial (ver abajo) |
 | Nubes vistas desde el satélite: GOES-19 y GOES-18 «GeoColor», VIIRS del NOAA-20 (`src/sky/satellite.js`) | [NASA GIBS](https://gibs.earthdata.nasa.gov/) (Global Imagery Browse Services, NASA EOSDIS); GeoColor de NOAA/CIRA | sin restricciones de uso; crédito "NASA GIBS" y "NOAA/CIRA" |
 | Nubes vistas desde el satélite: Meteosat-12 (MTG) «GeoColour» (`src/sky/satellite.js`) | [EUMETSAT — EUMETView](https://view.eumetsat.int/) | imágenes de EUMETSAT con atribución "EUMETSAT" |
+| Buscador de lugares de «Mi cielo» (`src/sky/places.js`) | [Open-Meteo Geocoding API](https://open-meteo.com/en/docs/geocoding-api), con los nombres de [GeoNames](https://www.geonames.org/) | GeoNames: CC BY 4.0; API gratuita para uso no comercial |
+| Sitios astronómicos y arqueológicos (`src/sky/places.js`) | Coordenadas de Wikipedia y de la ficha de nominación a la Unesco (Chankillo), comprobadas el 17-nov-2026 | hechos (sin licencia) |
 | Horizonte real del lugar (montañas) (`backend/app/horizon.py`) | [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) (Mapzen, formato terrarium) a partir de SRTM (NASA), GMTED2010 (USGS), ETOPO1 (NOAA) y otros modelos | datos abiertos con atribución (ver abajo) |
 | Narrativa | Groq (modelos Llama) | — servicio |
 | Render 3D | Three.js | MIT |

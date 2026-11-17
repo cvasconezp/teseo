@@ -4,7 +4,7 @@
 // ciencia ciudadana y paridad de textos ES/EN.
 // Uso:  node scripts/test_sky_data.mjs     (sale con código 1 si algo falla)
 import { readFileSync } from "node:fs";
-import { mappedTitle, wikiCandidates, normName, PROBE_TITLES, COMET_TITLES } from "../src/sky/wiki.js";
+import { mappedTitle, wikiCandidates, normName, PROBE_TITLES, COMET_TITLES, isObjectPicture } from "../src/sky/wiki.js";
 import { wrapLines, fitLines, makeProjection, zenithDir, postcardText, postcardGrid, layoutGrid, planLayout, slotsOf, PC_W, PC_H, SAFE_TOP, SAFE_BOTTOM, HERO_TOP, BLOCK_BOTTOM, GRID, GRID_MAX } from "../src/sky/postcard.js";
 import { describeObject } from "../src/sky/describe.js";
 import { stageHeight, pickViewportHeight, STAGE_MIN } from "../src/sky/viewport.js";
@@ -45,6 +45,17 @@ console.log("Mapa nombre → título de Wikipedia");
   const m = wikiCandidates({ layer: "probes", name: "MMX" }, "es");
   ok(m[0].lang === "en" && m[0].title === "Martian Moons eXploration", "sin título en español comprobado: se parte del inglés (y se sigue su enlace interlingüístico)");
   ok(wikiCandidates({ layer: "con", name: "Orion", es: "Orión" }, "es")[0].title === "Orión (constelación)", "constelaciones: «Orión (constelación)», no el personaje");
+  ok(!isObjectPicture("DeltaCruLightCurve.png") && !isObjectPicture("Beta_Crucis_light_curve.png") && !isObjectPicture("Sirius_A_and_B_size_comparison.png") && !isObjectPicture("Vega_spectrum.png"), "imágenes que no son el objeto: curvas de luz, comparaciones, espectros");
+  ok(isObjectPicture("Mimosa_star.jpg") && isObjectPicture("Betelgeuse_captured_by_ALMA.jpg"), "las fotos del objeto sí");
+  // estrellas con nombre de otra cosa: «Mimosa» (la planta), «Atlas», «Electra»… primero «X (estrella)» y siempre
+  // con filtro: el resumen tiene que hablar de una estrella
+  const mim = wikiCandidates({ layer: "star", name: "Mimosa" }, "es");
+  ok(mim[0].title === "Mimosa (estrella)" && mim[1].title === "Mimosa (star)" && mim.every((c) => typeof c.check === "function"), "estrellas: primero «Mimosa (estrella)», todas con filtro");
+  ok(!mim[0].check("Mimosa es un género de plantas de la familia de las fabáceas.") && mim[0].check("Beta Crucis es la segunda estrella más brillante de la constelación de la Cruz del Sur."), "el filtro descarta la planta y acepta la estrella");
+  ok(!mim[1].check("Mimosa is a genus of about 400 species of shrubs and herbs.") && mim[1].check("Beta Crucis is a binary star system in the constellation of Crux."), "también en inglés");
+  const gal = wikiCandidates({ layer: "galaxies", name: "Sunflower", cat: "NGC5055" }, "en");
+  ok(gal.every((c) => typeof c.check === "function") && !gal[0].check("Helianthus is a genus of flowering plants.") && gal[0].check("The Sunflower Galaxy is a spiral galaxy."), "galaxias con nombre común: solo artículos de galaxias");
+  ok(wikiCandidates({ layer: "exoplanets", name: "Kepler-22b", host: "Kepler-22" }, "es").every((c) => typeof c.check === "function"), "exoplanetas, con filtro");
   ok(wikiCandidates({ layer: "note", name: "kepler" }, "es").length === 0 && wikiCandidates(null, "es").length === 0, "sin objeto no hay candidatos");
   ok(normName("  Ésta   (Prueba)–X ") === "esta (prueba)-x", "normalización de nombres");
   ok(Object.keys(PROBE_TITLES).length >= 20 && Object.keys(COMET_TITLES).length >= 7, "tamaño de los mapas");

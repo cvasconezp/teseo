@@ -3,6 +3,7 @@
 // Constellations.jsx y los textos llegan por `t` (diccionario TC).
 import { memo, useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
+import { PlaceSearch, SiteChips } from "./PlaceSearch.jsx";
 import { fmtWhenLong } from "./format.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import { bodyName } from "./bodies.js";
@@ -264,7 +265,7 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
 }
 
 // ── Mi cielo (ubicación) ─────────────────────────────────────────────────
-export function LocationPanel({ t, localMode, lat, lon, placeName, geo, onUseMyLocation, places, onPlace, onManual, onExit, onClose, pointing, onTonight }) {
+export function LocationPanel({ t, lang = "es", localMode, lat, lon, placeName, geo, onUseMyLocation, places, onPlace, onManual, onExit, onClose, pointing, onTonight }) {
   const [mLat, setMLat] = useState(lat != null ? String(lat) : "");
   const [mLon, setMLon] = useState(lon != null ? String(lon) : "");
   const [bad, setBad] = useState(false);
@@ -306,6 +307,7 @@ export function LocationPanel({ t, localMode, lat, lon, placeName, geo, onUseMyL
           <p role="status">{pointing.state === "pending" ? t.pointPickPlace : pointing.state === "on" ? t.pointActive : t.pointLead}</p>
         </div>
       )}
+      <PlaceSearch lang={lang} onPlace={onPlace} />
       <div className="sk-group">
         <h3>{t.orPickPlace}</h3>
         <div className="sk-quick">
@@ -314,6 +316,7 @@ export function LocationPanel({ t, localMode, lat, lon, placeName, geo, onUseMyL
           ))}
         </div>
       </div>
+      <SiteChips lang={lang} placeName={placeName} localMode={localMode} onPlace={onPlace} />
       <form className="sk-group" onSubmit={submit} noValidate>
         <h3>{t.orCoords}</h3>
         <div className="sk-coords">

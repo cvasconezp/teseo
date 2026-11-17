@@ -3,6 +3,7 @@
 import { cellKey, terrainAltAt, refraction, apparentAlt, behindTerrain, highestPoint, snowLine, terrainRiseSet, terrainPalette, fetchHorizon } from "../src/sky/horizon.js";
 import { riseTransitSet, H0_SUN } from "../src/sky/riseset.js";
 import { visibilityOf } from "../src/sky/objVisibility.js";
+import { angleOf, snowAngles } from "../src/sky/terrainLayer.js";
 import { readFileSync } from "node:fs";
 
 let pass = 0, fail = 0;
@@ -19,7 +20,7 @@ const HZ = { lat: 0, lon: -78.15, ground_m: 2800, step_deg: 0.5, alt, bands: [
   { max_km: 150, alt: new Array(N).fill(0), top_m: new Array(N).fill(1000) }] };
 
 console.log("Perfil");
-ok(cellKey(0.04312, -78.14563) === "0.04,-78.15" && cellKey(10, 180) === "10.00,-180.00", "celda de 0,01° como la del servidor");
+ok(cellKey(0.04312, -78.14563) === "0.044,-78.146" && cellKey(10, 180) === "10.000,-180.000", "celda de 0,002° como la del servidor");
 ok(terrainAltAt(HZ, 270) === 10 && terrainAltAt(HZ, 0) === 0 && terrainAltAt(HZ, 270 + 360) === 10 && terrainAltAt(HZ, -90) === 10, "altura del filo por acimut (y con vueltas)");
 ok(near(terrainAltAt(HZ, 239.75), 5, 1e-9), "interpola entre muestras");
 ok(near(refraction(0), 0.48, 0.03) && near(refraction(45), 0.017, 0.003) && apparentAlt(-0.5) > -0.5, "refracción: ~29′ en el horizonte, casi nada en lo alto");
@@ -67,16 +68,22 @@ ok(lum(night.bands[0].top) < lum(night.bands[3].top) && lum(night.bands[3].top) 
 ok(lum(day.bands[3].top) > lum(day.bands[0].top) && day.bands[3].top[2] > day.bands[0].top[2], "de día: las lejanas se azulan (perspectiva aérea)");
 ok(lum(day.snow) > 0.8 && lum(night.snow) < 0.2, "nieve blanca de día, apagada de noche");
 
+console.log("Nieve");
+ok(near(angleOf(5790, 18, 2830), 9.3, 0.1), "el Cayambe (5.790 m a 18 km) se ve a ~9,3° desde 2.830 m");
+const sb = { alt: [9.3, 5], top_m: [5790, 4200], dist_km: [18, 18] };
+const sn = snowAngles(sb, 2830, 4900);
+ok(sn[1] === null && sn[0] > 6 && sn[0] < 9.3, `la nieve empieza en la línea de nieves (${sn[0] && sn[0].toFixed(2)}°), bajo la cumbre; sin nieve donde no llega`);
+
 console.log("Red");
 let calls = 0;
 const store = new Map();
 globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)) };
 const f = async (url) => { calls++; return { ok: true, status: 200, json: async () => ({ ...HZ, url }) }; };
 const h1 = await fetchHorizon(0.0431, -78.1456, { api: "https://api.x", fetchImpl: f });
-ok(calls === 1 && /lat=0\.04&lon=-78\.15$/.test(h1.url), "pide al servidor la celda redondeada");
-await fetchHorizon(0.0412, -78.1478, { api: "https://api.x", fetchImpl: f });
+ok(calls === 1 && /lat=0\.044&lon=-78\.146$/.test(h1.url), "pide al servidor la celda redondeada");
+await fetchHorizon(0.0436, -78.1462, { api: "https://api.x", fetchImpl: f });
 ok(calls === 1, "la misma celda no se vuelve a pedir");
-ok(JSON.parse(store.get("teseo_horizon_v1"))[0].key === "0.04,-78.15", "se guarda en el teléfono");
+ok(JSON.parse(store.get("teseo_horizon_v2"))[0].key === "0.044,-78.146", "se guarda en el teléfono");
 let err = null;
 try { await fetchHorizon(5, 5, { fetchImpl: async () => ({ ok: false, status: 502, json: async () => ({ detail: "No se pudo leer el relieve" }) }) }); } catch (e) { err = e.message; }
 ok(err && /relieve/.test(err), "si el servidor falla, el error trae su motivo");

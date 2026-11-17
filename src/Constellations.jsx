@@ -3448,7 +3448,7 @@ export default function Constellations({ lang = "es" }) {
       )}
       {sky && panel === "location" && (
         <LocationPanel t={t} localMode={localMode} lat={lat} lon={lon} placeName={placeLabel} geo={geo}
-          onUseMyLocation={useMyLocation} places={PLACES} onPlace={pickPlace} onManual={setManualPlace}
+          lang={lang} onUseMyLocation={useMyLocation} places={PLACES} onPlace={pickPlace} onManual={setManualPlace}
           onExit={leaveMySky} onClose={() => setPanel(null)} onTonight={() => setPanel("tonight")}
           pointing={arCapable ? { state: ar, onStart: ar === "off" ? startAr : stopAr } : null} />
       )}

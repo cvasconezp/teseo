@@ -44,6 +44,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
@@ -63,7 +64,7 @@ from app import img_proxy
 from app import horizon
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.10.0"
+VERSION = "1.11.0"
 _STARTED = time.time()
 
 app = FastAPI(
@@ -141,6 +142,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# respuestas JSON grandes (el horizonte real, los exoplanetas) comprimidas si el navegador lo acepta
+app.add_middleware(GZipMiddleware, minimum_size=2048)
 
 
 @app.exception_handler(RequestValidationError)

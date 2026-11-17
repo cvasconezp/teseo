@@ -99,6 +99,14 @@ const MOON_ES = { Phobos: "Fobos (satélite)", Deimos: "Deimos (satélite)", Io:
 const MOON_RE = /moon|satellite|luna|sat[eé]lite/i;
 const SPACECRAFT_RE = /spacecraft|space probe|space telescope|telescope|satellite|space station|mission|orbiter|lander|rover|observatory|nasa|\besa\b|jaxa|sonda|telescopio|sat[eé]lite|estaci[oó]n espacial|misi[oó]n|nave|orbitador|observatorio|astromóvil/i;
 const COMET_RE = /comet|cometa/i;
+// Muchos nombres de estrellas y galaxias son también otras cosas («Mimosa» es una planta; «Atlas», «Maia»,
+// «Electra», «Peacock», «Sunflower»…): el artículo solo vale si su resumen habla del objeto astronómico.
+const STAR_RE = /\bstars?\b|estrella|binar|giant|gigante|dwarf|enana|magnitude|magnitud|constellation|constelaci[oó]n|light[- ]years|a[nñ]os luz|stellar|estelar|spectral|espectral/i;
+const GALAXY_RE = /galax/i;
+const PULSAR_RE = /pulsar|p[uú]lsar|neutron|neutrones/i;
+const PLANET_RE = /planet|planeta|\bstars?\b|estrella|exoplanet|exoplaneta/i;
+const METEOR_RE = /meteor|lluvia|shower|estrellas fugaces/i;
+const ASTRO_RE = /star|estrella|galax|nebula|nebulosa|cluster|c[uú]mulo|black hole|agujero negro|constellation|constelaci[oó]n|astronom|light[- ]years|a[nñ]os luz|planet/i;
 
 /**
  * Títulos candidatos, en orden, para buscar el artículo de un objeto.
@@ -118,9 +126,14 @@ export function wikiCandidates(obj, lang) {
     add("en", MOON_WIKI[obj.name] || `${obj.name} (moon)`, ok);
     if (lang === "en") add("es", MOON_ES[obj.name], ok);
   }
-  else if (L === "star") both((lg) => add(lg, obj.name));
-  else if (L === "blackholes") { const m = BH_WIKI[obj.name]; both((lg) => add(lg, m ? (m[lg] || m.en) : outside(obj.name))); }
-  else if (L === "pulsars") both((lg) => { add(lg, outside(obj.name)); if (/^[JB]\d/.test(obj.name)) add(lg, "PSR " + outside(obj.name)); });
+  else if (L === "star") {
+    // primero «X (star)» / «X (estrella)», que es el artículo de la estrella cuando el nombre a secas es otra cosa
+    const ok = (x) => STAR_RE.test(x || "");
+    both((lg) => add(lg, `${obj.name} (${lg === "es" ? "estrella" : "star"})`, ok));
+    both((lg) => add(lg, obj.name, ok));
+  }
+  else if (L === "blackholes") { const m = BH_WIKI[obj.name]; both((lg) => add(lg, m ? (m[lg] || m.en) : outside(obj.name), m ? undefined : (x) => ASTRO_RE.test(x || ""))); }
+  else if (L === "pulsars") { const ok = (x) => PULSAR_RE.test(x || ""); both((lg) => { add(lg, outside(obj.name), ok); if (/^[JB]\d/.test(obj.name)) add(lg, "PSR " + outside(obj.name), ok); }); }
   else if (L === "caldwell") {
     // título del artículo en inglés que enlaza la tabla del catálogo (y, para las Nubes, el español); si no, la
     // designación ("NGC 5139"), que en ambas Wikipedias suele redirigir al artículo del objeto
@@ -132,10 +145,11 @@ export function wikiCandidates(obj, lang) {
   else if (L === "galaxies") {
     // nombre común si lo hay; si no, el catálogo "NGC0055" → "NGC 55"
     const cat = (obj.cat || obj.name || "").replace(/^(NGC|IC)0*(\d+)/i, "$1 $2");
-    both((lg) => { if (obj.cat && obj.name !== obj.cat) add(lg, obj.name); add(lg, cat); });
+    const ok = (x) => GALAXY_RE.test(x || "");
+    both((lg) => { if (obj.cat && obj.name !== obj.cat) add(lg, obj.name, ok); add(lg, cat, ok); });
   }
-  else if (L === "meteors") { add("es", obj.wiki_es || obj.name); add("en", obj.name_en || obj.name); if (lang === "en") out.reverse(); }
-  else if (L === "exoplanets") { both((lg) => add(lg, obj.name)); if (obj.host) both((lg) => add(lg, obj.host)); }
+  else if (L === "meteors") { const ok = (x) => METEOR_RE.test(x || ""); add("es", obj.wiki_es || obj.name, ok); add("en", obj.name_en || obj.name, ok); if (lang === "en") out.reverse(); }
+  else if (L === "exoplanets") { const ok = (x) => PLANET_RE.test(x || ""); both((lg) => add(lg, obj.name, ok)); if (obj.host) both((lg) => add(lg, obj.host, ok)); }
   else if (L === "probes" || L === "comets") {
     const re = L === "probes" ? SPACECRAFT_RE : COMET_RE, ok = (x) => re.test(x || "");
     const m = mappedTitle(L, obj.name);                          // el mapa ya está comprobado: sin filtro
@@ -152,7 +166,7 @@ export function wikiCandidates(obj, lang) {
     add("es", `${obj.name} (constelación)`, ok);
     if (lang === "es") out.sort((a, b) => (a.lang === "es" ? 0 : 1) - (b.lang === "es" ? 0 : 1));
   }
-  else both((lg) => add(lg, obj.name));
+  else { const ok = (x) => ASTRO_RE.test(x || ""); both((lg) => add(lg, obj.name, ok)); }
   return out;
 }
 
@@ -191,7 +205,9 @@ export async function fetchWiki(title, lang) {
  */
 export function isObjectPicture(file) {
   if (!file) return false;
-  return !/(constellation|_map\b|map\.|_map_|locator|chart|carta|mapa|diagram|diagrama|position|sky_?map|finder|iau_)/i.test(String(file));
+  // mapas de constelación, cartas y diagramas; también curvas de luz, espectros, gráficas y comparaciones de
+  // tamaño (p. ej. la curva de luz TESS de «Imai», δ Crucis): no muestran el objeto, la ficha dibuja una estrella
+  return !/(constellation|_map\b|map\.|_map_|locator|chart|carta|mapa|diagram|diagrama|position|sky_?map|finder|iau_|curve|curva|lightcurve|light_curve|spectrum|spectra|espectro|plot|graph|gr[aá]fic|comparison|comparaci|size_|_size|orbit|[oó]rbita|radial_?velocity|velocidad|flux|histogram|histograma|scheme|esquema|logo)/i.test(String(file));
 }
 
 export async function fetchWikiFor(obj, lang, isStale = () => false) {

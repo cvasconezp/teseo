@@ -7,14 +7,15 @@
 // Tierra y la refracción del rayo hasta la montaña: es la altura APARENTE del filo. Para comparar con un astro
 // se usa también su altura aparente (geométrica + refracción, Sæmundsson 1986).
 
-const STORE_KEY = "teseo_horizon_v1";
-const STORE_MAX = 5;                 // lugares guardados en el teléfono (≈ 40 KB cada uno)
+const STORE_KEY = "teseo_horizon_v2";   // v2: 0,2° y seis bandas (v1 era de 0,5°)
+const STORE_MAX = 4;                 // lugares guardados en el teléfono (≈ 140 KB cada uno)
 const mem = new Map();
 
-/** Celda de 0,01° del lugar (la misma que usa el servidor). */
+/** Celda de 0,002° (≈ 220 m) del lugar: la misma que usa el servidor. */
 export function cellKey(lat, lon) {
-  const la = Math.round(lat * 100) / 100, lo = ((Math.round(lon * 100) / 100 + 540) % 360) - 180;
-  return `${la.toFixed(2)},${lo.toFixed(2)}`;
+  const r = (v) => Math.round(v / 0.002) * 0.002;
+  const la = r(lat), lo = ((r(lon) + 540) % 360) - 180;
+  return `${la.toFixed(3)},${lo.toFixed(3)}`;
 }
 
 /** Altura del filo del relieve en un acimut (interpolación lineal; acepta cualquier número de grados). */
@@ -112,9 +113,11 @@ export function terrainPalette(st, nBands = 4) {
   const out = [];
   for (let k = 0; k < nBands; k++) {
     const f = nBands > 1 ? k / (nBands - 1) : 0;      // 0 cerca … 1 lejos
-    const n = mix(nightBase, nightFar, f * 0.9);
-    const dTop = mix(land, horizon, 0.12 + 0.62 * f);
-    const top = mix(n, dTop, day), bottom = mix(mix(n, [0, 0, 0], 0.35), mix(land, horizon, 0.05 + 0.45 * f), day);
+    const n = mix(nightBase, nightFar, Math.pow(f, 0.8) * 0.95);
+    // de día, perspectiva aérea marcada: cada banda más lejana se acerca bastante más al color del horizonte
+    const dTop = mix(land, horizon, 0.06 + 0.78 * Math.pow(f, 0.85));
+    const dBot = mix(mix(land, [0, 0, 0], 0.18), horizon, 0.04 + 0.7 * Math.pow(f, 0.85));
+    const top = mix(n, dTop, day), bottom = mix(mix(n, [0, 0, 0], 0.25), dBot, day);
     out.push({ top, bottom });
   }
   return { bands: out, snow: mix([0.09, 0.1, 0.13], [0.9, 0.92, 0.95], day), day };

@@ -1,5 +1,25 @@
 # Cambios
 
+## 1.11.0 — 17 de noviembre de 2026
+
+- Cielo: montañas con más detalle. El perfil del horizonte se calcula cada 0,2°
+  (antes 0,5°), en seis capas de distancia y con celdas de unos 220 m, así que
+  dos lugares cercanos ya no comparten silueta. La nieve se pinta solo por
+  encima de su altura real en cada cumbre (sin franjas verticales ni columnas
+  blancas), las laderas se sombrean según el Sol y cada sierra lleva su línea de
+  cresta. Las respuestas del servidor viajan comprimidas.
+- «Mi cielo»: buscador de lugares del mundo (ciudades, pueblos, montañas) en
+  «O elige un lugar», y una lista de sitios arqueológicos y astronómicos con su
+  nota: Machu Picchu, Chankillo, Cochasquí, Quitsato, Tiwanaku, Teotihuacan,
+  Chichén Itzá, Paranal, Stonehenge, Newgrange y Giza. Desde cada uno se ve el
+  cielo con las montañas reales de su horizonte.
+- Fichas: la foto y el texto de Wikipedia tienen que tratar del astro. «Mimosa»
+  ya no muestra la planta, ni «Atlas», «Electra» o «Maia» al personaje: primero
+  se busca «X (estrella)» y se descarta cualquier artículo que no hable de una
+  estrella (y lo mismo en galaxias, púlsares, exoplanetas y lluvias de
+  meteoros). Tampoco se usan como foto curvas de luz, espectros ni gráficas;
+  sin una imagen del objeto, la ficha dibuja una estrella.
+
 ## 1.10.0 — 17 de noviembre de 2026
 
 - Cielo: las montañas de tu horizonte real. Para el lugar de «Mi cielo», el

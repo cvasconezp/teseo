@@ -11,7 +11,6 @@ const DIRS = {
 };
 const n1 = (v, lang) => Number(v).toLocaleString(lang === "es" ? "es" : "en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const n0 = (v, lang) => Math.round(v).toLocaleString(lang === "es" ? "es" : "en-US", { useGrouping: "always" });
-const BAND_FROM = { 3: 0, 12: 3, 40: 12, 150: 40 };
 
 export const TX_HZ = {
   es: {
@@ -40,6 +39,12 @@ export const TX_HZ = {
   },
 };
 
+// la banda anterior a la de `km` marca desde dónde (1,5 → «1,5»)
+const bandFrom = (data, km, lang) => {
+  const bs = (data.bands || []).map((b) => b.max_km), i = bs.indexOf(km);
+  return i > 0 ? Number(bs[i - 1]).toLocaleString(lang === "es" ? "es" : "en-US") : "0";
+};
+
 export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry }) {
   const tx = TX_HZ[lang] || TX_HZ.es;
   const data = hz && hz.status === "ok" ? hz.data : null;
@@ -64,7 +69,7 @@ export function TerrainControl({ lang = "es", available = true, on, onToggle, hz
           {hp && (
             <>
               <p className="sk-hz-line">{hp.alt < 1 ? tx.flat
-                : tx.high(n1(hp.alt, lang), (DIRS[lang] || DIRS.es)[compassPoint8(hp.az)], n0(hp.top_m, lang), BAND_FROM[hp.km] ?? 0, n0(hp.km, lang))}</p>
+                : tx.high(n1(hp.alt, lang), (DIRS[lang] || DIRS.es)[compassPoint8(hp.az)], n0(hp.top_m, lang), bandFrom(data, hp.km, lang), n0(hp.km, lang))}</p>
               <p className="sk-atm-fine">{tx.ground(n0(data.ground_m, lang))}</p>
             </>
           )}

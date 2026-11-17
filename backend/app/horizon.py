@@ -8,15 +8,18 @@ formato «terrarium» (PNG: altura = R·256 + G + B/256 − 32768 m), hechas por
 GMTED2010 (USGS), ETOPO1 (NOAA) y otros modelos (ver CREDITS.md). Con CORS abierto y sin claves.
 
 Cálculo (en el servidor: son decenas de teselas; al navegador solo le llega la lista de ángulos):
-  * el lugar se redondea a una celda de 0,01° (≈ 1,1 km) y su altura es la del propio modelo (media en el punto
-    y en un anillo de 250 m) más 1,7 m de los ojos: así el observador nunca queda «dentro» del terreno del modelo;
-  * cada 0,5° de acimut se recorre el terreno desde 400 m hasta 150 km, con pasos que crecen con la distancia
-    (zoom 11 de las teselas, ≈ 76 m por píxel en el ecuador, hasta 40 km; zoom 9, ≈ 300 m, más lejos);
+  * el lugar se redondea a una celda de 0,002° (≈ 220 m) y su altura es la del propio modelo (en el punto o, si es
+    mayor, la media de un anillo de 150 m) más 1,7 m de los ojos: así el observador nunca queda «dentro» del terreno;
+  * cada 0,2° de acimut se recorre el terreno desde 300 m hasta 150 km, con pasos que crecen con la distancia
+    (zoom 12 de las teselas, ≈ 38 m por píxel en el ecuador, hasta 20 km; zoom 11, ≈ 76 m, hasta 50 km; zoom 9,
+    ≈ 300 m, más lejos). El detalle lo limita el modelo: SRTM mide cada ~30 m, así que agujas de roca más
+    finas que eso no aparecen;
   * el ángulo de cada punto descuenta la curvatura de la Tierra con la refracción estándar (k = 0,13):
         ángulo = atan((h − h₀ − d²·(1 − k) / 2R) / d)
     y el horizonte en ese acimut es el ángulo más alto;
-  * se guarda además el más alto por bandas de distancia (hasta 3, 12, 40 y 150 km) con la altura del
-    terreno en ese punto, para dibujar las sierras en capas (lejos más claras) y la nieve de las cumbres.
+  * se guarda además el más alto por bandas de distancia (hasta 1,5, 4, 10, 25, 60 y 150 km) con la altura del
+    terreno en ese punto y su distancia, para dibujar las sierras en capas (lejos más claras) y la nieve de las
+    cumbres (desde la línea de nieves hacia arriba).
 No incluye árboles ni edificios, solo el relieve.
 
 Caché en memoria: teselas (LRU) y resultados por celda (LRU). Si una tesela no llega, error 502.
@@ -39,20 +42,21 @@ from app.cache import iso_utc, provider_headers
 
 SOURCE = "AWS Terrain Tiles (Mapzen terrarium: SRTM, GMTED2010, ETOPO1…)"
 TILE_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
-STEP_DEG = 0.5
+STEP_DEG = 0.2
 N_AZ = int(round(360 / STEP_DEG))
-BANDS_KM = (3.0, 12.0, 40.0, 150.0)
-NEAR = (11, 40e3)            # zoom de teselas y alcance (m) del tramo cercano
-FAR = (9, 150e3)             # zoom y alcance del tramo lejano
-D_MIN = 400.0               # más cerca, el modelo mezcla edificios y árboles con el suelo (ruido)
-N_SAMPLES = 420              # muestras por acimut (espaciado geométrico ≈ 1,7 %)
+BANDS_KM = (1.5, 4.0, 10.0, 25.0, 60.0, 150.0)
+NEAR = (12, 20e3)            # zoom de teselas y alcance (m) del tramo cercano (≈ 38 m por píxel en el ecuador)
+MID = (11, 50e3)             # tramo medio (≈ 76 m)
+FAR = (9, 150e3)             # tramo lejano (≈ 300 m)
+D_MIN = 300.0                # más cerca, el modelo mezcla edificios y árboles con el suelo (ruido)
+N_SAMPLES = 640              # muestras por acimut (espaciado geométrico ≈ 1,0 %)
 R_E = 6371008.8
 K_REFR = 0.13
 EYE_M = 1.7
-CELL_DEG = 0.01
+CELL_DEG = 0.002             # ≈ 220 m: el punto exacto importa (una cumbre, un mirador)
 TIMEOUT_S = 20.0
 CONCURRENCY = 12
-TILE_CACHE_MAX = 220
+TILE_CACHE_MAX = 140
 RESULT_CACHE_MAX = 600
 CACHE_SECONDS = 7 * 86400    # el relieve no cambia: el navegador puede guardarlo una semana
 
@@ -74,10 +78,10 @@ def reset_cache() -> None:
 
 def cell_of(lat: float, lon: float) -> tuple:
     """Celda de 0,01° (lat, lon) del lugar; lon en [−180, 180)."""
-    la = round(round(lat / CELL_DEG) * CELL_DEG, 2)
-    lo = round(round(lon / CELL_DEG) * CELL_DEG, 2)
+    la = round(round(lat / CELL_DEG) * CELL_DEG, 3)
+    lo = round(round(lon / CELL_DEG) * CELL_DEG, 3)
     lo = ((lo + 180.0) % 360.0) - 180.0
-    return (max(-85.0, min(85.0, la)), round(lo, 2))
+    return (max(-85.0, min(85.0, la)), round(lo, 3))
 
 
 def decode_terrarium(png: bytes) -> np.ndarray:
@@ -172,22 +176,27 @@ class Mosaic:
                 + a[j + 1, i] * (1 - u) * v + a[j + 1, i + 1] * u * v)
 
 
-def compute_profile(lat0: float, lon0: float, near: Mosaic, far: Mosaic) -> dict:
+def compute_profile(lat0: float, lon0: float, near: Mosaic, mid: Mosaic, far: Mosaic) -> dict:
     """El horizonte del lugar (puro: recibe los mosaicos ya descargados)."""
-    # el suelo del lugar: media del modelo en el punto y en un anillo de 250 m (un solo píxel puede caer en un
-    # tejado, un árbol o un bache del modelo)
-    ring_lat, ring_lon = destination(lat0, lon0, np.arange(0, 360, 22.5), np.array([250.0]))
-    pts = np.concatenate([near.sample(np.array([lat0]), np.array([lon0])), near.sample(ring_lat, ring_lon).ravel()])
-    ground = float(max(0.0, np.mean(np.maximum(pts, 0.0))))
+    # el suelo del lugar: el modelo en el punto o, si es mayor, la media de un anillo de 150 m (un solo píxel puede
+    # caer en un bache del modelo; en una cumbre manda el punto, que es lo más alto)
+    ring_lat, ring_lon = destination(lat0, lon0, np.arange(0, 360, 22.5), np.array([150.0]))
+    here = float(near.sample(np.array([lat0]), np.array([lon0]))[0])
+    ring = float(np.mean(np.maximum(near.sample(ring_lat, ring_lon).ravel(), 0.0)))
+    ground = max(0.0, here, ring)
     h0 = ground + EYE_M
     az = np.arange(N_AZ) * STEP_DEG
     d = D_MIN * (FAR[1] / D_MIN) ** (np.arange(N_SAMPLES) / (N_SAMPLES - 1))
     lat, lon = destination(lat0, lon0, az, d)
-    is_near = (d <= NEAR[1])[None, :].repeat(N_AZ, axis=0)
-    h = np.where(is_near, near.sample(lat, lon), far.sample(lat, lon))
+    # cada tramo con su mosaico (solo se muestrea lo que le toca: menos memoria y tiempo)
+    h = np.empty((N_AZ, N_SAMPLES), dtype=np.float32)
+    for mos, lo_m, hi_m in ((near, 0.0, NEAR[1]), (mid, NEAR[1], MID[1]), (far, MID[1], FAR[1] + 1.0)):
+        m = (d > lo_m) & (d <= hi_m)
+        if m.any():
+            h[:, m] = mos.sample(lat[:, m], lon[:, m])
     h = np.maximum(h, 0.0)                                       # el mar, a nivel del mar
-    drop = d * d * (1.0 - K_REFR) / (2.0 * R_E)
-    ang = np.degrees(np.arctan2(h - h0 - drop[None, :], d[None, :]))
+    drop = (d * d * (1.0 - K_REFR) / (2.0 * R_E)).astype(np.float32)
+    ang = np.degrees(np.arctan2(h - np.float32(h0) - drop[None, :], d[None, :].astype(np.float32)))
     bands, lo = [], 0.0
     for km in BANDS_KM:
         m = (d > lo * 1000.0) & (d <= km * 1000.0)
@@ -196,6 +205,8 @@ def compute_profile(lat0: float, lon0: float, near: Mosaic, far: Mosaic) -> dict
             "max_km": km,
             "alt": [round(float(v), 2) for v in sub[np.arange(N_AZ), idx]],
             "top_m": [int(round(float(v))) for v in h[:, m][np.arange(N_AZ), idx]],
+            # distancia del filo (km): con ella el navegador sabe a qué altura angular queda la línea de nieves
+            "dist_km": [round(float(v) / 1000.0, 1) for v in d[m][idx]],
         })
         lo = km
     total = np.max(np.array([b["alt"] for b in bands]), axis=0)
@@ -221,12 +232,12 @@ async def get_horizon(lat: float, lon: float) -> dict:
         sem = asyncio.Semaphore(CONCURRENCY)
         async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=_transport, headers=provider_headers()) as client:
             mos = []
-            for z, rad in (NEAR, FAR):
+            for z, rad in (NEAR, MID, FAR):
                 keys = tiles_for(key[0], key[1], z, rad)
                 arrs = await asyncio.gather(*[_fetch_tile(client, z, x, y, sem) for (x, y) in keys])
                 mos.append((z, dict(zip(keys, arrs))))
-        near, far = Mosaic(*mos[0]), Mosaic(*mos[1])
-        res = await run_in_threadpool(compute_profile, key[0], key[1], near, far)
+        near, mid, far = Mosaic(*mos[0]), Mosaic(*mos[1]), Mosaic(*mos[2])
+        res = await run_in_threadpool(compute_profile, key[0], key[1], near, mid, far)
         res["computed"] = iso_utc(time.time())
         _results[key] = res
         while len(_results) > RESULT_CACHE_MAX:

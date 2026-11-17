@@ -71,7 +71,7 @@ def test_volcan_al_este(tiles):
     r = client.get(f"/api/horizon?lat={LAT0}&lon={LON0}")
     assert r.status_code == 200
     d = r.json()
-    assert d["lat"] == LAT0 and d["lon"] == LON0 and d["step_deg"] == 0.5 and len(d["alt"]) == 720
+    assert d["lat"] == LAT0 and d["lon"] == LON0 and d["step_deg"] == 0.2 and len(d["alt"]) == 1800
     assert abs(d["ground_m"] - PLAIN) < 3
     drop = PEAK_D ** 2 * (1 - hz.K_REFR) / (2 * R)
     want = math.degrees(math.atan((PEAK_H - PLAIN - hz.EYE_M - drop) / PEAK_D))       # ≈ 9,4°
@@ -80,9 +80,10 @@ def test_volcan_al_este(tiles):
     # en la llanura el horizonte queda apenas bajo 0° (curvatura de la Tierra)
     assert -0.3 < at(d["alt"], 270) < 0.0
     assert -0.3 < at(d["alt"], 0) < 0.0
-    # el volcán está en la banda de 12 a 40 km, con su cumbre
-    b = d["bands"][2]
-    assert b["max_km"] == 40 and abs(at(b["alt"], 90) - got) < 1e-6 and at(b["top_m"], 90) > PEAK_H - 250
+    # el volcán está en la banda de 10 a 25 km, con su cumbre
+    b = d["bands"][3]
+    assert b["max_km"] == 25 and abs(at(b["alt"], 90) - got) < 1e-6 and at(b["top_m"], 90) > PEAK_H - 250
+    assert abs(at(b["dist_km"], 90) - PEAK_D / 1000) < 0.4
     assert r.headers["cache-control"] == f"public, max-age={hz.CACHE_SECONDS}"
 
 
@@ -97,8 +98,13 @@ def test_cache_por_celda(tiles):
     client.get(f"/api/horizon?lat={LAT0}&lon={LON0}")
     n = len(calls)
     assert n > 10
-    r2 = client.get(f"/api/horizon?lat={LAT0 + 0.003}&lon={LON0 - 0.004}")       # misma celda de 0,01°
+    r2 = client.get(f"/api/horizon?lat={LAT0 + 0.0008}&lon={LON0 - 0.0009}")     # misma celda de 0,002°
     assert r2.status_code == 200 and len(calls) == n and r2.json()["lat"] == LAT0
+
+
+def test_gzip(tiles):
+    r = client.get(f"/api/horizon?lat={LAT0}&lon={LON0}", headers={"Accept-Encoding": "gzip"})
+    assert r.headers.get("content-encoding") == "gzip" and len(r.json()["alt"]) == 1800
 
 
 def test_sin_teselas_502(tiles):
@@ -116,7 +122,7 @@ def test_mar_a_nivel_cero(tiles):
 
 
 def test_celda_y_antimeridiano():
-    assert hz.cell_of(0.04312, -78.14563) == (0.04, -78.15)
+    assert hz.cell_of(0.04312, -78.14563) == (0.044, -78.146)
     assert hz.cell_of(10, 180.0) == (10.0, -180.0)
     t = hz.tiles_for(0, 179.9, 9, 150e3)
     assert any(x == 0 for x, _ in t) and any(x == 511 for x, _ in t)
