@@ -1,7 +1,8 @@
 // Pruebas de los monumentos (src/sky/monuments.js y monumentLayer.js): medidas, posición, ángulos tal como se
 // verían desde el sitio, silueta para ocultar lo que queda detrás e integración en el cielo.
 import { MONUMENTS, monumentsNear, buildFaces, toLocal, altAzOf, offsetOf, silhouette, withMonuments, groundRing, median, apexOf, footprintRadius, SH_STANDING, SH_LINTELS } from "../src/sky/monuments.js";
-import { placeMonuments, monumentLabels } from "../src/sky/monumentLayer.js";
+import { placeMonuments, monumentLabels, faceUV, toneAt } from "../src/sky/monumentLayer.js";
+import { tierEdges } from "../src/sky/monuments.js";
 import { SITES } from "../src/sky/places.js";
 import { readFileSync } from "node:fs";
 
@@ -62,6 +63,19 @@ ok(hz2.alt[iTop] > 10 && hz2.alt[0] === 1 && hz.alt[iTop] === 1 && hz2.monuments
 ok(withMonuments(hz, new Float32Array(1800).fill(-90)) === hz, "sin monumentos, el mismo horizonte");
 const shItems = placeMonuments([byId("stonehenge")], { lat: 51.17, lon: -1.82, ground: 100 }, { stonehenge: 100 });
 ok(Math.max(...silhouette(shItems, 0.2)) === -90, "Stonehenge no tapa el cielo entero entre sus piedras (no es macizo)");
+
+console.log("Aspecto");
+const wall = faceUV([[0, 0, 0], [4, 0, 0], [4, 0, 3]], 2);
+ok(Math.abs(wall.uv[2][1] - wall.uv[0][1] - 1.5) < 1e-9 && Math.abs(Math.abs(wall.uv[1][0] - wall.uv[0][0]) - 2) < 1e-9, "en una pared, u a lo largo (en teselas) y v hacia arriba: las hiladas quedan horizontales");
+const flat = faceUV([[0, 0, 5], [2, 0, 5], [2, 2, 5]], 2);
+ok(flat.uv[2][0] === 1 && flat.uv[2][1] === 1, "en una terraza, u al este y v al norte");
+ok(toneAt([0, 0, 0]) < toneAt([0, 0, 10]) + 0.5 && toneAt([0, 0, 0]) > 0.5 && toneAt([0, 0, 0]) < 1.2, "tono variable y algo más oscuro junto al suelo");
+// la escalinata pasa por fuera de todas las terrazas
+const solF = buildFaces(sol).filter((f) => f.mat === "steps");
+ok(solF.length === 2 && tierEdges(sol).length === 4, "la Pirámide del Sol tiene su escalinata");
+const casF = buildFaces(byId("castillo"));
+ok(casF.filter((f) => f.mat === "steps").length === 8 && casF.filter((f) => f.mat === "door").length === 12, "El Castillo: cuatro escalinatas y seis puertas en el templo (tres al norte)");
+ok(buildFaces(byId("kefren")).some((f) => f.mat === "casing"), "Kefrén conserva el revestimiento arriba");
 
 console.log("Integración");
 const sky = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");

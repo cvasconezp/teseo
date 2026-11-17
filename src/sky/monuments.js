@@ -29,21 +29,25 @@ const GRASS = [0.42, 0.55, 0.3];       // Newgrange: el túmulo con hierba
  */
 export const MONUMENTS = [
   { id: "sol", site: "teotihuacan", name: { es: "Pirámide del Sol", en: "Pyramid of the Sun" }, lat: 19.69240, lon: -98.84360,
-    kind: "stepped", base: 225, top: 30, height: 65, tiers: 4, rot: 15.5, color: BASALT, solid: true },
+    kind: "stepped", base: 225, top: 30, height: 65, tiers: 4, rot: 15.5, color: BASALT, mat: "basalt", ground: "dirt", solid: true,
+    stairs: [{ side: "w", w: 14, out: 7 }] },
   { id: "luna", site: "teotihuacan", name: { es: "Pirámide de la Luna", en: "Pyramid of the Moon" }, lat: 19.69969, lon: -98.84395,
-    kind: "stepped", base: 145, top: 22, height: 43, tiers: 4, rot: 15.5, color: BASALT, solid: true },
+    kind: "stepped", base: 145, top: 22, height: 43, tiers: 4, rot: 15.5, color: BASALT, mat: "basalt", ground: "dirt", solid: true,
+    stairs: [{ side: "s", w: 12, out: 7 }] },
   { id: "castillo", site: "chichenitza", name: { es: "El Castillo (Kukulcán)", en: "El Castillo (Kukulcan)" }, lat: 20.68290, lon: -88.56865,
-    kind: "stepped", base: 55.3, top: 19.5, height: 24, tiers: 9, rot: 17, color: YUCATAN, solid: true, temple: { w: 13, h: 6 } },
+    kind: "stepped", base: 55.3, top: 19.5, height: 24, tiers: 9, rot: 17, color: YUCATAN, mat: "yucatan", ground: "grass", solid: true,
+    temple: { w: 13, h: 6, doors: { n: 3, s: 1, e: 1, w: 1 } },
+    stairs: [{ side: "n", w: 8.8, out: 4.5 }, { side: "s", w: 8.8, out: 4.5 }, { side: "e", w: 8.8, out: 4.5 }, { side: "w", w: 8.8, out: 4.5 }] },
   { id: "keops", site: "giza", name: { es: "Pirámide de Keops", en: "Pyramid of Khufu" }, lat: 29.97917, lon: 31.13417,
-    kind: "pyramid", base: 230.3, top: 10, height: 138.5, rot: 0, color: LIMESTONE, solid: true },
+    kind: "pyramid", base: 230.3, top: 10, height: 138.5, rot: 0, color: LIMESTONE, mat: "blocks", ground: "sand", solid: true },
   { id: "kefren", site: "giza", name: { es: "Pirámide de Kefrén", en: "Pyramid of Khafre" }, lat: 29.97593, lon: 31.13092,
-    kind: "pyramid", base: 215.3, top: 0, height: 136.4, rot: 0, color: LIMESTONE, solid: true },
+    kind: "pyramid", base: 215.3, top: 0, height: 136.4, rot: 0, color: LIMESTONE, mat: "blocks", ground: "sand", solid: true, casing: 0.78 },
   { id: "micerino", site: "giza", name: { es: "Pirámide de Micerino", en: "Pyramid of Menkaure" }, lat: 29.97250, lon: 31.12806,
-    kind: "pyramid", base: 103.4, top: 4, height: 61, rot: 0, color: LIMESTONE, solid: true },
+    kind: "pyramid", base: 103.4, top: 4, height: 61, rot: 0, color: LIMESTONE, mat: "blocks", ground: "sand", solid: true },
   { id: "stonehenge", site: "stonehenge", name: { es: "Stonehenge", en: "Stonehenge" }, lat: 51.178844, lon: -1.826189,
-    kind: "stonehenge", axis: 49.9, height: 6.7, color: SARSEN, solid: false },
+    kind: "stonehenge", axis: 49.9, height: 6.7, color: SARSEN, mat: "sarsen", ground: "grass", solid: false },
   { id: "newgrange", site: "newgrange", name: { es: "Newgrange", en: "Newgrange" }, lat: 53.69509, lon: -6.47531,
-    kind: "mound", radius: 42.5, wall: 3, height: 13.5, color: GRASS, wallColor: QUARTZ, solid: true },
+    kind: "mound", radius: 42.5, wall: 3, height: 13.5, color: GRASS, wallColor: QUARTZ, mat: "grass", wallMat: "quartz", ground: "grass", solid: true },
 ];
 
 /** Radio (m) de la planta: hasta él no se puede estar «dentro» del monumento. */
@@ -81,46 +85,132 @@ export const median = (a) => { const s = [...a].filter(Number.isFinite).sort((x,
 
 // ── geometría (triángulos en E, N, U) ────────────────────────────────────────────────────────────────────
 const rotP = (p, r) => { const c = Math.cos(r * RAD), s = Math.sin(r * RAD); return [p[0] * c + p[1] * s, -p[0] * s + p[1] * c, p[2]]; };
-function quad(out, a, b, c, d, col) { out.push({ v: [a, b, c], c: col }, { v: [a, c, d], c: col }); }
+function quad(out, a, b, c, d, col, mat) { out.push({ v: [a, b, c], c: col, mat }, { v: [a, c, d], c: col, mat }); }
 
 /** Tronco de pirámide (planta rectangular girada `rot`, centrada en (ce, cn)) entre las alturas z0 y z1. */
-function frustum(out, { ce = 0, cn = 0, z0, z1, w0, d0 = w0, w1, d1 = w1, rot = 0, col, top = true }) {
+function frustum(out, { ce = 0, cn = 0, z0, z1, w0, d0 = w0, w1, d1 = w1, rot = 0, col, mat, top = true }) {
   const P = (w, d, z, sx, sy) => { const p = rotP([sx * w / 2, sy * d / 2, z], rot); return [p[0] + ce, p[1] + cn, z]; };
   const b = [P(w0, d0, z0, -1, -1), P(w0, d0, z0, 1, -1), P(w0, d0, z0, 1, 1), P(w0, d0, z0, -1, 1)];
   const t = [P(w1, d1, z1, -1, -1), P(w1, d1, z1, 1, -1), P(w1, d1, z1, 1, 1), P(w1, d1, z1, -1, 1)];
-  for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; quad(out, b[i], b[j], t[j], t[i], col); }
-  if (top && (w1 > 0 || d1 > 0)) quad(out, t[0], t[1], t[2], t[3], col);
+  for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; quad(out, b[i], b[j], t[j], t[i], col, mat); }
+  if (top && (w1 > 0 || d1 > 0)) quad(out, t[0], t[1], t[2], t[3], col, mat);
 }
 
 /** Bloque (piedra) de ancho w (tangencial), grueso t (radial) y alto h, centrado en (e, n), girado `rot`. */
-function block(out, e, n, z0, h, w, t, rot, col) { frustum(out, { ce: e, cn: n, z0, z1: z0 + h, w0: w, d0: t, w1: w, d1: t, rot, col }); }
+function block(out, e, n, z0, h, w, t, rot, col, mat) { frustum(out, { ce: e, cn: n, z0, z1: z0 + h, w0: w, d0: t, w1: w, d1: t, rot, col, mat }); }
+
+/** Bordes de las terrazas de una pirámide escalonada: [[altura, media anchura], …]. */
+export function tierEdges(m) {
+  const out = [], n = m.tiers, h = m.height / n;
+  for (let i = 0; i < n; i++) {
+    const wb = m.base - ((m.base - m.top) * i) / n, wn = m.base - ((m.base - m.top) * (i + 1)) / n;
+    out.push([(i + 1) * h, (wb - (wb - wn) * 0.72) / 2]);
+  }
+  return out;
+}
+
+// lado de una planta: dirección hacia fuera y la transversal (marco sin girar)
+const SIDE = { n: [0, 1], s: [0, -1], e: [1, 0], w: [-1, 0] };
+
+/** Escalinata de un lado: rampa con escalones desde el suelo, `out` m fuera de la base, hasta la plataforma. */
+function stair(out, m, st, top, H) {
+  const [ox, oy] = SIDE[st.side], tx = -oy, ty = ox, a1 = top / 2, hw = st.w / 2;
+  // la rampa pasa por fuera de todas las terrazas (si no, sus bordes la atravesarían): su pie se aleja lo justo
+  let a0 = m.base / 2 + st.out;
+  for (const [z, half] of tierEdges(m)) if (z < H) a0 = Math.max(a0, (half + 0.4 - (a1 * z) / H) / (1 - z / H));
+  const P = (a, t, z) => { const p = rotP([ox * a + tx * t, oy * a + ty * t, z], m.rot); return [p[0], p[1], z]; };
+  // la superficie de los escalones (v sube por la pendiente) y los costados, de la piedra del monumento
+  quad(out, P(a0, -hw, 0), P(a0, hw, 0), P(a1, hw, H), P(a1, -hw, H), m.color, "steps");
+  for (const sg of [-1, 1]) {
+    const t = sg * hw;
+    out.push({ v: [P(a0, t, 0), P(a1, t, H), P(a1, t, 0)], c: m.color, mat: m.mat });
+    // alfarda: un murete de 0,7 m sobre el costado
+    const t2 = sg * (hw + 0.8);
+    quad(out, P(a0, t, 0.7), P(a0, t2, 0.7), P(a1, t2, H), P(a1, t, H), m.color, m.mat);
+    quad(out, P(a0, t2, 0), P(a0, t2, 0.7), P(a1, t2, H), P(a1, t2, H - 0.7), m.color, m.mat);
+    out.push({ v: [P(a0, t, 0), P(a0, t, 0.7), P(a1, t, H)], c: m.color, mat: m.mat });
+  }
+}
+
+/** Puertas del templo: rectángulos oscuros apenas delante de cada cara. */
+function doors(out, m) {
+  const T = m.temple, hw = T.w / 2, z0 = m.height;
+  for (const side of Object.keys(T.doors || {})) {
+    const k = T.doors[side], [ox, oy] = SIDE[side], tx = -oy, ty = ox, dw = k > 1 ? 1.6 : 2.0, gap = (T.w - k * dw) / (k + 1);
+    for (let i = 0; i < k; i++) {
+      const t0 = -hw + gap * (i + 1) + dw * i, t1 = t0 + dw, a = hw + 0.06;
+      const P = (t, z) => { const p = rotP([ox * a + tx * t, oy * a + ty * t, z], m.rot); return [p[0], p[1], z]; };
+      quad(out, P(t0, z0 + 0.3), P(t1, z0 + 0.3), P(t1, z0 + 3.2), P(t0, z0 + 3.2), [0.05, 0.05, 0.05], "door");
+    }
+  }
+}
+
+// ruido determinista (para que las piedras no sean cajas perfectas)
+const hash3 = (x, y, z, s) => { const h = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719 + s * 4.581) * 43758.5453; return h - Math.floor(h); };
+
+/**
+ * Piedra tallada a mano: una caja subdividida cuyos vértices se deforman (bultos de ±6 %, cara superior
+ * redondeada hacia los bordes, algo más estrecha arriba). El centro de la cara superior queda a la altura h.
+ */
+function rock(out, e, n, z0, h, w, t, rot, col, mat, seed) {
+  const NX = 4, NY = 2, NZ = 5;
+  const f = (x, y, z) => {                       // x, y ∈ [−1, 1] (ancho, grueso); z ∈ [0, 1] (alto)
+    const taper = 1 - 0.12 * z;
+    const bx = 1 + 0.06 * (hash3(x, y, z, seed) - 0.5) * 2, by = 1 + 0.08 * (hash3(y, z, x, seed + 1) - 0.5) * 2;
+    const edge = Math.max(Math.abs(x), Math.abs(y));
+    const zz = z >= 1 ? 1 - 0.07 * edge * edge - 0.03 * hash3(x, y, 1, seed + 2) * edge : z;
+    const p = rotP([(x * w / 2) * taper * bx, (y * t / 2) * taper * by, 0], rot);
+    return [e + p[0], n + p[1], z0 + zz * h];
+  };
+  const grid = (fn, nu, nv) => {
+    for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
+      const a = fn(i / nu, j / nv), b = fn((i + 1) / nu, j / nv), c = fn((i + 1) / nu, (j + 1) / nv), d = fn(i / nu, (j + 1) / nv);
+      quad(out, a, b, c, d, col, mat);
+    }
+  };
+  const L = (u) => u * 2 - 1;
+  grid((u, v) => f(L(u), -1, v), NX, NZ); grid((u, v) => f(1 - 2 * u, 1, v), NX, NZ);     // caras anchas
+  grid((u, v) => f(1, L(u), v), NY, NZ); grid((u, v) => f(-1, 1 - 2 * u, v), NY, NZ);     // cantos
+  grid((u, v) => f(L(u), L(v), 1), NX, NY);                                               // arriba
+}
+
+/** Suelo que rodea un monumento (para recibir su sombra): { radius, mat }. */
+export function groundPatch(m) {
+  return { radius: (m.kind === "stonehenge" ? 95 : footprintRadius(m) + 60), mat: m.ground || "dirt" };
+}
 
 /** Triángulos del monumento: [{ v: [[e, n, u] × 3], c: color }]. */
 export function buildFaces(m) {
   const out = [], col = m.color;
   if (m.kind === "pyramid") {
-    frustum(out, { z0: 0, z1: m.height, w0: m.base, w1: m.top || 0, rot: m.rot, col, top: m.top > 0 });
+    if (m.casing) {
+      // Kefrén: hiladas desnudas abajo y, en el último cuarto, el revestimiento liso que se conserva
+      const zc = m.height * m.casing, wc = m.base * (1 - m.casing) + (m.top || 0) * m.casing;
+      frustum(out, { z0: 0, z1: zc, w0: m.base, w1: wc, rot: m.rot, col, mat: m.mat, top: false });
+      frustum(out, { z0: zc, z1: m.height, w0: wc, w1: m.top || 0, rot: m.rot, col, mat: "casing", top: m.top > 0 });
+    } else frustum(out, { z0: 0, z1: m.height, w0: m.base, w1: m.top || 0, rot: m.rot, col, mat: m.mat, top: m.top > 0 });
   } else if (m.kind === "stepped") {
     // cuerpos escalonados: cada uno con talud (se estrecha al subir) y una terraza antes del siguiente
     const n = m.tiers, h = m.height / n;
     for (let i = 0; i < n; i++) {
       const wb = m.base - ((m.base - m.top) * i) / n, wn = m.base - ((m.base - m.top) * (i + 1)) / n;
       const wt = wb - (wb - wn) * 0.72;
-      frustum(out, { z0: i * h, z1: (i + 1) * h, w0: wb, w1: wt, rot: m.rot, col });
+      frustum(out, { z0: i * h, z1: (i + 1) * h, w0: wb, w1: wt, rot: m.rot, col, mat: m.mat });
     }
-    if (m.temple) block(out, 0, 0, m.height, m.temple.h, m.temple.w, m.temple.w, m.rot, col);
+    for (const st of m.stairs || []) stair(out, m, st, m.top, m.height);
+    if (m.temple) { block(out, 0, 0, m.height, m.temple.h, m.temple.w, m.temple.w, m.rot, col, m.mat); doors(out, m); }
   } else if (m.kind === "mound") {
     // túmulo: muro de cuarzo (vertical) y encima la cúpula de hierba, casi plana arriba
     const seg = 48, rings = 7;
     const ring = (r, z) => Array.from({ length: seg }, (_, k) => { const a = (k / seg) * 2 * Math.PI; return [r * Math.sin(a), r * Math.cos(a), z]; });
     const b0 = ring(m.radius, 0), b1 = ring(m.radius, m.wall);
-    for (let k = 0; k < seg; k++) { const j = (k + 1) % seg; quad(out, b0[k], b0[j], b1[j], b1[k], m.wallColor); }
+    for (let k = 0; k < seg; k++) { const j = (k + 1) % seg; quad(out, b0[k], b0[j], b1[j], b1[k], m.wallColor, m.wallMat); }
     let prev = b1;
     for (let i = 1; i <= rings; i++) {
       const f = i / rings, r = m.radius * (1 - f), z = m.wall + (m.height - m.wall) * Math.pow(1 - Math.pow(1 - f, 2.2), 0.55);
-      if (i === rings) { for (let k = 0; k < seg; k++) out.push({ v: [prev[k], prev[(k + 1) % seg], [0, 0, m.height]], c: col }); break; }
+      if (i === rings) { for (let k = 0; k < seg; k++) out.push({ v: [prev[k], prev[(k + 1) % seg], [0, 0, m.height]], c: col, mat: m.mat }); break; }
       const cur = ring(r, z);
-      for (let k = 0; k < seg; k++) { const j = (k + 1) % seg; quad(out, prev[k], prev[j], cur[j], cur[k], col); }
+      for (let k = 0; k < seg; k++) { const j = (k + 1) % seg; quad(out, prev[k], prev[j], cur[j], cur[k], col, m.mat); }
       prev = cur;
     }
   } else if (m.kind === "stonehenge") {
@@ -136,13 +226,13 @@ export function buildFaces(m) {
 export const SH_STANDING = [1, 2, 3, 4, 5, 6, 7, 10, 11, 16, 21, 22, 23, 27, 28, 29, 30];
 export const SH_LINTELS = [[29, 30], [30, 1], [1, 2], [2, 3], [4, 5], [5, 6], [6, 7], [21, 22]];
 function stonehenge(out, m) {
-  const R = 15.6, ax = m.axis, col = m.color;
+  const R = 15.6, ax = m.axis, col = m.color, mat = m.mat;
   const azOf = (k) => ax + 6 + (k - 1) * 12;               // la 1 y la 30 flanquean la entrada
   const at = (az, r) => [r * Math.sin(az * RAD), r * Math.cos(az * RAD)];
-  for (const k of SH_STANDING) { const [e, n] = at(azOf(k), R); block(out, e, n, 0, 4.1, 2.1, 1.1, azOf(k), col); }
+  for (const k of SH_STANDING) { const [e, n] = at(azOf(k), R); rock(out, e, n, 0, 4.1, 2.1, 1.1, azOf(k), col, mat, k); }
   for (const [a, b] of SH_LINTELS) {
     const az = (azOf(a) + (((azOf(b) - azOf(a)) % 360) + 360) % 360 / 2), [e, n] = at(az, R);
-    block(out, e, n, 4.1, 0.8, 2 * R * Math.sin(6 * RAD) + 1.4, 1.0, az, col);
+    rock(out, e, n, 4.05, 0.8, 2 * R * Math.sin(6 * RAD) + 1.4, 1.0, az, col, mat, 100 + a);
   }
   // trilitos: [acimut desde el centro, radio, alto, ¿izquierda en pie?, ¿derecha en pie?, ¿dintel?]
   // (alto de las piedras en pie: 5,2 y 5,6 m con dinteles de 0,9 m, ~6,1 y 6,5 m en total; del gran trilito, que
@@ -151,12 +241,12 @@ function stonehenge(out, m) {
     [ax + 242, 8.0, 5.6, true, true, true], [ax + 296, 8.8, 5.2, false, true, false]];
   for (const [az, r, h, l, rr, lin] of TRI) {
     const [e, n] = at(az, r), tx = Math.cos(az * RAD), ty = -Math.sin(az * RAD);   // tangente
-    if (l) block(out, e - tx * 1.25, n - ty * 1.25, 0, h, 2.2, 1.2, az, col);
-    if (rr) block(out, e + tx * 1.25, n + ty * 1.25, 0, h, 2.2, 1.2, az, col);
-    if (lin) block(out, e, n, h, 0.9, 4.9, 1.1, az, col);
+    if (l) rock(out, e - tx * 1.25, n - ty * 1.25, 0, h, 2.2, 1.2, az, col, mat, 200 + az);
+    if (rr) rock(out, e + tx * 1.25, n + ty * 1.25, 0, h, 2.2, 1.2, az, col, mat, 300 + az);
+    if (lin) rock(out, e, n, h - 0.05, 0.9, 4.9, 1.1, az, col, mat, 400 + az);
   }
   const [he, hn] = at(51.3, 77);
-  block(out, he, hn, 0, 4.7, 2.4, 2.1, 51.3, col);
+  rock(out, he, hn, 0, 4.7, 2.4, 2.1, 51.3, col, mat, 77);
 }
 
 /** Lo más alto del monumento (para el nombre): [e, n, u]. */

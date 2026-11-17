@@ -1,5 +1,20 @@
 # Cambios
 
+## 1.15.0 — 17 de noviembre de 2026
+
+- Monumentos más realistas: texturas de piedra con relieve, generadas en el
+  propio teléfono (las hiladas de caliza de Guiza y el revestimiento que
+  conserva Kefrén arriba, la piedra volcánica de Teotihuacan, los sillares
+  claros de Chichén Itzá, la arenisca con líquenes de Stonehenge, el cuarzo de
+  Newgrange), luz del Sol del momento con su color (dorada al amanecer y al
+  atardecer), luz del cielo y sombras: cada cuerpo de la pirámide sombrea al de
+  abajo y al suelo que la rodea, que también se dibuja (tierra, arena o
+  hierba) hasta tus pies. Escalinatas con sus escalones y alfardas (cuatro en El
+  Castillo, con su templo y sus puertas), piedras de Stonehenge talladas a mano
+  en vez de cajas. De noche, silueta apenas iluminada por el cielo.
+- Los monumentos tapan al Sol y a la Luna cuando pasan por detrás (el amanecer
+  del solsticio entre las piedras de Stonehenge).
+
 ## 1.14.0 — 17 de noviembre de 2026
 
 - Cielo: monumentos. Nuevo interruptor «Monumentos» dentro de «Montañas»

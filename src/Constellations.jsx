@@ -1009,6 +1009,9 @@ export default function Constellations({ lang = "es" }) {
     // sin preserveDrawingBuffer: la postal vuelve a renderizar justo antes de copiar el lienzo
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(W, H);
+    // sombras: solo las proyecta la luz del Sol de los monumentos (monumentLayer.js); sin monumentos no hay coste
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // densidad de píxeles: como mucho 2 (por encima la GPU pinta 2–3× más píxeles sin ganancia visible) y,
     // si los FPS caen de forma sostenida, baja por escalones y se restaura al mejorar (src/sky/perf.js)
     const basePR = Math.min(window.devicePixelRatio || 1, 2);
