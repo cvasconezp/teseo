@@ -682,3 +682,11 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-stage .sk-ts-dayrange::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: #8db2ff; border: 2px solid #fff; }
 .sk-stage .sk-ts-phase { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 12.5px; color: rgba(255, 255, 255, 0.75); white-space: nowrap; pointer-events: none; }
 @media (max-width: 899.98px) { .sk-stage .sk-ts .sk-ts-phase { max-width: 40%; } }
+.sk-stage .sk-arrail button { position: relative; }
+.sk-stage .sk-arrail button.tone-gold { color: var(--gold, #f2c66d); border-color: rgba(242, 198, 109, 0.6); }
+.sk-stage .sk-arrail button.tone-blue { color: #9cc2ff; border-color: rgba(125, 180, 255, 0.7); }
+.sk-stage .sk-arrail button:disabled { opacity: 0.45; }
+.sk-stage .sk-arrail-badge { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 700; color: #fff; background: #7c5cff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+/* al mirar arrastrando en el teléfono, la columna sustituye a la barra de abajo: el botón «Esta noche» baja */
+.sk-stage.has-rail .sk-cta { bottom: calc(14px + var(--sk-safe, 0px) + env(safe-area-inset-bottom, 0px)); }
+.sk-stage.has-rail .sk-ts { bottom: calc(14px + var(--sk-safe, 0px) + env(safe-area-inset-bottom, 0px)); }

@@ -23,6 +23,8 @@ ok(dayProfile(null, null, new Date()) === null, "sin lugar, sin fases");
 const sky = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
 ok(/<ArRail /.test(sky) && /<TimeSheet /.test(sky) && /openPanel\("location"\)/.test(sky) && /openPanel\("layers"\)/.test(sky), "en el modo apuntar, a la derecha: tiempo, lugar, capas y buscar");
 ok(/help=\{false\}/.test(sky), "la ayuda de alinear el norte ya no sale sola");
+ok(/const railView = !!\(sky && !isWide && !tourActive && !arBar\)/.test(sky) && /onTour=\{\(\) => \{ setTsOpen\(false\); startTour\(\); \}\}/.test(sky) && /!tourActive && !railView && \(\s*<Dock/.test(sky), "en el teléfono, al mirar arrastrando, la misma columna (con el tour) en lugar de la barra de abajo");
+ok((sky.match(/!covered && !railOpen && \(\s*<ArRail/g) || []).length === 2 && /if \(railOpen\) setTsOpen\(false\)/.test(sky), "con el menú «…» abierto, la columna y el tiempo se apartan");
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

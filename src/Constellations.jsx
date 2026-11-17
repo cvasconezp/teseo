@@ -3347,7 +3347,11 @@ export default function Constellations({ lang = "es" }) {
   const showOnboard = !!(showHint && sky && !selObj && !issSheetOn && !panel && !tourActive && !showDepth && !arOn);
   // barra de "Apuntar al cielo": invitación (dentro de Mi cielo), indicador activo o aviso de error
   const arBar = !sky || tourActive ? null : arOn ? "on" : ar === "paused" ? "paused" : arError ? "error" : null;
-  useEffect(() => { if (arBar !== "on" && arBar !== "paused") setTsOpen(false); }, [arBar]);
+  // la columna de la derecha también al mirar arrastrando en el teléfono (sin la barra de abajo)
+  const railView = !!(sky && !isWide && !tourActive && !arBar);
+  useEffect(() => { if (arBar !== "on" && arBar !== "paused" && !railView) setTsOpen(false); }, [arBar, railView]);
+  // el menú «…» y la columna comparten el lado derecho: con el menú abierto, la columna (y el tiempo) se apartan
+  useEffect(() => { if (railOpen) setTsOpen(false); }, [railOpen]);
   const immersive = arOn && !isWide;          // teléfono apuntando: el cielo ocupa toda la pantalla
   const inMySky = localMode && lat != null;
   // "Esta noche": solo se calcula con el panel abierto
@@ -3460,7 +3464,7 @@ export default function Constellations({ lang = "es" }) {
   }, [selCon, datasets.messier, datasets.caldwell, datasets.galaxies, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
   const showActions = !!(sky && !tourActive && !arOn && ar !== "paused" && !arError && inMySky && !covered && !showOnboard && !viewFrom && !showDepth);
   // compartiendo en el teléfono, el visor pasa a pantalla completa: la vista previa necesita todo el alto
-  const stageClass = "sk-stage" + (full || immersive || (share && !isWide) ? " is-full" : "") + (immersive ? " is-immersive" : "") + (arOn && arCtl ? " ar-ctl" : "") + (covered ? " is-covered" : "") + (selObj || issSheetOn ? " has-sheet" : "")
+  const stageClass = "sk-stage" + (full || immersive || (share && !isWide) ? " is-full" : "") + (immersive ? " is-immersive" : "") + (arOn && arCtl ? " ar-ctl" : "") + (covered ? " is-covered" : "") + (selObj || issSheetOn ? " has-sheet" : "") + (railView ? " has-rail" : "")
     + (tourActive ? " has-tour" : "") + (showDepth ? " has-depth" : "") + (issSel ? " has-isspill" : "") + (arOn ? " is-ar" : "") + (panel ? " has-panel" : "");
   const bumpCtl = arOn && arCtl ? () => setCtlBump(n => n + 1) : undefined;
 
@@ -3558,7 +3562,17 @@ export default function Constellations({ lang = "es" }) {
         </section>
       )}
 
-      {sky && !tourActive && (
+      {/* teléfono, mirando arrastrando: la columna de la derecha (como al apuntar) en lugar de la barra de abajo */}
+      {railView && !covered && !railOpen && (
+        <ArRail lang={lang} timeOpen={tsOpen} timeMoved={timeMoved} placeOn={localMode} layersOn={layersOn}
+          onTime={() => setTsOpen((v) => !v)} onPlace={() => { setTsOpen(false); openPanel("location"); }}
+          onLayers={() => { setTsOpen(false); openPanel("layers"); }} onTour={() => { setTsOpen(false); startTour(); }} tourReady={tourReady} />
+      )}
+      {railView && tsOpen && !covered && (
+        <TimeSheet lang={lang} date={when} lat={localMode ? lat : null} lon={localMode ? lon : null} isNow={!timeMoved} rateIdx={rateIdx}
+          onRate={setRate} onStep={tsStep} onNow={tsNow} onNight={tsNight} onSetMinute={tsMinute} onClose={() => setTsOpen(false)} />
+      )}
+      {sky && !tourActive && !railView && (
         <Dock t={t} panel={panel} onPanel={openPanel} localMode={localMode} tourReady={tourReady} onTour={startTour}
           timeLabel={timeMoved ? fmtWhenShort(when, lang) : t.now} isNow={!timeMoved} playing={playing}
           layersOn={layersOn} layersWarn={failedLayers.length > 0} mySkyLabel={!isWide && inMySky ? placeLabel : null} />
@@ -3580,7 +3594,7 @@ export default function Constellations({ lang = "es" }) {
           onLayers={() => openPanel("layers")} onTonight={() => openPanel("tonight")}
           onSearch={() => { const i = stageRef.current && stageRef.current.querySelector(".sk-search input"); if (i) i.focus(); }} />
       )}
-      {(arBar === "on" || arBar === "paused") && !covered && (
+      {(arBar === "on" || arBar === "paused") && !covered && !railOpen && (
         <ArRail lang={lang} timeOpen={tsOpen} onTime={() => { setTsOpen((v) => !v); setArCtl(false); }}
           onPlace={() => { setTsOpen(false); openPanel("location"); }} onLayers={() => { setTsOpen(false); openPanel("layers"); }}
           onSearch={() => { setTsOpen(false); const i = stageRef.current && stageRef.current.querySelector(".sk-search input"); if (i) i.focus(); }} />

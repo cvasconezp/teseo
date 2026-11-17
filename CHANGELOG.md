@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.16.1 — 17 de noviembre de 2026
+
+- En el teléfono, al mirar el cielo arrastrando, la misma columna de la derecha
+  que al apuntar (Tiempo, Lugar, Capas y Tour) en lugar de la barra de abajo;
+  «Tiempo» abre el control tipo Stellarium. «Lugar» se pinta de azul con un
+  lugar en Mi cielo y «Tiempo» de dorado si la hora no es la de ahora.
+- El menú «…» ya no se monta sobre la columna: al abrirlo, la columna (y el
+  control de tiempo) se apartan.
+
 ## 1.16.0 — 17 de noviembre de 2026
 
 - Modo apuntar: a la derecha, una columna con Tiempo, Lugar, Capas y Buscar,
