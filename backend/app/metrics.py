@@ -87,7 +87,7 @@ SKY_KINDS = {
     "meteors", "comets", "probes", "exoplanets", "satellite", "other",
 }
 SKY_AR = {"on", "off", "denied", "nosensor", "pending"}
-SKY_SETTINGS = {"atmosphere", "light_pollution", "clouds", "satellite", "labels", "lines", "art", "grid", "horizon", "night", "guides", "other"}
+SKY_SETTINGS = {"atmosphere", "light_pollution", "clouds", "satellite", "horizon", "labels", "lines", "art", "grid", "horizon", "night", "guides", "other"}
 STATES = {"on", "off", "ok", "fail", "start", "done", "skip"}
 ISS_KINDS = {"view", "show", "retry", "list_all", "remove", "sheet", "play"}
 ISS_STATES = {"ok", "empty", "stale", "fail", "hidden"}

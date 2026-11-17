@@ -231,6 +231,7 @@ const T = {
         ["NOAA SWPC (space weather)", "Active solar regions, X-ray flares (GOES), Kp index, solar cycle"],
         ["IAU · IERS", "Astronomical constants, the 88 official constellations, Earth orientation"],
         ["Clouds and weather", "Open-Meteo.com forecast (CC BY 4.0) · satellite images: NASA GIBS (GOES GeoColor by NOAA/CIRA, VIIRS) and EUMETSAT (Meteosat)"],
+        ["Terrain (real horizon)", "AWS Terrain Tiles (Mapzen): NASA SRTM, USGS GMTED2010, NOAA ETOPO1 and others"],
       ]},
       { g: "Catalogues, tracking and community", items: [
         ["Stars and distances", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],
@@ -420,6 +421,7 @@ const T = {
         ["NOAA SWPC (clima espacial)", "Regiones activas del Sol, fulguraciones (GOES), índice Kp, ciclo solar"],
         ["UAI · IERS", "Constantes astronómicas, las 88 constelaciones oficiales, orientación de la Tierra"],
         ["Nubes y clima", "Pronóstico de Open-Meteo.com (CC BY 4.0) · imágenes de satélite: NASA GIBS (GeoColor de los GOES, de NOAA/CIRA; VIIRS) y EUMETSAT (Meteosat)"],
+        ["Relieve (horizonte real)", "AWS Terrain Tiles (Mapzen): SRTM de la NASA, GMTED2010 del USGS, ETOPO1 de NOAA y otros"],
       ]},
       { g: "Catálogos, seguimiento y comunidad", items: [
         ["Estrellas y distancias", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],

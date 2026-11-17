@@ -198,7 +198,7 @@ export function RiseSet({ obj, t, lang, local, when, onNeedPlace }) {
   // el cálculo se rehace por minuto, no por render
   const minute = Math.floor(when.getTime() / 60000);
   const vis = useMemo(() => (local ? visibilityOf(obj, local, new Date(minute * 60000)) : null),
-    [obj.name, obj.layer, obj.nx, obj.ny, obj.nz, local && local.lat, local && local.lon, local && local.elev, minute]);   // eslint-disable-line react-hooks/exhaustive-deps
+    [obj.name, obj.layer, obj.nx, obj.ny, obj.nz, local && local.lat, local && local.lon, local && local.elev, local && local.horizon, minute]);   // eslint-disable-line react-hooks/exhaustive-deps
   if (obj.nx == null || obj.layer === "note") return null;
   if (!local) {
     return (
@@ -213,7 +213,7 @@ export function RiseSet({ obj, t, lang, local, when, onNeedPlace }) {
   const hm = (d) => d.toLocaleTimeString(loc, lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { hour: "numeric", minute: "2-digit" });
   // si el instante cae en otro día que el de referencia, se dice cuál
   const dayOf = (d) => (d.toDateString() === when.toDateString() ? "" : t.rsDay(d.toLocaleDateString(loc, { weekday: "short", day: "numeric" })));
-  const { rts, best, now, isSun } = vis;
+  const { rts, best, now, isSun, terrain } = vis;
   // si los tres instantes caen en el mismo día (distinto de hoy), el día se dice una sola vez
   const evs = [rts.rise, rts.transit, rts.set].filter(Boolean).map((x) => dayOf(x.date));
   const oneDay = evs.length > 0 && evs.every((d) => d === evs[0]) ? evs[0] : null;
@@ -235,8 +235,10 @@ export function RiseSet({ obj, t, lang, local, when, onNeedPlace }) {
     <section className="sk-rs" aria-label={t.rsTitle(local.place)}>
       <h3><Icon name="pin" size={15} />{t.rsTitle(local.place)}</h3>
       <p className="sk-rs-main">{main}</p>
-      <p>{now.alt > 0 ? t.rsUp(Math.round(now.alt), compassPoint8(now.az)) : t.rsDown}{bestLine ? " " + bestLine : ""}</p>
-      <small>{t.rsHint}</small>
+      {terrain && (terrain.hiddenAllDay ? <p className="sk-rs-hz">{t.rsTerrainNever}</p>
+        : (terrain.rise || terrain.set) ? <p className="sk-rs-hz">{t.rsTerrain(terrain.rise && hm(terrain.rise) + dayOf(terrain.rise), terrain.set && hm(terrain.set) + dayOf(terrain.set))}</p> : null)}
+      <p>{now.alt > 0 ? (terrain && terrain.behindNow ? t.rsBehindNow : t.rsUp(Math.round(now.alt), compassPoint8(now.az))) : t.rsDown}{bestLine ? " " + bestLine : ""}</p>
+      <small>{terrain && (terrain.rise || terrain.set || terrain.hiddenAllDay) && t.rsHintHz ? t.rsHintHz : t.rsHint}</small>
     </section>
   );
 }

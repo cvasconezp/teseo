@@ -24,3 +24,9 @@
 .sk-stage .sk-wx-pinlbl { position: absolute; left: 50%; top: calc(50% + 15px); transform: translateX(-50%); padding: 1px 6px; border-radius: 6px; background: rgba(4, 8, 15, 0.72); font-size: 12px; font-weight: 600; color: #F2C46D; white-space: nowrap; }
 .sk-stage .sk-wx-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; padding: 16px; text-align: center; font-size: 13px; color: var(--mute); }
 .sk-stage .sk-wx-satwhen { margin: 0; font-size: 13px; font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Montañas (TerrainControl.jsx) */
+.sk-stage .sk-hz { display: flex; flex-direction: column; gap: 8px; }
+.sk-stage .sk-hz-dot { background: linear-gradient(180deg, #e9eef8 0%, #e9eef8 22%, #6f7aa0 23%, #2a3150 100%); clip-path: polygon(0 100%, 30% 35%, 48% 60%, 70% 10%, 100% 100%); border-radius: 0; box-shadow: none; }
+.sk-stage .sk-hz-box { display: flex; flex-direction: column; gap: 6px; margin: 0 10px 0 34px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.03); }
+.sk-stage .sk-hz-line { margin: 0; font-size: 13.5px; line-height: 1.4; color: var(--text); }

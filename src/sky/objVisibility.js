@@ -15,6 +15,7 @@ import { riseTransitSet, bestTonight, horizonFor, moonH0 } from "./riseset.js";
 import { altAz } from "./guide.js";
 import { ephemeris } from "../ephemeris.js";
 import { j2000ToDate, topocentric, bodyDistKm } from "./frames.js";
+import { terrainRiseSet, apparentAlt, terrainAltAt } from "./horizon.js";
 
 // el cuerpo `name` de ephemeris(d), con un pequeño recuerdo del último instante (las búsquedas
 // piden la dirección y la distancia del mismo instante seguidas)
@@ -25,9 +26,11 @@ function bodyCache(name) {
 const dirOfBody = (b) => [b.nx, b.ny, b.nz];
 
 /**
- * { rts, best, now, isSun } o null si el objeto no tiene dirección.
+ * { rts, best, now, isSun, terrain } o null si el objeto no tiene dirección.
  *   obj    objeto de la escena: { layer, name, nx, ny, nz } (nx… en J2000; para "solar" se usa ephemeris por nombre)
- *   local  { lat, lon, elev? } (grados; metros)
+ *   local  { lat, lon, elev?, horizon? } (grados; metros; horizon = respuesta de /api/horizon: montañas reales)
+ *   terrain (solo con horizon): { rise, set, hiddenAllDay, behindNow } — cuándo asoma y cuándo se esconde tras
+ *          el relieve (horizon.js → terrainRiseSet) y si ahora mismo está detrás; null si no cambia nada.
  *   when   Date
  */
 export function visibilityOf(obj, local, when) {
@@ -54,5 +57,14 @@ export function visibilityOf(obj, local, when) {
   const sunAt = bodyCache("Sol"), sunDirAt = (d) => dirOfBody(sunAt(d));
   // estrellas débiles y cielo profundo piden cielo oscuro (−12°); la Luna y los planetas ya se ven con −6°
   const best = isSun ? null : bestTonight(dirAt, sunDirAt, local.lat, local.lon, when, { sunLimit: solar ? -6 : -12 });
-  return { rts, best, now, isSun };
+  let terrain = null;
+  if (local.horizon) {
+    const azAt = (ms) => { const d = new Date(ms), v = dirAt(d); return altAz(v[0], v[1], v[2], local.lat, local.lon, d).az; };
+    const altAt = (ms) => { const d = new Date(ms), v = dirAt(d); return altAz(v[0], v[1], v[2], local.lat, local.lon, d).alt; };
+    // el borde superior del Sol y de la Luna (≈ 0,26°) es lo primero que asoma y lo último que se esconde
+    const tr = terrainRiseSet(altAt, azAt, local.horizon, rts, { upper: isSun || isMoon ? 0.26 : 0 });
+    const behindNow = now.alt > 0 && apparentAlt(now.alt) + (isSun || isMoon ? 0.26 : 0) < terrainAltAt(local.horizon, now.az);
+    if (tr || behindNow) terrain = { ...(tr || { rise: null, set: null, hiddenAllDay: false }), behindNow };
+  }
+  return { rts, best, now, isSun, terrain };
 }

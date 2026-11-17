@@ -21,6 +21,7 @@ Endpoints:
   GET  /api/iss/passes                → pasadas de la ISS sobre un lugar (CelesTrak + SGP4)
   GET  /api/sun/today                 → «El Sol hoy»: manchas (SILSO), regiones, fulguraciones, Kp, ciclo (NOAA SWPC), imagen SDO
   GET  /api/missions/mars             → ventana a Marte + naves con destino Marte
+  GET  /api/horizon?lat&lon            → horizonte real del lugar: silueta del relieve (AWS Terrain Tiles)
   GET  /api/img?u=<url>               → proxy de imágenes con CORS para las imágenes para compartir (lista blanca de hosts)
   POST /api/m  (= /api/metrics/event) → métricas de uso anónimas y agregadas (204 siempre)
   GET  /api/metrics/summary[.csv]     → resumen de uso (token TESEO_METRICS_TOKEN; 404 sin él)
@@ -59,6 +60,7 @@ from app import metrics
 from app import lambert
 from app import mga
 from app import img_proxy
+from app import horizon
 from app.cache import ProviderError, iso_utc
 
 VERSION = "1.9.0"
@@ -203,6 +205,7 @@ def api_health():
             "launches": {"provider": launches.SOURCE, **launches.resource.status()},
             "asteroids": {"provider": asteroids.SOURCE, **asteroids.resource.status()},
             "iss": {"provider": iss.SOURCE, **iss.resource.status()},
+            "horizon": {"provider": horizon.SOURCE, "cells_cached": len(horizon._results), "tiles_cached": len(horizon._tiles), **{k: v for k, v in horizon.stats.items()}},
             "sun": {"provider": "SILSO / NOAA SWPC / NASA SDO", **sun.status()},
             "exoplanets": {"provider": "NASA Exoplanet Archive", **exoplanets.resource.status()},
             "positions": {"provider": "NASA JPL Horizons", **nasa_horizons.positions_status()},
@@ -352,6 +355,7 @@ async def _metrics_flusher():
 
 app.include_router(sun.router)  # «El Sol hoy»: /api/sun/today (app/sun.py)
 app.include_router(push.router)  # «Recordarme»: /api/push/* y su bucle de envío (arranque/parada en app/push.py)
+app.include_router(horizon.router)  # horizonte real: /api/horizon (app/horizon.py, relieve de AWS Terrain Tiles)
 app.include_router(img_proxy.router)  # imágenes para compartir: /api/img (app/img_proxy.py, lista blanca de hosts)
 
 

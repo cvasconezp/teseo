@@ -46,6 +46,7 @@ copia; nuestro render 3D es propio, con Three.js.)
 | Pronóstico de nubes de la vista Cielo (`src/sky/weather.js`) | [Open-Meteo.com](https://open-meteo.com/) (modelos meteorológicos nacionales), consultado desde el navegador | datos CC BY 4.0; API gratuita para uso no comercial (ver abajo) |
 | Nubes vistas desde el satélite: GOES-19 y GOES-18 «GeoColor», VIIRS del NOAA-20 (`src/sky/satellite.js`) | [NASA GIBS](https://gibs.earthdata.nasa.gov/) (Global Imagery Browse Services, NASA EOSDIS); GeoColor de NOAA/CIRA | sin restricciones de uso; crédito "NASA GIBS" y "NOAA/CIRA" |
 | Nubes vistas desde el satélite: Meteosat-12 (MTG) «GeoColour» (`src/sky/satellite.js`) | [EUMETSAT — EUMETView](https://view.eumetsat.int/) | imágenes de EUMETSAT con atribución "EUMETSAT" |
+| Horizonte real del lugar (montañas) (`backend/app/horizon.py`) | [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) (Mapzen, formato terrarium) a partir de SRTM (NASA), GMTED2010 (USGS), ETOPO1 (NOAA) y otros modelos | datos abiertos con atribución (ver abajo) |
 | Narrativa | Groq (modelos Llama) | — servicio |
 | Render 3D | Three.js | MIT |
 
@@ -61,6 +62,14 @@ copia; nuestro render 3D es propio, con Three.js.)
 - **NASA GIBS** (<https://nasa-gibs.github.io/gibs-api-docs/>): imágenes de NASA EOSDIS sin restricciones de uso;
   se pide citar la fuente. GeoColor es un producto de NOAA/CIRA.
 - **EUMETSAT EUMETView** (<https://view.eumetsat.int/>): servicio WMS público de EUMETSAT; se cita "EUMETSAT".
+
+## Relieve (horizonte real)
+
+- **AWS Terrain Tiles** (<https://registry.opendata.aws/terrain-tiles/> y
+  <https://github.com/tilezen/joerd/blob/master/docs/attribution.md>): teselas de elevación de Mapzen en el Registro de
+  Datos Abiertos de AWS, sin claves. Se atribuyen sus fuentes: SRTM y GMTED2010 (USGS/NASA, dominio público),
+  ETOPO1 (NOAA), y modelos nacionales en algunos países. El backend las descarga, calcula el horizonte y solo
+  envía al navegador la lista de ángulos.
 
 ## Condiciones de uso de las API en vivo (backend)
 

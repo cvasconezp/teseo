@@ -24,6 +24,10 @@ sgp4==2.27
 # Recordatorios push (app/push.py): cifrado aes128gcm (RFC 8291) y firma VAPID (RFC 8292).
 # Comprobado: no cambia astropy==5.3.4, numpy==1.26.4 ni hapsira==0.18.0. Añade requests, aiohttp
 # (no se usa: pywebpush la importa para su variante asíncrona), py-vapid, http-ece y cryptography>=47.
+# Horizonte real (app/horizon.py): decodifica las teselas PNG de elevación. Rueda binaria para Python 3.11;
+# no toca numpy==1.26.4 ni astropy==5.3.4.
+pillow==12.3.0
+
 pywebpush==2.5.0
 py-vapid==1.9.6
 http-ece==1.2.1
