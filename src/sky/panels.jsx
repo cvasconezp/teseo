@@ -405,7 +405,7 @@ export const PointingBar = memo(function PointingBar({ t, mode, source, error, a
             <button type="button" className="sk-artray-btn is-icon" onClick={() => onZoom(0.8)} aria-label={t.zoomIn}><Icon name="plus" size={20} /></button>
           </div>
           <div className="sk-artray-help">
-            <p>{hint}</p>
+            {source === "relative" && <p>{hint}</p>}
             {northLine && <p className="sk-artray-north" title={t.declWhy}><Icon name="target" size={14} />{northLine}</p>}
             {onNudge && (
               <div className="sk-artray-align" role="group" aria-label={t.pointAlign}>

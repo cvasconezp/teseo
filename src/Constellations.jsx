@@ -36,6 +36,8 @@ import { createPointing, pointingSupported } from "./sky/pointing.js";
 import ObjectSheet, { describeObject, visibilityOf } from "./sky/ObjectSheet.jsx";
 import ConstellationSheet from "./sky/ConstellationSheet.jsx";
 import ShareDialog from "./sky/ShareDialog.jsx";
+import TimeSheet, { ArRail } from "./sky/TimeSheet.jsx";
+import { RATES, REAL, stepField } from "./sky/timeDial.js";
 import { buildPostcard } from "./sky/postcard.js";
 import { snapshotView } from "./sky/viewSnapshot.js";
 import { starHex } from "./sky/starColor.js";
@@ -673,6 +675,8 @@ export default function Constellations({ lang = "es" }) {
   const [guide, setGuide] = useState(null);           // objetivo a encontrar apuntando: { label, body | dir }
   const [arCtl, setArCtl] = useState(false);          // controles temporales mientras se apunta
   const [arHelp, setArHelp] = useState(false);        // ayuda de alineación (solo los primeros segundos)
+  const [tsOpen, setTsOpen] = useState(false);         // control de tiempo tipo Stellarium (modo apuntar)
+  const [rateIdx, setRateIdx] = useState(REAL);        // velocidad del tiempo (timeDial.RATES)
   const [ctlBump, setCtlBump] = useState(0);          // cada toque en los controles reinicia su temporizador
   const [railOpen, setRailOpen] = useState(false);    // móvil: menú "más" (zoom, centrar, postal, pantalla completa)
   const railRef = useRef(null);
@@ -1795,7 +1799,7 @@ export default function Constellations({ lang = "es" }) {
         // zonas tapadas por la ficha o un panel: ahí no se dibujan nombres (ni a medias)
         if (ref._occN++ % 6 === 0) {
           const stEl = mount.parentElement, sr = stEl.getBoundingClientRect();
-          ref.occl = [...stEl.querySelectorAll(".sk-sheet, .sk-panel, .sk-search-field, .sk-rail button, .sk-dock, .sk-cta-btn, .sk-arpill, .sk-artray, .sk-guide-msg, .sk-depth, .sk-tour, .sk-onboard, .sk-chip")].map(el => { const r = el.getBoundingClientRect(); return [r.left - sr.left - 8, r.top - sr.top - 6, r.right - sr.left + 8, r.bottom - sr.top]; });
+          ref.occl = [...stEl.querySelectorAll(".sk-sheet, .sk-panel, .sk-search-field, .sk-rail button, .sk-dock, .sk-cta-btn, .sk-arpill, .sk-artray, .sk-arrail, .sk-ts, .sk-guide-msg, .sk-depth, .sk-tour, .sk-onboard, .sk-chip")].map(el => { const r = el.getBoundingClientRect(); return [r.left - sr.left - 8, r.top - sr.top - 6, r.right - sr.left + 8, r.bottom - sr.top]; });
         }
         const occl = ref.occl;
         const free = (x0, y0, x1, y1) => {
@@ -2498,6 +2502,40 @@ export default function Constellations({ lang = "es" }) {
     ref.notes = notes.filter((n) => enabled[n.layer]);
     ref.noteTags = TC[lang].noteTag;
   }, [notes, enabled, lang, ready]);
+  // velocidad del tiempo (control tipo Stellarium): minutos de cielo por segundo; los minutos sueltos se acumulan
+  const rateAcc = useRef(0);
+  useEffect(() => {
+    const r = RATES[rateIdx];
+    if (r === 0 || rateIdx === REAL) return;
+    rateAcc.current = 0;
+    const id = setInterval(() => {
+      rateAcc.current += r * 0.1;
+      const whole = rateAcc.current > 0 ? Math.floor(rateAcc.current) : Math.ceil(rateAcc.current);
+      if (!whole) return;
+      rateAcc.current -= whole;
+      setWhenStr((w) => fmtInput(new Date(new Date(w).getTime() + whole * 60000)));
+    }, 100);
+    return () => clearInterval(id);
+  }, [rateIdx]);
+  // a velocidad real pero con la hora movida: el cielo avanza un minuto por minuto (en «ahora» ya sigue al reloj)
+  useEffect(() => {
+    if (rateIdx !== REAL || !timeMoved) return;
+    const id = setInterval(() => setWhenStr((w) => fmtInput(new Date(new Date(w).getTime() + 60000))), 60000);
+    return () => clearInterval(id);
+  }, [rateIdx, timeMoved]);
+  const setRate = useCallback((i) => {
+    track("sky_time", { kind: "rate" });
+    setPlaying(false);
+    if (i !== REAL) setTimeMoved(true);
+    setRateIdx(i);
+  }, []);
+  const tsStep = useCallback((f, dir) => { setPlaying(false); setTimeMoved(true); setWhenStr((w) => fmtInput(stepField(new Date(w), f, dir))); }, []);
+  const tsNow = useCallback(() => { track("sky_time", { kind: "now" }); setPlaying(false); setTimeMoved(false); setRateIdx(REAL); setWhenStr(nowLocalInput()); }, []);
+  const tsNight = useCallback((dir) => { track("sky_time", { kind: dir > 0 ? "forward" : "back" }); setPlaying(false); setTimeMoved(true); setWhenStr((w) => fmtInput(stepField(new Date(w), "day", dir))); }, []);
+  const tsMinute = useCallback((min) => {
+    setPlaying(false); setTimeMoved(true);
+    setWhenStr((w) => { const d = new Date(w); d.setHours(Math.floor(min / 60), min % 60, 0, 0); return fmtInput(d); });
+  }, []);
   const shiftMin = useCallback((m) => { setTimeMoved(true); setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + m * 60000))); }, []);
   useEffect(() => { if (sceneRef.current) sceneRef.current.labelDensity = labelDensity; }, [labelDensity, ready]);
   // tras cada render de React (capas, selección, hora, idioma…) el bucle dibuja a ritmo completo medio segundo
@@ -3309,6 +3347,7 @@ export default function Constellations({ lang = "es" }) {
   const showOnboard = !!(showHint && sky && !selObj && !issSheetOn && !panel && !tourActive && !showDepth && !arOn);
   // barra de "Apuntar al cielo": invitación (dentro de Mi cielo), indicador activo o aviso de error
   const arBar = !sky || tourActive ? null : arOn ? "on" : ar === "paused" ? "paused" : arError ? "error" : null;
+  useEffect(() => { if (arBar !== "on" && arBar !== "paused") setTsOpen(false); }, [arBar]);
   const immersive = arOn && !isWide;          // teléfono apuntando: el cielo ocupa toda la pantalla
   const inMySky = localMode && lat != null;
   // "Esta noche": solo se calcula con el panel abierto
@@ -3537,9 +3576,18 @@ export default function Constellations({ lang = "es" }) {
       {arBar && (
         <PointingBar t={t} mode={arBar} source={arSrc} error={arError} aligned={arAligned} apiRef={arHudRef}
           onStart={startAr} onExit={stopAr} onReset={resetArAlign} onNudge={nudgeArAlign} onResume={() => resumeAr("button")} onDismiss={() => setArError(null)} canRetry={arCapable}
-          ctl={arCtl} onCtl={() => setArCtl(v => !v)} help={arHelp && !covered} onZoom={zoomBy} north={northText}
+          ctl={arCtl} onCtl={() => setArCtl(v => !v)} help={false} onZoom={zoomBy} north={northText}
           onLayers={() => openPanel("layers")} onTonight={() => openPanel("tonight")}
           onSearch={() => { const i = stageRef.current && stageRef.current.querySelector(".sk-search input"); if (i) i.focus(); }} />
+      )}
+      {(arBar === "on" || arBar === "paused") && !covered && (
+        <ArRail lang={lang} timeOpen={tsOpen} onTime={() => { setTsOpen((v) => !v); setArCtl(false); }}
+          onPlace={() => { setTsOpen(false); openPanel("location"); }} onLayers={() => { setTsOpen(false); openPanel("layers"); }}
+          onSearch={() => { setTsOpen(false); const i = stageRef.current && stageRef.current.querySelector(".sk-search input"); if (i) i.focus(); }} />
+      )}
+      {(arBar === "on" || arBar === "paused") && tsOpen && !covered && (
+        <TimeSheet lang={lang} date={when} lat={lat} lon={lon} isNow={!timeMoved} rateIdx={rateIdx}
+          onRate={setRate} onStep={tsStep} onNow={tsNow} onNight={tsNight} onSetMinute={tsMinute} onClose={() => setTsOpen(false)} />
       )}
       {arOn && guide && <GuideHud t={t} label={guide.label} apiRef={guideApiRef} onStop={() => setGuide(null)} />}
       {showActions && panel !== "tonight" && <SkyActions t={t} onTonight={() => openPanel("tonight")} onPoint={arCapable && ar === "off" ? startAr : null} />}

@@ -1,5 +1,19 @@
 # Cambios
 
+## 1.16.0 — 17 de noviembre de 2026
+
+- Modo apuntar: a la derecha, una columna con Tiempo, Lugar, Capas y Buscar,
+  siempre a mano mientras se apunta al cielo.
+- Nuevo control de tiempo, al estilo de Stellarium: la fecha y la hora con
+  flechas para subir o bajar cada campo (manteniendo pulsado, sigue), la
+  velocidad del tiempo (de −1 día a +1 día por segundo, con pausa y tiempo
+  real), «Ahora», noche anterior y siguiente, y una barra de 24 horas con el
+  día, los crepúsculos y la noche de tu lugar para arrastrar la hora.
+- La ayuda para alinear el norte ya no aparece sola al empezar; queda en «…»
+  y solo se explica cuando el teléfono no tiene brújula.
+- Las texturas de los monumentos y del suelo ya no muestran costuras entre
+  teselas.
+
 ## 1.15.0 — 17 de noviembre de 2026
 
 - Monumentos más realistas: texturas de piedra con relieve, generadas en el

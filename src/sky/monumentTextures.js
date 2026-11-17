@@ -19,15 +19,24 @@ function canvas() {
   return c;
 }
 
-/** Ruido suave (varias escalas) sobre el lienzo, en gris, con la opacidad dada. */
+/**
+ * Ruido suave (varias escalas) sobre el lienzo, en gris, con la opacidad dada. Sin costuras: la cuadrícula de
+ * valores se envuelve (una columna y una fila de más por cada lado, copiadas del lado opuesto) antes de
+ * ampliarla, así el borde derecho empalma con el izquierdo y el de abajo con el de arriba.
+ */
 function noise(ctx, r, alpha, scales = [8, 32, 128]) {
   for (const n of scales) {
-    const s = document.createElement("canvas"); s.width = n; s.height = n;
-    const g = s.getContext("2d"), img = g.createImageData(n, n);
-    for (let i = 0; i < n * n; i++) { const v = Math.floor(r() * 255); img.data[i * 4] = v; img.data[i * 4 + 1] = v; img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255; }
+    const s = document.createElement("canvas"); s.width = n + 2; s.height = n + 2;
+    const g = s.getContext("2d"), img = g.createImageData(n + 2, n + 2), v = new Uint8Array(n * n);
+    for (let i = 0; i < n * n; i++) v[i] = Math.floor(r() * 255);
+    for (let y = 0; y < n + 2; y++) for (let x = 0; x < n + 2; x++) {
+      const val = v[((y - 1 + n) % n) * n + ((x - 1 + n) % n)], k = (y * (n + 2) + x) * 4;
+      img.data[k] = val; img.data[k + 1] = val; img.data[k + 2] = val; img.data[k + 3] = 255;
+    }
     g.putImageData(img, 0, 0);
+    const c = SIZE / n;
     ctx.save(); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = "overlay"; ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(s, 0, 0, SIZE, SIZE);
+    ctx.drawImage(s, -c, -c, SIZE + 2 * c, SIZE + 2 * c);
     ctx.restore();
   }
 }
@@ -129,7 +138,7 @@ export function makeMonumentTexture(kind, THREE) {
   } else if (kind === "grass") {
     c.fillStyle = rgb([0.36, 0.48, 0.24]); c.fillRect(0, 0, SIZE, SIZE); b.fillStyle = "#808080"; b.fillRect(0, 0, SIZE, SIZE);
     noise(c, r, 0.5, [8, 32, 128]);
-    for (let i = 0; i < 4000; i++) { c.fillStyle = `rgba(${40 + r() * 60},${80 + r() * 70},${20 + r() * 30},0.5)`; c.fillRect(r() * SIZE, r() * SIZE, 1.5, 3 + r() * 5); }
+    for (let i = 0; i < 4000; i++) { c.fillStyle = `rgba(${40 + r() * 60},${80 + r() * 70},${20 + r() * 30},0.5)`; const x = r() * SIZE, y = r() * SIZE, h = 3 + r() * 5; c.fillRect(x, y, 1.5, h); if (y + h > SIZE) c.fillRect(x, y - SIZE, 1.5, h); }
     tile = 6;
   } else if (kind === "quartz") {      // Newgrange: muro de cuarzo blanco con cantos de granito
     cobbles(cv, bv, r, { mortar: [0.88, 0.87, 0.84], stones: [[0.93, 0.93, 0.91], [0.86, 0.86, 0.84], [0.35, 0.35, 0.36], [0.95, 0.94, 0.92]], n: 340, rMin: 8, rMax: 18, dark: 0.2 });
