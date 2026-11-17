@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.13.0 — 17 de noviembre de 2026
+
+- Postal «tal como lo ves»: sin un objeto abierto, la postal del cielo ya no es
+  una carta dibujada aparte, sino la propia vista en ese momento, con las capas
+  que tengas activas (atmósfera, nubes, montañas, nombres de montañas, líneas,
+  puntos cardinales). En el teléfono ocupa toda la postal; desde un ordenador
+  (vista apaisada) llena al menos la mitad del alto y prolonga el cielo y el
+  suelo. El pie cita las fuentes de lo que se ve (relieve, OpenStreetMap,
+  nubes). Las postales de un objeto o una constelación siguen como antes.
+
 ## 1.12.1 — 17 de noviembre de 2026
 
 - Nombres de las montañas más rápidos y fiables: el servidor pregunta a los tres

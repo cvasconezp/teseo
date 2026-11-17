@@ -37,6 +37,7 @@ import ObjectSheet, { describeObject, visibilityOf } from "./sky/ObjectSheet.jsx
 import ConstellationSheet from "./sky/ConstellationSheet.jsx";
 import ShareDialog from "./sky/ShareDialog.jsx";
 import { buildPostcard } from "./sky/postcard.js";
+import { snapshotView } from "./sky/viewSnapshot.js";
 import { starHex } from "./sky/starColor.js";
 import { perfFlag, createFrameStats, createAdaptive } from "./sky/perf.js";
 import { fetchWikiFor, fetchImageCredit } from "./sky/wiki.js";
@@ -2742,8 +2743,18 @@ export default function Constellations({ lang = "es" }) {
       if (ref.localQuat) v.applyQuaternion(ref.localQuat.clone().invert());
       center = [v.x, v.y, v.z];
     }
-    return buildPostcard({ ...base, center });
-  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars]);
+    // la vista tal como se ve ahora (capas activas y nombres): la postal sin objeto la usa como fondo
+    const view = ref ? snapshotView({ renderer: ref.renderer, scene: ref.scene, camera: ref.camera, labels: ref._labels, colors: LABEL_COLOR,
+      cssW: mountRef.current ? mountRef.current.clientWidth : 0, cssH: mountRef.current ? mountRef.current.clientHeight : 0 }) : null;
+    // fuentes de lo que se ve en la vista (relieve, nombres de montañas, nubes)
+    const es = lang === "es", vc = [];
+    if (view && hzData) vc.push(es ? "relieve AWS Terrain Tiles (SRTM)" : "terrain AWS Terrain Tiles (SRTM)");
+    if (view && peakList && peakList.length) vc.push(es ? "nombres de montañas © OpenStreetMap" : "mountain names © OpenStreetMap");
+    if (view && cloudsOn && wxData) vc.push(es ? "nubes Open-Meteo" : "clouds Open-Meteo");
+    const out = buildPostcard({ ...base, center, view, viewCredit: vc.join(" · ") });
+    if (E2E) out.then((r) => { window.__teseoPostcard = r && r.report; }).catch(() => {});
+    return out;
+  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars, hzData, peakList, cloudsOn, wxData]);
   const openShare = useCallback(() => { setShareState(null); setShare(true); }, []);
 
   const useMyLocation = useCallback(() => {

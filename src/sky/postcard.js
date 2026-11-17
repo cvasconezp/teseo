@@ -21,6 +21,7 @@
 // Ningún texto se corta: cada línea se mide con measureText y se ajusta de tamaño o se parte
 // (fitLines). El resultado incluye un informe con el ancho y la posición de cada línea, que las
 // pruebas usan para comprobarlo.
+import { drawViewCover } from "./viewSnapshot.js";
 import { drawArt, artKind, artOptions, drawSphere } from "./art.js";
 import { BODIES, textureUrl, makeFallbackCanvas, bodyName } from "./bodies.js";
 import { dateToJ2000, altAzJ2000 } from "./frames.js";
@@ -830,7 +831,7 @@ export async function buildPostcard(p) {
     spec: sb.spectrum ? { T: kFmt(sb.spectrum.temp), lower: !!sb.spectrum.lowerBound, tio: (sb.spectrum.lines || []).some((l) => l.group === "tio") } : null,
     est: !!(sb.life && sb.life.massKind === "estimated"), life: !!sb.life && obj.layer === "star",
     massRef: sb.life && sb.life.massKind === "curated" ? shortRef(sb.life.ref && sb.life.ref[0]).replace(/ /g, "\u00a0") || null : null,   // la referencia no se parte
-  }) : txt.credit;
+  }) : txt.credit + (p.view && !obj && !con && p.viewCredit ? ` · ${p.viewCredit}` : "");
   let creditL = fitLines(measureAt(fSmall), creditText, { max: 22, min: 20, maxW, maxLines: 2 });
   if (creditL.truncated && starMode) creditL = fitLines(measureAt(fSmall), creditText, { max: 20, min: 20, maxW, maxLines: 3 });
   const headSub = fitLines(measureAt(fHeadSub), t.pcHeadWith, { max: 28, min: 24, maxW, maxLines: 1 });
@@ -848,7 +849,17 @@ export async function buildPostcard(p) {
   const avoid = (x0, y0, x1, y1) => (y0 < SAFE_TOP + 6) || (y1 > blockTop - 36) || (useHero && inBox(heroBox, x0, y0, x1, y1)) ||
     (!con && Math.abs((x0 + x1) / 2 - retX) < 70 + (x1 - x0) / 2 && Math.abs((y0 + y1) / 2 - retY) < 62) ||
     (useHero && inBox(guideBox, x0, y0, x1, y1));
-  drawChart(ctx, { sky, conDirs, proj, avoid, bodies: p.showSolar === false ? [] : bodies, highlight: con ? con.ab : null, lang, local, cx: retX, cy: retY, labelStars: con ? con.stars : null, starHex: p.starHex });
+  if (p.view && !obj && !con) {
+    // «tal como lo ves»: la vista del Cielo con sus capas (atmósfera, nubes, montañas…) en lugar de la carta
+    drawViewCover(ctx, p.view, { W, H, top: SAFE_TOP, bottom: blockTop });
+    // un velo arriba para que la cabecera se lea también sobre un cielo de día
+    const tv = ctx.createLinearGradient(0, 0, 0, SAFE_TOP + 80);
+    tv.addColorStop(0, "rgba(4,7,14,0.82)"); tv.addColorStop(1, "rgba(4,7,14,0)");
+    ctx.fillStyle = tv; ctx.fillRect(0, 0, W, SAFE_TOP + 80);
+    report.view = true;
+  } else {
+    drawChart(ctx, { sky, conDirs, proj, avoid, bodies: p.showSolar === false ? [] : bodies, highlight: con ? con.ab : null, lang, local, cx: retX, cy: retY, labelStars: con ? con.stars : null, starHex: p.starHex });
+  }
 
   const line = (ln, x, y, size, role) => {
     const w = ctx.measureText(ln).width;
