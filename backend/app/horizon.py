@@ -268,3 +268,50 @@ async def horizon(response: Response,
         raise HTTPException(status_code=502, detail=f"No se pudo leer el relieve ({SOURCE.split(' (')[0]}): {e}")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
     return data
+
+
+# ── alturas del terreno en puntos sueltos (para asentar los monumentos sobre el suelo del modelo) ──────────
+ELEV_Z = 14                  # ≈ 10 m por píxel (el modelo de fondo es SRTM, ~30 m: interpolado)
+ELEV_MAX_PTS = 80
+
+
+def parse_points(pts: str) -> list:
+    """«lat,lon;lat,lon;…» → [(lat, lon), …] (como mucho ELEV_MAX_PTS, todos válidos)."""
+    out = []
+    for part in (pts or "").split(";"):
+        if not part.strip():
+            continue
+        la, lo = (float(v) for v in part.split(","))
+        if not (-85.0 <= la <= 85.0 and -180.0 <= lo <= 180.0):
+            raise ValueError("punto fuera de rango")
+        out.append((la, lo))
+    if not out or len(out) > ELEV_MAX_PTS:
+        raise ValueError(f"entre 1 y {ELEV_MAX_PTS} puntos")
+    return out
+
+
+@router.get("/elevation")
+async def elevation(response: Response, pts: str = Query(..., max_length=4000)):
+    """Altura del terreno (m, modelo de AWS Terrain Tiles) en cada punto «lat,lon» separado por «;». Sirve para
+    asentar los monumentos del cielo sobre el mismo suelo que el horizonte."""
+    try:
+        points = parse_points(pts)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Puntos no válidos: {e}")
+    try:
+        sem = asyncio.Semaphore(CONCURRENCY)
+        keys = sorted({(int(math.floor(merc_px(la, lo, ELEV_Z)[0] / 256)) % (2 ** ELEV_Z), int(math.floor(merc_px(la, lo, ELEV_Z)[1] / 256))) for la, lo in points})
+        async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=_transport, headers=provider_headers()) as client:
+            arrs = await asyncio.gather(*[_fetch_tile(client, ELEV_Z, x, y, sem) for (x, y) in keys])
+        tiles = dict(zip(keys, arrs))
+        heights = []
+        for la, lo in points:
+            gx, gy = merc_px(la, lo, ELEV_Z)
+            x, y = int(math.floor(gx / 256)) % (2 ** ELEV_Z), int(math.floor(gy / 256))
+            # una sola tesela por punto basta: bilineal dentro de ella (en el borde, el píxel más cercano)
+            m = Mosaic(ELEV_Z, {(x, y): tiles[(x, y)]})
+            heights.append(round(float(m.sample(np.array([la]), np.array([lo]))[0]), 1))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"No se pudo leer el relieve ({SOURCE.split(' (')[0]}): {e}")
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return {"heights": heights, "source": SOURCE}

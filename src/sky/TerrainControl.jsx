@@ -2,6 +2,7 @@
 // con lo más alto de tu horizonte y la fuente. El estado vive en Constellations.jsx.
 //   lang, available (hay lugar en Mi cielo), on, onToggle, hz: { status, data, error }, onRetry,
 //   peaksOn, onTogglePeaks, peaks: { status, data } (nombres de las montañas, OpenStreetMap)
+//   monOn, onToggleMon, monNear: monumentos cercanos (src/sky/monuments.js), monStatus: "loading" | "ok" | "error"
 import { highestPoint } from "./horizon.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import Icon from "./icons.jsx";
@@ -32,6 +33,12 @@ export const TX_HZ = {
     peaksNone: "Ninguna cumbre con nombre forma tu horizonte.",
     peaksCount: (n) => `${n} ${n === 1 ? "cumbre con nombre" : "cumbres con nombre"} en tu horizonte.`,
     peaksSource: "Nombres: Wikidata (CC0) y © colaboradores de OpenStreetMap (ODbL). Solo se nombra la cumbre que forma la silueta.",
+    mon: "Monumentos",
+    monDesc: "Pirámides, Stonehenge… con sus medidas reales, en su sitio exacto.",
+    monHere: (names) => `Desde aquí: ${names}. Forma simplificada; lo que queda detrás no se ve.`,
+    monNone: "Hay monumentos en Teotihuacan, Chichén Itzá, Guiza, Stonehenge y Newgrange: búscalos en Mi cielo.",
+    monLoading: "Asentando los monumentos sobre el terreno…",
+    monError: "No se pudo leer el terreno bajo los monumentos.",
   },
   en: {
     layer: "Mountains",
@@ -51,6 +58,12 @@ export const TX_HZ = {
     peaksNone: "No named summit shapes your horizon.",
     peaksCount: (n) => `${n} named ${n === 1 ? "summit" : "summits"} on your horizon.`,
     peaksSource: "Names: Wikidata (CC0) and © OpenStreetMap contributors (ODbL). Only summits that shape the skyline are named.",
+    mon: "Monuments",
+    monDesc: "Pyramids, Stonehenge… at their real size and exact place.",
+    monHere: (names) => `From here: ${names}. Simplified shapes; whatever is behind them is hidden.`,
+    monNone: "There are monuments at Teotihuacan, Chichen Itza, Giza, Stonehenge and Newgrange: find them in My sky.",
+    monLoading: "Placing the monuments on the terrain…",
+    monError: "Couldn't read the terrain under the monuments.",
   },
 };
 
@@ -60,7 +73,7 @@ const bandFrom = (data, km, lang) => {
   return i > 0 ? Number(bs[i - 1]).toLocaleString(lang === "es" ? "es" : "en-US") : "0";
 };
 
-export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry, peaksOn = false, onTogglePeaks, peaks }) {
+export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry, peaksOn = false, onTogglePeaks, peaks, monOn = true, onToggleMon, monNear = [], monStatus = null }) {
   const tx = TX_HZ[lang] || TX_HZ.es;
   const data = hz && hz.status === "ok" ? hz.data : null;
   const hp = data ? highestPoint(data) : null;
@@ -108,6 +121,19 @@ export function TerrainControl({ lang = "es", available = true, on, onToggle, hz
               <p className="sk-atm-fine">{tx.peaksSource}</p>
             </>
           )}
+          {onToggleMon && (
+            <div className="sk-layer sk-hz-peaks">
+              <button type="button" role="switch" aria-checked={!!monOn} className="sk-layer-main" onClick={onToggleMon}>
+                <span className="sk-layer-txt"><b>{tx.mon}</b><small>{tx.monDesc}</small></span>
+                <i className="sk-switch" />
+              </button>
+            </div>
+          )}
+          {onToggleMon && monOn && (!monNear.length ? <p className="sk-atm-fine">{tx.monNone}</p>
+            : monStatus === "loading" ? <p className="sk-atm-fine" role="status">{tx.monLoading}</p>
+            : monStatus === "error" ? <p className="sk-atm-fine" role="status">{tx.monError}{" "}
+                {onRetry && <button type="button" className="sk-wx-link" onClick={onRetry}><Icon name="retry" size={14} />{tx.retry}</button>}</p>
+            : <p className="sk-atm-fine">{tx.monHere(monNear.map((m) => m.name[lang] || m.name.es).join(", "))}</p>)}
         </div>
       )}
     </div>

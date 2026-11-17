@@ -9,7 +9,8 @@ export const GEOCODER = "https://geocoding-api.open-meteo.com/v1/search";
 
 /**
  * Sitios astronómicos y arqueológicos (coordenadas de Wikipedia o de sus fichas oficiales, comprobadas el
- * 17-nov-2026; altura en m cuando la fuente la da). Teseo dibuja el relieve que los rodea, no los monumentos.
+ * 17-nov-2026; altura en m cuando la fuente la da). Teseo dibuja el relieve que los rodea y, donde los hay, los monumentos (src/sky/monuments.js): por eso
+ * algunos sitios son un punto de vista frente al monumento, no su centro.
  */
 export const SITES = [
   { id: "machupicchu", name: { es: "Machu Picchu", en: "Machu Picchu" }, lat: -13.16333, lon: -72.54556, elev: 2430,
@@ -22,18 +23,18 @@ export const SITES = [
     note: { es: "Reloj solar de 54 m de diámetro sobre la línea ecuatorial, cerca de Cayambe (Ecuador), inaugurado en 2007.", en: "A 54 m sundial on the equator near Cayambe (Ecuador), opened in 2007." } },
   { id: "tiwanaku", name: { es: "Tiwanaku", en: "Tiwanaku" }, lat: -16.55472, lon: -68.67333, elev: 3863,
     note: { es: "Centro ceremonial de Tiwanaku (Bolivia), a unos 3.860 m; su plataforma Kalasasaya está orientada a los puntos cardinales.", en: "Tiwanaku ceremonial centre (Bolivia), at about 3,860 m; its Kalasasaya platform is aligned to the cardinal directions." } },
-  { id: "teotihuacan", name: { es: "Teotihuacan · Pirámide del Sol", en: "Teotihuacan · Pyramid of the Sun" }, lat: 19.69228, lon: -98.8435, elev: 2332,
-    note: { es: "La mayor construcción de Teotihuacan (México), levantada hacia los años 100–200.", en: "The largest building of Teotihuacan (Mexico), built around 100–200 CE." } },
-  { id: "chichenitza", name: { es: "Chichén Itzá · El Castillo", en: "Chichen Itza · El Castillo" }, lat: 20.682889, lon: -88.568611, elev: null,
-    note: { es: "El Castillo o templo de Kukulcán, pirámide maya de los siglos VIII al XII (Yucatán, México).", en: "El Castillo, the Temple of Kukulcan, a Maya pyramid from the 8th–12th centuries (Yucatán, Mexico)." } },
+  { id: "teotihuacan", name: { es: "Teotihuacan · Pirámide del Sol", en: "Teotihuacan · Pyramid of the Sun" }, lat: 19.69300, lon: -98.84590, elev: 2300,
+    note: { es: "Desde la Calzada de los Muertos, frente a la Pirámide del Sol (65 m, hacia los años 100–200); al norte, la de la Luna (México).", en: "From the Avenue of the Dead, facing the Pyramid of the Sun (65 m, built around 100–200 CE); to the north, the Pyramid of the Moon (Mexico)." } },
+  { id: "chichenitza", name: { es: "Chichén Itzá · El Castillo", en: "Chichen Itza · El Castillo" }, lat: 20.68425, lon: -88.56865, elev: null,
+    note: { es: "Desde la Gran Plaza, frente a la escalinata norte de El Castillo o templo de Kukulcán, pirámide maya de los siglos VIII al XII (Yucatán, México).", en: "From the Great Plaza, facing the north stairway of El Castillo, the Temple of Kukulcan, a Maya pyramid from the 8th–12th centuries (Yucatán, Mexico)." } },
   { id: "paranal", name: { es: "Observatorio Paranal (ESO)", en: "Paranal Observatory (ESO)" }, lat: -24.62722, lon: -70.40417, elev: 2635,
     note: { es: "El observatorio de ESO con el Very Large Telescope, a 2.635 m en el desierto de Atacama (Chile).", en: "ESO's observatory with the Very Large Telescope, at 2,635 m in the Atacama Desert (Chile)." } },
-  { id: "stonehenge", name: { es: "Stonehenge", en: "Stonehenge" }, lat: 51.17889, lon: -1.82611, elev: null,
-    note: { es: "Monumento megalítico de la llanura de Salisbury (Inglaterra), levantado entre el 3000 y el 2000 a. C.", en: "Megalithic monument on Salisbury Plain (England), built between 3000 and 2000 BCE." } },
-  { id: "newgrange", name: { es: "Newgrange", en: "Newgrange" }, lat: 53.69472, lon: -6.47556, elev: null,
-    note: { es: "Tumba de corredor de hacia el 3200 a. C. (Irlanda): en el solsticio de invierno, el Sol naciente entra por una abertura sobre la puerta y alumbra la cámara.", en: "Passage tomb from about 3200 BCE (Ireland): at the winter solstice the rising Sun shines through a roof-box and lights the chamber." } },
-  { id: "giza", name: { es: "Gran Pirámide de Guiza", en: "Great Pyramid of Giza" }, lat: 29.97917, lon: 31.13417, elev: null,
-    note: { es: "La pirámide de Keops (hacia el 2600 a. C.), en la meseta de Guiza (Egipto).", en: "The pyramid of Khufu (about 2600 BCE) on the Giza plateau (Egypt)." } },
+  { id: "stonehenge", name: { es: "Stonehenge", en: "Stonehenge" }, lat: 51.178844, lon: -1.826189, elev: null,
+    note: { es: "Desde el centro del círculo de piedras (llanura de Salisbury, Inglaterra; 3000–2000 a. C.): el eje mira hacia donde sale el Sol en el solsticio de junio, sobre la Piedra del Talón.", en: "From the centre of the stone circle (Salisbury Plain, England; 3000–2000 BCE): its axis points to the June solstice sunrise, over the Heel Stone." } },
+  { id: "newgrange", name: { es: "Newgrange", en: "Newgrange" }, lat: 53.69464, lon: -6.47457, elev: null,
+    note: { es: "Frente a la entrada de esta tumba de corredor de hacia el 3200 a. C. (Irlanda): en el solsticio de invierno, el Sol naciente entra por una abertura sobre la puerta y alumbra la cámara.", en: "Passage tomb from about 3200 BCE (Ireland): at the winter solstice the rising Sun shines through a roof-box and lights the chamber." } },
+  { id: "giza", name: { es: "Pirámides de Guiza", en: "Pyramids of Giza" }, lat: 29.97120, lon: 31.12380, elev: null,
+    note: { es: "Desde el mirador del suroeste: Micerino delante, Kefrén y la Gran Pirámide de Keops (hacia el 2600 a. C.) detrás (Egipto).", en: "From the south-west viewpoint: Menkaure in front, Khafre and the Great Pyramid of Khufu (about 2600 BCE) behind (Egypt)." } },
 ];
 
 /** Texto sin tildes ni mayúsculas, para comparar. */

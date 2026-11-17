@@ -53,7 +53,9 @@ import { createAtmosphereLayer } from "./sky/atmosphereLayer.js";
 import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE } from "./sky/cloudsLayer.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
-import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName } from "./sky/horizon.js";
+import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations } from "./sky/horizon.js";
+import { monumentsNear, groundRing, median, silhouette, withMonuments } from "./sky/monuments.js";
+import { createMonumentLayer, placeMonuments, monumentLabels } from "./sky/monumentLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
@@ -114,6 +116,7 @@ const ATM_KEY = "teseo_atm";           // interruptor "Atmósfera" (1/0)
 const BORTLE_KEY = "teseo_bortle_v1";  // { lugar: clase } elegida por la persona
 const TERRAIN_KEY = "teseo_terrain";    // interruptor "Montañas" (relieve real; encendido por defecto)
 const PEAKS_KEY = "teseo_peaks";        // "Nombres de las montañas" (OpenStreetMap; apagado por defecto)
+const MONUMENTS_KEY = "teseo_monuments"; // "Monumentos" (pirámides, Stonehenge…; encendido por defecto)
 const CLOUDS_KEY = "teseo_clouds";      // interruptor "Nubes" (1/0; apagado por defecto: un cielo cubierto no deja ver nada)
 // Penalización (mag) para objetos extensos: su luz se reparte en un área, así que se ven peor que una
 // estrella de la misma magnitud integrada. APROXIMACIÓN declarada en la interfaz (deepNote).
@@ -600,6 +603,8 @@ export default function Constellations({ lang = "es" }) {
   const [hzRetry, setHzRetry] = useState(0);
   const [peaksOn, setPeaksOn] = useState(() => { try { return localStorage.getItem(PEAKS_KEY) === "1"; } catch { return false; } });
   const [pk, setPk] = useState({ status: "idle", data: null, key: null });   // nombres de las cumbres (/api/peaks)
+  const [monOn, setMonOn] = useState(() => { try { return localStorage.getItem(MONUMENTS_KEY) !== "0"; } catch { return true; } });
+  const [monBase, setMonBase] = useState({ status: "idle", key: null, bases: null, ground: null });
   const [dayHidden, setDayHidden] = useState(false);
   const [whenStr, setWhenStr] = useState(nowLocalInput());
   const [playing, setPlaying] = useState(false);
@@ -1181,6 +1186,9 @@ export default function Constellations({ lang = "es" }) {
     // montañas del horizonte real (src/sky/terrainLayer.js): en el marco local, sobre el suelo sombreado
     const terrain = createTerrainLayer();
     horizon.add(terrain.group);
+    // monumentos (src/sky/monumentLayer.js): en 3D en el mismo marco, delante de las montañas
+    const monuments = createMonumentLayer();
+    horizon.add(monuments.group);
     horizon.visible = false; scene.add(horizon);
     // líneas guía (src/sky/guidesLayer.js): eclíptica, ecuador, Vía Láctea, cuadrículas… Todas apagadas al
     // empezar; se dibujan antes que estrellas y figuras (renderOrder −1) y el suelo las atenúa bajo el horizonte
@@ -1403,7 +1411,7 @@ export default function Constellations({ lang = "es" }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
+      atm, clouds, terrain, monuments, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1532,6 +1540,8 @@ export default function Constellations({ lang = "es" }) {
         bodies: () => (r.showSolar ? r.bodies : []).map((b) => ({ name: b.name, nx: b.nx, ny: b.ny, nz: b.nz, mag: b.mag })),
         atm: () => ({ on: r.atmOn, dome: r.atm.visible, counts: r.atmCounts || null, solarVis: r.solarVis || null }),
         clouds: () => ({ on: r.clouds.visible, c: r.clouds.clouds }),
+        // horizonte en uso (con monumentos si los hay): el perfil cada 5° y los nombres de la vista
+        hz: () => (r.hzData ? { monuments: !!r.hzData.monuments, alt5: r.hzData.alt.filter((_, i) => i % Math.round(5 / (r.hzData.step_deg || 0.2)) === 0), labels: (r._labels || []).map((l) => [l.cls, l.name, Math.round(l.x), Math.round(l.y)]) } : null),
         // la ISS: lo dibujado (vértices de la capa) frente a la respuesta del servidor, y dónde cae en pantalla
         iss: () => {
           const il = r.issLayer, ck = issClock.current;
@@ -1579,7 +1589,7 @@ export default function Constellations({ lang = "es" }) {
     for (const ev of ["pointerdown", "pointermove", "wheel", "touchstart", "keydown"]) renderer.domElement.addEventListener(ev, wakeEv, { passive: true });
     const onVisible = () => { lastT = 0; prevDrawn = false; wakeEv(); };          // al volver a la pestaña no se cuenta la pausa como un cuadro lento
     document.addEventListener("visibilitychange", onVisible);
-    const tmp = new THREE.Vector3(), flyV = new THREE.Vector3(), flyQ = new THREE.Quaternion(), flyYP = {};
+    const tmp = new THREE.Vector3(), tmpB = new THREE.Vector3(), flyV = new THREE.Vector3(), flyQ = new THREE.Quaternion(), flyYP = {};
     const cullQ = new THREE.Quaternion(), cullF = new THREE.Vector3(), cullP = new THREE.Vector3();
     const animate = () => {
       raf = requestAnimationFrame(animate);
@@ -1822,6 +1832,11 @@ export default function Constellations({ lang = "es" }) {
           for (let i = 0; i < boxes.length; i += 4) if (x1 + 6 > boxes[i] && x0 - 6 < boxes[i + 2] && y1 + 3 > boxes[i + 1] && y0 - 3 < boxes[i + 3]) return false;
           return true;
         };
+        // ¿un punto de la pantalla cae detrás del horizonte real (montañas y monumentos)? (marco del mundo = local)
+        const behindAt = (x, y) => {
+          tmpB.set((x / W) * 2 - 1, -((y / H) * 2 - 1), 0.5).unproject(ref.camera).sub(ref.camera.position).normalize();
+          return behindTerrain(ref.hzData, [tmpB.x, tmpB.y, tmpB.z], 0);
+        };
         const place = (sx, sy, name, cls, sub, dx, extra) => {
           let flip = false;
           if (cls === "note") {
@@ -1835,6 +1850,8 @@ export default function Constellations({ lang = "es" }) {
             if (!free(sx, sy - 10, sx + w, sy + h)) { if (!free(sx - w, sy - 10, sx, sy + h)) return; flip = true; }
             const x0 = flip ? sx - w : sx;
             if (!clear(x0, sy - 9, x0 + w, sy + h)) return;
+            // el nombre de una constelación es ancho: si su texto se metería en una montaña o un monumento, no va
+            if (cls === "con" && inside && ref.localModeOn && ref.hzData && (behindAt(x0 + w * 0.5, sy) || behindAt(x0 + w - 4, sy) || behindAt(x0 + 4, sy))) return;
             boxes.push(x0, sy - 9, x0 + w, sy + h);
           }
           out.push({ key: cls + ":" + name, name, cls, sub: sub == null ? null : sub, x: sx, y: sy, dx, flip, ...extra });
@@ -1870,10 +1887,11 @@ export default function Constellations({ lang = "es" }) {
         }
         // nombres de las montañas: sobre la cumbre, con un palito que baja hasta la silueta (el punto exacto del
         // filo dibujado). Las que más destacan primero; los que no caben no se ponen.
-        if (inside && ref.localModeOn && ref.hzData && ref.peakLabels) {
+        if (inside && ref.localModeOn && ref.hzData && (ref.peakLabels || ref.monLabels)) {
           const dens = ref.labelDensity || "normal", maxP = dens === "pocas" ? 5 : dens === "muchas" ? 22 : 12, R = Math.PI / 180;
           let np = 0;
-          for (const p of ref.peakLabels) {
+          // los monumentos primero (son pocos y es lo que se vino a ver), luego las cumbres
+          for (const p of [...(ref.monLabels || []), ...(ref.peakLabels || [])]) {
             if (np >= maxP) break;
             const ca = Math.cos(p.alt * R);
             tmp.set(860 * ca * Math.sin(p.az * R), 860 * Math.sin(p.alt * R), -860 * ca * Math.cos(p.az * R)).project(ref.camera);
@@ -1882,7 +1900,7 @@ export default function Constellations({ lang = "es" }) {
             const w = Math.max(p.label.length * 7.4, 46) + 8, top = sy - 46;
             if (top < 4 || !free(sx - w / 2, top, sx + w / 2, sy - 2) || !clear(sx - w / 2, top, sx + w / 2, sy - 2)) continue;
             boxes.push(sx - w / 2, top, sx + w / 2, sy - 2);
-            out.push({ key: "peak:" + p.az + ":" + p.name, name: p.label, cls: "peak", sub: null, subText: p.ele_m, x: sx, y: sy, dx: 0, flip: false });
+            out.push({ key: "peak:" + p.az + ":" + p.name, name: p.label, cls: "peak", sub: null, subText: p.subText != null ? p.subText : p.ele_m, x: sx, y: sy, dx: 0, flip: false });
             np++;
           }
         }
@@ -2351,6 +2369,41 @@ export default function Constellations({ lang = "es" }) {
     return () => { alive = false; };
   }, [peaksOn, hzData, hzKey, hzRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
   const peakList = peaksOn && hzData && pk.status === "ok" && pk.key === hzKey ? pk.data.peaks : null;
+  // monumentos: los que hay a menos de 25 km del lugar, asentados sobre el suelo del modelo de relieve (la altura
+  // del terreno alrededor de cada uno y bajo el observador, de /api/elevation)
+  useEffect(() => { try { localStorage.setItem(MONUMENTS_KEY, monOn ? "1" : "0"); } catch { /* no-op */ } }, [monOn]);
+  const monNear = useMemo(() => (localActive && !viewFrom ? monumentsNear(lat, lon, 25) : []), [localActive, viewFrom, lat, lon]);
+  const monKey = monNear.length ? `${lat},${lon}|${monNear.map((m) => m.id).join(",")}` : null;
+  useEffect(() => {
+    if (!monOn || !hzData || !monKey) return;
+    let alive = true;
+    setMonBase((s) => (s.key === monKey && s.status === "ok" ? s : { status: "loading", key: monKey, bases: null, ground: null }));
+    const R = 12 / 111320, ck = Math.cos((lat * Math.PI) / 180);
+    const obs = [[lat, lon], [lat + R, lon], [lat - R, lon], [lat, lon + R / ck], [lat, lon - R / ck]];
+    const rings = monNear.map((m) => groundRing(m, 8));
+    fetchElevations([...obs, ...rings.flat()], { api: API }).then((h) => {
+      if (!alive) return;
+      const bases = {};
+      monNear.forEach((m, i) => { bases[m.id] = median(h.slice(5 + i * 8, 13 + i * 8)); });
+      setMonBase({ status: "ok", key: monKey, bases, ground: median(h.slice(0, 5)) });
+    }, (e) => { if (alive) setMonBase({ status: "error", key: monKey, bases: null, ground: null, error: String(e && e.message || e) }); });
+    return () => { alive = false; };
+  }, [monOn, monKey, !!hzData, hzRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const monItems = useMemo(() => (monOn && hzData && monBase.status === "ok" && monBase.key === monKey
+    ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon]);
+  // el horizonte con los monumentos macizos: lo que queda detrás de una pirámide tampoco se ve
+  const monSil = useMemo(() => (hzData && monItems.length ? silhouette(monItems, hzData.step_deg || 0.2) : null), [hzData, monItems]);
+  const hzEff = useMemo(() => (hzData && monSil ? withMonuments(hzData, monSil) : hzData), [hzData, monSil]);
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref || !ref.monuments) return;
+    ref.monuments.set(monItems, atmState);
+    ref.monLabels = monItems.length ? monumentLabels(monItems, lang, monSil, hzData ? hzData.step_deg || 0.2 : 0.2).map((p) => ({ ...p, label: p.name, subText: lang === "es" ? `${p.ele_m} m de alto` : `${p.ele_m} m tall` })) : null;
+    ref._dirty = true;
+  }, [monItems, monSil, lang, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref || !ref.monuments || !monItems.length) return;
+    try { ref.monuments.paint(atmState); } catch { /* no-op */ }
+  }, [monItems, atmState, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ref = sceneRef.current; if (!ref) return;
     ref.peakLabels = peakList ? peaksToLabel(peakList, hzData, 40).map((p) => ({ ...p, label: peakName(p, lang) })) : null;
@@ -2358,10 +2411,10 @@ export default function Constellations({ lang = "es" }) {
   }, [peakList, hzData, lang, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.terrain) return;
-    ref.hzData = hzData;
+    ref.hzData = hzEff;
     if (ref.terrain.data !== hzData) ref.terrain.set(hzData, lat, null);
     ref.terrain.setEnabled(!!hzData);
-  }, [hzData, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hzData, hzEff, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {      // el color de las montañas sigue la luz del cielo (sin atmósfera: siluetas de noche)
     const ref = sceneRef.current; if (!ref || !ref.terrain || !hzData) return;
     try { ref.terrain.paint(atmState); } catch { /* no-op */ }
@@ -2387,14 +2440,14 @@ export default function Constellations({ lang = "es" }) {
     const ref = sceneRef.current;
     if (!ref || !ref.applyAtm) return;
     if (!atmState && !hzData && !ref.atmOn && !ref._atmTouched) return;          // sin atmósfera ni montañas y nada que deshacer
-    ref.hzData = hzData;
+    ref.hzData = hzEff;
     ref._atmTouched = true;
     try { const d = new Date(whenStr); ref.cloudOcc = cloudsOn && atmState && wxData ? makeOccluder(cloudsAt(wxData, d), d.getTime() / 1000) : null; }
     catch { ref.cloudOcc = null; }
     let c;
     try { c = ref.applyAtm(atmState); } catch (e) { try { c = ref.applyAtm(null); } catch { /* no-op */ } }
     if (c) setAtmInfo((p) => (p.stars === c.stars && p.deep === c.deep && p.deepTot === c.deepTot ? p : { stars: c.stars, deep: c.deep, deepTot: c.deepTot }));
-  }, [atmState, ready, datasets, enabled, bodies, showSolar, localActive, viewFrom, cloudsOn, wxData, hzData]);
+  }, [atmState, ready, datasets, enabled, bodies, showSolar, localActive, viewFrom, cloudsOn, wxData, hzData, hzEff]);
 
   // nubes: la capa del cielo (el pronóstico se lee más arriba)
   useEffect(() => {
@@ -3310,6 +3363,8 @@ export default function Constellations({ lang = "es" }) {
       onToggle={() => { const nv = !terrainOn; setTerrainOn(nv); track("sky_setting", { setting: "horizon", state: nv ? "on" : "off" }); }}
       hz={hzKey ? (hz.key === hzKey ? hz : { status: "loading" }) : null} onRetry={() => setHzRetry((n) => n + 1)}
       peaksOn={peaksOn} peaks={peaksOn && hzData ? (pk.key === hzKey ? pk : { status: "loading" }) : null}
+      monOn={monOn} onToggleMon={() => { const nv = !monOn; setMonOn(nv); track("sky_setting", { setting: "monuments", state: nv ? "on" : "off" }); }}
+      monNear={monNear} monStatus={monKey ? (monBase.key === monKey ? monBase.status : "loading") : null}
       onTogglePeaks={() => { const nv = !peaksOn; setPeaksOn(nv); track("sky_setting", { setting: "peaks", state: nv ? "on" : "off" }); }} />
   );
   const wxPanel = (

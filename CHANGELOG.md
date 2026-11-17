@@ -1,5 +1,23 @@
 # Cambios
 
+## 1.14.0 — 17 de noviembre de 2026
+
+- Cielo: monumentos. Nuevo interruptor «Monumentos» dentro de «Montañas»
+  (encendido por defecto). En Teotihuacan (pirámides del Sol y de la Luna),
+  Chichén Itzá (El Castillo), Guiza (Keops, Kefrén y Micerino), Stonehenge y
+  Newgrange, el cielo dibuja el monumento en 3D, con su alto y su base reales,
+  en su sitio exacto, asentado sobre el suelo del modelo de relieve y con la luz
+  del Sol de ese momento. La forma es simplificada (sin escaleras ni templos
+  menores; Stonehenge con las piedras que siguen en pie). Lo que queda detrás
+  de una pirámide no se ve, y cada monumento lleva su nombre y su altura.
+- Los sitios de Teotihuacan, Chichén Itzá, Guiza y Newgrange son ahora un
+  punto de vista frente al monumento (la Calzada de los Muertos, la Gran
+  Plaza, el mirador del suroeste, la entrada de la tumba); Stonehenge, el
+  centro del círculo, mirando al eje del solsticio.
+- Los nombres de las constelaciones ya no se pintan encima de una montaña o
+  de un monumento.
+- Servidor: /api/elevation, la altura del terreno en puntos sueltos.
+
 ## 1.13.3 — 17 de noviembre de 2026
 
 - Nombres de las montañas: Wikidata exige que la aplicación se identifique; el

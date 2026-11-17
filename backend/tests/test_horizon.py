@@ -131,3 +131,12 @@ def test_celda_y_antimeridiano():
 def test_parametros_invalidos():
     assert client.get("/api/horizon?lat=95&lon=0").status_code == 422
     assert client.get("/api/horizon?lat=0").status_code == 422
+
+
+def test_alturas_en_puntos(tiles):
+    r = client.get(f"/api/elevation?pts={LAT0},{LON0};{LAT0},{PEAK_LON}")
+    assert r.status_code == 200
+    h = r.json()["heights"]
+    assert abs(h[0] - PLAIN) < 3 and abs(h[1] - PEAK_H) < 60, h
+    assert client.get("/api/elevation?pts=95,0").status_code == 422
+    assert client.get("/api/elevation?pts=" + ";".join(["0,0"] * 81)).status_code == 422

@@ -55,7 +55,7 @@ export const SkyLabels = memo(function SkyLabels({ apiRef, colors, unit, locale,
         <div key={l.key} aria-hidden="true" className="sk-label sk-label-peak"
           style={{ transform: `translate(${Math.round(l.x)}px,${Math.round(l.y)}px)`, color: colors.peak || "#fff" }}>
           <i />
-          <em><b>{l.name}</b>{l.subText != null && <small>{Number(l.subText).toLocaleString(locale, { useGrouping: "always" })} m</small>}</em>
+          <em><b>{l.name}</b>{l.subText != null && <small>{typeof l.subText === "string" ? l.subText : `${Number(l.subText).toLocaleString(locale, { useGrouping: "always" })} m`}</small>}</em>
         </div>
       ) : (
         <div key={l.key} aria-hidden="true" className={`sk-label sk-label-${l.cls.startsWith("obj_") ? "obj" : l.cls}${l.flip ? " is-flip" : ""}${l.hot ? " is-hot" : ""}`}

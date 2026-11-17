@@ -54,7 +54,7 @@ export function drawLabels(ctx, labels, colors, k = 1, f = k) {
       ctx.fillText(l.name, x, y - (hasSub ? 34 : 22) * f);
       if (hasSub) {
         ctx.globalAlpha = 0.8; ctx.font = `400 ${10.5 * f}px ${SANS}`;
-        ctx.fillText(`${Number(l.subText).toLocaleString("es", { useGrouping: "always" })} m`, x, y - 20 * f);
+        ctx.fillText(typeof l.subText === "string" ? l.subText : `${Number(l.subText).toLocaleString("es", { useGrouping: "always" })} m`, x, y - 20 * f);
       }
       continue;
     }

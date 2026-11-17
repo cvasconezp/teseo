@@ -196,3 +196,21 @@ export function peaksToLabel(peaks, hzData, max = 12) {
   }
   return out;
 }
+
+// ── alturas del terreno en puntos (/api/elevation): para asentar los monumentos ──────────────────────────
+const elevMem = new Map();
+/** Alturas (m) del modelo de relieve en cada [lat, lon]: promesa de un array (en caché por lista de puntos). */
+export function fetchElevations(points, { api = "", fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
+  const pts = points.map(([la, lo]) => `${la.toFixed(5)},${lo.toFixed(5)}`).join(";");
+  if (elevMem.has(pts)) return elevMem.get(pts);
+  if (!fetchImpl) return Promise.reject(new Error("sin red"));
+  const p = fetchImpl(`${api}/api/elevation?pts=${encodeURIComponent(pts)}`).then(async (r) => {
+    let body = null;
+    try { body = await r.json(); } catch { /* no JSON */ }
+    if (!r.ok || !body || !Array.isArray(body.heights)) throw new Error((body && body.detail) || `HTTP ${r.status}`);
+    return body.heights;
+  });
+  elevMem.set(pts, p);
+  p.catch(() => elevMem.delete(pts));
+  return p;
+}
