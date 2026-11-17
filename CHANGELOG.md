@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.10.0 — 17 de noviembre de 2026
+
+- Cielo: las montañas de tu horizonte real. Para el lugar de «Mi cielo», el
+  servidor calcula con el relieve (AWS Terrain Tiles: SRTM de la NASA y otros
+  modelos) qué ángulo tapa el terreno en cada dirección, hasta 150 km, con la
+  curvatura de la Tierra y la refracción, desde la altura del propio lugar. El
+  cielo dibuja las sierras en capas (las lejanas más claras, nieve en las
+  cumbres altas de día, siluetas de noche) y lo que queda detrás de una montaña
+  (estrellas, planetas, el Sol, la Luna, líneas y nombres) se oculta. Funciona en
+  cualquier lugar del mundo, sin fotos ni permisos; interruptor «Montañas» en
+  Capas, encendido por defecto. No incluye árboles ni edificios.
+- Ficha de cada astro: además de su salida y su puesta para un horizonte plano,
+  cuándo asoma y cuándo se esconde tras las montañas de tu lugar (en Quito, el
+  Sol se esconde tras el Pichincha media hora antes de su puesta), y si ahora
+  mismo está detrás de ellas.
+
 ## 1.9.0 — 17 de noviembre de 2026
 
 - Cielo: nubes reales del pronóstico. Con la Atmósfera encendida, el interruptor

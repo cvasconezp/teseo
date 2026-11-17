@@ -63,7 +63,7 @@ from app import img_proxy
 from app import horizon
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.9.0"
+VERSION = "1.10.0"
 _STARTED = time.time()
 
 app = FastAPI(
