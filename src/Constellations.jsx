@@ -2749,7 +2749,7 @@ export default function Constellations({ lang = "es" }) {
     // fuentes de lo que se ve en la vista (relieve, nombres de montañas, nubes)
     const es = lang === "es", vc = [];
     if (view && hzData) vc.push(es ? "relieve AWS Terrain Tiles (SRTM)" : "terrain AWS Terrain Tiles (SRTM)");
-    if (view && peakList && peakList.length) vc.push(es ? "nombres de montañas © OpenStreetMap" : "mountain names © OpenStreetMap");
+    if (view && peakList && peakList.length) vc.push(es ? "nombres de montañas Wikidata y © OpenStreetMap" : "mountain names Wikidata and © OpenStreetMap");
     if (view && cloudsOn && wxData) vc.push(es ? "nubes Open-Meteo" : "clouds Open-Meteo");
     const out = buildPostcard({ ...base, center, view, viewCredit: vc.join(" · ") });
     if (E2E) out.then((r) => { window.__teseoPostcard = r && r.report; }).catch(() => {});

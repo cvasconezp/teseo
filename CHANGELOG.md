@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.13.2 — 17 de noviembre de 2026
+
+- Nombres de las montañas: los servidores públicos de OpenStreetMap no daban
+  abasto (fallaban o tardaban más de un minuto). Ahora los nombres vienen
+  también de Wikidata, que responde en segundos y trae el nombre en español y
+  en inglés; OpenStreetMap se suma si contesta a tiempo. La misma cumbre en las
+  dos fuentes cuenta una vez.
+
 ## 1.13.1 — 17 de noviembre de 2026
 
 - «Mi cielo»: fuera la lista fija «O elige un lugar» (Quito, Cayambe, Guayaquil,

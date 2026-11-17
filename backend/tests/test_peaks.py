@@ -31,9 +31,20 @@ NODES = [
 ]
 
 
+# Wikidata: el mismo volcán (otro nombre de la misma cumbre: cuenta una vez) y un cerro solo de Wikidata a 18 km
+# al sur… en la llanura (no forma silueta), más uno sin nombre
+WD = {"results": {"bindings": [
+    {"item": {"value": "http://www.wikidata.org/entity/Q1"}, "coord": {"value": f"Point({PEAK_LON:.5f} {LAT0:.5f})"},
+     "es": {"value": "Volcán Prueba"}, "en": {"value": "Test Volcano"}, "ele": {"value": "5790"}},
+    {"item": {"value": "http://www.wikidata.org/entity/Q2"}, "coord": {"value": f"Point({LON0:.5f} {LAT0 - 0.16:.5f})"},
+     "es": {"value": "Cerro Llano"}},
+    {"item": {"value": "http://www.wikidata.org/entity/Q3"}, "coord": {"value": "Point(-78 0)"}},
+]}}
+
+
 @pytest.fixture
 def net(monkeypatch):
-    st = {"over": 0, "fail": set(), "query": None}
+    st = {"over": 0, "wd": 0, "fail": set(), "query": None}
 
     def handler(request: httpx.Request):
         u = str(request.url)
@@ -41,6 +52,11 @@ def net(monkeypatch):
         if m:
             z, x, y = map(int, m.groups())
             return httpx.Response(200, headers={"content-type": "image/png"}, content=tile_png(z, x, y, terrain))
+        if "wikidata" in u:
+            st["wd"] += 1
+            if "wikidata" in st["fail"]:
+                return httpx.Response(403, content=b"no")
+            return httpx.Response(200, json=WD)
         st["over"] += 1
         st["query"] = request.content.decode()
         if any(h in u for h in st["fail"]):
@@ -68,7 +84,7 @@ def test_solo_las_cumbres_de_la_silueta(net):
     i = int(round(p["az"] / prof["step_deg"]))
     assert abs(p["az"] - 90) < 0.5 and p["alt"] == prof["bands"][p["band"]]["alt"][i] and p["alt"] == prof["alt"][i]
     assert p["lift"] > 2
-    assert d["candidates"] == 4 and "OpenStreetMap" in d["source"]
+    assert d["candidates"] == 5 and "OpenStreetMap" in d["source"] and "Wikidata" in d["source"]
 
 
 def test_consulta_y_cache(net):
@@ -87,10 +103,27 @@ def test_servidor_de_respaldo(net):
     assert r.status_code == 200 and r.json()["peaks"] and pk.stats["last_endpoint"] != pk.OVERPASS[0]
 
 
-def test_sin_overpass_502(net):
+def test_solo_wikidata(net):
     net["fail"].update(["overpass-api.de", "kumi.systems", "mail.ru", "private.coffee"])
     r = client.get(f"/api/peaks?lat={LAT0}&lon={LON0}")
-    assert r.status_code == 502 and "montañas" in r.json()["detail"] and r.json()["detail"].count("HTTP 429") == len(pk.OVERPASS)
+    assert r.status_code == 200 and [p["name"] for p in r.json()["peaks"]] == ["Volcán Prueba"] and pk.stats["last_sources"] == ["wikidata"]
+
+
+def test_dos_fuentes_una_cumbre(net):
+    d = client.get(f"/api/peaks?lat={LAT0}&lon={LON0}").json()
+    assert [p["name"] for p in d["peaks"]] == ["Volcán Prueba"] and net["wd"] == 1 and set(pk.stats["last_sources"]) == {"wikidata", "osm"}
+
+
+def test_parse_wikidata():
+    els = pk.parse_wikidata(WD)
+    assert len(els) == 2 and els[0]["tags"]["name:en"] == "Test Volcano" and els[0]["tags"]["ele"] == "5790" and abs(els[0]["lat"] - LAT0) < 1e-4
+    assert pk._norm("Volcán Cayambe") == pk._norm("Cayambe") == "cayambe"
+
+
+def test_sin_overpass_502(net):
+    net["fail"].update(["overpass-api.de", "kumi.systems", "mail.ru", "private.coffee", "wikidata"])
+    r = client.get(f"/api/peaks?lat={LAT0}&lon={LON0}")
+    assert r.status_code == 502 and "montañas" in r.json()["detail"] and "Wikidata: HTTP 403" in r.json()["detail"]
 
 
 def test_filtro_de_lejanas():

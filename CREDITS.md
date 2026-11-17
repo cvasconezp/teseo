@@ -49,7 +49,7 @@ copia; nuestro render 3D es propio, con Three.js.)
 | Buscador de lugares de «Mi cielo» (`src/sky/places.js`) | [Open-Meteo Geocoding API](https://open-meteo.com/en/docs/geocoding-api), con los nombres de [GeoNames](https://www.geonames.org/) | GeoNames: CC BY 4.0; API gratuita para uso no comercial |
 | Sitios astronómicos y arqueológicos (`src/sky/places.js`) | Coordenadas de Wikipedia y de la ficha de nominación a la Unesco (Chankillo), comprobadas el 17-nov-2026 | hechos (sin licencia) |
 | Horizonte real del lugar (montañas) (`backend/app/horizon.py`) | [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) (Mapzen, formato terrarium) a partir de SRTM (NASA), GMTED2010 (USGS), ETOPO1 (NOAA) y otros modelos | datos abiertos con atribución (ver abajo) |
-| Nombres de las montañas del horizonte (`backend/app/peaks.py`) | [OpenStreetMap](https://www.openstreetmap.org/copyright) (cumbres y volcanes con nombre, `natural=peak` y `natural=volcano`), por la API [Overpass](https://overpass-api.de/) | © colaboradores de OpenStreetMap, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/) |
+| Nombres de las montañas del horizonte (`backend/app/peaks.py`) | [Wikidata](https://www.wikidata.org/) (montañas, volcanes, cimas y colinas con coordenadas, por su [servicio de consultas](https://query.wikidata.org/)) y [OpenStreetMap](https://www.openstreetmap.org/copyright) (`natural=peak` y `natural=volcano` con nombre, por la API [Overpass](https://overpass-api.de/)) | Wikidata: CC0; OpenStreetMap: © colaboradores de OpenStreetMap, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/) |
 | Narrativa | Groq (modelos Llama) | — servicio |
 | Render 3D | Three.js | MIT |
 

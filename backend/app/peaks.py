@@ -3,8 +3,12 @@ peaks.py — los nombres de las montañas que se ven en el horizonte real de un 
 
   GET /api/peaks?lat=<grados>&lon=<grados>
 
-Fuente de los nombres: OpenStreetMap (cumbres y volcanes con nombre: natural=peak|volcano), por la API Overpass.
-© colaboradores de OpenStreetMap, licencia ODbL (ver CREDITS.md).
+Fuentes de los nombres, consultadas a la vez (ver CREDITS.md):
+  * Wikidata (montañas, volcanes, cumbres y cerros con coordenadas; datos CC0), por su servicio de consultas
+    SPARQL: rápido y fiable, con los nombres en español y en inglés;
+  * OpenStreetMap (natural=peak|volcano con nombre; © colaboradores de OpenStreetMap, ODbL), por la API Overpass:
+    más cumbres pequeñas, pero sus servidores públicos van muy cargados. Si no responde a tiempo, basta Wikidata.
+Las dos listas se juntan (la misma cumbre con el mismo nombre a menos de 2 km cuenta una vez).
 
 Solo se nombra una cumbre si FORMA la silueta que dibuja el cielo. Con el horizonte del lugar ya calculado
 (app/horizon.py: para cada 0,2° de acimut y cada banda de distancia, el punto más alto, su ángulo y su distancia):
@@ -17,7 +21,7 @@ Solo se nombra una cumbre si FORMA la silueta que dibuja el cielo. Con el horizo
 Se ordenan por lo que destacan sobre el horizonte de alrededor y, de dos cumbres casi en el mismo rumbo, queda la
 que más destaca. El navegador decide cuántos caben según el zoom.
 
-Caché en memoria por celda del horizonte. Si Overpass falla, 502 (el cielo sigue con montañas, sin nombres).
+Caché en memoria por celda del horizonte. Si fallan las dos fuentes, 502 (el cielo sigue con montañas, sin nombres).
 """
 
 import asyncio
@@ -32,7 +36,11 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from app import horizon as hz
 from app.cache import iso_utc, provider_headers
 
-SOURCE = "OpenStreetMap (Overpass API) — © colaboradores de OpenStreetMap, ODbL"
+SOURCE = "Wikidata (CC0) y OpenStreetMap (© colaboradores de OpenStreetMap, ODbL)"
+WIKIDATA = "https://query.wikidata.org/sparql"
+# montaña, volcán, cima, estratovolcán, colina, volcán en escudo, volcán extinto, montaña sagrada
+WD_TYPES = ("Q8502", "Q8072", "Q207326", "Q169358", "Q54050", "Q212057", "Q1197120", "Q1595289")
+OSM_WAIT_S = 20.0           # cuánto se espera a OpenStreetMap cuando Wikidata ya respondió
 OVERPASS = (
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
@@ -50,12 +58,12 @@ CACHE_SECONDS = 3 * 86400
 _transport: Optional[httpx.AsyncBaseTransport] = None
 router = APIRouter(prefix="/api", tags=["peaks"])
 _results: "OrderedDict[tuple, dict]" = OrderedDict()
-stats = {"computed": 0, "last_error": None, "last_ms": None, "last_endpoint": None}
+stats = {"computed": 0, "last_error": None, "last_ms": None, "last_endpoint": None, "last_sources": None}
 
 
 def reset_cache() -> None:
     _results.clear()
-    stats.update(computed=0, last_error=None, last_ms=None, last_endpoint=None)
+    stats.update(computed=0, last_error=None, last_ms=None, last_endpoint=None, last_sources=None)
 
 
 def bearing_dist(lat0: float, lon0: float, lat: float, lon: float):
@@ -181,7 +189,7 @@ def visible_peaks(prof: dict, nodes: list, lang_keys=("es", "en")) -> list:
     out.sort(key=lambda p: (-p["lift"], -p["ele_m"]))
     kept = []
     for p in out:
-        if any(abs(((p["az"] - q["az"] + 180) % 360) - 180) < 1.0 for q in kept):
+        if any(abs(((p["az"] - q["az"] + 180) % 360) - 180) < 1.0 or _norm(p["name"]) == _norm(q["name"]) for q in kept):
             continue
         kept.append(p)
         if len(kept) >= MAX_PEAKS:
@@ -189,13 +197,114 @@ def visible_peaks(prof: dict, nodes: list, lang_keys=("es", "en")) -> list:
     return kept
 
 
+def wikidata_query(lat: float, lon: float) -> str:
+    types = " ".join(f"wd:{q}" for q in WD_TYPES)
+    return (
+        "SELECT ?item ?coord ?ele ?es ?en WHERE {"
+        " SERVICE wikibase:around { ?item wdt:P625 ?coord ."
+        f' bd:serviceParam wikibase:center "Point({lon:.5f} {lat:.5f})"^^geo:wktLiteral .'
+        f' bd:serviceParam wikibase:radius "{int(MAX_KM)}" . }}'
+        f" ?item wdt:P31 ?t . VALUES ?t {{ {types} }}"
+        " OPTIONAL { ?item wdt:P2044 ?ele . }"
+        ' OPTIONAL { ?item rdfs:label ?es . FILTER(LANG(?es) = "es") }'
+        ' OPTIONAL { ?item rdfs:label ?en . FILTER(LANG(?en) = "en") }'
+        "} LIMIT 6000"
+    )
+
+
+def parse_wikidata(body: dict) -> list:
+    """Resultados SPARQL → elementos como los de Overpass ({id, lat, lon, tags})."""
+    out = []
+    for b in (body.get("results") or {}).get("bindings") or []:
+        try:
+            pt = b["coord"]["value"]                         # «Point(lon lat)»
+            lo_s, la_s = pt[pt.index("(") + 1:pt.index(")")].split()
+            la, lo = float(la_s), float(lo_s)
+        except (KeyError, ValueError):
+            continue
+        es = (b.get("es") or {}).get("value"); en = (b.get("en") or {}).get("value")
+        name = es or en
+        if not name:
+            continue
+        tags = {"name": name, "natural": "peak"}
+        if es:
+            tags["name:es"] = es
+        if en:
+            tags["name:en"] = en
+        if b.get("ele"):
+            tags["ele"] = b["ele"]["value"]
+        out.append({"type": "wd", "id": "wd:" + b["item"]["value"].rsplit("/", 1)[-1] + f":{la:.4f},{lo:.4f}",
+                    "lat": la, "lon": lo, "tags": tags})
+    return out
+
+
+def _norm(name: str) -> str:
+    import unicodedata
+    s = unicodedata.normalize("NFD", name.lower())
+    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+    for w in ("volcan ", "cerro ", "nevado ", "mount ", "monte ", "pico "):
+        if s.startswith(w):
+            s = s[len(w):]
+    return s.strip()
+
+
+def merge_nodes(a: list, b: list) -> list:
+    """Junta dos listas: la misma cumbre (mismo nombre, a menos de 2 km) cuenta una vez; queda la de `a`."""
+    out = list(a)
+    for el in b:
+        n = _norm((el.get("tags") or {}).get("name", ""))
+        dup = False
+        for o in a:
+            if _norm((o.get("tags") or {}).get("name", "")) == n:
+                _, d = bearing_dist(float(o["lat"]), float(o["lon"]), float(el["lat"]), float(el["lon"]))
+                if d < 2.0:
+                    dup = True; break
+        if not dup:
+            out.append(el)
+    return out
+
+
+async def fetch_wikidata(client: httpx.AsyncClient, lat: float, lon: float) -> list:
+    r = await client.get(WIKIDATA, params={"query": wikidata_query(lat, lon)},
+                         headers={"Accept": "application/sparql-results+json"})
+    if r.status_code != 200:
+        raise RuntimeError(f"Wikidata: HTTP {r.status_code}")
+    return parse_wikidata(r.json())
+
+
 async def fetch_nodes(lat: float, lon: float, ground_m: float) -> list:
+    """Wikidata y OpenStreetMap a la vez. Con Wikidata ya respondido, a OpenStreetMap se le espera como mucho
+    OSM_WAIT_S más; si una de las dos falla, vale la otra; si fallan las dos, error."""
+    min_far = ground_m + 300.0
+    async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=_transport, headers=provider_headers()) as client:
+        wd = asyncio.ensure_future(fetch_wikidata(client, lat, lon))
+        osm = asyncio.ensure_future(fetch_osm(client, lat, lon, min_far))
+        errors, wd_nodes, osm_nodes = [], None, None
+        try:
+            try:
+                wd_nodes = await wd
+            except Exception as e:                           # noqa: BLE001
+                errors.append(str(e) or type(e).__name__)
+            try:
+                osm_nodes = await (asyncio.wait_for(asyncio.shield(osm), OSM_WAIT_S) if wd_nodes is not None else osm)
+            except Exception as e:                           # noqa: BLE001
+                errors.append(f"OpenStreetMap: {e}" if str(e) else "OpenStreetMap: sin respuesta a tiempo")
+        finally:
+            osm.cancel()
+    stats["last_sources"] = [n for n, v in (("wikidata", wd_nodes), ("osm", osm_nodes)) if v is not None]
+    if wd_nodes is None and osm_nodes is None:
+        raise RuntimeError("; ".join(errors) or "sin respuesta")
+    stats["last_error"] = "; ".join(errors) or None
+    wd_ok = [el for el in (wd_nodes or []) if far_ok(el, lat, lon, min_far)]
+    return merge_nodes(osm_nodes or [], wd_ok)
+
+
+async def fetch_osm(client: httpx.AsyncClient, lat: float, lon: float, min_far: float) -> list:
     """Pregunta a los servidores Overpass a la vez y se queda con la primera respuesta buena (suelen ir
     cargados: uno solo puede tardar un minuto o fallar)."""
-    min_far = ground_m + 300.0
     q = overpass_query(lat, lon, min_far)
     errors = []
-    async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=_transport, headers=provider_headers()) as client:
+    if True:
         async def one(url):
             r = await client.post(url, data={"data": q})
             if r.status_code != 200:

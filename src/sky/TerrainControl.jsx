@@ -27,11 +27,11 @@ export const TX_HZ = {
     source: "Relieve: AWS Terrain Tiles (SRTM de la NASA, GMTED2010 del USGS y otros), hasta 150 km, con la curvatura de la Tierra y la refracción. Solo el relieve: no incluye árboles ni edificios.",
     peaks: "Nombres de las montañas",
     peaksDesc: "Nombre y altura de cada cumbre que ves.",
-    peaksLoading: "Buscando los nombres en OpenStreetMap (la primera vez puede tardar un poco)…",
+    peaksLoading: "Buscando los nombres (la primera vez puede tardar un poco)…",
     peaksError: "No se pudieron leer los nombres ahora.",
     peaksNone: "Ninguna cumbre con nombre forma tu horizonte.",
     peaksCount: (n) => `${n} ${n === 1 ? "cumbre con nombre" : "cumbres con nombre"} en tu horizonte.`,
-    peaksSource: "Nombres: © colaboradores de OpenStreetMap (ODbL). Solo se nombra la cumbre que forma la silueta.",
+    peaksSource: "Nombres: Wikidata (CC0) y © colaboradores de OpenStreetMap (ODbL). Solo se nombra la cumbre que forma la silueta.",
   },
   en: {
     layer: "Mountains",
@@ -46,11 +46,11 @@ export const TX_HZ = {
     source: "Terrain: AWS Terrain Tiles (NASA SRTM, USGS GMTED2010 and others), out to 150 km, with Earth's curvature and refraction. Terrain only: no trees or buildings.",
     peaks: "Mountain names",
     peaksDesc: "Name and height of every summit you can see.",
-    peaksLoading: "Looking up the names in OpenStreetMap (the first time can take a while)…",
+    peaksLoading: "Looking up the names (the first time can take a while)…",
     peaksError: "Couldn't load the names right now.",
     peaksNone: "No named summit shapes your horizon.",
     peaksCount: (n) => `${n} named ${n === 1 ? "summit" : "summits"} on your horizon.`,
-    peaksSource: "Names: © OpenStreetMap contributors (ODbL). Only summits that shape the skyline are named.",
+    peaksSource: "Names: Wikidata (CC0) and © OpenStreetMap contributors (ODbL). Only summits that shape the skyline are named.",
   },
 };
 
