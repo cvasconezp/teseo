@@ -1,7 +1,7 @@
 {
   "name": "Teseo — Navegación Interplanetaria",
   "short_name": "Teseo",
-  "description": "Navegación cósmica real: trayectorias, ventanas de lanzamiento y constelaciones en profundidad real con datos de NASA JPL.",
+  "description": "App gratuita de divulgación astronómica: tu cielo en vivo, fichas de estrellas y planetas, viajes reales a otros planetas y grandes preguntas con datos reales.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

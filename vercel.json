@@ -39,6 +39,15 @@
       ]
     },
     {
+      "source": "/:path((?!assets/|textures/|robots\\.txt$|sitemap\\.xml$).+)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         {

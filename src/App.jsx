@@ -34,6 +34,7 @@ import { AU_KM, helioPosition, approxDistanceKm, hohmannLocal, launchWindowsLoca
 import { DAY_MS, parseISO, daysUntil, durationParts, relParts } from "./ui/time.js";
 import Intro from "./intro/Intro.jsx";
 import { createAmbient, STORAGE_KEY as AMBIENT_KEY } from "./ui/ambient.js";
+import { pickLang, canonicalFor, searchWithLang } from "./ui/seo.js";
 import { parseHash, hashBelongsTo, hashForTab, hashForQuestion, usageHash } from "./ui/hash.js";
 import { track, startSession, trackNetError } from "./ui/track.js";
 import {
@@ -513,17 +514,14 @@ function fmtDistance(km, lang) {
   return `${nf(m, lang, m < 100 ? 1 : 0)} ${t.million} km`;
 }
 
-// Idioma: preferencia guardada > idioma del navegador > español (coherente con <html lang="es">)
+// Idioma: ?lang= > preferencia guardada > (buscadores: español) > idioma del navegador > español
+// (ver src/ui/seo.js; coherente con <html lang="es">)
 function initialLang() {
-  try {
-    const saved = localStorage.getItem("teseo-lang");
-    if (saved === "es" || saved === "en") return saved;
-  } catch { /* no-op */ }
-  try {
-    const nav = (navigator.languages && navigator.languages[0]) || navigator.language || "";
-    if (/^en\b/i.test(nav)) return "en";
-  } catch { /* no-op */ }
-  return "es";
+  let saved = null, search = "", nav = "", ua = "";
+  try { saved = localStorage.getItem("teseo-lang"); } catch { /* no-op */ }
+  try { search = window.location.search; } catch { /* no-op */ }
+  try { nav = (navigator.languages && navigator.languages[0]) || navigator.language || ""; ua = navigator.userAgent || ""; } catch { /* no-op */ }
+  return pickLang({ search, saved, nav, ua });
 }
 
 const reducedMotion = () => {
@@ -533,12 +531,12 @@ const reducedMotion = () => {
 const META = {
   es: {
     title: "Teseo — Planetario y navegación interplanetaria",
-    description: "Planetario 3D y navegación interplanetaria con datos reales: tu cielo de esta noche, rutas y ventanas de lanzamiento a los planetas, próximos lanzamientos y asteroides cercanos.",
+    description: "App gratuita de divulgación astronómica: tu cielo en vivo, fichas de estrellas y planetas, viajes reales a otros planetas y grandes preguntas con datos reales.",
     locale: "es_EC",
   },
   en: {
     title: "Teseo — Planetarium and interplanetary navigation",
-    description: "A 3D planetarium and interplanetary navigation with real data: your sky tonight, routes and launch windows to the planets, upcoming launches and nearby asteroids.",
+    description: "Free astronomy outreach app: your live sky, a profile for every star and planet, real trips to other planets and big questions explored with real data.",
     locale: "en_US",
   },
 };
@@ -556,6 +554,16 @@ function applyLangToDocument(lang) {
   set('meta[property="og:locale"]', m.locale);
   set('meta[name="twitter:title"]', m.title);
   set('meta[name="twitter:description"]', m.description);
+  // canónica y og:url del idioma visible (cada idioma tiene su dirección; ver seo.js)
+  const can = document.head.querySelector('link[rel="canonical"]');
+  if (can) can.setAttribute("href", canonicalFor(lang));
+  set('meta[property="og:url"]', canonicalFor(lang));
+  set('meta[property="og:locale:alternate"]', lang === "en" ? META.es.locale : META.en.locale);
+  // si la dirección ya traía ?lang=, se ajusta al idioma elegido (sin tocar el #)
+  try {
+    const q = searchWithLang(window.location.search, lang);
+    if (q !== null && q !== window.location.search) window.history.replaceState(null, "", `${window.location.pathname}${q}${window.location.hash}`);
+  } catch { /* no-op */ }
 }
 
 // ─── SPACE TRAVEL BACKGROUND ─────────────────────────────────────────────────
