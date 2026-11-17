@@ -1,5 +1,19 @@
 # Cambios
 
+## 1.12.0 — 17 de noviembre de 2026
+
+- Cielo: nombres de las montañas. Nuevo interruptor «Nombres de las montañas»
+  dentro de «Montañas» (apagado por defecto): sobre cada cumbre que se ve en tu
+  horizonte, su nombre y su altura, con un palito que baja hasta el punto exacto
+  de la silueta. Los nombres vienen de OpenStreetMap y solo se pone el de una
+  cumbre que forma la silueta (la que queda tapada por un cerro más cercano no
+  se nombra). Caben más o menos según el zoom y la densidad de nombres.
+- Montañas mejor dibujadas: una montaña que cruzaba el límite entre dos capas
+  de distancia salía dos veces (el Cusín desde Cayambe, por ejemplo); ahora ese
+  corte se pinta con el color de la capa de atrás y sin línea, y la montaña se
+  ve una sola vez. Se quitaron las franjas verticales del sombreado y el borde
+  de la nieve ya no es una recta: sube y baja como el de un glaciar.
+
 ## 1.11.0 — 17 de noviembre de 2026
 
 - Cielo: montañas con más detalle. El perfil del horizonte se calcula cada 0,2°

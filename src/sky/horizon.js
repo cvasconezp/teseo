@@ -146,3 +146,47 @@ export function fetchHorizon(lat, lon, { api = "", fetchImpl = (typeof fetch !==
   p.catch(() => mem.delete(key));
   return p;
 }
+
+// ── nombres de las montañas (/api/peaks, OpenStreetMap) ─────────────────────
+// El servidor solo devuelve las cumbres que forman la silueta y, para cada una, el punto exacto de la silueta
+// (acimut y ángulo del filo de su banda), así que el rótulo cae siempre sobre la cumbre dibujada.
+const peaksMem = new Map();
+
+/** Cumbres con nombre del horizonte del lugar: promesa de { peaks: [...], source }, en caché por celda. */
+export function fetchPeaks(lat, lon, { api = "", fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
+  const key = cellKey(lat, lon);
+  if (peaksMem.has(key)) return peaksMem.get(key);
+  if (!fetchImpl) return Promise.reject(new Error("sin red"));
+  const [la, lo] = key.split(",");
+  const p = fetchImpl(`${api}/api/peaks?lat=${la}&lon=${lo}`).then(async (r) => {
+    let body = null;
+    try { body = await r.json(); } catch { /* no JSON */ }
+    if (!r.ok || !body || !Array.isArray(body.peaks)) throw new Error((body && body.detail) || `HTTP ${r.status}`);
+    return body;
+  });
+  peaksMem.set(key, p);
+  p.catch(() => peaksMem.delete(key));
+  return p;
+}
+
+/** Nombre de una cumbre en el idioma de la interfaz (si OpenStreetMap lo tiene), si no el local. */
+export const peakName = (p, lang) => (p && (p[`name_${lang}`] || p.name)) || "";
+
+/**
+ * Cumbres para rotular, en orden de prioridad (las que más destacan primero) y solo las que siguen sobre la
+ * silueta actual: si el relieve cambió (otra celda), una cumbre cuyo ángulo ya no coincide con el dibujo no se
+ * rotula. `max`: cuántas como mucho.
+ */
+export function peaksToLabel(peaks, hzData, max = 12) {
+  if (!Array.isArray(peaks) || !hzData || !Array.isArray(hzData.alt)) return [];
+  const step = hzData.step_deg || 0.5, n = hzData.alt.length, out = [];
+  for (const p of peaks) {
+    const i = ((Math.round(p.az / step) % n) + n) % n;
+    // el filo de su banda (una sierra más lejana y más alta puede asomar detrás: la cumbre sigue a la vista)
+    const ridge = hzData.bands && hzData.bands[p.band] ? hzData.bands[p.band].alt : hzData.alt;
+    if (Math.abs(ridge[i] - p.alt) > 0.05) continue;           // ya no es la silueta que se ve
+    out.push(p);
+    if (out.length >= max) break;
+  }
+  return out;
+}

@@ -1,9 +1,9 @@
 // Pruebas del horizonte real en el navegador: src/sky/horizon.js (perfil, refracción, ocultación, salida y puesta
 // tras las montañas, colores) y su integración en la vista Cielo y la ficha.
-import { cellKey, terrainAltAt, refraction, apparentAlt, behindTerrain, highestPoint, snowLine, terrainRiseSet, terrainPalette, fetchHorizon } from "../src/sky/horizon.js";
+import { cellKey, terrainAltAt, refraction, apparentAlt, behindTerrain, highestPoint, snowLine, terrainRiseSet, terrainPalette, fetchHorizon, fetchPeaks, peaksToLabel, peakName } from "../src/sky/horizon.js";
 import { riseTransitSet, H0_SUN } from "../src/sky/riseset.js";
 import { visibilityOf } from "../src/sky/objVisibility.js";
-import { angleOf, snowAngles } from "../src/sky/terrainLayer.js";
+import { angleOf, snowAngles, snowJitter } from "../src/sky/terrainLayer.js";
 import { readFileSync } from "node:fs";
 
 let pass = 0, fail = 0;
@@ -73,6 +73,12 @@ ok(near(angleOf(5790, 18, 2830), 9.3, 0.1), "el Cayambe (5.790 m a 18 km) se ve 
 const sb = { alt: [9.3, 5], top_m: [5790, 4200], dist_km: [18, 18] };
 const sn = snowAngles(sb, 2830, 4900);
 ok(sn[1] === null && sn[0] > 6 && sn[0] < 9.3, `la nieve empieza en la línea de nieves (${sn[0] && sn[0].toFixed(2)}°), bajo la cumbre; sin nieve donde no llega`);
+{
+  const js = Array.from({ length: 400 }, (_, i) => snowJitter(80 + i * 0.2, 45));
+  const mx = Math.max(...js), mn = Math.min(...js), jumps = js.slice(1).map((v, i) => Math.abs(v - js[i]));
+  ok(mx > 120 && mn < -120 && mx < 300 && mn > -300 && Math.max(...jumps) < 120, "el borde de la nieve sube y baja (±~250 m) sin saltos bruscos");
+  ok(snowJitter(90, 45) === snowJitter(90, 45), "y siempre igual en el mismo sitio");
+}
 
 console.log("Red");
 let calls = 0;
@@ -92,8 +98,24 @@ console.log("Integración");
 const sky = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
 ok(/createTerrainLayer\(\)/.test(sky) && /behindTerrain\(/.test(sky) && /teseo_terrain/.test(sky), "el cielo dibuja las montañas, oculta lo que queda detrás y recuerda el interruptor");
 ok(/horizon: hzData/.test(sky), "la ficha recibe el horizonte del lugar");
+// nombres de las montañas
+{
+  const hzd = { step_deg: 0.2, alt: Array.from({ length: 1800 }, (_, i) => (i === 450 ? 9.41 : i === 900 ? 2.1 : 0)) };
+  const list = [{ name: "Cayambe", name_en: "Cayambe Volcano", az: 90, alt: 9.41, ele_m: 5790 }, { name: "Viejo", az: 180, alt: 3.5 }, { name: "Sur", az: 180, alt: 2.1 }];
+  const lab = peaksToLabel(list, hzd);
+  const hzb = { ...hzd, bands: [{ alt: hzd.alt.map((v, i) => (i === 300 ? 1.2 : -1)) }, { alt: hzd.alt.map((v, i) => (i === 300 ? 4 : v)) }] };
+  ok(peaksToLabel([{ name: "Delante", az: 60, alt: 1.2, band: 0 }], hzb).length === 1, "una cumbre delante de una sierra más alta también se rotula");
+  ok(lab.length === 2 && lab[0].name === "Cayambe" && lab[1].name === "Sur", "solo se rotulan las cumbres que siguen sobre la silueta dibujada");
+  ok(peaksToLabel(list, hzd, 1).length === 1 && peaksToLabel(null, hzd).length === 0 && peaksToLabel(list, null).length === 0, "límite y sin datos");
+  ok(peakName(list[0], "en") === "Cayambe Volcano" && peakName(list[0], "es") === "Cayambe", "nombre en el idioma si OpenStreetMap lo tiene");
+  let url = null;
+  const res = await fetchPeaks(0.0401, -78.1502, { api: "https://x", fetchImpl: async (u) => { url = u; return { ok: true, json: async () => ({ peaks: list }) }; } });
+  ok(url === "https://x/api/peaks?lat=0.040&lon=-78.150" && res.peaks.length === 3, "petición por celda del horizonte");
+  ok(/teseo_peaks/.test(sky) && /peaksToLabel\(/.test(sky) && /cls: "peak"/.test(sky), "el cielo rotula las cumbres y recuerda el interruptor (apagado por defecto)");
+}
 const credits = readFileSync(new URL("../CREDITS.md", import.meta.url), "utf8");
 ok(/Terrain Tiles/.test(credits) && /SRTM/.test(credits), "créditos del relieve");
+ok(/OpenStreetMap/.test(credits) && /ODbL/.test(credits), "créditos de los nombres de las montañas");
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

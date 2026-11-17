@@ -22,6 +22,7 @@ Endpoints:
   GET  /api/sun/today                 → «El Sol hoy»: manchas (SILSO), regiones, fulguraciones, Kp, ciclo (NOAA SWPC), imagen SDO
   GET  /api/missions/mars             → ventana a Marte + naves con destino Marte
   GET  /api/horizon?lat&lon            → horizonte real del lugar: silueta del relieve (AWS Terrain Tiles)
+  GET  /api/peaks?lat&lon              → nombres de las cumbres que forman esa silueta (OpenStreetMap)
   GET  /api/img?u=<url>               → proxy de imágenes con CORS para las imágenes para compartir (lista blanca de hosts)
   POST /api/m  (= /api/metrics/event) → métricas de uso anónimas y agregadas (204 siempre)
   GET  /api/metrics/summary[.csv]     → resumen de uso (token TESEO_METRICS_TOKEN; 404 sin él)
@@ -62,9 +63,10 @@ from app import lambert
 from app import mga
 from app import img_proxy
 from app import horizon
+from app import peaks
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.11.0"
+VERSION = "1.12.0"
 _STARTED = time.time()
 
 app = FastAPI(
@@ -209,6 +211,7 @@ def api_health():
             "asteroids": {"provider": asteroids.SOURCE, **asteroids.resource.status()},
             "iss": {"provider": iss.SOURCE, **iss.resource.status()},
             "horizon": {"provider": horizon.SOURCE, "cells_cached": len(horizon._results), "tiles_cached": len(horizon._tiles), **{k: v for k, v in horizon.stats.items()}},
+            "peaks": {"provider": peaks.SOURCE, "cells_cached": len(peaks._results), **{k: v for k, v in peaks.stats.items()}},
             "sun": {"provider": "SILSO / NOAA SWPC / NASA SDO", **sun.status()},
             "exoplanets": {"provider": "NASA Exoplanet Archive", **exoplanets.resource.status()},
             "positions": {"provider": "NASA JPL Horizons", **nasa_horizons.positions_status()},
@@ -359,6 +362,7 @@ async def _metrics_flusher():
 app.include_router(sun.router)  # «El Sol hoy»: /api/sun/today (app/sun.py)
 app.include_router(push.router)  # «Recordarme»: /api/push/* y su bucle de envío (arranque/parada en app/push.py)
 app.include_router(horizon.router)  # horizonte real: /api/horizon (app/horizon.py, relieve de AWS Terrain Tiles)
+app.include_router(peaks.router)    # nombres de las montañas del horizonte: /api/peaks (app/peaks.py, OpenStreetMap)
 app.include_router(img_proxy.router)  # imágenes para compartir: /api/img (app/img_proxy.py, lista blanca de hosts)
 
 

@@ -57,6 +57,14 @@
 .sk-stage .sk-label-card span { transform: translate(-50%, -50%) !important; }
 .sk-stage .sk-label-cardn { font-family: var(--sans); font-size: 16px; font-weight: 700; color: #ff9d8a; text-shadow: 0 1px 4px #000, 0 0 2px #000; }
 .sk-stage .sk-label-cardn span { transform: translate(-50%, -50%) !important; }
+/* nombres de las montañas: el texto encima y un palito hasta la cumbre (el punto de la silueta) */
+.sk-stage .sk-label-peak { font-family: var(--sans); }
+.sk-stage .sk-label-peak > i { position: absolute; left: -0.5px; bottom: 1px; width: 1px; height: 12px; background: currentColor; opacity: 0.75; box-shadow: 0 0 2px #000; }
+.sk-stage .sk-label-peak > i::after { content: ""; position: absolute; left: -1.5px; bottom: -2px; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.sk-stage .sk-label-peak > em { position: absolute; left: 0; bottom: 15px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; font-style: normal; text-align: center; }
+.sk-stage .sk-label-peak b { display: block; transform: none; font-size: 12.5px; font-weight: 600; letter-spacing: 0.02em; }
+.sk-stage .sk-label-peak small { display: block; transform: none; margin: 0; font-size: 10.5px; color: inherit; opacity: 0.78; font-variant-numeric: tabular-nums; }
+@media (min-width: 900px) { .sk-stage .sk-label-peak b { font-size: 13.5px; } .sk-stage .sk-label-peak small { font-size: 11px; } }
 .sk-stage .sk-atm-deep { padding: 8px 10px; border-radius: 10px; background: rgba(103, 232, 200, 0.07); border: 1px solid rgba(103, 232, 200, 0.3); }
 
 /* arrastrar con el ratón sobre el cielo no debe seleccionar los nombres ni los avisos */

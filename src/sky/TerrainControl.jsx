@@ -1,6 +1,7 @@
 // TerrainControl.jsx — interruptor «Montañas» (horizonte real del lugar) en el panel de capas de la vista Cielo,
 // con lo más alto de tu horizonte y la fuente. El estado vive en Constellations.jsx.
-//   lang, available (hay lugar en Mi cielo), on, onToggle, hz: { status, data, error }, onRetry
+//   lang, available (hay lugar en Mi cielo), on, onToggle, hz: { status, data, error }, onRetry,
+//   peaksOn, onTogglePeaks, peaks: { status, data } (nombres de las montañas, OpenStreetMap)
 import { highestPoint } from "./horizon.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import Icon from "./icons.jsx";
@@ -24,6 +25,13 @@ export const TX_HZ = {
     high: (alt, dir, top, from, to) => `Lo más alto de tu horizonte: ${alt}° hacia el ${dir}, una cumbre de ${top} m a entre ${from} y ${to} km.`,
     ground: (m) => `Altura de tu lugar en el modelo: ${m} m (más 1,7 m de los ojos).`,
     source: "Relieve: AWS Terrain Tiles (SRTM de la NASA, GMTED2010 del USGS y otros), hasta 150 km, con la curvatura de la Tierra y la refracción. Solo el relieve: no incluye árboles ni edificios.",
+    peaks: "Nombres de las montañas",
+    peaksDesc: "Sobre cada cumbre que se ve en tu horizonte, su nombre y su altura.",
+    peaksLoading: "Buscando los nombres…",
+    peaksError: "No se pudieron leer los nombres ahora.",
+    peaksNone: "Ninguna cumbre con nombre forma tu horizonte.",
+    peaksCount: (n) => `${n} ${n === 1 ? "cumbre con nombre" : "cumbres con nombre"} en tu horizonte.`,
+    peaksSource: "Nombres: © colaboradores de OpenStreetMap (ODbL). Solo se nombra la cumbre que forma la silueta.",
   },
   en: {
     layer: "Mountains",
@@ -36,6 +44,13 @@ export const TX_HZ = {
     high: (alt, dir, top, from, to) => `The highest point of your horizon: ${alt}° to the ${dir}, a ${top} m summit between ${from} and ${to} km away.`,
     ground: (m) => `Your place's height in the model: ${m} m (plus 1.7 m for your eyes).`,
     source: "Terrain: AWS Terrain Tiles (NASA SRTM, USGS GMTED2010 and others), out to 150 km, with Earth's curvature and refraction. Terrain only: no trees or buildings.",
+    peaks: "Mountain names",
+    peaksDesc: "Above every summit you can see on your horizon, its name and height.",
+    peaksLoading: "Looking up the names…",
+    peaksError: "Couldn't load the names right now.",
+    peaksNone: "No named summit shapes your horizon.",
+    peaksCount: (n) => `${n} named ${n === 1 ? "summit" : "summits"} on your horizon.`,
+    peaksSource: "Names: © OpenStreetMap contributors (ODbL). Only summits that shape the skyline are named.",
   },
 };
 
@@ -45,7 +60,7 @@ const bandFrom = (data, km, lang) => {
   return i > 0 ? Number(bs[i - 1]).toLocaleString(lang === "es" ? "es" : "en-US") : "0";
 };
 
-export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry }) {
+export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry, peaksOn = false, onTogglePeaks, peaks }) {
   const tx = TX_HZ[lang] || TX_HZ.es;
   const data = hz && hz.status === "ok" ? hz.data : null;
   const hp = data ? highestPoint(data) : null;
@@ -74,6 +89,22 @@ export function TerrainControl({ lang = "es", available = true, on, onToggle, hz
             </>
           )}
           <p className="sk-atm-fine">{tx.source}</p>
+          {onTogglePeaks && (
+            <div className="sk-layer sk-hz-peaks">
+              <button type="button" role="switch" aria-checked={!!peaksOn} className="sk-layer-main" onClick={onTogglePeaks}>
+                <span className="sk-layer-txt"><b>{tx.peaks}</b><small>{tx.peaksDesc}</small></span>
+                <i className="sk-switch" />
+              </button>
+            </div>
+          )}
+          {peaksOn && peaks && peaks.status === "loading" && <p className="sk-atm-fine" role="status">{tx.peaksLoading}</p>}
+          {peaksOn && peaks && peaks.status === "error" && <p className="sk-atm-fine" role="status">{tx.peaksError}</p>}
+          {peaksOn && peaks && peaks.status === "ok" && (
+            <>
+              <p className="sk-atm-fine">{peaks.data.peaks.length ? tx.peaksCount(peaks.data.peaks.length) : tx.peaksNone}</p>
+              <p className="sk-atm-fine">{tx.peaksSource}</p>
+            </>
+          )}
         </div>
       )}
     </div>

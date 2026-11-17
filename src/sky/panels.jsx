@@ -50,6 +50,13 @@ export const SkyLabels = memo(function SkyLabels({ apiRef, colors, unit, locale,
           style={{ transform: `translate(${Math.round(l.x)}px,${Math.round(l.y)}px) translate(-50%,-135%)` }}>
           <i aria-hidden="true">?</i>{l.name}
         </button>
+      ) : l.cls === "peak" ? (
+        // nombre de una montaña: encima de la cumbre, con un palito que baja hasta el punto exacto de la silueta
+        <div key={l.key} aria-hidden="true" className="sk-label sk-label-peak"
+          style={{ transform: `translate(${Math.round(l.x)}px,${Math.round(l.y)}px)`, color: colors.peak || "#fff" }}>
+          <i />
+          <em><b>{l.name}</b>{l.subText != null && <small>{Number(l.subText).toLocaleString(locale, { useGrouping: "always" })} m</small>}</em>
+        </div>
       ) : (
         <div key={l.key} aria-hidden="true" className={`sk-label sk-label-${l.cls.startsWith("obj_") ? "obj" : l.cls}${l.flip ? " is-flip" : ""}${l.hot ? " is-hot" : ""}`}
           style={{ transform: `translate(${Math.round(l.x)}px,${Math.round(l.y)}px)`, color: colors[l.cls] || "#fff" }}>

@@ -205,7 +205,8 @@ def compute_profile(lat0: float, lon0: float, near: Mosaic, mid: Mosaic, far: Mo
             "max_km": km,
             "alt": [round(float(v), 2) for v in sub[np.arange(N_AZ), idx]],
             "top_m": [int(round(float(v))) for v in h[:, m][np.arange(N_AZ), idx]],
-            # distancia del filo (km): con ella el navegador sabe a qué altura angular queda la línea de nieves
+            # distancia del filo (km): con ella el navegador sabe a qué altura angular queda la línea de nieves y
+            # si el filo es de verdad una cresta o solo el corte de una ladera en el límite de la banda
             "dist_km": [round(float(v) / 1000.0, 1) for v in d[m][idx]],
         })
         lo = km

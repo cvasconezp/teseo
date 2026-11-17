@@ -52,7 +52,7 @@ import { createAtmosphereLayer } from "./sky/atmosphereLayer.js";
 import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE } from "./sky/cloudsLayer.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
-import { fetchHorizon, behindTerrain, cellKey } from "./sky/horizon.js";
+import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName } from "./sky/horizon.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
@@ -84,7 +84,7 @@ const LAYERS = [
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
+const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
 // Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
 // de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
 // en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
@@ -112,6 +112,7 @@ const PLACES = [
 const ATM_KEY = "teseo_atm";           // interruptor "Atmósfera" (1/0)
 const BORTLE_KEY = "teseo_bortle_v1";  // { lugar: clase } elegida por la persona
 const TERRAIN_KEY = "teseo_terrain";    // interruptor "Montañas" (relieve real; encendido por defecto)
+const PEAKS_KEY = "teseo_peaks";        // "Nombres de las montañas" (OpenStreetMap; apagado por defecto)
 const CLOUDS_KEY = "teseo_clouds";      // interruptor "Nubes" (1/0; apagado por defecto: un cielo cubierto no deja ver nada)
 // Penalización (mag) para objetos extensos: su luz se reparte en un área, así que se ven peor que una
 // estrella de la misma magnitud integrada. APROXIMACIÓN declarada en la interfaz (deepNote).
@@ -596,6 +597,8 @@ export default function Constellations({ lang = "es" }) {
   const [terrainOn, setTerrainOn] = useState(() => { try { return localStorage.getItem(TERRAIN_KEY) !== "0"; } catch { return true; } });
   const [hz, setHz] = useState({ status: "idle", data: null, key: null });   // horizonte real (/api/horizon)
   const [hzRetry, setHzRetry] = useState(0);
+  const [peaksOn, setPeaksOn] = useState(() => { try { return localStorage.getItem(PEAKS_KEY) === "1"; } catch { return false; } });
+  const [pk, setPk] = useState({ status: "idle", data: null, key: null });   // nombres de las cumbres (/api/peaks)
   const [dayHidden, setDayHidden] = useState(false);
   const [whenStr, setWhenStr] = useState(nowLocalInput());
   const [playing, setPlaying] = useState(false);
@@ -1864,6 +1867,24 @@ export default function Constellations({ lang = "es" }) {
             out.push({ key: "card:" + k, name: nm, cls: k === 0 ? "cardn" : "card", sub: null, x: sx, y: sy, dx: 0, flip: false });
           }
         }
+        // nombres de las montañas: sobre la cumbre, con un palito que baja hasta la silueta (el punto exacto del
+        // filo dibujado). Las que más destacan primero; los que no caben no se ponen.
+        if (inside && ref.localModeOn && ref.hzData && ref.peakLabels) {
+          const dens = ref.labelDensity || "normal", maxP = dens === "pocas" ? 5 : dens === "muchas" ? 22 : 12, R = Math.PI / 180;
+          let np = 0;
+          for (const p of ref.peakLabels) {
+            if (np >= maxP) break;
+            const ca = Math.cos(p.alt * R);
+            tmp.set(860 * ca * Math.sin(p.az * R), 860 * Math.sin(p.alt * R), -860 * ca * Math.cos(p.az * R)).project(ref.camera);
+            if (tmp.z >= 1 || tmp.x < -1 || tmp.x > 1 || tmp.y < -1 || tmp.y > 1) continue;
+            const sx = (tmp.x * 0.5 + 0.5) * W, sy = (-tmp.y * 0.5 + 0.5) * H;
+            const w = Math.max(p.label.length * 7.4, 46) + 8, top = sy - 46;
+            if (top < 4 || !free(sx - w / 2, top, sx + w / 2, sy - 2) || !clear(sx - w / 2, top, sx + w / 2, sy - 2)) continue;
+            boxes.push(sx - w / 2, top, sx + w / 2, sy - 2);
+            out.push({ key: "peak:" + p.az + ":" + p.name, name: p.label, cls: "peak", sub: null, subText: p.ele_m, x: sx, y: sy, dx: 0, flip: false });
+            np++;
+          }
+        }
         // la ISS: «ISS» junto al punto, inicio, fin y la hora de cada minuto (pocas: issLayer las aclara)
         if (inside && ref.issLayer && ref.issLayer.active) {
           for (const g of ref.issLayer.labelsForView(ref.camera, { w: W, h: H }, { clock: ref.issFmt || undefined })) place(g.x, g.y, g.name, g.cls, null, g.dx, g.pk ? { key: g.key, pk: g.pk } : { key: g.key });
@@ -2317,6 +2338,23 @@ export default function Constellations({ lang = "es" }) {
     return () => { alive = false; };
   }, [hzKey, terrainOn, hzRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
   const hzData = terrainOn && hz.status === "ok" && hz.key === hzKey ? hz.data : null;
+  // nombres de las montañas: solo con el relieve ya dibujado (se anclan en su silueta)
+  useEffect(() => { try { localStorage.setItem(PEAKS_KEY, peaksOn ? "1" : "0"); } catch { /* no-op */ } }, [peaksOn]);
+  useEffect(() => {
+    if (!peaksOn || !hzData || !hzKey) return;
+    let alive = true;
+    setPk((s) => (s.key === hzKey && s.status === "ok" ? s : { status: "loading", data: null, key: hzKey }));
+    fetchPeaks(lat, lon, { api: API }).then(
+      (data) => { if (alive) setPk({ status: "ok", data, key: hzKey }); },
+      (e) => { if (alive) setPk({ status: "error", data: null, key: hzKey, error: String(e && e.message || e) }); });
+    return () => { alive = false; };
+  }, [peaksOn, hzData, hzKey, hzRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const peakList = peaksOn && hzData && pk.status === "ok" && pk.key === hzKey ? pk.data.peaks : null;
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref) return;
+    ref.peakLabels = peakList ? peaksToLabel(peakList, hzData, 40).map((p) => ({ ...p, label: peakName(p, lang) })) : null;
+    ref._dirty = true;
+  }, [peakList, hzData, lang, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.terrain) return;
     ref.hzData = hzData;
@@ -3259,7 +3297,9 @@ export default function Constellations({ lang = "es" }) {
   const terrainCtl = (
     <TerrainControl lang={lang} available={localActive && !viewFrom} on={terrainOn}
       onToggle={() => { const nv = !terrainOn; setTerrainOn(nv); track("sky_setting", { setting: "horizon", state: nv ? "on" : "off" }); }}
-      hz={hzKey ? (hz.key === hzKey ? hz : { status: "loading" }) : null} onRetry={() => setHzRetry((n) => n + 1)} />
+      hz={hzKey ? (hz.key === hzKey ? hz : { status: "loading" }) : null} onRetry={() => setHzRetry((n) => n + 1)}
+      peaksOn={peaksOn} peaks={peaksOn && hzData ? (pk.key === hzKey ? pk : { status: "loading" }) : null}
+      onTogglePeaks={() => { const nv = !peaksOn; setPeaksOn(nv); track("sky_setting", { setting: "peaks", state: nv ? "on" : "off" }); }} />
   );
   const wxPanel = (
     <WeatherPanel lang={lang} available={localActive && !viewFrom} atmOn={atmOn}
