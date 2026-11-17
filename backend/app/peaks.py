@@ -40,7 +40,8 @@ SOURCE = "Wikidata (CC0) y OpenStreetMap (© colaboradores de OpenStreetMap, ODb
 WIKIDATA = "https://query.wikidata.org/sparql"
 # montaña, volcán, cima, estratovolcán, colina, volcán en escudo, volcán extinto, montaña sagrada
 WD_TYPES = ("Q8502", "Q8072", "Q207326", "Q169358", "Q54050", "Q212057", "Q1197120", "Q1595289")
-OSM_WAIT_S = 20.0           # cuánto se espera a OpenStreetMap cuando Wikidata ya respondió
+OSM_WAIT_S = 8.0            # cuánto más se espera a OpenStreetMap cuando Wikidata ya respondió
+WD_UA = "Teseo/1.13.3 (https://teseo.yachaydeep.com; https://github.com/cvasconezp/teseo) httpx"
 OVERPASS = (
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
@@ -265,8 +266,14 @@ def merge_nodes(a: list, b: list) -> list:
 
 
 async def fetch_wikidata(client: httpx.AsyncClient, lat: float, lon: float) -> list:
-    r = await client.get(WIKIDATA, params={"query": wikidata_query(lat, lon)},
-                         headers={"Accept": "application/sparql-results+json"})
+    # Wikimedia exige un User-Agent que identifique la aplicación y cómo contactar (si no, 403):
+    # el sitio y el repositorio públicos de Teseo
+    for attempt in range(2):
+        r = await client.get(WIKIDATA, params={"query": wikidata_query(lat, lon)},
+                             headers={"Accept": "application/sparql-results+json", "User-Agent": WD_UA})
+        if r.status_code not in (403, 429, 503) or attempt:
+            break
+        await asyncio.sleep(1.5)                             # límite de ritmo: un segundo intento
     if r.status_code != 200:
         raise RuntimeError(f"Wikidata: HTTP {r.status_code}")
     return parse_wikidata(r.json())

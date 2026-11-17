@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.13.3 — 17 de noviembre de 2026
+
+- Nombres de las montañas: Wikidata exige que la aplicación se identifique; el
+  servidor ahora lo hace (y reintenta una vez si le piden calma). A
+  OpenStreetMap se le espera menos, así que los nombres llegan antes.
+
 ## 1.13.2 — 17 de noviembre de 2026
 
 - Nombres de las montañas: los servidores públicos de OpenStreetMap no daban
