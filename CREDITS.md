@@ -41,6 +41,7 @@ copia; nuestro render 3D es propio, con Three.js.)
 | Textura de Mercurio | NASA / JHUAPL / Carnegie Institution (MESSENGER) | dominio público (US gov) |
 | Textura de la Luna | NASA Scientific Visualization Studio (CGI Moon Kit) | dominio público (US gov) |
 | Texturas de 14 lunas de otros planetas (`public/textures/moon-*.jpg`, `scripts/build_moon_textures.py`) | [USGS Astrogeology](https://astrogeology.usgs.gov/) — mosaicos globales con imágenes de Viking, Galileo, Voyager y Cassini (NASA) | dominio público (US gov) |
+| Trayectoria de Cassini en la animación de entrada (`src/intro/cassiniPath.js`, `scripts/build_intro_cassini.py`) | [NASA JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) | dominio público (US gov); crédito "NASA/JPL-Caltech" |
 | Órbitas de 19 lunas de otros planetas (`src/sky/moonsData.js`, `scripts/build_moons.py`) | [NASA JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) (ajuste propio) y [JPL SSD, parámetros físicos](https://ssd.jpl.nasa.gov/sats/phys_par/) | dominio público (US gov) |
 | Narrativa | Groq (modelos Llama) | — servicio |
 | Render 3D | Three.js | MIT |

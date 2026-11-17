@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.8.2 — 17 de noviembre de 2026
+
+- Nueva animación de entrada: después de la Vía Láctea, en lugar del laberinto,
+  el viaje real de la sonda Cassini (1997–2004). Un hilo dorado recorre su
+  trayectoria (JPL Horizons) y cada catapulta gravitacional se enciende cuando
+  la sonda pasa junto al planeta, dibujado donde estaba ese día: Venus, Venus,
+  Tierra y Júpiter, hasta llegar a Saturno. Cierra con «El universo es un
+  laberinto. / Teseo es tu hilo.» y el logotipo. Dura 11 segundos.
+
 ## 1.8.1 — 17 de noviembre de 2026
 
 - Nueva música ambiental: la misma de los videos de Teseo. Un colchón de acordes
