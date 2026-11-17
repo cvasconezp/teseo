@@ -1,5 +1,24 @@
 # Cambios
 
+## 1.9.0 — 17 de noviembre de 2026
+
+- Cielo: nubes reales del pronóstico. Con la Atmósfera encendida, el interruptor
+  «Nubes» (en Capas, apagado por defecto) dibuja tres capas de nubes (bajas,
+  medias y altas) con la nubosidad que pronostica Open-Meteo para tu lugar y la
+  hora del cielo, desde hace 2 días hasta dentro de 7. Se mueven con el viento
+  de su altura al cambiar la hora y toman la luz del día, del atardecer, de la
+  Luna o de la ciudad (anaranjadas en un cielo urbano, casi negras en uno
+  oscuro). Tapan estrellas, planetas, la Luna y el Sol, y lo que queda detrás de
+  una nube pierde su nombre y sale del recuento de estrellas visibles. La
+  cantidad y la altura son las del pronóstico; la forma es ilustrativa.
+- Panel «Nubes y clima»: nubosidad a la hora del cielo y por capas, probabilidad
+  de lluvia, cuándo despeja o se nubla, la mejor hora para observar esa noche y
+  la nubosidad de las próximas 24 horas.
+- Las nubes desde el satélite: un globo centrado en tu lugar y una vista de tu
+  zona con la última imagen. En las Américas, GOES-19 y GOES-18 (GeoColor, NASA
+  GIBS); en Europa, África y Oriente Medio, Meteosat-12 (GeoColour, EUMETSAT);
+  en el resto, la pasada diaria del NOAA-20 (VIIRS).
+
 ## 1.8.2 — 17 de noviembre de 2026
 
 - Nueva animación de entrada: después de la Vía Láctea, en lugar del laberinto,
