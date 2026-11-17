@@ -20,6 +20,7 @@ que más destaca. El navegador decide cuántos caben según el zoom.
 Caché en memoria por celda del horizonte. Si Overpass falla, 502 (el cielo sigue con montañas, sin nombres).
 """
 
+import asyncio
 import math
 import time
 from collections import OrderedDict
@@ -94,12 +95,19 @@ def parse_ele(v) -> Optional[float]:
     return e if -500 < e < 9000 else None
 
 
+def bbox(lat: float, lon: float, km: float) -> str:
+    """Recuadro (s,w,n,e) que contiene el círculo de `km` alrededor del lugar (más rápido que «around»)."""
+    dlat = km / 111.32
+    dlon = km / (111.32 * max(0.05, math.cos(math.radians(lat))))
+    return f"{max(-90.0, lat - dlat):.4f},{lon - dlon:.4f},{min(90.0, lat + dlat):.4f},{lon + dlon:.4f}"
+
+
 def overpass_query(lat: float, lon: float, min_far_ele: float) -> str:
     sel = 'node["natural"~"^(peak|volcano)$"]["name"]'
     return (
-        "[out:json][timeout:30];("
-        f"{sel}(around:{int(NEAR_KM * 1000)},{lat:.5f},{lon:.5f});"
-        f'{sel}["ele"](around:{int(MAX_KM * 1000)},{lat:.5f},{lon:.5f})(if: number(t["ele"]) >= {int(min_far_ele)});'
+        "[out:json][timeout:25];("
+        f"{sel}({bbox(lat, lon, NEAR_KM)});"
+        f'{sel}["ele"]({bbox(lat, lon, MAX_KM)})(if: number(t["ele"]) >= {int(min_far_ele)});'
         ");out body qt;"
     )
 
@@ -153,11 +161,11 @@ def visible_peaks(prof: dict, nodes: list, lang_keys=("es", "en")) -> list:
             "volcano": tags.get("natural") == "volcano",
             "lift": round(a - around, 2),
         })
-    # de dos cumbres casi en el mismo rumbo (≤ 0,6°) y la misma banda, la que más destaca
+    # de dos cumbres casi en el mismo rumbo (< 1°: dos nombres para la misma mole), la que más destaca
     out.sort(key=lambda p: (-p["lift"], -p["ele_m"]))
     kept = []
     for p in out:
-        if any(abs(((p["az"] - q["az"] + 180) % 360) - 180) < 0.6 for q in kept):
+        if any(abs(((p["az"] - q["az"] + 180) % 360) - 180) < 1.0 for q in kept):
             continue
         kept.append(p)
         if len(kept) >= MAX_PEAKS:
@@ -166,19 +174,32 @@ def visible_peaks(prof: dict, nodes: list, lang_keys=("es", "en")) -> list:
 
 
 async def fetch_nodes(lat: float, lon: float, ground_m: float) -> list:
+    """Pregunta a los servidores Overpass a la vez y se queda con la primera respuesta buena (suelen ir
+    cargados: uno solo puede tardar un minuto o fallar)."""
     q = overpass_query(lat, lon, ground_m + 300.0)
-    last = None
+    errors = []
     async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=_transport, headers=provider_headers()) as client:
-        for url in OVERPASS:
-            try:
-                r = await client.post(url, data={"data": q})
-                if r.status_code == 200:
+        async def one(url):
+            r = await client.post(url, data={"data": q})
+            if r.status_code != 200:
+                raise RuntimeError(f"HTTP {r.status_code}")
+            els = r.json().get("elements")
+            if els is None:
+                raise RuntimeError("respuesta sin elementos")
+            return url, els
+        tasks = {asyncio.ensure_future(one(u)): u for u in OVERPASS}
+        try:
+            for fut in asyncio.as_completed(list(tasks)):
+                try:
+                    url, els = await fut
                     stats["last_endpoint"] = url
-                    return r.json().get("elements") or []
-                last = f"{url}: HTTP {r.status_code}"
-            except (httpx.HTTPError, ValueError) as e:
-                last = f"{url}: {e}"
-    raise RuntimeError(last or "sin respuesta")
+                    return els
+                except Exception as e:                     # noqa: BLE001 — se prueba el siguiente
+                    errors.append(str(e) or type(e).__name__)
+        finally:
+            for t in tasks:
+                t.cancel()
+    raise RuntimeError("; ".join(errors) or "sin respuesta")
 
 
 async def get_peaks(lat: float, lon: float) -> dict:

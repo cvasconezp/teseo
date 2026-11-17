@@ -29,5 +29,7 @@
 .sk-stage .sk-hz { display: flex; flex-direction: column; gap: 8px; }
 .sk-stage .sk-hz-dot { background: linear-gradient(180deg, #e9eef8 0%, #e9eef8 22%, #6f7aa0 23%, #2a3150 100%); clip-path: polygon(0 100%, 30% 35%, 48% 60%, 70% 10%, 100% 100%); border-radius: 0; box-shadow: none; }
 .sk-stage .sk-hz-box { display: flex; flex-direction: column; gap: 6px; margin: 0 10px 0 34px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.03); }
-.sk-stage .sk-hz-peaks { margin: 2px -4px 0; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.sk-stage .sk-hz-peaks { margin: 2px -4px 0; padding-top: 6px; border-top: 1px solid var(--line-soft); }
+/* sin punto de color ni contador: solo texto e interruptor (con la rejilla de 4 columnas, el texto caía en la de 12 px) */
+.sk-stage .sk-hz-peaks .sk-layer-main { grid-template-columns: minmax(0, 1fr) 40px; min-height: 0; padding: 6px 4px; }
 .sk-stage .sk-hz-line { margin: 0; font-size: 13.5px; line-height: 1.4; color: var(--text); }

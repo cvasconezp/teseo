@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.12.1 — 17 de noviembre de 2026
+
+- Nombres de las montañas más rápidos y fiables: el servidor pregunta a los tres
+  servidores de OpenStreetMap a la vez (antes uno tras otro, hasta un minuto) y
+  con una consulta más ligera; el teléfono guarda los nombres de los últimos
+  lugares; si fallan, botón «Reintentar». Dos nombres para la misma mole (a
+  menos de 1°) ya no salen juntos.
+- Capas: el interruptor «Nombres de las montañas» ocupaba muchas filas (el texto
+  caía en una columna estrecha); ahora son dos.
+
 ## 1.12.0 — 17 de noviembre de 2026
 
 - Cielo: nombres de las montañas. Nuevo interruptor «Nombres de las montañas»

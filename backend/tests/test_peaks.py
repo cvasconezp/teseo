@@ -74,21 +74,28 @@ def test_solo_las_cumbres_de_la_silueta(net):
 def test_consulta_y_cache(net):
     client.get(f"/api/peaks?lat={LAT0}&lon={LON0}")
     q = unquote_plus(net["query"])
-    assert "around:40000" in q and "around:150000" in q and "number(t" in q and "volcano" in q
+    assert q.count("node[") == 2 and "number(t" in q and "volcano" in q and "around" not in q
+    n = net["over"]
+    assert 1 <= n <= len(pk.OVERPASS)                                              # los servidores, a la vez
     client.get(f"/api/peaks?lat={LAT0 + 0.0005}&lon={LON0}")                  # misma celda: sin otra consulta
-    assert net["over"] == 1
+    assert net["over"] == n
 
 
 def test_servidor_de_respaldo(net):
     net["fail"].add("overpass-api.de")
     r = client.get(f"/api/peaks?lat={LAT0}&lon={LON0}")
-    assert r.status_code == 200 and net["over"] == 2 and r.json()["peaks"]
+    assert r.status_code == 200 and r.json()["peaks"] and pk.stats["last_endpoint"] != pk.OVERPASS[0]
 
 
 def test_sin_overpass_502(net):
     net["fail"].update(["overpass-api.de", "kumi.systems", "mail.ru"])
     r = client.get(f"/api/peaks?lat={LAT0}&lon={LON0}")
-    assert r.status_code == 502 and "montañas" in r.json()["detail"]
+    assert r.status_code == 502 and "montañas" in r.json()["detail"] and r.json()["detail"].count("HTTP 429") == 3
+
+
+def test_recuadro():
+    s_, w, n_, e = map(float, pk.bbox(0.0, -78.0, 150).split(","))
+    assert abs(n_ - 1.3475) < 0.01 and abs(s_ + 1.3475) < 0.01 and abs(e + 76.6525) < 0.01 and abs(w + 79.3475) < 0.01
 
 
 def test_alturas_y_rumbos():

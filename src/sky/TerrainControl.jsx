@@ -26,8 +26,8 @@ export const TX_HZ = {
     ground: (m) => `Altura de tu lugar en el modelo: ${m} m (más 1,7 m de los ojos).`,
     source: "Relieve: AWS Terrain Tiles (SRTM de la NASA, GMTED2010 del USGS y otros), hasta 150 km, con la curvatura de la Tierra y la refracción. Solo el relieve: no incluye árboles ni edificios.",
     peaks: "Nombres de las montañas",
-    peaksDesc: "Sobre cada cumbre que se ve en tu horizonte, su nombre y su altura.",
-    peaksLoading: "Buscando los nombres…",
+    peaksDesc: "Nombre y altura de cada cumbre que ves.",
+    peaksLoading: "Buscando los nombres en OpenStreetMap (la primera vez puede tardar un poco)…",
     peaksError: "No se pudieron leer los nombres ahora.",
     peaksNone: "Ninguna cumbre con nombre forma tu horizonte.",
     peaksCount: (n) => `${n} ${n === 1 ? "cumbre con nombre" : "cumbres con nombre"} en tu horizonte.`,
@@ -45,8 +45,8 @@ export const TX_HZ = {
     ground: (m) => `Your place's height in the model: ${m} m (plus 1.7 m for your eyes).`,
     source: "Terrain: AWS Terrain Tiles (NASA SRTM, USGS GMTED2010 and others), out to 150 km, with Earth's curvature and refraction. Terrain only: no trees or buildings.",
     peaks: "Mountain names",
-    peaksDesc: "Above every summit you can see on your horizon, its name and height.",
-    peaksLoading: "Looking up the names…",
+    peaksDesc: "Name and height of every summit you can see.",
+    peaksLoading: "Looking up the names in OpenStreetMap (the first time can take a while)…",
     peaksError: "Couldn't load the names right now.",
     peaksNone: "No named summit shapes your horizon.",
     peaksCount: (n) => `${n} named ${n === 1 ? "summit" : "summits"} on your horizon.`,
@@ -98,7 +98,10 @@ export function TerrainControl({ lang = "es", available = true, on, onToggle, hz
             </div>
           )}
           {peaksOn && peaks && peaks.status === "loading" && <p className="sk-atm-fine" role="status">{tx.peaksLoading}</p>}
-          {peaksOn && peaks && peaks.status === "error" && <p className="sk-atm-fine" role="status">{tx.peaksError}</p>}
+          {peaksOn && peaks && peaks.status === "error" && (
+            <p className="sk-atm-fine" role="status">{tx.peaksError}{" "}
+              {onRetry && <button type="button" className="sk-wx-link" onClick={onRetry}><Icon name="retry" size={14} />{tx.retry}</button>}</p>
+          )}
           {peaksOn && peaks && peaks.status === "ok" && (
             <>
               <p className="sk-atm-fine">{peaks.data.peaks.length ? tx.peaksCount(peaks.data.peaks.length) : tx.peaksNone}</p>

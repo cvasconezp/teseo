@@ -151,17 +151,23 @@ export function fetchHorizon(lat, lon, { api = "", fetchImpl = (typeof fetch !==
 // El servidor solo devuelve las cumbres que forman la silueta y, para cada una, el punto exacto de la silueta
 // (acimut y ángulo del filo de su banda), así que el rótulo cae siempre sobre la cumbre dibujada.
 const peaksMem = new Map();
+const PEAKS_STORE = "teseo_peaks_v1", PEAKS_MAX = 8;   // pocos KB por lugar: al volver, sin esperar a OpenStreetMap
+const readPeaks = () => { try { const v = JSON.parse(localStorage.getItem(PEAKS_STORE) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
+const writePeaks = (list) => { try { localStorage.setItem(PEAKS_STORE, JSON.stringify(list.slice(0, PEAKS_MAX))); } catch { /* lleno o privado */ } };
 
 /** Cumbres con nombre del horizonte del lugar: promesa de { peaks: [...], source }, en caché por celda. */
 export function fetchPeaks(lat, lon, { api = "", fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
   const key = cellKey(lat, lon);
   if (peaksMem.has(key)) return peaksMem.get(key);
+  const saved = readPeaks().find((e) => e.key === key);
+  if (saved && saved.data && Array.isArray(saved.data.peaks)) { const p = Promise.resolve(saved.data); peaksMem.set(key, p); return p; }
   if (!fetchImpl) return Promise.reject(new Error("sin red"));
   const [la, lo] = key.split(",");
   const p = fetchImpl(`${api}/api/peaks?lat=${la}&lon=${lo}`).then(async (r) => {
     let body = null;
     try { body = await r.json(); } catch { /* no JSON */ }
     if (!r.ok || !body || !Array.isArray(body.peaks)) throw new Error((body && body.detail) || `HTTP ${r.status}`);
+    writePeaks([{ key, data: body }, ...readPeaks().filter((e) => e.key !== key)]);
     return body;
   });
   peaksMem.set(key, p);
