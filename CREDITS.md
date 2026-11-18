@@ -36,6 +36,7 @@ copia; nuestro render 3D es propio, con Three.js.)
 | Posiciones de planetas, cometas, sondas y telescopios | NASA JPL Horizons (API) | dominio público (US gov); crédito "NASA/JPL-Caltech" |
 | Acercamientos de asteroides y cometas a la Tierra | NASA/JPL CNEOS — SBDB Close-Approach Data API v1.5 | dominio público (US gov); crédito "NASA/JPL-Caltech" |
 | Próximos lanzamientos | [The Space Devs — Launch Library 2](https://thespacedevs.com/llapi) (API v2.3.0) | servicio gratuito con atribución (ver abajo) |
+| Hitos del espacio (Calendario del cielo) | [NASA — misión Voyager](https://science.nasa.gov/mission/voyager/where-are-voyager-1-and-voyager-2-now/): fecha, hora y distancia de cada hito, citadas con su enlace | dominio público (NASA) |
 | Exoplanetas | NASA Exoplanet Archive (Caltech/IPAC) | dominio público (US gov) |
 | Texturas del Sol, Venus, Tierra, Marte, Júpiter, Saturno (y anillos), Urano y Neptuno (`public/textures/`) | [Solar System Scope](https://www.solarsystemscope.com/textures/) (basadas en datos de NASA) | CC BY 4.0 |
 | Textura de Mercurio | NASA / JHUAPL / Carnegie Institution (MESSENGER) | dominio público (US gov) |

@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.21.0 — 18 de noviembre de 2026
+
+- Calendario del cielo: nueva categoría «Hitos del espacio», con fecha, hora y
+  fuente de la NASA en cada uno. Empieza con la Voyager 1 llegando a 1 día-luz
+  de la Tierra (hoy, 05:16 hora de Ecuador: 25 900 millones de km) y los
+  50 años del lanzamiento de las Voyager 2 y 1 (agosto y septiembre de 2027).
+  «Ver en el cielo» abre la nave en el Cielo, con lo que tarda su señal.
+- Cada evento muestra cuánto falta («En 33 días», «En 5 h 12 min», «Mañana»),
+  resaltado cuando falta menos de un día, y se actualiza solo.
+- La agenda empieza al comienzo de hoy: lo que ya ocurrió hoy se sigue viendo,
+  marcado «Hoy · ya ocurrió».
+- «Lo próximo»: arriba de la agenda, una cuenta regresiva en días, horas,
+  minutos y segundos al siguiente evento importante (solsticio o equinoccio,
+  eclipse, hito del espacio o una gran lluvia de meteoros), aunque esté más
+  allá de los 30 días de la lista.
+
 ## 1.20.2 — 18 de noviembre de 2026
 
 - Control de tiempo más compacto, con todos sus controles: flechas y cifras

@@ -15,7 +15,9 @@ export const TC = {
     placeNote: "El lugar es el que elegiste en el Cielo; si no elegiste ninguno, Quito.",
     filters: "Filtrar por tipo",
     all: "Todo",
-    types: { moon: "Luna", eclipse: "Eclipses", meteor: "Meteoros", planet: "Planetas", season: "Estaciones", iss: "ISS", launch: "Lanzamientos" },
+    types: { moon: "Luna", eclipse: "Eclipses", meteor: "Meteoros", planet: "Planetas", season: "Estaciones", milestone: "Hitos", iss: "ISS", launch: "Lanzamientos" },
+    nextUp: "Lo próximo", nextUpNote: "Solsticios y equinoccios, eclipses, hitos del espacio y las grandes lluvias de meteoros.",
+    cdUnits: { d: ["día", "días"], h: "h", m: "min", s: "s" }, cdLabel: (txt) => `Falta: ${txt}`,
     range90: "Próximos 90 días", range30: "Próximos 30 días", range365: "Próximos 12 meses",
     showMore: "Ver el calendario del año", showLess: "Ver solo los próximos 30 días",
     moreEvents: (n, left) => `Ver ${n} eventos más (quedan ${left})`,
@@ -30,7 +32,7 @@ export const TC = {
     localTime: "Fechas y horas en la zona horaria de tu dispositivo.",
     utc: "UTC", opensNew: "se abre en una pestaña nueva",
     sources: "Fuentes",
-    srcText: "Fases de la Luna y planetas: efemérides de Teseo (Schlyter), contrastadas con el USNO y con In-The-Sky.org. Eclipses: catálogo de la NASA (GSFC, F. Espenak). Estaciones: Meeus, Astronomical Algorithms, cap. 27. Meteoros: catálogo de la IMO. ISS: CelesTrak + SGP4. Lanzamientos: Launch Library 2.",
+    srcText: "Fases de la Luna y planetas: efemérides de Teseo (Schlyter), contrastadas con el USNO y con In-The-Sky.org. Eclipses: catálogo de la NASA (GSFC, F. Espenak). Estaciones: Meeus, Astronomical Algorithms, cap. 27. Hitos del espacio: NASA (fuente en cada evento). Meteoros: catálogo de la IMO. ISS: CelesTrak + SGP4. Lanzamientos: Launch Library 2.",
     issNote: "Las pasadas de la ISS se calculan para los próximos 10 días como máximo.",
     launchNote: "Solo se muestran lanzamientos tripulados, de ciencia, a la Luna o pruebas de vehículos nuevos; los de megaconstelaciones de rutina (Starlink, Kuiper…) se omiten.",
     reason: { crew: "Tripulado", science: "Ciencia", moon: "Luna", test: "Prueba de vehículo nuevo" },
@@ -81,7 +83,9 @@ export const TC = {
     placeNote: "The place is the one you chose in the Sky tab; if you chose none, Quito.",
     filters: "Filter by type",
     all: "All",
-    types: { moon: "Moon", eclipse: "Eclipses", meteor: "Meteors", planet: "Planets", season: "Seasons", iss: "ISS", launch: "Launches" },
+    types: { moon: "Moon", eclipse: "Eclipses", meteor: "Meteors", planet: "Planets", season: "Seasons", milestone: "Milestones", iss: "ISS", launch: "Launches" },
+    nextUp: "Coming up", nextUpNote: "Solstices and equinoxes, eclipses, space milestones and the big meteor showers.",
+    cdUnits: { d: ["day", "days"], h: "h", m: "min", s: "s" }, cdLabel: (txt) => `Time left: ${txt}`,
     range90: "Next 90 days", range30: "Next 30 days", range365: "Next 12 months",
     showMore: "See the whole year", showLess: "Show the next 30 days only",
     moreEvents: (n, left) => `Show ${n} more events (${left} left)`,
@@ -96,7 +100,7 @@ export const TC = {
     localTime: "Dates and times in your device's time zone.",
     utc: "UTC", opensNew: "opens in a new tab",
     sources: "Sources",
-    srcText: "Moon phases and planets: Teseo ephemeris (Schlyter), checked against USNO and In-The-Sky.org. Eclipses: NASA catalog (GSFC, F. Espenak). Seasons: Meeus, Astronomical Algorithms, ch. 27. Meteors: IMO catalog. ISS: CelesTrak + SGP4. Launches: Launch Library 2.",
+    srcText: "Moon phases and planets: Teseo ephemeris (Schlyter), checked against USNO and In-The-Sky.org. Eclipses: NASA catalog (GSFC, F. Espenak). Seasons: Meeus, Astronomical Algorithms, ch. 27. Space milestones: NASA (source on each event). Meteors: IMO catalog. ISS: CelesTrak + SGP4. Launches: Launch Library 2.",
     issNote: "ISS passes are computed for at most the next 10 days.",
     launchNote: "Only crewed, science, lunar or new-vehicle test launches are shown; routine megaconstellation launches (Starlink, Kuiper…) are left out.",
     reason: { crew: "Crewed", science: "Science", moon: "Moon", test: "New vehicle test" },
@@ -275,6 +279,25 @@ export function describeEvent(ev, lang, f) {
       out.what = d.kind === "equinox"
         ? (es ? `Día y noche casi iguales en todo el planeta. Al mediodía solar el Sol culmina a ${f.n(d.noonAlt, 0)}° desde tu lugar${high ? ": casi en el cenit, y las sombras casi desaparecen" : ""}. No mires al Sol directamente.` : `Day and night are nearly equal worldwide. At solar noon the Sun peaks ${f.n(d.noonAlt, 0)}° high from your place${high ? ": almost at the zenith, and shadows nearly vanish" : ""}. Do not look at the Sun directly.`)
         : (es ? `El Sol llega a su punto más ${ev.sub === "junSolstice" ? "al norte" : "al sur"} del año. Al mediodía solar culmina a ${f.n(d.noonAlt, 0)}° desde tu lugar. Se nota en la sombra de un palo: se puede medir.` : `The Sun reaches its ${ev.sub === "junSolstice" ? "northernmost" : "southernmost"} point of the year. At solar noon it peaks ${f.n(d.noonAlt, 0)}° high from your place. You can see it in a stick's shadow.`);
+      break;
+    }
+    case "milestone": {
+      const kmT = (km) => (es ? `${f.n(km / 1e9, 1)} mil millones de km` : `${f.n(km / 1e9, 1)} billion km`);
+      if (ev.sub === "lightday") {
+        out.title = es ? `${d.craft} llega a 1 día-luz de la Tierra` : `${d.craft} reaches 1 light-day from Earth`;
+        out.what = es
+          ? `Es el primer objeto hecho por humanos a esa distancia: ${kmT(d.km)} (unas 173 UA), lo que recorre la luz en 24 horas. Una orden enviada desde la Tierra tarda un día en llegar, y la respuesta, otro día. Lanzada en 1977, tardó 49 años en recorrerla; la Voyager 2 llegará en 2035. No se ve a simple vista ni con telescopio: está en el espacio interestelar.`
+          : `It is the first human-made object to reach that distance: ${kmT(d.km)} (about 173 AU), how far light travels in 24 hours. A command sent from Earth takes a day to arrive, and the reply another day. Launched in 1977, it took 49 years to get there; Voyager 2 will follow in 2035. It cannot be seen with the naked eye or a telescope: it is in interstellar space.`;
+        out.note = es ? "Hora anunciada por la NASA." : "Time announced by NASA.";
+      } else {
+        const when = new Date(`${d.launched}T12:00:00Z`).toLocaleDateString(es ? "es-EC" : "en-US", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+        out.title = es ? `${d.years} años del lanzamiento de la ${d.craft}` : `${d.years} years since ${d.craft} launched`;
+        out.what = es
+          ? `La ${d.craft} despegó el ${when} y sigue enviando datos desde el espacio interestelar. Es una de las dos naves activas más lejanas: en el Cielo puedes ver dónde está hoy y cuánto tarda su señal en llegar.`
+          : `${d.craft} lifted off on ${when} and still sends data from interstellar space. It is one of the two most distant active spacecraft: in the Sky you can see where it is today and how long its signal takes to arrive.`;
+      }
+      out.links.push({ href: d.source, label: "NASA" });
+      out.sky = `#sky?o=probes~${encodeURIComponent(d.craft)}`;
       break;
     }
     case "iss": {

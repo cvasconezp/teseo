@@ -7,6 +7,7 @@
 //   Estaciones .. seasons.js (Meeus, cap. 27)
 //   ISS ......... pasadas del backend (/api/iss/passes), solo las visibles
 //   Lanzamientos  launchFilter.js sobre /api/launches
+//   Hitos ....... milestones.js (lista breve hecha a mano, cada fecha con su fuente oficial)
 import { nextPhase } from "../../special/math.js";
 import { bodyMagnitude } from "../../sky/planetMag.js";
 import { netPrecision } from "../math.js";
@@ -16,10 +17,11 @@ import { findEclipses } from "./eclipses.js";
 import { findSeasons } from "./seasons.js";
 import { findShowerPeaks } from "./meteors.js";
 import { filterLaunches } from "./launchFilter.js";
+import { milestoneEvents } from "./milestones.js";
 
 export const QUITO = { name: "Quito", lat: -0.22, lon: -78.5125, elev: 2850 };
 export const PLACE_KEY = "teseo_place_v1";    // la misma clave que escribe el Cielo (src/Constellations.jsx)
-export const TYPES = ["moon", "eclipse", "meteor", "planet", "season", "iss", "launch"];
+export const TYPES = ["moon", "eclipse", "meteor", "planet", "season", "milestone", "iss", "launch"];
 
 /**
  * Lugar elegido en el Cielo (localStorage `teseo_place_v1`: { kind, lat, lon, elev }; kind es el nombre de un
@@ -94,7 +96,42 @@ export function buildSkyEvents({ from = Date.now(), days = 90, lat = QUITO.lat, 
     ev.push({ id: `season-${["marEquinox", "junSolstice", "sepEquinox", "decSolstice"][s.k]}-${ymd(s.t)}`, type: "season", sub: ["marEquinox", "junSolstice", "sepEquinox", "decSolstice"][s.k], t: s.t, durationMin: 30, visible: null, data: { k: s.k, kind: s.kind, noonAlt: sunNoonAlt(lat, decl) } });
   }
 
+  ev.push(...milestoneEvents(from, to));
+
   return ev;
+}
+
+/** Lluvias de meteoros que entran en «Lo próximo»: las grandes (THZ ≥ 50: Cuadrántidas, Eta Acuáridas, Perseidas, Gemínidas). */
+export const MAJOR_ZHR = 50;
+const HIGHLIGHT_TYPES = new Set(["season", "eclipse", "milestone", "meteor"]);
+/** ¿Cuenta como evento importante para la cuenta regresiva de «Lo próximo»? (Los eclipses lunares penumbrales, no.) */
+export const isHighlight = (ev) => !!ev && HIGHLIGHT_TYPES.has(ev.type)
+  && (ev.type !== "meteor" || (ev.data && ev.data.shower && ev.data.shower.zhr >= MAJOR_ZHR))
+  && !(ev.type === "eclipse" && ev.sub === "moon" && ev.data && ev.data.type === "penumbral");   // casi imperceptible a simple vista
+
+/**
+ * «Lo próximo»: el siguiente evento importante (solsticio o equinoccio, eclipse, hito o gran lluvia de
+ * meteoros) en los próximos ~13 meses, aunque la lista muestre solo 30 días. Barato: no calcula planetas.
+ */
+export function nextHighlight({ now = Date.now(), lat = QUITO.lat, lon = QUITO.lon, showers = [], days = 400 } = {}) {
+  const to = now + days * DAY;
+  const ev = [];
+  for (const e of findEclipses(now, to, lat, lon)) ev.push({ id: `${e.id}`, type: "eclipse", sub: e.body, t: e.t, durationMin: 120, visible: null, data: e });
+  for (const p of findShowerPeaks(showers, now, to, lat, lon)) ev.push({ id: p.id, type: "meteor", sub: "shower", t: p.date, allDay: true, durationMin: 24 * 60, visible: p.risesInNight, data: p });
+  for (const s of findSeasons(now, to)) {
+    const sub = ["marEquinox", "junSolstice", "sepEquinox", "decSolstice"][s.k], decl = s.k === 1 ? 23.44 : s.k === 3 ? -23.44 : 0;
+    ev.push({ id: `season-${sub}-${ymd(s.t)}`, type: "season", sub, t: s.t, durationMin: 30, visible: null, data: { k: s.k, kind: s.kind, noonAlt: sunNoonAlt(lat, decl) } });
+  }
+  ev.push(...milestoneEvents(now, to));
+  // lo que aún no empezó (un evento de todo el día cuenta hasta su medianoche local)
+  const startOf = (e) => (e.allDay ? localMidnightOf(e.t) : e.t);
+  return sortEvents(ev.filter(e => isHighlight(e) && startOf(e) > now)).sort((a, b) => startOf(a) - startOf(b))[0] || null;
+}
+
+/** Medianoche local del día de un evento «de todo el día» (su fecha va en UTC, como la del catálogo). */
+export function localMidnightOf(t) {
+  const d = new Date(t);
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0).getTime();
 }
 
 /** Eventos que llegan de la red: pasadas de la ISS y lanzamientos relevantes. */

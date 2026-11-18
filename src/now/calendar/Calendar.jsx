@@ -7,7 +7,9 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { fetchJson, isAbort } from "../../net.js";
 import { IconRocket } from "../../ui/icons.jsx";
 import { track, trackOnce } from "../../ui/track.js";
-import { buildSkyEvents, buildFeedEvents, sortEvents, groupByMonth, readPlace, TYPES } from "./events.js";
+import { buildSkyEvents, buildFeedEvents, sortEvents, groupByMonth, readPlace, TYPES, nextHighlight } from "./events.js";
+import { countdownText, countdownParts, startOfEvent } from "./countdown.js";
+import { NOW_SHARE_KINDS } from "../../share/eventText.js";
 import { TC, describeEvent } from "./i18n.js";
 import { downloadIcs } from "./ics.js";
 import { loadIssPasses } from "./issLoader.js";
@@ -237,6 +239,7 @@ const ICONS = {
   season: () => <Svg><circle cx="12" cy="14" r="4" /><path d="M12 4v2.5M4.5 7.5 6.3 9.3M19.5 7.5 17.7 9.3M3 20h18" /></Svg>,
   iss: () => <Svg><rect x="9.5" y="9.5" width="5" height="5" rx="1" /><path d="M2.5 10v4M6.5 10v4M17.5 10v4M21.5 10v4M6.5 12h3M14.5 12h3" /></Svg>,
   launch: () => <IconRocket className="cal-ico" width={24} height={24} />,
+  milestone: () => <Svg><path d="M5 21V4" /><path d="M5 4.5h11l-2.2 3.7L16 12H5" /><circle cx="19" cy="18.5" r="1.3" fill="currentColor" stroke="none" /></Svg>,
 };
 const VisIcon = ({ state }) => (
   <svg className="cal-vis__icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -274,7 +277,7 @@ const monthLabel = (key, lang) => {
 const isoOf = ev => (ev.allDay ? new Date(ev.t).toISOString().slice(0, 10) : new Date(ev.t).toISOString());
 
 // ─── Un evento ───────────────────────────────────────────────────────────────
-function EventItem({ ev, lang, fmt, t, api, push }) {
+function EventItem({ ev, lang, fmt, t, api, push, now }) {
   const info = useMemo(() => describeEvent(ev, lang, fmt), [ev, lang, fmt]);
   const vis = info.vis;
   const visLabel = vis ? (vis.state === true ? t.visYes : vis.state === "partial" ? t.visPartial : t.visNo) : null;
@@ -287,11 +290,12 @@ function EventItem({ ev, lang, fmt, t, api, push }) {
   };
   const extra = info.region || info.desc;
   const remind = useReminder({ ev, title: info.title, lang, api, push, t, onIcs });
+  const cd = countdownText(ev, now, lang);
   return (
-    <li className={`cal-ev cal-ev--${ev.type}${vis && vis.state === false ? " is-off" : ""}`}>
+    <li className={`cal-ev cal-ev--${ev.type}${vis && vis.state === false ? " is-off" : ""}${cd.state === "past" ? " is-past" : ""}`}>
       <span className="cal-ev__icon" aria-hidden="true">{ICONS[ev.type] ? ICONS[ev.type]() : null}</span>
       <div className="cal-ev__body">
-        <p className="cal-ev__when"><time dateTime={isoOf(ev)}>{whenText(ev, lang)}</time>{ev.approx && !ev.allDay ? null : null}</p>
+        <p className="cal-ev__when"><time dateTime={isoOf(ev)}>{whenText(ev, lang)}</time><span className={`cal-cd is-${cd.state}`}>{cd.text}</span></p>
         <h5 className="cal-ev__title">{info.title}</h5>
         {info.reasons && info.reasons.length > 0 && (
           <ul className="cal-tags">{info.reasons.map(r => <li key={r} className="cal-tag">{r}</li>)}</ul>
@@ -322,7 +326,7 @@ function EventItem({ ev, lang, fmt, t, api, push }) {
               {t.seeSky}
             </a>
           )}
-          <ShareButton spec={{ kind: ev.type, ev }} title={info.title} />
+          {NOW_SHARE_KINDS.includes(ev.type) && <ShareButton spec={{ kind: ev.type, ev }} title={info.title} />}
           {info.links.map(k => (
             <a key={k.href} className="now-link cal-link" href={k.href} target="_blank" rel="noopener noreferrer">{k.label}<span className="now-sr"> ({t.opensNew})</span></a>
           ))}
@@ -330,6 +334,46 @@ function EventItem({ ev, lang, fmt, t, api, push }) {
         {remind.panel}
       </div>
     </li>
+  );
+}
+
+// ─── «Lo próximo»: cuenta regresiva grande al siguiente evento importante ─────
+/** Reloj que avanza cada `ms` (y al volver a la pestaña). */
+function useNow(ms) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const id = setInterval(tick, ms);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", tick); };
+  }, [ms]);
+  return now;
+}
+const pad2 = (n) => String(n).padStart(2, "0");
+function NextUp({ ev, lang, fmt, t, onPassed }) {
+  const now = useNow(1000);
+  const info = useMemo(() => describeEvent(ev, lang, fmt), [ev, lang, fmt]);
+  const target = startOfEvent(ev);
+  const parts = countdownParts(target, now);
+  useEffect(() => { if (!parts) onPassed(); }, [!parts]);   // eslint-disable-line react-hooks/exhaustive-deps
+  if (!parts) return null;
+  const U = t.cdUnits;
+  const spoken = `${parts.d} ${parts.d === 1 ? U.d[0] : U.d[1]}, ${parts.h} ${U.h}, ${parts.m} ${U.m}`;
+  return (
+    <div className="cal-next-up" role="group" aria-label={t.nextUp}>
+      <span className="cal-next-up__icon" aria-hidden="true">{ICONS[ev.type] ? ICONS[ev.type]() : null}</span>
+      <div className="cal-next-up__body">
+        <p className="cal-next-up__k">{t.nextUp}</p>
+        <p className="cal-next-up__t">{info.title}</p>
+        <p className="cal-next-up__when"><time dateTime={isoOf(ev)}>{whenText(ev, lang)}</time></p>
+      </div>
+      <p className="cal-next-up__cd" aria-label={t.cdLabel(spoken)}>
+        {parts.d > 0 && <span><b>{parts.d}</b>{parts.d === 1 ? U.d[0] : U.d[1]}</span>}
+        <span><b>{pad2(parts.h)}</b>{U.h}</span>
+        <span><b>{pad2(parts.m)}</b>{U.m}</span>
+        <span aria-hidden="true"><b>{pad2(parts.s)}</b>{U.s}</span>
+      </p>
+    </div>
   );
 }
 
@@ -366,7 +410,9 @@ export default function Calendar({ lang = "es", api = "" }) {
   const fmt = useMemo(() => makeFmt(lang), [lang]);
   const place = usePlace();
   const push = usePush(api);
-  const [from] = useState(() => Math.floor(Date.now() / 60000) * 60000);
+  // desde el comienzo de HOY (hora local): lo que ya ocurrió hoy se sigue viendo, marcado «Hoy · ya ocurrió»
+  const [from] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); });
+  const now = useNow(30000);
   const [more, setMore] = useState(false);
   const [filter, setFilter] = useState("all");
   const days = more ? 365 : 30;
@@ -415,6 +461,12 @@ export default function Calendar({ lang = "es", api = "" }) {
   const groups = useMemo(() => groupByMonth(visible), [visible]);
   const present = useMemo(() => new Set(events.map(e => e.type)), [events]);
 
+  // «Lo próximo»: el siguiente evento importante (aunque esté más allá de los 30 días de la lista)
+  const [nextTick, setNextTick] = useState(0);
+  const highlight = useMemo(() => {
+    try { return nextHighlight({ now: Date.now(), lat: place.lat, lon: place.lon, showers }); } catch { return null; }
+  }, [place.lat, place.lon, showers, nextTick]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   const placeName = place.name || (place.kind === "me" ? t.placeMe : t.placeCustom(fmt.n(place.lat, 2), fmt.n(place.lon, 2)));
   const pick = (k) => { if (k !== filter) track("now_item", { card: "calendar", kind: "filter" }); setFilter(k); };
 
@@ -433,9 +485,13 @@ export default function Calendar({ lang = "es", api = "" }) {
         <PushTest api={api} lang={lang} t={t} push={push} />
       </header>
 
+      {highlight && filter === "all" && (
+        <NextUp key={highlight.id} ev={highlight} lang={lang} fmt={fmt} t={t} onPassed={() => setNextTick(n => n + 1)} />
+      )}
+
       <div className="cal-filters" role="group" aria-label={t.filters}>
         <button type="button" className="cal-chip" aria-pressed={filter === "all"} onClick={() => pick("all")}>{t.all}</button>
-        {TYPES.filter(k => k !== "season" || present.has("season")).map(k => (
+        {TYPES.filter(k => (k !== "season" && k !== "milestone") || present.has(k)).map(k => (
           <button key={k} type="button" className="cal-chip" aria-pressed={filter === k} onClick={() => pick(k)}>
             <span className="cal-chip__ico" aria-hidden="true">{ICONS[k]()}</span>{t.types[k]}
           </button>
@@ -452,7 +508,7 @@ export default function Calendar({ lang = "es", api = "" }) {
         {ready && groups.map(g => (
           <div key={g.key} className="cal-month">
             <h4 className="now-sub cal-month__h">{monthLabel(g.key, lang)}</h4>
-            <ol className="cal-list">{g.items.map(ev => <EventItem key={ev.id} ev={ev} lang={lang} fmt={fmt} t={t} api={api} push={push} />)}</ol>
+            <ol className="cal-list">{g.items.map(ev => <EventItem key={ev.id} ev={ev} lang={lang} fmt={fmt} t={t} api={api} push={push} now={now} />)}</ol>
           </div>
         ))}
       </div>

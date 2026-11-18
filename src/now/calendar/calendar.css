@@ -133,3 +133,31 @@
   .cal-remind { animation: cal-remind-in 160ms ease-out; }
   @keyframes cal-remind-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 }
+
+/* Hitos del espacio */
+.cal-ev--milestone .cal-ev__icon { color: #F2C46D; }
+
+/* Cuánto falta (al lado de la fecha). Forma + texto: también se entiende con la visión nocturna. */
+.cal-cd { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: 12.5px; color: var(--soft); white-space: nowrap; vertical-align: 1px; }
+.cal-cd.is-soon, .cal-cd.is-now, .cal-cd.is-today { color: #04080F; background: var(--thread, #F2C46D); border-color: transparent; font-weight: 600; }
+.cal-cd.is-past { border-style: dashed; color: var(--muted); }
+.cal-ev.is-past .cal-ev__title, .cal-ev.is-past .cal-ev__what { color: var(--soft); }
+.cal-ev.is-past .cal-ev__icon { opacity: .6; }
+
+/* «Lo próximo»: cuenta regresiva grande al siguiente evento importante */
+.cal-next-up { margin-top: 14px; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(242, 196, 109, 0.35); background: rgba(242, 196, 109, 0.07); }
+.cal-next-up__icon { color: var(--thread, #F2C46D); line-height: 0; }
+.cal-next-up__icon .cal-ico { width: 30px; height: 30px; }
+.cal-next-up__k { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--thread, #F2C46D); }
+.cal-next-up__t { font-family: var(--serif); font-size: 18px; font-weight: 600; line-height: 1.25; color: #fff; }
+.cal-next-up__when { font-size: 13.5px; color: var(--muted); }
+.cal-next-up__when time::first-letter { text-transform: uppercase; }
+.cal-next-up__cd { grid-column: 1 / -1; display: flex; gap: 5px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.cal-next-up__cd span { flex: 1 1 0; min-width: 0; display: inline-flex; justify-content: center; align-items: baseline; gap: 3px; padding: 6px 4px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); font-size: 12.5px; color: var(--soft); white-space: nowrap; }
+.cal-next-up__cd b { font-size: 20px; font-weight: 700; color: #fff; }
+@media (min-width: 640px) {
+  .cal-next-up { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .cal-next-up__cd { grid-column: auto; margin-top: 0; justify-content: flex-end; gap: 6px; }
+  .cal-next-up__cd span { flex: 0 0 auto; padding: 6px 10px; font-size: 13px; gap: 4px; }
+  .cal-next-up__cd b { font-size: 22px; }
+}
