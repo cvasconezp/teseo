@@ -17,7 +17,7 @@ console.log("Vía Láctea");
 // del ancho y la Gran Nube de Magallanes (AR 80,9°), al 27,5 %
 ok(near(milkyU(0), 0.5, 1e-12) && near(milkyU(-180), 1, 1e-12) && near(milkyU(180), 0, 1e-12), "el centro de la imagen es la ascensión recta 0 h y crece hacia la izquierda");
 ok(near(milkyU(266.4 - 360), 0.76, 0.01) && near(milkyU(80.9), 0.275, 0.005), "el centro galáctico y la Gran Nube de Magallanes caen donde están en el mapa");
-ok(size("../public/textures/milkyway-4k.webp") > 300000 && size("../public/textures/milkyway-4k.webp") < 1500000 && size("../public/textures/milkyway-2k.webp") < 300000, "la imagen está en dos tamaños (el pequeño para teléfonos)");
+ok(size("../public/textures/milkyway-4k.webp") > 100000 && size("../public/textures/milkyway-4k.webp") < 1500000 && size("../public/textures/milkyway-2k.webp") < 300000, "la imagen está en dos tamaños (el pequeño para teléfonos)");
 const night = { alt: -40, az: 0 }, noMoon = { alt: -30, az: 90, illum: 0 };
 const dark = milkyWayVisibility(skyState(night, noMoon, 1, {})), sub = milkyWayVisibility(skyState(night, noMoon, 6, {})), city = milkyWayVisibility(skyState(night, noMoon, 9, {}));
 ok(milkyWayVisibility(null) === 1 && dark > 0.85 && sub < dark * 0.6 && city < 0.05, `se ve entera en un cielo oscuro (${dark.toFixed(2)}), menos en las afueras (${sub.toFixed(2)}) y nada en una ciudad (${city.toFixed(2)})`);

@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.35.1 — 18 de noviembre de 2026
+
+- Vía Láctea: sin el granulado que cubría todo el cielo (era el fondo del
+  mapa, amplificado); fuera de la galaxia queda solo su resplandor suave.
+- Fotos de objetos: Andrómeda y las demás ya no desaparecen en un cielo de
+  afueras o al anochecer. A simple vista se apagan con más suavidad y, al
+  acercarse (menos de 25° de campo), suben de brillo como por un telescopio.
+
 ## 1.35.0 — 18 de noviembre de 2026
 
 - Cometas como cometas: con la capa encendida, los que están a menos de 4 UA

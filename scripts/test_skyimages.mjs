@@ -40,7 +40,7 @@ console.log("Imágenes de Hubble, Webb y ESO en el cielo");
   const offs = ag.filter((x) => /^messier:\d+$/.test(x.key)).map((x) => { const k = cat.find((c2) => c2.m === +x.key.split(":")[1]), kd = vecToRaDec([k.nx, k.ny, k.nz]); return angSepDeg(raDecToVec(x.ra, x.dec), raDecToVec(kd.ra, kd.dec)) - Math.hypot(x.w, x.h) / 120; });
   // (algunas son un detalle de una galaxia grande y no incluyen su centro: se admite hasta 0,15° fuera del campo)
   ok(offs.length >= 15 && Math.max(...offs) < 0.15, `las ${offs.length} imágenes de objetos Messier caen sobre su objeto (la más alejada, ${Math.max(...offs).toFixed(2)}° fuera de su campo)`);
-  ok(surveyKey("m31") === "messier:31" && surveyKey("ngc253") === "caldwell:65" && /sv\.m\.color\.setScalar\(level \* \(1 - a\.k\)\)/.test(read("../src/sky/skyImagesLayer.js")), "al aparecer la imagen de agencia se retira el recorte del mismo objeto (no suman su luz)");
+  ok(surveyKey("m31") === "messier:31" && surveyKey("ngc253") === "caldwell:65" && /sv\.m\.color\.setScalar\(eff \* \(1 - a\.k\)\)/.test(read("../src/sky/skyImagesLayer.js")), "al aparecer la imagen de agencia se retira el recorte del mismo objeto (no suman su luz)");
   ok(/if \(e && e\.partial\) return \["wiki", "agency", "nasa"\]/.test(read("../src/sky/agencyImages.js")) && /capWikiRef/.test(read("../src/sky/ObjectSheet.jsx")), "fichas: M31 muestra primero la galaxia entera y los agujeros negros avisan de que la imagen es de referencia");
 }
 

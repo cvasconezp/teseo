@@ -45,9 +45,9 @@ const CDN = { "esa-webb": "https://cdn.esawebb.org/archives/images/screen/", "es
 export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
   const group = new THREE.Group();
   const mats = [];
-  let level = 1, on = true;
+  let level = 1, on = true, dark = 1, eff = 1;
   const loader = new THREE.TextureLoader();
-  const apply = () => { for (const m of mats) m.color.setScalar(level); group.visible = on && level > 0.004; };
+  const apply = () => { eff = Math.max(eff, level); for (const m of mats) m.color.setScalar(eff); group.visible = on && (level > 0.004 || dark > 0.004); };
   const addImage = (o) => {
     const cs = tanCorners(o.ra, o.dec, o.size), pos = new Float32Array(12);
     cs.forEach((v, i) => pos.set([v[0] * radius, v[1] * radius, v[2] * radius], i * 3));
@@ -104,7 +104,12 @@ export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = 
    * (más de ~90 px), y las hace aparecer poco a poco. Devuelve true si algo sigue cambiando.
    */
   const update = (camera, viewH) => {
-    if (!group.visible || !agency.length) return false;
+    if (!group.visible) return false;
+    // al acercarse se ve como por un telescopio: aunque el cielo sea claro (afueras, Luna), la foto sube de brillo
+    // (hasta el 85 %) entre 25° y 8° de campo; de día o en el crepúsculo claro, no
+    { const z = dark * 0.85 * Math.min(1, Math.max(0, (25 - camera.fov) / 17)), e2 = Math.max(level, z);
+      if (Math.abs(e2 - eff) > 0.004) { eff = e2; for (const m of mats) m.color.setScalar(eff); } }
+    if (!agency.length) return false;
     inv.copy(group.quaternion).invert();
     camera.getWorldDirection(fwd).applyQuaternion(inv);
     const fov = camera.fov, aspect = camera.aspect || 1, diag = (fov / 2) * Math.hypot(1, aspect);
@@ -118,10 +123,10 @@ export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = 
       }
       const target = want && a.state === 2 ? Math.min(1, (px - 90) / 140) : 0;
       if (Math.abs(target - a.k) > 0.002) { a.k += (target - a.k) * 0.18; busy = true; } else a.k = target;
-      a.mesh.visible = a.k > 0.004; a.m.color.setScalar(a.k * level * 0.8);
+      a.mesh.visible = a.k > 0.004; a.m.color.setScalar(a.k * eff * 0.8);
       // el recorte de cartografiado del mismo objeto se retira mientras se ve la imagen de agencia (si no, sumarían su luz), salvo que esta sea solo un trozo pequeño (M31)
       const sv = surveyByKey.get(a.o.key);
-      if (sv && a.size >= 0.3 * sv.size) sv.m.color.setScalar(level * (1 - a.k));
+      if (sv && a.size >= 0.3 * sv.size) sv.m.color.setScalar(eff * (1 - a.k));
     }
     return busy;
   };
@@ -129,7 +134,8 @@ export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = 
     group,
     update,
     get agencyCount() { return agency.length; },
-    setIntensity(v) { level = Math.min(1, Math.max(0, v)); apply(); },
+    /** `v`: brillo a simple vista (0–1, según el cielo); `darkness`: 1 de noche, 0 de día (para el brillo «de telescopio»). */
+    setIntensity(v, darkness = 1) { level = Math.min(1, Math.max(0, v)); dark = Math.min(1, Math.max(0, darkness)); eff = level; apply(); },
     setOn(b) { on = !!b; apply(); },
     get count() { return mats.length; },
   };

@@ -1599,7 +1599,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         atm.update(st);
         atm.setEnabled(!!st);
         milky.setIntensity(milkyWayVisibility(st));
-        skyImages.setIntensity(st ? Math.min(1, milkyWayVisibility(st) * 1.6) : 1);
+        // a simple vista siguen el brillo del cielo, con una caída más suave que la Vía Láctea (sus núcleos son más
+        // brillantes); `darkness`: de noche 1, con el Sol a menos de 6° bajo el horizonte 0
+        { const dk = st ? 1 - Math.min(1, Math.max(0, (st.sunAlt + 14) / 8)) : 1; skyImages.setIntensity(st ? Math.min(1, Math.max(Math.sqrt(milkyWayVisibility(st)) * 1.2, dk * 0.4)) : 1, dk); }
         { const up = st && r.localModeOn ? new THREE.Vector3(0, 1, 0).applyQuaternion(r.localQuat.clone().invert()) : null; milky.setExtinction(st ? st.k : 0, up ? [up.x, up.y, up.z] : null); }
         lines.material.opacity = st && starsHidden(st) ? 0.22 : r.lineBase;
         // Sol, Luna y planetas: el disco se sigue dibujando (con tamaño visible), más tenue si no se ve
