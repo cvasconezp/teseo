@@ -37,7 +37,8 @@ import ObjectSheet, { describeObject, visibilityOf } from "./sky/ObjectSheet.jsx
 import ConstellationSheet from "./sky/ConstellationSheet.jsx";
 import ShareDialog from "./sky/ShareDialog.jsx";
 import TimeSheet, { ArRail } from "./sky/TimeSheet.jsx";
-import { RATES, REAL, stepField } from "./sky/timeDial.js";
+import { RATES, REAL } from "./sky/timeDial.js";
+import { stepFieldTz, setMinuteTz, fetchTimeZone, cachedTimeZone } from "./sky/placeTime.js";
 import { buildPostcard } from "./sky/postcard.js";
 import { snapshotView } from "./sky/viewSnapshot.js";
 import { starHex } from "./sky/starColor.js";
@@ -618,6 +619,18 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [monBase, setMonBase] = useState({ status: "idle", key: null, bases: null, ground: null });
   const [dayHidden, setDayHidden] = useState(false);
   const [whenStr, setWhenStr] = useState(nowLocalInput());
+  // zona horaria IANA del lugar de Mi cielo (Open-Meteo): el reloj, la barra del día y las horas de salida y
+  // puesta van en la hora de ese lugar; null = la del teléfono (sin lugar o sin conexión)
+  const [placeTz, setPlaceTz] = useState(null);
+  const tzRef = useRef(null);
+  useEffect(() => {
+    if (!localMode || lat == null || lon == null) { setPlaceTz(null); return undefined; }
+    setPlaceTz(cachedTimeZone(lat, lon));
+    const ac = new AbortController();
+    fetchTimeZone(lat, lon, { signal: ac.signal }).then((tz) => { if (tz) setPlaceTz(tz); }).catch(() => {});
+    return () => ac.abort();
+  }, [localMode, lat, lon]);
+  tzRef.current = placeTz;
   const [playing, setPlaying] = useState(false);
   const [showSolar, setShowSolar] = useState(true);
   // Sol, Luna y planetas para la escena (src/sky/frames.js): ephemeris() da la fecha y el centro de la
@@ -2538,12 +2551,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (i !== REAL) setTimeMoved(true);
     setRateIdx(i);
   }, []);
-  const tsStep = useCallback((f, dir) => { setPlaying(false); setTimeMoved(true); setWhenStr((w) => fmtInput(stepField(new Date(w), f, dir))); }, []);
+  const tsStep = useCallback((f, dir) => { setPlaying(false); setTimeMoved(true); setWhenStr((w) => fmtInput(stepFieldTz(new Date(w), f, dir, tzRef.current))); }, []);
   const tsNow = useCallback(() => { track("sky_time", { kind: "now" }); setPlaying(false); setTimeMoved(false); setRateIdx(REAL); setWhenStr(nowLocalInput()); }, []);
-  const tsNight = useCallback((dir) => { track("sky_time", { kind: dir > 0 ? "forward" : "back" }); setPlaying(false); setTimeMoved(true); setWhenStr((w) => fmtInput(stepField(new Date(w), "day", dir))); }, []);
+  const tsNight = useCallback((dir) => { track("sky_time", { kind: dir > 0 ? "forward" : "back" }); setPlaying(false); setTimeMoved(true); setWhenStr((w) => fmtInput(stepFieldTz(new Date(w), "day", dir, tzRef.current))); }, []);
   const tsMinute = useCallback((min) => {
     setPlaying(false); setTimeMoved(true);
-    setWhenStr((w) => { const d = new Date(w); d.setHours(Math.floor(min / 60), min % 60, 0, 0); return fmtInput(d); });
+    setWhenStr((w) => fmtInput(setMinuteTz(new Date(w), min, tzRef.current)));
   }, []);
   const shiftMin = useCallback((m) => { setTimeMoved(true); setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + m * 60000))); }, []);
   useEffect(() => { if (sceneRef.current) sceneRef.current.labelDensity = labelDensity; }, [labelDensity, ready]);
@@ -2811,10 +2824,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // el lugar va dentro de una frase («Desde tu ubicación · …»): las etiquetas genéricas, en minúscula
     const local = localMode && lat != null && lon != null ? { lat, lon, date, place: placeKind === "me" ? TC[lang].pcMyPlace : placeKind === "custom" ? TC[lang].pcCustomPlace : placeKind } : null;
     const loc = lang === "es" ? "es-EC" : "en-US";
+    const tzo = local && placeTz ? { timeZone: placeTz } : {};   // la postal, en la hora del lugar
     const fmt = {
       dist: (d) => fmtDist(d, lang), years: (y) => fmtYears(y, lang), km: (k) => fmtKm(k, lang), dur: (x) => fmtDuration(x, lang),
-      when: (d) => d.toLocaleString(loc, lang === "es" ? { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }),
-      time: (d) => d.toLocaleTimeString(loc, lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { hour: "numeric", minute: "2-digit" }),
+      when: (d) => d.toLocaleString(loc, lang === "es" ? { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...tzo } : { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", ...tzo }),
+      time: (d) => d.toLocaleTimeString(loc, lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...tzo } : { hour: "numeric", minute: "2-digit", ...tzo }),
     };
     const base = { lang, t: TC[lang], fmt, sky, conDirs, bodies: bodiesRef.current, local, showSolar: showSolar && !viewFrom, starHex: starTint };
     const so = selObj;
@@ -2857,7 +2871,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const out = buildPostcard({ ...base, center, view, viewCredit: vc.join(" · ") });
     if (E2E) out.then((r) => { window.__teseoPostcard = r && r.report; }).catch(() => {});
     return out;
-  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars, hzData, peakList, cloudsOn, wxData]);
+  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars, hzData, peakList, cloudsOn, wxData, placeTz]);
   const openShare = useCallback(() => { setShareState(null); setShare(true); }, []);
 
   const useMyLocation = useCallback(() => {
@@ -2940,12 +2954,13 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     let text = tt.findShown(label);
     if (localMode && lat != null && lon != null && !viewFrom) {
       const when = new Date(whenStr), vis = visibilityOf(live, { lat, lon, elev: elev || 0 }, when);
-      const hm = (d) => d.toLocaleTimeString(lang === "es" ? "es-EC" : "en-US", lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { hour: "numeric", minute: "2-digit" });
+      const tzo = placeTz ? { timeZone: placeTz } : {};
+      const hm = (d) => d.toLocaleTimeString(lang === "es" ? "es-EC" : "en-US", lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...tzo } : { hour: "numeric", minute: "2-digit", ...tzo });
       if (vis.now.alt > 0) text = tt.findShownUp(label, Math.round(vis.now.alt), compassPoint8(vis.now.az));
       else text = vis.rts.rise ? tt.findBelow(label, hm(vis.rts.rise.date)) : tt.findBelowNever(label);
     }
     setToast({ text, id: Date.now() });
-  }, [lang, flyTo, localMode, lat, lon, elev, whenStr, viewFrom]);
+  }, [lang, flyTo, localMode, lat, lon, elev, whenStr, viewFrom, placeTz]);
   useEffect(() => {
     if (!toast) return undefined;
     const id = setTimeout(() => setToast(null), 9000);
@@ -3348,6 +3363,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     return o;
   }, [selObj, bodies, atmState, lat, lon, whenStr]);
   const when = new Date(whenStr);
+  const tzPlace = placeKind === "me" || placeKind === "custom" ? null : placeKind;   // «Hora de Nagarkot»
   const placeLabel = placeKind === "me" ? t.myLocation : placeKind === "custom" ? t.customPlace : placeDefault ? t.placeDefault(placeKind) : placeKind;
   const tourReady = !!(ready && datasets.messier && datasets.blackholes);
   const issSheetOn = !!(issSheet && issSel && issSel.pass && !selObj);
@@ -3460,7 +3476,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // con sensores (y en Mi cielo) la flecha guía; sin ellos, la cámara vuela al objeto
   const findByPointing = !arError && (arOn || (arCapable && inMySky));
   const canFind = !!liveObj && liveObj.layer !== "note" && liveObj.nx != null && !viewFrom;
-  const localInfo = useMemo(() => (inMySky ? { lat, lon, elev: elev || 0, place: placeLabel, horizon: hzData } : null), [inMySky, lat, lon, elev, placeLabel, hzData]);
+  const localInfo = useMemo(() => (inMySky ? { lat, lon, elev: elev || 0, place: placeLabel, horizon: hzData, tz: placeTz } : null), [inMySky, lat, lon, elev, placeLabel, hzData, placeTz]);
   const northText = !decl ? null : !decl.valid ? t.declOff : decl.zone === "ok" ? t.declOn(decl.decl) : t.declCaution;
   const selCon = liveObj && liveObj.layer === "con" && sky ? sky.constellations.find(c => c.ab === liveObj.ab) : null;
   const conData = useMemo(() => (selCon ? constellationData(selCon, sky.stars) : null), [selCon, sky]);
@@ -3586,12 +3602,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           onLayers={() => { setTsOpen(false); openPanel("layers"); }} onTour={() => { setTsOpen(false); startTour(); }} tourReady={tourReady} />
       )}
       {railView && tsOpen && !covered && (
-        <TimeSheet lang={lang} date={when} lat={localMode ? lat : null} lon={localMode ? lon : null} isNow={!timeMoved} rateIdx={rateIdx}
+        <TimeSheet lang={lang} date={when} lat={localMode ? lat : null} lon={localMode ? lon : null} tz={placeTz} place={tzPlace} isNow={!timeMoved} rateIdx={rateIdx}
           onRate={setRate} onStep={tsStep} onNow={tsNow} onNight={tsNight} onSetMinute={tsMinute} onClose={() => setTsOpen(false)} />
       )}
       {sky && !tourActive && !railView && (
         <Dock t={t} panel={panel} onPanel={openPanel} localMode={localMode} tourReady={tourReady} onTour={startTour}
-          timeLabel={timeMoved ? fmtWhenShort(when, lang) : t.now} isNow={!timeMoved} playing={playing}
+          timeLabel={timeMoved ? fmtWhenShort(when, lang, localMode ? placeTz : null) : t.now} isNow={!timeMoved} playing={playing}
           layersOn={layersOn} layersWarn={failedLayers.length > 0} mySkyLabel={!isWide && inMySky ? placeLabel : null} />
       )}
 
@@ -3617,7 +3633,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           onSearch={() => { setTsOpen(false); const i = stageRef.current && stageRef.current.querySelector(".sk-search input"); if (i) i.focus(); }} />
       )}
       {(arBar === "on" || arBar === "paused") && tsOpen && !covered && (
-        <TimeSheet lang={lang} date={when} lat={lat} lon={lon} isNow={!timeMoved} rateIdx={rateIdx}
+        <TimeSheet lang={lang} date={when} lat={lat} lon={lon} tz={placeTz} place={tzPlace} isNow={!timeMoved} rateIdx={rateIdx}
           onRate={setRate} onStep={tsStep} onNow={tsNow} onNight={tsNight} onSetMinute={tsMinute} onClose={() => setTsOpen(false)} />
       )}
       {arOn && guide && <GuideHud t={t} label={guide.label} apiRef={guideApiRef} onStop={() => setGuide(null)} />}
@@ -3642,7 +3658,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           pointing={arCapable ? { state: ar, onStart: ar === "off" ? startAr : stopAr } : null} />
       )}
       {sky && panel === "tonight" && (
-        <TonightPanel t={t} lang={lang} data={tonight} placeName={placeLabel} onGo={tonightGo}
+        <TonightPanel t={t} lang={lang} data={tonight} placeName={placeLabel} timeZone={placeTz} onGo={tonightGo}
           onFind={arCapable ? tonightFind : null}
           onGoTime={(d) => { setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(d)); }}
           onClose={() => setPanel(null)}
@@ -3650,7 +3666,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       )}
       {sky && panel === "time" && (
         // el mismo control de tiempo que en el teléfono (tipo Stellarium), sobre la barra de abajo
-        <TimeSheet lang={lang} date={when} lat={localMode ? lat : null} lon={localMode ? lon : null} isNow={!timeMoved} rateIdx={rateIdx}
+        <TimeSheet lang={lang} date={when} lat={localMode ? lat : null} lon={localMode ? lon : null} tz={placeTz} place={tzPlace} isNow={!timeMoved} rateIdx={rateIdx}
           onRate={setRate} onStep={tsStep} onNow={tsNow} onNight={tsNight} onSetMinute={tsMinute} onClose={() => setPanel(null)}
           docked extra={issOn ? (
             <div className="sk-quick sk-iss-rates" role="group" aria-label={ISS_TX[lang].issSheetTitle}>

@@ -667,6 +667,7 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-stage .sk-ts-arrow span { width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; }
 .sk-stage .sk-ts-arrow span.up { border-bottom: 10px solid #fff; }
 .sk-stage .sk-ts-arrow span.down { border-top: 10px solid #fff; }
+.sk-stage .sk-ts-tz { margin: -2px 0 8px; text-align: center; font-size: 12.5px; color: #9fb4d8; letter-spacing: .01em; }
 .sk-stage .sk-ts-speed { border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 8px; text-align: center; }
 .sk-stage .sk-ts-rate { display: block; font-size: 13px; color: rgba(255, 255, 255, 0.6); margin-bottom: 2px; }
 .sk-stage .sk-ts-row { display: flex; align-items: center; gap: 10px; }

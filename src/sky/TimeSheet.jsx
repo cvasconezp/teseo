@@ -1,11 +1,13 @@
 // TimeSheet.jsx — control de tiempo «tipo Stellarium» para el modo apuntar (y la columna de la derecha):
 // la fecha y la hora con flechas para subir o bajar cada campo (manteniendo pulsado, sigue), la velocidad del
 // tiempo (de −1 día a +1 día por segundo, pausa y tiempo real), «Ahora», noche anterior y siguiente, y una
-// barra de 24 horas con el día, los crepúsculos y la noche del lugar para arrastrar la hora.
+// barra de 24 horas con el día, los crepúsculos y la noche del lugar para arrastrar la hora. Todo en la hora
+// del lugar que se mira (zona `tz`, placeTime.js), con un rótulo «Hora de Nagarkot · UTC+5:45» bajo el reloj.
 // La lógica pura está en timeDial.js; el estado (whenStr, velocidad) vive en Constellations.jsx.
 import { useEffect, useMemo, useRef } from "react";
 import Icon from "./icons.jsx";
 import { RATES, REAL, rateLabel, dayProfile, dayGradient, phaseName } from "./timeDial.js";
+import { tzParts, minuteOfDay, tzCaption } from "./placeTime.js";
 
 const TX = {
   es: { title: "Tiempo", up: (f) => `Subir ${f}`, down: (f) => `Bajar ${f}`, fields: { year: "el año", month: "el mes", day: "el día", hour: "la hora", minute: "los minutos" },
@@ -29,13 +31,16 @@ function HoldArrow({ dir, label, onStep }) {
   );
 }
 
-export default function TimeSheet({ lang = "es", date, lat, lon, isNow, rateIdx = REAL, onRate, onStep, onNow, onNight, onSetMinute, onClose, docked = false, extra = null }) {
+export default function TimeSheet({ lang = "es", date, lat, lon, tz = null, place = null, isNow, rateIdx = REAL, onRate, onStep, onNow, onNight, onSetMinute, onClose, docked = false, extra = null }) {
   const tx = TX[lang] || TX.es;
   const z = (n, w = 2) => String(n).padStart(w, "0");
-  const fields = [["year", z(date.getFullYear(), 4)], ["month", z(date.getMonth() + 1)], ["day", z(date.getDate())], ["hour", z(date.getHours())], ["minute", z(date.getMinutes())]];
-  const dayKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-  const profile = useMemo(() => dayProfile(lat, lon, date, 48), [lat, lon, dayKey]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const minOfDay = date.getHours() * 60 + date.getMinutes();
+  // la hora «de pared» del lugar que se mira (tz); sin zona del lugar, la del teléfono
+  const p = tzParts(date, tz);
+  const fields = [["year", z(p.y, 4)], ["month", z(p.m)], ["day", z(p.d)], ["hour", z(p.h)], ["minute", z(p.mi)]];
+  const dayKey = `${p.y}-${p.m}-${p.d}`;
+  const profile = useMemo(() => dayProfile(lat, lon, date, 48, tz), [lat, lon, dayKey, tz]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const minOfDay = minuteOfDay(date, tz);
+  const caption = tzCaption(date, tz, place, lang);
   const paused = RATES[rateIdx] === 0;
   return (
     <section className={`sk-ts${docked ? " is-docked" : ""}`} role="dialog" aria-label={tx.title}>
@@ -54,6 +59,7 @@ export default function TimeSheet({ lang = "es", date, lat, lon, isNow, rateIdx 
           </div>
         ))}
       </div>
+      <p className="sk-ts-tz">{caption}</p>
       <div className="sk-ts-speed">
         <span className="sk-ts-rate" aria-live="polite">{isNow && rateIdx === REAL ? `${rateLabel(RATES[REAL], lang)} · ${tx.now}` : rateLabel(RATES[rateIdx], lang)}</span>
         <div className="sk-ts-row">

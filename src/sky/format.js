@@ -59,6 +59,6 @@ export function fmtWhenLong(date, lang) {
   const h = date.toLocaleTimeString(loc(lang) === "es" ? "es-EC" : "en-US", { hour: "2-digit", minute: "2-digit" });
   return { date: d.charAt(0).toUpperCase() + d.slice(1), time: h };
 }
-export function fmtWhenShort(date, lang) {
-  return date.toLocaleString(lang === "es" ? "es-EC" : "en-US", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+export function fmtWhenShort(date, lang, timeZone = null) {
+  return date.toLocaleString(lang === "es" ? "es-EC" : "en-US", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", ...(timeZone ? { timeZone } : {}) });
 }

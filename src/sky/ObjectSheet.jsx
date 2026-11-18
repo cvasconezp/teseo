@@ -210,9 +210,11 @@ export function RiseSet({ obj, t, lang, local, when, onNeedPlace }) {
   }
   if (!vis) return null;
   const loc = lang === "es" ? "es-EC" : "en-US";
-  const hm = (d) => d.toLocaleTimeString(loc, lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { hour: "numeric", minute: "2-digit" });
-  // si el instante cae en otro día que el de referencia, se dice cuál
-  const dayOf = (d) => (d.toDateString() === when.toDateString() ? "" : t.rsDay(d.toLocaleDateString(loc, { weekday: "short", day: "numeric" })));
+  const tzo = local && local.tz ? { timeZone: local.tz } : {};   // horas en la zona del lugar (placeTime.js)
+  const hm = (d) => d.toLocaleTimeString(loc, lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...tzo } : { hour: "numeric", minute: "2-digit", ...tzo });
+  // si el instante cae en otro día que el de referencia (en la zona del lugar), se dice cuál
+  const dkey = (d) => d.toLocaleDateString("en-US", tzo);
+  const dayOf = (d) => (dkey(d) === dkey(when) ? "" : t.rsDay(d.toLocaleDateString(loc, { weekday: "short", day: "numeric", ...tzo })));
   const { rts, best, now, isSun, terrain } = vis;
   // si los tres instantes caen en el mismo día (distinto de hoy), el día se dice una sola vez
   const evs = [rts.rise, rts.transit, rts.set].filter(Boolean).map((x) => dayOf(x.date));

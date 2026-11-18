@@ -13,7 +13,7 @@ ok(stepField(d, "month", 1).getMonth() === 1 && stepField(d, "month", 1).getDate
 ok(stepField(new Date(2028, 1, 29, 12), "year", 1).getDate() === 28, "29 de febrero + 1 año → 28 de febrero");
 ok(stepField(d, "hour", -1).getHours() === 22 && stepField(d, "day", 1).getDate() === 1, "hora y día");
 ok(phaseOf(10) === "day" && phaseOf(-6) === "twilight" && phaseOf(-30) === "night", "fases del Sol");
-const prof = dayProfile(0.05, -78.15, new Date(2026, 2, 20, 12), 48);
+const prof = dayProfile(0.05, -78.15, new Date(Date.UTC(2026, 2, 20, 17)), 48, "America/Guayaquil");   // en hora de Ecuador, sea cual sea la zona del equipo
 const noon = prof[24].alt, midnight = prof[0].alt;
 ok(prof.length === 49 && noon > 80 && midnight < -60, `en el ecuador, en el equinoccio: el Sol casi en el cenit a mediodía (${noon.toFixed(1)}°) y bajo el horizonte a medianoche`);
 ok(phaseName(prof, 12 * 60) === "Día" && phaseName(prof, 0) === "Noche" && phaseName(prof, 18 * 60 + 25) === "Atardecer" && phaseName(prof, 5 * 60 + 50) === "Amanecer", "Día, Noche, Atardecer y Amanecer");

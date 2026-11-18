@@ -480,9 +480,10 @@ export const GuideHud = memo(function GuideHud({ t, label, apiRef, onStop }) {
 
 // ── Esta noche en tu cielo ───────────────────────────────────────────────
 const TN_ICON = { moon: "moon", planet: "planet", shower: "meteor", con: "constellation", deep: "sparkle" };
-export function TonightPanel({ t, lang, data, placeName, onGo, onFind, onGoTime, onClose, iss = null }) {
+export function TonightPanel({ t, lang, data, placeName, onGo, onFind, onGoTime, onClose, iss = null, timeZone = null }) {
   const loc = lang === "es" ? "es-EC" : "en-US";
-  const hm = (d) => d.toLocaleTimeString(loc, lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : { hour: "numeric", minute: "2-digit" });
+  const tzo = timeZone ? { timeZone } : {};   // horas en la zona del lugar (placeTime.js)
+  const hm = (d) => d.toLocaleTimeString(loc, lang === "es" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...tzo } : { hour: "numeric", minute: "2-digit", ...tzo });
   const md = (o) => { const [m, d] = o.peak.split("-").map(Number); return new Date(2024, m - 1, d).toLocaleDateString(lang === "es" ? "es" : "en-US", { day: "numeric", month: "short" }); };
   const where = (it) => (it.alt >= 65 ? t.tnHigh : it.alt >= 30 ? t.tnMid(compassPoint8(it.az)) : t.tnLow(compassPoint8(it.az)));
   const describe = (it) => {
@@ -538,7 +539,7 @@ export function TonightPanel({ t, lang, data, placeName, onGo, onFind, onGoTime,
             <div className="sk-group"><h3>{t.tonightLater}</h3><ul className="sk-tn-list">{later.map(row)}</ul></div>
           )}
           {/* Pasadas de la ISS sobre este lugar (CelesTrak + SGP4, en el servidor) */}
-          {iss && <IssPassesCard lang={lang} lat={iss.lat} lon={iss.lon} altM={iss.altM || 0} onShow={iss.onShow} />}
+          {iss && <IssPassesCard lang={lang} lat={iss.lat} lon={iss.lon} altM={iss.altM || 0} onShow={iss.onShow} timeZone={timeZone || undefined} />}
           <p className="sk-panel-foot">{t.tonightFoot}</p>
         </>
       )}

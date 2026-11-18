@@ -3,6 +3,7 @@
 // lugar, para la barra de 24 horas. Se prueba en scripts/test_timedial.mjs.
 import { ephemeris } from "../ephemeris.js";
 import { altAz } from "./guide.js";
+import { startOfDay } from "./placeTime.js";
 
 /** Velocidades: minutos de cielo por segundo de reloj. 0 = en pausa; 1/60 = tiempo real. */
 export const RATES = [-1440, -60, -10, -1, 0, 1 / 60, 1, 10, 60, 1440];
@@ -51,12 +52,13 @@ export function sunAltAt(lat, lon, d) {
 }
 
 /**
- * La altura del Sol a lo largo del día local (de 00:00 a 24:00 de la fecha de `date`, `n` muestras), para pintar
- * la barra: [{ min, alt }]. Sin lugar, null (la barra va sin colores de fase).
+ * La altura del Sol a lo largo del día local (de 00:00 a 24:00 de la fecha de `date` en la zona `tz` del lugar;
+ * sin zona, la del dispositivo), `n` muestras, para pintar la barra: [{ min, alt }]. Sin lugar, null (la barra
+ * va sin colores de fase).
  */
-export function dayProfile(lat, lon, date, n = 48) {
+export function dayProfile(lat, lon, date, n = 48, tz = null) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  const d0 = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const d0 = startOfDay(date, tz);
   const out = [];
   for (let i = 0; i <= n; i++) {
     const min = (i / n) * 1440;

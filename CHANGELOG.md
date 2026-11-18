@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.18.1 — 17 de noviembre de 2026
+
+- La hora del Cielo es ahora la del lugar que miras, no la de tu teléfono: si
+  estás en Ecuador y eliges Nagarkot, el reloj marca la hora de Nepal, con el
+  rótulo «Hora de Nagarkot · UTC+5:45». Las flechas, «Noche anterior/siguiente»,
+  la barra del día (día, crepúsculos y noche), las horas de salida y puesta,
+  «Esta noche», los pases de la ISS y la postal usan esa misma hora. La zona se
+  obtiene de Open-Meteo y se guarda; sin conexión, sigue la del teléfono.
+
 ## 1.18.0 — 17 de noviembre de 2026
 
 - La pantalla principal es ahora el Cielo: después de la animación de entrada
