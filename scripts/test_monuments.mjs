@@ -2,7 +2,7 @@
 // verían desde el sitio, silueta para ocultar lo que queda detrás e integración en el cielo.
 import { MONUMENTS, monumentsNear, buildFaces, toLocal, altAzOf, offsetOf, silhouette, withMonuments, groundRing, median, apexOf, footprintRadius, SH_STANDING, SH_LINTELS } from "../src/sky/monuments.js";
 import { placeMonuments, monumentLabels, faceUV, toneAt } from "../src/sky/monumentLayer.js";
-import { tierEdges } from "../src/sky/monuments.js";
+import { tierEdges, stairSteps, detailFor } from "../src/sky/monuments.js";
 import { SITES } from "../src/sky/places.js";
 import { readFileSync } from "node:fs";
 
@@ -72,14 +72,14 @@ ok(flat.uv[2][0] === 1 && flat.uv[2][1] === 1, "en una terraza, u al este y v al
 ok(toneAt([0, 0, 0]) < toneAt([0, 0, 10]) + 0.5 && toneAt([0, 0, 0]) > 0.5 && toneAt([0, 0, 0]) < 1.2, "tono variable y algo más oscuro junto al suelo");
 // la escalinata pasa por fuera de todas las terrazas
 const solF = buildFaces(sol).filter((f) => f.mat === "steps");
-ok(solF.length === 2 && tierEdges(sol).length === 4, "la Pirámide del Sol tiene su escalinata");
+ok(solF.length === 4 * stairSteps(65, detailFor(300).stepH) && solF.every((f) => f.tex === "basalt") && tierEdges(sol).length === 4, "la Pirámide del Sol tiene su escalinata, con escalones de verdad");
 const casF = buildFaces(byId("castillo"));
-ok(casF.filter((f) => f.mat === "steps").length === 8 && casF.filter((f) => f.mat === "door").length === 12, "El Castillo: cuatro escalinatas y seis puertas en el templo (tres al norte)");
+ok(casF.filter((f) => f.mat === "steps").length === 4 * 4 * stairSteps(24, 0.27) && stairSteps(24, 0.27) === 89 && casF.filter((f) => f.mat === "door").length === 12, "El Castillo: cuatro escalinatas y seis puertas en el templo (tres al norte)");
 ok(buildFaces(byId("kefren")).some((f) => f.mat === "casing"), "Kefrén conserva el revestimiento arriba");
 
 console.log("Integración");
 const sky = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
-ok(/createMonumentLayer\(\)/.test(sky) && /teseo_monuments/.test(sky) && /ref\.hzData = hzEff/.test(sky) && /monLabels/.test(sky), "el cielo dibuja los monumentos, oculta lo que tapan, los nombra y recuerda el interruptor");
+ok(/createMonumentLayer\(/.test(sky) && /teseo_monuments/.test(sky) && /ref\.hzData = hzEff/.test(sky) && /monLabels/.test(sky), "el cielo dibuja los monumentos, oculta lo que tapan, los nombra y recuerda el interruptor");
 ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) sigue con el relieve solo");
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);

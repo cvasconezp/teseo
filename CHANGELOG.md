@@ -1,5 +1,23 @@
 # Cambios
 
+## 1.27.0 — 18 de noviembre de 2026
+
+- Monumentos más reales en «Mi cielo» (Teotihuacan, Chichén Itzá, Guiza,
+  Stonehenge y Newgrange): texturas fotográficas de piedra, arena, tierra y
+  pasto con relieve (Poly Haven y ambientCG, CC0) en lugar de los patrones
+  dibujados.
+- Luz: sombras suaves y más nítidas, luz del cielo según la hora, bruma con
+  la distancia y de noche los monumentos quedan en penumbra, no en negro.
+- Formas: escalinatas con peldaños de verdad, hiladas escalonadas en Guiza y
+  el resto del revestimiento en la cima de Kefrén, piedras redondeadas e
+  irregulares en Stonehenge (con las caídas), y entrada y muro de cuarzo en
+  Newgrange.
+- Suelo continuo alrededor del observador, que sigue el relieve y se funde
+  con el horizonte.
+- Los nombres de constelaciones y de montañas ya no se dibujan encima de un
+  monumento ni del suelo.
+- El panel de sitios dice ahora en cuáles se dibuja también el monumento.
+
 ## 1.26.0 — 18 de noviembre de 2026
 
 - Licencia: Teseo pasa de MIT a AGPL-3.0 o posterior (LICENSE, NOTICE).

@@ -1235,7 +1235,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const terrain = createTerrainLayer();
     horizon.add(terrain.group);
     // monumentos (src/sky/monumentLayer.js): en 3D en el mismo marco, delante de las montañas
-    const monuments = createMonumentLayer();
+    const monuments = createMonumentLayer({ onReady: () => { const r = sceneRef.current; if (r) r._dirty = true; } });
     horizon.add(monuments.group);
     horizon.visible = false; scene.add(horizon);
     // líneas guía (src/sky/guidesLayer.js): eclíptica, ecuador, Vía Láctea, cuadrículas… Todas apagadas al
@@ -1896,8 +1896,15 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           tmpB.set((x / W) * 2 - 1, -((y / H) * 2 - 1), 0.5).unproject(ref.camera).sub(ref.camera.position).normalize();
           return behindTerrain(ref.hzData, [tmpB.x, tmpB.y, tmpB.z], 0);
         };
+        // con monumentos hay un suelo de verdad (hierba, arena…): lo que queda bajo el horizonte no se nombra
+        const underGround = (x, y) => {
+          if (!ref.monGround || !inside || !ref.localModeOn) return false;
+          tmpB.set((x / W) * 2 - 1, -((y / H) * 2 - 1), 0.5).unproject(ref.camera).sub(ref.camera.position).normalize();
+          return tmpB.y < -0.008;
+        };
         const place = (sx, sy, name, cls, sub, dx, extra) => {
           let flip = false;
+          if (underGround(sx, sy)) return;
           if (cls === "note") {
             const w = name.length * 7.2 + 52;
             if (!free(sx - w / 2, sy - 58, sx + w / 2, sy + 4) || !clear(sx - w / 2, sy - 54, sx + w / 2, sy - 8)) return;
@@ -1953,6 +1960,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           // monumentos (son pocos y es lo que se vino a ver) y al final las cumbres
           for (const p of [...(ref.andLabels || []), ...(ref.monLabels || []), ...(ref.peakLabels || [])]) {
             if (np >= maxP) break;
+            // una cumbre que queda detrás de un monumento (una pirámide la tapa) no se nombra
+            if (!p.cls && !p.monument && ref.hzData.monuments) { const st = ref.hzData.step_deg || 0.2, ha = ref.hzData.alt[Math.round(p.az / st) % ref.hzData.alt.length]; if (ha > p.alt + 0.4) continue; }
             const ca = Math.cos(p.alt * R);
             tmp.set(860 * ca * Math.sin(p.az * R), 860 * Math.sin(p.alt * R), -860 * ca * Math.cos(p.az * R)).project(ref.camera);
             if (tmp.z >= 1 || tmp.x < -1 || tmp.x > 1 || tmp.y < -1 || tmp.y > 1) continue;
@@ -2467,6 +2476,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.monuments) return;
     ref.monuments.set(monItems, atmState);
+    ref.monGround = monItems.length > 0;
     ref.monLabels = monItems.length ? monumentLabels(monItems, lang, monSil, hzData ? hzData.step_deg || 0.2 : 0.2).map((p) => ({ ...p, label: p.name, subText: lang === "es" ? `${p.ele_m} m de alto` : `${p.ele_m} m tall` })) : null;
     ref._dirty = true;
   }, [monItems, monSil, lang, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
