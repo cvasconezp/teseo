@@ -8,7 +8,7 @@ y datos citados.** En línea: **[teseo.yachaydeep.com](https://teseo.yachaydeep.
 
 Hecho por [Yachay Deep Labs](https://yachaydeep.com) **en cooperación con
 [Killa Ñan · Astronomía comunitaria](https://sites.google.com/view/killanan/inicio)**
-(Cayambe, Ecuador). Código abierto (MIT), creado por
+(Cayambe, Ecuador). Código abierto (AGPL-3.0), creado por
 [Carlos Vásconez-Paredes](https://github.com/cvasconezp). Español e inglés;
 pensado para el teléfono, desde adolescentes hasta investigadores.
 
@@ -244,7 +244,11 @@ Privacy Control, tampoco se envía nada al backend propio.
 
 ## Licencia
 
-MIT — usa, copia, modifica y distribuye libremente, con atribución.
+[AGPL-3.0 o posterior](LICENSE) © 2026 Carlos Vásconez-Paredes · Yachay Deep Labs.
+Puedes usar, copiar, modificar y redistribuir Teseo con atribución. Si publicas una
+versión modificada (también como sitio web o servicio en red), debes ofrecer su
+código completo bajo la misma licencia. Los nombres «Teseo» y «Yachay Deep» no
+están incluidos en la licencia: ver [NOTICE](NOTICE).
 
 ## Créditos de datos
 

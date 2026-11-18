@@ -1,11 +1,11 @@
 # Créditos y licencias de datos
 
-**Teseo (código):** MIT. Reutiliza, copia y modifica con atribución.
+**Teseo (código):** [AGPL-3.0 o posterior](LICENSE). Puedes usar, copiar, modificar y redistribuir el código, con atribución; si publicas una versión modificada, también como servicio web, debes compartir su código bajo la misma licencia. Los nombres «Teseo» y «Yachay Deep» no están incluidos (ver NOTICE).
 
 ## Regla de licencias
 El **código** de Teseo es propio (no copiamos código de terceros con licencias
 copyleft). Los **datos** que empaquetamos conservan su licencia original y se
-atribuyen aquí. Esto permite que Teseo siga siendo MIT.
+atribuyen aquí. Así Teseo puede elegir libremente su licencia: hoy, AGPL-3.0 o posterior.
 
 ## ⚠️ Stellarium — GPL-2.0+ (no usamos su código)
 [Stellarium](https://github.com/Stellarium/stellarium) está bajo **GPL-2.0+**,
@@ -18,7 +18,7 @@ skyculture" de Stellarium (solo **datos**, no código). Confirmado en la fuente
 oficial ([stellarium-skycultures](https://github.com/Stellarium/stellarium-skycultures)):
 el texto y los datos de líneas están bajo **CC BY-SA** (atribución al equipo de
 Stellarium; base IAU) — **no GPL**. Como es una licencia de *datos*, no afecta a
-la licencia MIT del código: se incluye como recurso con licencia propia y su
+la licencia AGPL del código: se incluye como recurso con licencia propia y su
 atribución correspondiente. (El código de Stellarium sí es GPL y por eso no se
 copia; nuestro render 3D es propio, con Three.js.)
 

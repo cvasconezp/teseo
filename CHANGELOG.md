@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.26.0 — 18 de noviembre de 2026
+
+- Licencia: Teseo pasa de MIT a AGPL-3.0 o posterior (LICENSE, NOTICE).
+  Sigue siendo software libre, pero quien publique una versión modificada,
+  también como sitio web, debe compartir su código con la misma licencia.
+  Los nombres «Teseo» y «Yachay Deep» quedan fuera de la licencia.
+- Créditos de la app: enlace al código fuente en GitHub (sección 13 de la
+  AGPL).
+- README, CREDITS, la landing (es/en), los datos estructurados y llms.txt
+  dicen ahora AGPL-3.0.
+
 ## 1.25.2 — 18 de noviembre de 2026
 
 - GitHub Sponsors activo (github.com/sponsors/cvasconezp). La landing, en

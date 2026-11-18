@@ -7,7 +7,7 @@
 
 **Posicionamiento:** Teseo = todo lo bueno de un planetario (Stellarium) **+**
 la capa de navegación cósmica que nadie más tiene (rutas, ventanas de
-lanzamiento, profundidad real, "tiempo de viaje"). Open source (MIT) y gratis.
+lanzamiento, profundidad real, "tiempo de viaje"). Open source (AGPL-3.0) y gratis.
 
 Leyenda: ✅ hecho · 🔜 siguiente · 🧪 idea/explorar
 

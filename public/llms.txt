@@ -1,8 +1,8 @@
 # Teseo
 
-> Teseo es una app web gratuita y de código abierto (licencia MIT) de divulgación astronómica, hecha en Cayambe, Ecuador, por Yachay Deep Labs con la iniciativa de astronomía comunitaria Killa Ñan. Es planetario, navegador interplanetario, calendario del cielo y laboratorio. Disponible en español e inglés, en el navegador o instalada como app (PWA), sin cuenta y sin publicidad.
+> Teseo es una app web gratuita y de código abierto (licencia AGPL-3.0) de divulgación astronómica, hecha en Cayambe, Ecuador, por Yachay Deep Labs con la iniciativa de astronomía comunitaria Killa Ñan. Es planetario, navegador interplanetario, calendario del cielo y laboratorio. Disponible en español e inglés, en el navegador o instalada como app (PWA), sin cuenta y sin publicidad.
 
-Teseo is a free, open-source (MIT) astronomy app made in Cayambe, Ecuador, by Yachay Deep Labs with the community astronomy initiative Killa Ñan. It works as a planetarium, an interplanetary navigator, a sky calendar and a science lab, in English and Spanish.
+Teseo is a free, open-source (AGPL-3.0) astronomy app made in Cayambe, Ecuador, by Yachay Deep Labs with the community astronomy initiative Killa Ñan. It works as a planetarium, an interplanetary navigator, a sky calendar and a science lab, in English and Spanish.
 
 Principios: las cifras salen de datos oficiales y física real (efemérides contrastadas con el Observatorio Naval de EE. UU., NASA/JPL y catálogos abiertos); cuando la app usa IA, solo narra resultados ya calculados, nunca calcula.
 

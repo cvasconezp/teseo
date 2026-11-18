@@ -1,6 +1,7 @@
 {
   "name": "teseo",
-  "version": "1.25.2",
+  "license": "AGPL-3.0-or-later",
+  "version": "1.26.0",
   "private": true,
   "type": "module",
   "dependencies": {

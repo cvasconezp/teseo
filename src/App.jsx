@@ -213,7 +213,8 @@ const T = {
     usageErrTitle:  "Teseo in numbers did not load",
     usageErrBody:   "Check your connection and try again. The rest of Teseo keeps working.",
     creditsTitle:   "Credits and data sources",
-    creditsIntro:   "Teseo uses real data from official sources. MIT-licensed code.",
+    creditsIntro:   "Teseo uses real data from official sources. Free software under the AGPL-3.0 licence.",
+    sourceLink:     "Source code on GitHub",
     creditsNote:    "Distances to deep-sky objects and pulsars are published values with uncertainty; they are shown as approximations.",
     privacyNote:    "Privacy: Teseo also counts, anonymously and in aggregate, which features are used (daily totals only), with no cookies and no personal data. Google Analytics is used only if you accept it in the cookie notice.",
     close:          "Close",
@@ -409,7 +410,8 @@ const T = {
     usageErrTitle:  "No se pudo abrir «Teseo en números»",
     usageErrBody:   "Revisa tu conexión y vuelve a intentarlo. El resto de Teseo sigue funcionando.",
     creditsTitle:   "Créditos y fuentes de datos",
-    creditsIntro:   "Teseo usa datos reales de fuentes oficiales. Código con licencia MIT.",
+    creditsIntro:   "Teseo usa datos reales de fuentes oficiales. Software libre con licencia AGPL-3.0.",
+    sourceLink:     "Código fuente en GitHub",
     creditsNote:    "Las distancias de objetos lejanos y púlsares son valores publicados con incertidumbre; se muestran como aproximaciones.",
     privacyNote:    "Privacidad: Teseo cuenta además, de forma anónima y agregada, qué funciones se usan (solo totales por día), sin cookies ni datos personales. Google Analytics solo se usa si lo aceptas en el aviso de cookies.",
     close:          "Cerrar",
@@ -1382,7 +1384,7 @@ function CreditsModal({ lang, onClose }) {
           </a>
         </div>
         <h3 className="credits__h">{t.creditsGroups}</h3>
-        <p className="modal__p">{t.creditsIntro}</p>
+        <p className="modal__p">{t.creditsIntro} <a href="https://github.com/cvasconezp/teseo" target="_blank" rel="noopener noreferrer">{t.sourceLink}</a></p>
         {t.credits.map(({g, items})=>(
           <section key={g} className="credits__group">
             <h4 className="credits__g">{g}</h4>
