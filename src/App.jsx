@@ -207,6 +207,7 @@ const T = {
     creditsGroups:  "Data sources by institution",
     creditsLink:    "Credits and data",
     aboutLink:      "About Teseo",
+    aboutShort:     "About",
     aboutCard:      ["About Teseo", "What it is, videos, the podcast, workshops and how to support it."],
     usageLoading:   "Loading Teseo in numbers…",
     usageErrTitle:  "Teseo in numbers did not load",
@@ -402,6 +403,7 @@ const T = {
     creditsGroups:  "Fuentes de datos por institución",
     creditsLink:    "Créditos y datos",
     aboutLink:      "Acerca de Teseo",
+    aboutShort:     "Acerca de",
     aboutCard:      ["Acerca de Teseo", "Qué es, videos, el podcast, talleres y cómo apoyarlo."],
     usageLoading:   "Cargando Teseo en números…",
     usageErrTitle:  "No se pudo abrir «Teseo en números»",
@@ -1293,6 +1295,10 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
           </button>
         </div>
+        <a href="/acerca" className="app-menu__about" onClick={()=>track("about_open", { from: "menu" })}>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg>
+          <span><b>{t.aboutCard[0]}</b><small>{t.aboutCard[1]}</small></span>
+        </a>
         <nav className="app-menu__tabs" aria-label={t.sections}>
           {TABS.map(({ id, Icon })=>(
             <button key={id} type="button" aria-current={tab===id ? "page" : undefined} className={tab===id ? "is-active" : ""}
@@ -1312,10 +1318,6 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
             <span>{night ? t.nightOff : t.nightOn}</span>
           </button>
-          <a href="/acerca" className="app-menu__about" onClick={()=>track("about_open", { from: "menu" })}>
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg>
-            <span>{t.aboutLink}</span>
-          </a>
           <button type="button" className="lang" aria-label={t.switchLang} onClick={onLang}>
             <span className={lang==="es" ? "is-on" : ""} aria-hidden="true">ES</span>
             <span className={lang==="en" ? "is-on" : ""} aria-hidden="true">EN</span>
@@ -1886,6 +1888,10 @@ export default function Teseo() {
               </p>
             </div>
             <div className="topbar__ctl flex items-center gap-2">
+            <a href="/acerca" className="about-btn" aria-label={t.aboutLink} title={t.aboutLink}
+              onClick={()=>track("about_open", { from: "header" })}>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg><span>{t.aboutShort}</span>
+            </a>
             <button type="button" className={`night-btn night-btn--music${ambient ? " is-on" : ""}`} aria-pressed={ambient}
               aria-label={ambient ? t.ambientOff : t.ambientOn} title={ambient ? t.ambientOff : t.ambientOn}
               onClick={toggleAmbient}>

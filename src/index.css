@@ -669,7 +669,7 @@ html.night-vision .night-vision-dim { filter: brightness(.7); }
 .app-menu__tabs button svg { width: 24px; height: 24px; }
 .app-menu__tabs button.is-active { color: #fff; background: rgba(124, 58, 237, 0.22); box-shadow: inset 3px 0 0 #f2c66d; }
 .app-menu__opts { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px; }
-.app-menu__opts > button:not(.lang), .app-menu__opts > .app-menu__about { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; color: rgba(238, 240, 250, 0.85); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06); font-size: 15px; text-align: left; }
+.app-menu__opts > button:not(.lang) { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; color: rgba(238, 240, 250, 0.85); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06); font-size: 15px; text-align: left; }
 .app-menu__opts > button[aria-pressed="true"] { color: #fff; border-color: rgba(242, 198, 109, 0.5); }
 .app-menu__opts .lang { align-self: flex-start; margin-top: 4px; }
 @keyframes app-menu-in { from { transform: translateX(-100%); } to { transform: none; } }
@@ -683,7 +683,24 @@ html.night-vision .night-vision-dim { filter: brightness(.7); }
   transition: opacity .18s ease, transform .18s ease; white-space: nowrap; }
 .exit-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
 
-/* «Acerca de Teseo» (landing /acerca): enlace en el menú del teléfono y tarjeta en Créditos */
-.app-menu__opts > .app-menu__about { text-decoration: none; }
-.app-menu__opts > .app-menu__about:hover { color: #fff; }
+/* «Acerca de Teseo» (landing /acerca): botón de la cabecera, primera opción del menú ☰ y tarjeta en Créditos */
+.about-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 14px 0 12px; border-radius: 999px;
+  border: 1px solid rgba(242, 196, 109, 0.5); background: rgba(242, 196, 109, 0.1); color: #f2c46d; font-size: 14px; font-weight: 600;
+  text-decoration: none; white-space: nowrap; }
+.about-btn:hover { color: #ffe2a3; background: rgba(242, 196, 109, 0.18); }
+.topbar__ctl .about-btn { min-height: 40px; }
+@media (min-width: 1100px) { .topbar__ctl .about-btn { min-height: 38px; } }
+@media (max-width: 420px) { .about-btn span { display: none; } .about-btn { width: 44px; padding: 0; justify-content: center; } }
+.app-menu__about { display: flex; align-items: center; gap: 12px; margin: 4px 0 14px; padding: 12px 14px; border-radius: 14px;
+  border: 1px solid rgba(242, 196, 109, 0.5); background: rgba(242, 196, 109, 0.1); color: #f2c46d; text-decoration: none; }
+.app-menu__about span { display: flex; flex-direction: column; gap: 2px; }
+.app-menu__about b { font-size: 16px; font-weight: 600; }
+.app-menu__about small { font-size: 13px; color: rgba(238, 240, 250, 0.75); }
+.app-menu__about:hover { background: rgba(242, 196, 109, 0.18); }
 .who__card--about { display: flex; margin-bottom: 18px; border-color: rgba(242, 196, 109, 0.45); }
+/* Teléfono: el selector de idioma de la cabecera muestra solo el idioma activo (al tocarlo cambia al otro) */
+@media (max-width: 639px) {
+  .topbar__ctl .lang span:not(.is-on) { display: none; }
+  .topbar__ctl .lang span.is-on { background: transparent; }
+  .topbar__ctl .lang { min-width: 44px; justify-content: center; }
+}

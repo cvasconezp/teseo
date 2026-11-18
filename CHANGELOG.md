@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.24.1 — 18 de noviembre de 2026
+
+- «Acerca de» más a la vista: botón dorado en la cabecera (en el teléfono,
+  solo el ícono ⓘ) y primera opción, destacada, del menú ☰ del Cielo.
+- En el teléfono, el selector de idioma de la cabecera muestra solo el
+  idioma activo; al tocarlo cambia al otro.
+- Landing /acerca:
+  - «Teseo en un minuto» y siete videos explicativos (estrellas, vida de
+    una estrella, ventanas a Marte, lunas de Júpiter, tu horizonte, ¿estamos
+    solos?, el final del universo). Se quitó el video con el laberinto.
+  - El podcast se escucha en la misma página (15 min).
+  - «Instalar en el teléfono» abre una ventana con el video de instalación.
+  - Formulario de PayPal legible (texto oscuro sobre fondo blanco).
+  - La sección de las cuatro pestañas se llama «Cuatro maneras de explorar
+    el universo».
+
 ## 1.24.0 — 18 de noviembre de 2026
 
 - Nueva página «Acerca de Teseo» en teseo.yachaydeep.com/acerca: qué es la

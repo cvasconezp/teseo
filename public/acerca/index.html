@@ -94,10 +94,23 @@ a.card:hover{border-color:rgba(242,196,109,.45)}a.card:hover h3{color:#fff}
 .pillars h3{color:var(--gold);font-size:19px;margin-bottom:6px}
 .pillars p{color:var(--soft);font-size:16px}
 /* videos */
-.vids{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,290px));justify-content:center;gap:28px;align-items:start}
+.vids{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:28px 24px;align-items:start}
+@media (max-width:480px){.vids{grid-template-columns:minmax(0,300px);justify-content:center}}
 .vid{display:flex;flex-direction:column;gap:12px}
 .vid video{width:100%;height:auto;aspect-ratio:9/16;border-radius:22px;border:1px solid var(--line);background:#000;object-fit:cover}
 .vid p{color:var(--soft);font-size:15px}
+.feat{display:flex;flex-wrap:wrap;gap:40px;align-items:center}
+.feat__vid{flex:0 1 300px;min-width:240px}
+.feat__txt{flex:1 1 360px;display:flex;flex-direction:column;gap:14px}
+.dlg{border:0;padding:0;background:transparent;color:var(--text);max-width:min(420px,calc(100vw - 24px));max-height:calc(100dvh - 24px)}
+.dlg::backdrop{background:rgba(2,4,10,.78)}
+.dlg__box{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:22px;background:var(--panel);border:1px solid var(--line2);overflow:auto;max-height:calc(100dvh - 24px)}
+.dlg__head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dlg__head h2{font-size:26px}
+.dlg__x{flex:none;width:44px;height:44px;border-radius:999px;border:1px solid var(--line2);background:transparent;color:var(--text);display:grid;place-items:center;cursor:pointer}
+.dlg video{width:100%;max-height:58dvh;aspect-ratio:9/16;object-fit:contain;border-radius:16px;background:#000}
+.dlg p{font-size:15px;color:var(--soft)}
+.pod audio{width:100%;max-width:560px;margin-top:6px;color-scheme:dark}
 /* podcast */
 .pod{display:flex;flex-wrap:wrap;gap:28px;align-items:center;padding:28px;border-radius:22px;background:var(--panel);border:1px solid var(--line)}
 .pod__icon{flex:none;width:88px;height:88px;border-radius:22px;display:flex;align-items:center;justify-content:center;background:rgba(242,196,109,.12);border:1px solid rgba(242,196,109,.45)}
@@ -110,7 +123,10 @@ a.card:hover{border-color:rgba(242,196,109,.45)}a.card:hover h3{color:#fff}
 .give p{color:var(--soft);font-size:15px}
 .give .grow{flex:1}
 #paypal-box{min-height:0}
-#paypal-box:not(:empty){margin-top:4px;padding:14px;border-radius:14px;background:#fff}
+#paypal-box:not(:empty){margin-top:4px;padding:16px;border-radius:14px;background:#fff;color:#1B2033}
+#paypal-box *{color:#1B2033}
+#paypal-box input{background:#fff;color:#1B2033;-webkit-text-fill-color:#1B2033}
+#paypal-box input::placeholder{color:#5E6680;-webkit-text-fill-color:#5E6680}
 .fine{font-size:14px;color:var(--muted)}
 /* cierre y pie */
 .end{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;padding-top:84px;padding-bottom:84px}
@@ -153,7 +169,7 @@ footer nav a{color:var(--soft)}
         <p class="lead">Mira el cielo desde tu lugar exacto, con tus montañas, tus nubes y tu hora. Y descubre qué tan lejos está todo, cuánto tardarías en llegar y cuándo conviene salir.</p>
         <div class="ctas">
           <a class="btn btn--gold" href="/">Abrir el cielo</a>
-          <a class="btn btn--ghost" href="#instalar">Instalar en el teléfono</a>
+          <button class="btn btn--ghost" type="button" data-open="dlg-instalar" aria-haspopup="dialog">Instalar en el teléfono</button>
         </div>
         <p class="fine">Sin cuenta · sin publicidad · en español e inglés · en el navegador o instalada como app</p>
       </div>
@@ -168,8 +184,8 @@ footer nav a{color:var(--soft)}
   <section id="que-es">
     <div class="wrap sec">
       <div class="head">
-        <h2>Un Google Maps del cosmos</h2>
-        <p class="soft">Las apps de planetario te dicen qué hay en el cielo. Teseo hace eso y además calcula distancias, rutas y fechas de salida con física real. Tiene cuatro secciones.</p>
+        <h2>Cuatro maneras de explorar el universo</h2>
+        <p class="soft">Teseo es a la vez planetario, navegador interplanetario, calendario del cielo y laboratorio. No solo te dice qué hay allá arriba: calcula distancias, rutas y fechas de salida con física real y datos oficiales.</p>
       </div>
       <div class="grid">
         <a class="card" href="/#sky">
@@ -249,11 +265,11 @@ footer nav a{color:var(--soft)}
           <p>Elige una masa, de la Tierra a un cuásar, y calcula cuánto mide su horizonte y cuánto se frena el tiempo a su lado.</p>
           <span class="go">¿Qué pasa cerca de un agujero negro?</span>
         </a>
-        <a class="card" href="#videos">
-          <img src="/acerca/video/catapultas.jpg" width="540" height="960" loading="lazy" style="aspect-ratio:16/10;object-position:50% 46%" alt="Animación de las cuatro catapultas gravitatorias de la sonda Cassini, con sus pasos por Venus y la Tierra.">
-          <h3>Catapultas gravitatorias</h3>
-          <p>Cómo Cassini llegó a Saturno pasando dos veces por Venus y una por la Tierra. En Ruta, Teseo busca tus propias catapultas.</p>
-          <span class="go">Ver el video</span>
+        <a class="card" href="#v-marte">
+          <img src="/acerca/video/marte.jpg" width="540" height="960" loading="lazy" style="aspect-ratio:16/10;object-position:50% 30%" alt="Inicio del video «¿Por qué no salimos cualquier día?», con las órbitas de la Tierra y Marte alrededor del Sol.">
+          <h3>Ventanas de lanzamiento</h3>
+          <p>Por qué una nave a Marte no sale cualquier día: la transferencia de Hohmann, el ángulo de 44° y la ventana que se repite cada 26 meses.</p>
+          <span class="go">Ver el video (2:08)</span>
         </a>
       </div>
       <nav class="chips" aria-label="Los diez recorridos de Preguntas">
@@ -284,24 +300,72 @@ footer nav a{color:var(--soft)}
   <!-- Videos -->
   <section id="videos">
     <div class="wrap sec">
-      <div class="head">
-        <h2>Videos</h2>
-        <p class="soft">Hechos con la propia app. Para probar cualquier cosa por tu cuenta, ábrela: todo lo que ves aquí se calcula en vivo.</p>
+      <div class="feat">
+        <div class="vid feat__vid" id="v-en-un-minuto">
+          <video controls playsinline preload="none" poster="/acerca/video/en-un-minuto.jpg" width="540" height="960" aria-label="Video: Teseo en un minuto (44 segundos, con narración)">
+            <source src="/acerca/video/en-un-minuto.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="feat__txt">
+          <p class="kicker">Videos</p>
+          <h2>Teseo en un minuto</h2>
+          <p class="soft">El mapa del cielo, tu horizonte, los viajes por el sistema solar y las grandes preguntas, filmados en la propia app. 44 segundos.</p>
+          <p class="fine">Las voces de los videos son sintéticas.</p>
+        </div>
+      </div>
+      <div class="head" style="margin-top:64px">
+        <h2 style="font-size:clamp(28px,3.4vw,38px)">Explicados paso a paso</h2>
+        <p class="soft">Un tema por video, de uno a dos minutos, con animaciones y la app donde se puede comprobar.</p>
       </div>
       <div class="vids">
-        <div class="vid">
-          <video controls playsinline preload="none" poster="/acerca/video/catapultas.jpg" width="720" height="1280" aria-label="Video: de «estás aquí» a Saturno con las catapultas de Cassini, 11 segundos, sin voz">
-            <source src="/acerca/video/catapultas.mp4" type="video/mp4">
+        <div class="vid" id="v-estrellas">
+          <video controls playsinline preload="none" poster="/acerca/video/estrellas.jpg" width="540" height="960" aria-label="Video: ¿Cómo sabemos de qué está hecha una estrella? (1:43, con narración)">
+            <source src="/acerca/video/estrellas.mp4" type="video/mp4">
           </video>
-          <h3>De «estás aquí» a Saturno</h3>
-          <p>Del punto donde estás a la Vía Láctea, y el viaje de Cassini (1997–2004) con cuatro catapultas planetarias. 11 segundos, sin voz.</p>
+          <h3>¿Cómo sabemos de qué está hecha una estrella?</h3>
+          <p>El espectro de la luz, sus rayas oscuras y cómo se descubrió el helio en el Sol. <span class="muted">1:43</span></p>
         </div>
-        <div class="vid" id="instalar">
-          <video controls playsinline preload="none" poster="/acerca/video/instalar.jpg" width="720" height="1280" aria-label="Video: cómo instalar Teseo en Android desde Chrome, un minuto, con narración">
-            <source src="/acerca/video/instalar.mp4" type="video/mp4">
+        <div class="vid" id="v-vida-estrella">
+          <video controls playsinline preload="none" poster="/acerca/video/vida-estrella.jpg" width="540" height="960" aria-label="Video: ¿Cómo vive y muere una estrella? (2:15, con narración)">
+            <source src="/acerca/video/vida-estrella.mp4" type="video/mp4">
           </video>
-          <h3>Instalar en Android</h3>
-          <p>Desde Chrome, en cinco pasos y un minuto, con narración. En iPhone: Compartir → «Añadir a pantalla de inicio».</p>
+          <h3>¿Cómo vive y muere una estrella?</h3>
+          <p>De la nube de gas a la enana blanca, la supernova o el agujero negro: todo depende de la masa. <span class="muted">2:15</span></p>
+        </div>
+        <div class="vid" id="v-marte">
+          <video controls playsinline preload="none" poster="/acerca/video/marte.jpg" width="540" height="960" aria-label="Video: ¿Por qué no vamos a Marte cualquier día? (2:08, con narración)">
+            <source src="/acerca/video/marte.mp4" type="video/mp4">
+          </video>
+          <h3>¿Por qué no vamos a Marte cualquier día?</h3>
+          <p>La transferencia de Hohmann, el ángulo de 44° y la ventana que se repite cada 26 meses. <span class="muted">2:08</span></p>
+        </div>
+        <div class="vid" id="v-jupiter">
+          <video controls playsinline preload="none" poster="/acerca/video/jupiter.jpg" width="540" height="960" aria-label="Video: Las lunas de Júpiter (2:12, con narración)">
+            <source src="/acerca/video/jupiter.mp4" type="video/mp4">
+          </video>
+          <h3>Las lunas de Júpiter</h3>
+          <p>Cuatro puntitos de luz que cambiaron la astronomía, y cómo verlos esta noche. <span class="muted">2:12</span></p>
+        </div>
+        <div class="vid" id="v-horizonte">
+          <video controls playsinline preload="none" poster="/acerca/video/horizonte.jpg" width="540" height="960" aria-label="Video: El cielo empieza en tus montañas (1:19, con narración)">
+            <source src="/acerca/video/horizonte.mp4" type="video/mp4">
+          </video>
+          <h3>El cielo empieza en tus montañas</h3>
+          <p>Tu horizonte real con el relieve, la curvatura de la Tierra, las nubes y los monumentos. <span class="muted">1:19</span></p>
+        </div>
+        <div class="vid" id="v-estamos-solos">
+          <video controls playsinline preload="none" poster="/acerca/video/estamos-solos.jpg" width="540" height="960" aria-label="Video: ¿Estamos solos? (1:57, con narración)">
+            <source src="/acerca/video/estamos-solos.mp4" type="video/mp4">
+          </video>
+          <h3>¿Estamos solos?</h3>
+          <p>La ecuación de Drake con números que puedes cambiar tú. <span class="muted">1:57</span></p>
+        </div>
+        <div class="vid" id="v-fin-universo">
+          <video controls playsinline preload="none" poster="/acerca/video/fin-universo.jpg" width="540" height="960" aria-label="Video: ¿Cómo terminará el universo? (2:11, con narración)">
+            <source src="/acerca/video/fin-universo.mp4" type="video/mp4">
+          </video>
+          <h3>¿Cómo terminará el universo?</h3>
+          <p>La expansión, la energía oscura y los finales posibles. <span class="muted">2:11</span></p>
         </div>
       </div>
     </div>
@@ -315,12 +379,14 @@ footer nav a{color:var(--soft)}
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#F2C46D" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"></path></svg>
         </div>
         <div class="pod__txt">
-          <p class="kicker">Podcast</p>
-          <h2 style="font-size:clamp(28px,3.4vw,38px)">Teseo: qué es, qué hace y por qué importa</h2>
+          <p class="kicker">Podcast · 15 min</p>
+          <h2 style="font-size:clamp(28px,3.4vw,38px)">Teseo: astrofísica donde la IA no calcula</h2>
           <p class="soft">Una conversación sobre de dónde viene Teseo, cómo sabe que lo que dice es cierto, la astronomía andina y lo que viene.</p>
-          <p class="fine">Audio generado con NotebookLM de Google (voces de inteligencia artificial) a partir de la documentación de Teseo.</p>
+          <audio controls preload="none" aria-label="Podcast: Teseo, astrofísica donde la IA no calcula (15 minutos)">
+            <source src="/acerca/audio/podcast.m4a" type="audio/mp4">
+          </audio>
+          <p class="fine">Audio generado con NotebookLM de Google (voces de inteligencia artificial) a partir de la documentación de Teseo. También puedes <a href="https://notebooklm.link.google/cSXCkdP5ahzJ" target="_blank" rel="noopener noreferrer">escucharlo en NotebookLM</a>.</p>
         </div>
-        <a class="btn btn--gold" href="https://notebooklm.link.google/cSXCkdP5ahzJ" target="_blank" rel="noopener noreferrer">Escuchar en NotebookLM</a>
       </div>
     </div>
   </section>
@@ -391,6 +457,23 @@ footer nav a{color:var(--soft)}
   </section>
 </main>
 
+<dialog id="dlg-instalar" class="dlg" aria-labelledby="dlg-instalar-t">
+  <div class="dlg__box">
+    <div class="dlg__head">
+      <h2 id="dlg-instalar-t">Instala Teseo en tu teléfono</h2>
+      <button type="button" class="dlg__x" data-close aria-label="Cerrar">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <video controls playsinline preload="none" poster="/acerca/video/instalar.jpg" width="720" height="1280" aria-label="Video: cómo instalar Teseo en Android desde Chrome, un minuto, con narración">
+      <source src="/acerca/video/instalar.mp4" type="video/mp4">
+    </video>
+    <p><b>Android:</b> abre teseo.yachaydeep.com en Chrome → menú ⋮ → «Instalar app».</p>
+    <p><b>iPhone:</b> en Safari, Compartir → «Añadir a pantalla de inicio».</p>
+    <a class="btn btn--gold btn--sm" href="/">Abrir Teseo</a>
+  </div>
+</dialog>
+
 <footer>
   <div class="wrap">
     <div class="who">
@@ -408,6 +491,26 @@ footer nav a{color:var(--soft)}
 </footer>
 
 <script>
+// Diálogo «Instalar en el teléfono»: se abre encima de la página; al cerrarlo el video se detiene.
+(function () {
+  document.querySelectorAll("[data-open]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var d = document.getElementById(b.getAttribute("data-open"));
+      if (!d) return;
+      if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+    });
+  });
+  document.querySelectorAll("dialog.dlg").forEach(function (d) {
+    d.addEventListener("click", function (e) { if (e.target === d || e.target.closest("[data-close]")) d.close(); });
+    d.addEventListener("close", function () { d.querySelectorAll("video").forEach(function (v) { v.pause(); }); });
+  });
+  // un solo video sonando a la vez
+  document.addEventListener("play", function (e) {
+    document.querySelectorAll("video, audio").forEach(function (m) { if (m !== e.target) m.pause(); });
+  }, true);
+})();
+</script>
+<script>
 // PayPal: el SDK (y sus cookies) se carga solo al pulsar «Donar con PayPal».
 (function () {
   var btn = document.getElementById("paypal-load"), box = document.getElementById("paypal-box");
@@ -422,9 +525,9 @@ footer nav a{color:var(--soft)}
     s.onload = function () {
       try {
         box.innerHTML = '<div id="paypal-container-ZLGL2E3JZUHG2"></div>';
+        btn.hidden = true;
         window.paypal.HostedButtons({ hostedButtonId: "ZLGL2E3JZUHG2" }).render("#paypal-container-ZLGL2E3JZUHG2")
-          .then(function () { btn.hidden = true; })
-          .catch(fail);
+          .catch(function () { btn.hidden = false; fail(); });
       } catch (e) { fail(); }
     };
     s.onerror = fail;
