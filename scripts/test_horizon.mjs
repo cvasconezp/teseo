@@ -111,7 +111,7 @@ ok(/horizon: hzData/.test(sky), "la ficha recibe el horizonte del lugar");
   let url = null;
   const res = await fetchPeaks(0.0401, -78.1502, { api: "https://x", fetchImpl: async (u) => { url = u; return { ok: true, json: async () => ({ peaks: list }) }; } });
   ok(url === "https://x/api/peaks?lat=0.040&lon=-78.150" && res.peaks.length === 3, "petición por celda del horizonte");
-  ok(/teseo_peaks/.test(sky) && /peaksToLabel\(/.test(sky) && /cls: "peak"/.test(sky), "el cielo rotula las cumbres y recuerda el interruptor (apagado por defecto)");
+  ok(/teseo_peaks/.test(sky) && /peaksToLabel\(/.test(sky) && /cls: (p\.cls \|\| )?"peak"/.test(sky), "el cielo rotula las cumbres y recuerda el interruptor (apagado por defecto)");
 }
 const credits = readFileSync(new URL("../CREDITS.md", import.meta.url), "utf8");
 ok(/Terrain Tiles/.test(credits) && /SRTM/.test(credits), "créditos del relieve");

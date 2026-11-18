@@ -69,3 +69,8 @@
 
 /* arrastrar con el ratón sobre el cielo no debe seleccionar los nombres ni los avisos */
 .sk-stage .sk-labels, .sk-stage .sk-atm-day, .sk-stage .sk-dock, .sk-stage .sk-chips { -webkit-user-select: none; user-select: none; }
+/* «Astronomía andina»: marcas del Sol (oro, palito más alto) y sitios quitu-caranquis (turquesa) */
+.sk-stage .sk-label-andsun > i { height: 54px; width: 1.5px; opacity: 0.85; }
+.sk-stage .sk-label-andsun > i::after { width: 6px; height: 6px; left: -2.25px; bottom: -3px; box-shadow: 0 0 6px currentColor; }
+.sk-stage .sk-label-andsun > em { bottom: 57px; }
+.sk-stage .sk-label-andsite b { font-weight: 600; }

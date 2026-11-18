@@ -50,10 +50,11 @@ export const SkyLabels = memo(function SkyLabels({ apiRef, colors, unit, locale,
           style={{ transform: `translate(${Math.round(l.x)}px,${Math.round(l.y)}px) translate(-50%,-135%)` }}>
           <i aria-hidden="true">?</i>{l.name}
         </button>
-      ) : l.cls === "peak" ? (
-        // nombre de una montaña: encima de la cumbre, con un palito que baja hasta el punto exacto de la silueta
-        <div key={l.key} aria-hidden="true" className="sk-label sk-label-peak"
-          style={{ transform: `translate(${Math.round(l.x)}px,${Math.round(l.y)}px)`, color: colors.peak || "#fff" }}>
+      ) : l.cls === "peak" || l.cls === "andsun" || l.cls === "andsite" ? (
+        // nombre de una montaña (o de una marca de «Astronomía andina»): encima del punto, con un palito que baja
+        // hasta el punto exacto de la silueta
+        <div key={l.key} aria-hidden="true" className={`sk-label sk-label-peak${l.cls !== "peak" ? ` sk-label-${l.cls}` : ""}`}
+          style={{ transform: `translate(${Math.round(l.x)}px,${Math.round(l.y)}px)`, color: colors[l.cls] || colors.peak || "#fff" }}>
           <i />
           <em><b>{l.name}</b>{l.subText != null && <small>{typeof l.subText === "string" ? l.subText : `${Number(l.subText).toLocaleString(locale, { useGrouping: "always" })} m`}</small>}</em>
         </div>

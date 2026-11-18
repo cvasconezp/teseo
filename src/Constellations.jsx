@@ -58,6 +58,7 @@ import { createAtmosphereLayer } from "./sky/atmosphereLayer.js";
 import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE } from "./sky/cloudsLayer.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
+import { andeanLabels, TX_AND } from "./sky/andean.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations } from "./sky/horizon.js";
 import { monumentsNear, groundRing, median, silhouette, withMonuments } from "./sky/monuments.js";
 import { createMonumentLayer, placeMonuments, monumentLabels } from "./sky/monumentLayer.js";
@@ -92,7 +93,7 @@ const LAYERS = [
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
+const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
 // Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
 // de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
 // en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
@@ -122,6 +123,7 @@ const BORTLE_KEY = "teseo_bortle_v1";  // { lugar: clase } elegida por la person
 const TERRAIN_KEY = "teseo_terrain";    // interruptor "Montañas" (relieve real; encendido por defecto)
 const DAYWARN_KEY = "teseo_daywarn_off";
 const CONS_KEY = "teseo_cons";          // "Constelaciones" (líneas y nombres; encendido por defecto)
+const ANDEAN_KEY = "teseo_andean";     // "Astronomía andina": Sol en solsticios/equinoccios + sitios quitu-caranquis (apagado)
 const PEAKS_KEY = "teseo_peaks";        // "Nombres de las montañas" (OpenStreetMap; apagado por defecto)
 const MONUMENTS_KEY = "teseo_monuments"; // "Monumentos" (pirámides, Stonehenge…; encendido por defecto)
 const CLOUDS_KEY = "teseo_clouds";      // interruptor "Nubes" (1/0; apagado por defecto: un cielo cubierto no deja ver nada)
@@ -622,6 +624,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [hz, setHz] = useState({ status: "idle", data: null, key: null });   // horizonte real (/api/horizon)
   const [hzRetry, setHzRetry] = useState(0);
   const [peaksOn, setPeaksOn] = useState(() => { try { return localStorage.getItem(PEAKS_KEY) === "1"; } catch { return false; } });
+  const [andOn, setAndOn] = useState(() => { try { return localStorage.getItem(ANDEAN_KEY) === "1"; } catch { return false; } });
   const [consOn, setConsOn] = useState(() => { try { return localStorage.getItem(CONS_KEY) !== "0"; } catch { return true; } });
   const [pk, setPk] = useState({ status: "idle", data: null, key: null });   // nombres de las cumbres (/api/peaks)
   const [monOn, setMonOn] = useState(() => { try { return localStorage.getItem(MONUMENTS_KEY) !== "0"; } catch { return true; } });
@@ -1943,20 +1946,23 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         }
         // nombres de las montañas: sobre la cumbre, con un palito que baja hasta la silueta (el punto exacto del
         // filo dibujado). Las que más destacan primero; los que no caben no se ponen.
-        if (inside && ref.localModeOn && ref.hzData && (ref.peakLabels || ref.monLabels)) {
-          const dens = ref.labelDensity || "normal", maxP = dens === "pocas" ? 5 : dens === "muchas" ? 22 : 12, R = Math.PI / 180;
+        if (inside && ref.localModeOn && ref.hzData && (ref.peakLabels || ref.monLabels || ref.andLabels)) {
+          const dens = ref.labelDensity || "normal", maxP = (dens === "pocas" ? 5 : dens === "muchas" ? 22 : 12) + (ref.andLabels ? 6 : 0), R = Math.PI / 180;
           let np = 0;
-          // los monumentos primero (son pocos y es lo que se vino a ver), luego las cumbres
-          for (const p of [...(ref.monLabels || []), ...(ref.peakLabels || [])]) {
+          // primero «Astronomía andina» (el Sol en solsticios y equinoccios, luego los sitios), después los
+          // monumentos (son pocos y es lo que se vino a ver) y al final las cumbres
+          for (const p of [...(ref.andLabels || []), ...(ref.monLabels || []), ...(ref.peakLabels || [])]) {
             if (np >= maxP) break;
             const ca = Math.cos(p.alt * R);
             tmp.set(860 * ca * Math.sin(p.az * R), 860 * Math.sin(p.alt * R), -860 * ca * Math.cos(p.az * R)).project(ref.camera);
             if (tmp.z >= 1 || tmp.x < -1 || tmp.x > 1 || tmp.y < -1 || tmp.y > 1) continue;
             const sx = (tmp.x * 0.5 + 0.5) * W, sy = (-tmp.y * 0.5 + 0.5) * H;
-            const w = Math.max(p.label.length * 7.4, 46) + 8, top = sy - 46;
-            if (top < 4 || !free(sx - w / 2, top, sx + w / 2, sy - 2) || !clear(sx - w / 2, top, sx + w / 2, sy - 2)) continue;
-            boxes.push(sx - w / 2, top, sx + w / 2, sy - 2);
-            out.push({ key: "peak:" + p.az + ":" + p.name, name: p.label, cls: "peak", sub: null, subText: p.subText != null ? p.subText : p.ele_m, x: sx, y: sy, dx: 0, flip: false });
+            // las marcas del Sol («Astronomía andina») van un piso más arriba, con un palito más largo: así un sitio
+            // que está justo en esa dirección (Cochasquí, Pambamarca…) cabe debajo con su propio nombre
+            const tall = p.cls === "andsun", w = Math.max(p.label.length * 7.4, 46) + 8, top = sy - (tall ? 82 : 46), bot = tall ? sy - 50 : sy - 2;
+            if (top < 4 || !free(sx - w / 2, top, sx + w / 2, bot) || (!p.cls && !clear(sx - w / 2, top, sx + w / 2, bot))) continue;   // las de «Astronomía andina» pueden pasar junto al disco del Sol: son su referencia
+            boxes.push(sx - w / 2, top, sx + w / 2, bot);
+            out.push({ key: "peak:" + p.az + ":" + p.name, name: p.label, cls: p.cls || "peak", sub: null, subText: p.subText != null ? p.subText : p.ele_m, x: sx, y: sy, dx: 0, flip: false });
             np++;
           }
         }
@@ -2414,6 +2420,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const hzData = terrainOn && hz.status === "ok" && hz.key === hzKey ? hz.data : null;
   // nombres de las montañas: solo con el relieve ya dibujado (se anclan en su silueta)
   useEffect(() => { try { localStorage.setItem(PEAKS_KEY, peaksOn ? "1" : "0"); } catch { /* no-op */ } }, [peaksOn]);
+  useEffect(() => { try { localStorage.setItem(ANDEAN_KEY, andOn ? "1" : "0"); } catch { /* no-op */ } }, [andOn]);
   useEffect(() => { try { localStorage.setItem(CONS_KEY, consOn ? "1" : "0"); } catch { /* no-op */ } }, [consOn]);
   // constelaciones apagadas: sin líneas ni nombres (salvo la que se ha elegido para verla en 3D)
   useEffect(() => {
@@ -2467,6 +2474,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const ref = sceneRef.current; if (!ref || !ref.monuments || !monItems.length) return;
     try { ref.monuments.paint(atmState); } catch { /* no-op */ }
   }, [monItems, atmState, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // «Astronomía andina»: por dónde sale y se pone el Sol en solsticios y equinoccios (sobre el relieve real) y los
+  // sitios quitu-caranquis cercanos (src/sky/andean.js, coordenadas GNSS de Cobo 2012)
+  const andean = useMemo(() => (andOn && hzData ? andeanLabels({ lat, lon, ground: hzData.ground_m || 0, hz: hzData, lang }) : null), [andOn, hzData, lat, lon, lang]);
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref) return;
+    ref.andLabels = andean ? andean.all : null;
+    ref._dirty = true;
+  }, [andean, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ref = sceneRef.current; if (!ref) return;
     ref.peakLabels = peakList ? peaksToLabel(peakList, hzData, 40).map((p) => ({ ...p, label: peakName(p, lang) })) : null;
@@ -2915,7 +2930,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const ref = sceneRef.current, out = [], lq = ref.localQuat, v = new THREE.Vector3();
     const toAA = (x, y, z) => { v.set(x, y, z).applyQuaternion(lq); return altAzOf([v.x, v.y, v.z]); };
     if (ref.cardNames) for (let k = 0; k < 8; k++) out.push({ name: ref.cardNames[k], cls: k === 0 ? "cardn" : "card", alt: 1.2, az: k * 45 });
-    for (const p of [...(ref.monLabels || []), ...(ref.peakLabels || [])].slice(0, 30)) out.push({ name: p.label, cls: "peak", alt: p.alt, az: p.az, subText: p.subText != null ? p.subText : p.ele_m });
+    for (const p of [...(ref.andLabels || []), ...(ref.monLabels || []), ...(ref.peakLabels || [])].slice(0, 36)) out.push({ name: p.label, cls: p.cls || "peak", alt: p.alt, az: p.az, subText: p.subText != null ? p.subText : p.ele_m });
     if (ref.showSolar) for (const b of (ref.bodies || [])) {
       if (ref.visOn && ref.solarVis && ref.solarVis[b.name] === false) continue;
       const a = toAA(b.nx, b.ny, b.nz); if (a.alt < -1) continue;
@@ -2973,7 +2988,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const when = new Date(whenStr), tzo = placeTz ? { timeZone: placeTz } : {};
     const place = placeKind === "me" ? (lang === "es" ? "Mi ubicación" : "My location") : placeKind === "custom" ? `${lat.toFixed(2)}°, ${lon.toFixed(2)}°` : placeKind;
     const stamp = when.toLocaleString(lang === "es" ? "es-EC" : "en-US", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...tzo });
-    const credits = panoCredits({ terrain: !!(ref.hzData && ref.terrain.group.visible), peaks: !!(ref.peakLabels && ref.peakLabels.length), clouds: !!ref.clouds.visible, planets: !!ref.showSolar }, lang);
+    const credits = panoCredits({ terrain: !!(ref.hzData && ref.terrain.group.visible), peaks: !!(ref.peakLabels && ref.peakLabels.length), clouds: !!ref.clouds.visible, planets: !!ref.showSolar, andean: !!(ref.andLabels && ref.andLabels.some((p) => p.cls === "andsite")) }, lang);
     drawNadirStamp(g, { W, H, f: (W / 4096) * 1.7, lines: ["Teseo · teseo.yachaydeep.com", place, stamp], small: credits });
     const blob0 = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.9));
     if (!blob0) throw new Error("sin JPEG");
@@ -3566,7 +3581,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       peaksOn={peaksOn} peaks={peaksOn && hzData ? (pk.key === hzKey ? pk : { status: "loading" }) : null}
       monOn={monOn} onToggleMon={() => { const nv = !monOn; setMonOn(nv); track("sky_setting", { setting: "monuments", state: nv ? "on" : "off" }); }}
       monNear={monNear} monStatus={monKey ? (monBase.key === monKey ? monBase.status : "loading") : null}
-      onTogglePeaks={() => { const nv = !peaksOn; setPeaksOn(nv); track("sky_setting", { setting: "peaks", state: nv ? "on" : "off" }); }} />
+      onTogglePeaks={() => { const nv = !peaksOn; setPeaksOn(nv); track("sky_setting", { setting: "peaks", state: nv ? "on" : "off" }); }}
+      andOn={andOn} andean={andean} onToggleAnd={() => { const nv = !andOn; setAndOn(nv); track("sky_setting", { setting: "andean", state: nv ? "on" : "off" }); }} />
   );
   const wxPanel = (
     <WeatherPanel lang={lang} available={localActive && !viewFrom} atmOn={atmOn}
@@ -3631,7 +3647,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       {sky && (
         <p className="sk-credit" aria-hidden="true">
           <b>Teseo</b> · teseo.yachaydeep.com
-          <small>{shortCredits({ terrain: !!(inMySky && hzData), peaks: !!(peakList && peakList.length), clouds: !!(inMySky && cloudsOn && wxData), planets: showSolar }, lang)}</small>
+          <small>{shortCredits({ terrain: !!(inMySky && hzData), peaks: !!(peakList && peakList.length), clouds: !!(inMySky && cloudsOn && wxData), planets: showSolar, andean: !!(inMySky && andean && andean.sites.length) }, lang)}</small>
         </p>
       )}
       {PERF_ON && <PerfMeter t={t} lang={lang} apiRef={perfApiRef} />}

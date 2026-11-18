@@ -219,11 +219,24 @@ export function RiseSet({ obj, t, lang, local, when, onNeedPlace }) {
   // si los tres instantes caen en el mismo día (distinto de hoy), el día se dice una sola vez
   const evs = [rts.rise, rts.transit, rts.set].filter(Boolean).map((x) => dayOf(x.date));
   const oneDay = evs.length > 0 && evs.every((d) => d === evs[0]) ? evs[0] : null;
+  // …y va DELANTE («Mañana, jue 19: sale…»): al final («se pone 18:03 (jue 19)») parecía ser solo de la puesta
+  const lowFirst = (s) => (s ? s.charAt(0).toLocaleLowerCase(loc) + s.slice(1) : s);
+  const lead = (d) => {
+    const label = d.toLocaleDateString(loc, { weekday: "short", day: "numeric", ...tzo });
+    return t.rsOnDay(label, dkey(d) === dkey(new Date(when.getTime() + 86400000)));
+  };
+  const firstEv = [rts.rise, rts.transit, rts.set].find(Boolean);
   const at = (x) => (x ? hm(x.date) + (oneDay != null ? "" : dayOf(x.date)) : null);
   const tDay = rts.transit && oneDay == null ? dayOf(rts.transit.date) : "";
   const main = rts.state === "never" ? t.rsNever
     : rts.state === "always" ? t.rsAlways(hm(rts.transit.date), Math.round(rts.transit.alt), dayOf(rts.transit.date))
-    : t.rsLine(at(rts.rise), rts.transit ? hm(rts.transit.date) : null, rts.transit ? Math.round(rts.transit.alt) : null, at(rts.set), tDay) + (oneDay || "");
+    : oneDay ? lead(firstEv.date) + lowFirst(t.rsLine(at(rts.rise), rts.transit ? hm(rts.transit.date) : null, rts.transit ? Math.round(rts.transit.alt) : null, at(rts.set), tDay))
+    : t.rsLine(at(rts.rise), rts.transit ? hm(rts.transit.date) : null, rts.transit ? Math.round(rts.transit.alt) : null, at(rts.set), tDay);
+  // lo mismo con las horas tras las montañas: si las dos caen el mismo otro día, el día va delante
+  const hzSame = terrain && terrain.rise && terrain.set && dayOf(terrain.rise) && dayOf(terrain.rise) === dayOf(terrain.set);
+  const hzLine = !terrain || terrain.hiddenAllDay || !(terrain.rise || terrain.set) ? null
+    : hzSame ? lead(terrain.rise) + lowFirst(t.rsTerrain(hm(terrain.rise), hm(terrain.set)))
+    : t.rsTerrain(terrain.rise && hm(terrain.rise) + dayOf(terrain.rise), terrain.set && hm(terrain.set) + dayOf(terrain.set));
   let bestLine = null;
   if (isSun) bestLine = t.rsSun;
   else if (best) {
@@ -238,7 +251,7 @@ export function RiseSet({ obj, t, lang, local, when, onNeedPlace }) {
       <h3><Icon name="pin" size={15} />{t.rsTitle(local.place)}</h3>
       <p className="sk-rs-main">{main}</p>
       {terrain && (terrain.hiddenAllDay ? <p className="sk-rs-hz">{t.rsTerrainNever}</p>
-        : (terrain.rise || terrain.set) ? <p className="sk-rs-hz">{t.rsTerrain(terrain.rise && hm(terrain.rise) + dayOf(terrain.rise), terrain.set && hm(terrain.set) + dayOf(terrain.set))}</p> : null)}
+        : hzLine ? <p className="sk-rs-hz">{hzLine}</p> : null)}
       <p>{now.alt > 0 ? (terrain && terrain.behindNow ? t.rsBehindNow : t.rsUp(Math.round(now.alt), compassPoint8(now.az))) : t.rsDown}{bestLine ? " " + bestLine : ""}</p>
       <small>{terrain && (terrain.rise || terrain.set || terrain.hiddenAllDay) && t.rsHintHz ? t.rsHintHz : t.rsHint}</small>
     </section>

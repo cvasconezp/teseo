@@ -1,5 +1,22 @@
 # Cambios
 
+## 1.23.0 — 18 de noviembre de 2026
+
+- Cielo → Capas → Montañas → «Astronomía andina» (apagada por defecto):
+  - Marca sobre tu horizonte real por dónde sale y se pone el Sol en los
+    solsticios y equinoccios, en cualquier lugar del mundo, con su acimut.
+  - Cerca de Quito rotula los sitios quitu-caranquis: los 14 discos líticos
+    y el vértice de Catequilla con las coordenadas GNSS del libro de
+    Cristóbal Cobo (2012), más Cochasquí, Pambamarca y el Reloj Solar
+    Quitsato. Los que tapa el relieve se marcan así.
+  - Desde Catequilla, en el solsticio de junio, el Sol asoma junto a
+    Cochasquí; en el de diciembre, sobre el macizo de Pambamarca.
+  - El panel cita el libro y advierte que una alineación no prueba
+    intención. La referencia también va en la foto 360° y en los créditos.
+- Ficha del Sol (y de cualquier astro): cuando las horas de salida, paso y
+  puesta son de otro día, el día va delante («Mañana, jue 19: sale 05:55 ·
+  …»). Antes iba al final y parecía ser solo de la puesta.
+
 ## 1.22.0 — 18 de noviembre de 2026
 
 - «Suscribirme al calendario» en el Calendario del cielo: el calendario de tu

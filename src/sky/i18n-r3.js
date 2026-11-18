@@ -68,6 +68,7 @@ export const R3 = {
     rsHint: "Horas de tu dispositivo, para un horizonte plano (sin montañas ni edificios). Precisión: unos 2 minutos.",
     rsHintHz: "Horas de tu dispositivo. La primera línea es para un horizonte plano; la de las montañas usa el relieve real de tu lugar (sin árboles ni edificios). Precisión: unos 2 minutos.",
     rsDay: (d) => ` (${d})`,
+    rsOnDay: (d, tomorrow) => (tomorrow ? `Mañana, ${d}: ` : `El ${d}: `),
     // ── "Encuéntralo" sin sensores ──
     findGo: "Encuéntralo", findGoAria: (n) => `Llevar la vista hasta ${n}`,
     findShown: (n) => `Aquí está ${n}.`,
@@ -266,6 +267,7 @@ export const R3 = {
     rsHint: "Your device's local time, for a flat horizon (no mountains or buildings). Accurate to about 2 minutes.",
     rsHintHz: "Your device's local time. The first line is for a flat horizon; the mountains line uses your place's real terrain (no trees or buildings). Accurate to about 2 minutes.",
     rsDay: (d) => ` (${d})`,
+    rsOnDay: (d, tomorrow) => (tomorrow ? `Tomorrow, ${d}: ` : `On ${d}: `),
     findGo: "Find it", findGoAria: (n) => `Move the view to ${n}`,
     findShown: (n) => `Here is ${n}.`,
     findShownUp: (n, alt, p) => `Here is ${n}: ${alt}° up, to the ${DIRS.en[p]}.`,

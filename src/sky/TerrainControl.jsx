@@ -3,9 +3,11 @@
 //   lang, available (hay lugar en Mi cielo), on, onToggle, hz: { status, data, error }, onRetry,
 //   peaksOn, onTogglePeaks, peaks: { status, data } (nombres de las montañas, OpenStreetMap)
 //   monOn, onToggleMon, monNear: monumentos cercanos (src/sky/monuments.js), monStatus: "loading" | "ok" | "error"
+//   andOn, onToggleAnd, andean: { sun, sites } de andeanLabels() (src/sky/andean.js): «Astronomía andina»
 import { highestPoint } from "./horizon.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import Icon from "./icons.jsx";
+import { TX_AND } from "./andean.js";
 
 const DIRS = {
   es: ["norte", "noreste", "este", "sureste", "sur", "suroeste", "oeste", "noroeste"],
@@ -73,7 +75,8 @@ const bandFrom = (data, km, lang) => {
   return i > 0 ? Number(bs[i - 1]).toLocaleString(lang === "es" ? "es" : "en-US") : "0";
 };
 
-export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry, peaksOn = false, onTogglePeaks, peaks, monOn = true, onToggleMon, monNear = [], monStatus = null }) {
+export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry, peaksOn = false, onTogglePeaks, peaks, monOn = true, onToggleMon, monNear = [], monStatus = null, andOn = false, onToggleAnd, andean = null }) {
+  const ta = TX_AND[lang] || TX_AND.es;
   const tx = TX_HZ[lang] || TX_HZ.es;
   const data = hz && hz.status === "ok" ? hz.data : null;
   const hp = data ? highestPoint(data) : null;
@@ -134,6 +137,21 @@ export function TerrainControl({ lang = "es", available = true, on, onToggle, hz
             : monStatus === "error" ? <p className="sk-atm-fine" role="status">{tx.monError}{" "}
                 {onRetry && <button type="button" className="sk-wx-link" onClick={onRetry}><Icon name="retry" size={14} />{tx.retry}</button>}</p>
             : <p className="sk-atm-fine">{tx.monHere(monNear.map((m) => m.name[lang] || m.name.es).join(", "))}</p>)}
+          {onToggleAnd && (
+            <div className="sk-layer sk-hz-peaks">
+              <button type="button" role="switch" aria-checked={!!andOn} className="sk-layer-main" onClick={onToggleAnd}>
+                <span className="sk-layer-txt"><b>{ta.layer}</b><small>{ta.desc}</small></span>
+                <i className="sk-switch" />
+              </button>
+            </div>
+          )}
+          {onToggleAnd && andOn && andean && (
+            <>
+              <p className="sk-atm-fine">{andean.sites.length ? ta.near(andean.sites.length) : ta.none}</p>
+              <p className="sk-atm-fine">{ta.caveat}</p>
+              <p className="sk-atm-fine">{ta.source}</p>
+            </>
+          )}
         </div>
       )}
     </div>
