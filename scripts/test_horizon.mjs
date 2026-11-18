@@ -3,7 +3,7 @@
 import { cellKey, terrainAltAt, refraction, apparentAlt, behindTerrain, highestPoint, snowLine, terrainRiseSet, terrainPalette, fetchHorizon, fetchPeaks, peaksToLabel, peakName } from "../src/sky/horizon.js";
 import { riseTransitSet, H0_SUN } from "../src/sky/riseset.js";
 import { visibilityOf } from "../src/sky/objVisibility.js";
-import { angleOf, snowAngles, snowJitter } from "../src/sky/terrainLayer.js";
+import { angleOf, snowAngles, snowJitter, sunLight, glowOf } from "../src/sky/terrainLayer.js";
 import { readFileSync } from "node:fs";
 
 let pass = 0, fail = 0;
@@ -116,6 +116,31 @@ ok(/horizon: hzData/.test(sky), "la ficha recibe el horizonte del lugar");
 const credits = readFileSync(new URL("../CREDITS.md", import.meta.url), "utf8");
 ok(/Terrain Tiles/.test(credits) && /SRTM/.test(credits), "créditos del relieve");
 ok(/OpenStreetMap/.test(credits) && /ODbL/.test(credits), "créditos de los nombres de las montañas");
+
+// sombra de las montañas y arrebol (sunLight / glowOf)
+{
+  // valle con montañas de 4° al oeste: el Sol a 2°, al oeste (270°), ya está detrás de ellas
+  const valle = { sunAlt: 2, sunAz: 270, hzSun: 4 };
+  ok(sunLight({ ...valle, alt: 0, dKm: 0.5, az: 90 }) < 0.02, "Sol a 2° tras montañas de 4°: el pie del valle queda en sombra");
+  ok(sunLight({ ...valle, alt: 1, dKm: 3, az: 90 }) < 0.05, "y una loma baja cercana también");
+  // una cumbre alta al este, 2,9 km sobre el observador a 60 km (≈ 2,4° de altura): sigue al sol
+  const altCumbre = angleOf(2900 + 2800, 60, 2800);
+  ok(sunLight({ ...valle, alt: altCumbre, dKm: 60, az: 90 }) > 0.95, `la cumbre nevada a 60 km (${altCumbre.toFixed(1)}°) sigue al sol: arrebol`);
+  // Sol ya 1° bajo el horizonte astronómico: el valle, a oscuras; la cumbre aún encendida
+  const tras = { sunAlt: -1, sunAz: 270, hzSun: 4 };
+  ok(sunLight({ ...tras, alt: altCumbre, dKm: 60, az: 90 }) > 0.5 && sunLight({ ...tras, alt: 0, dKm: 0.5, az: 90 }) === 0, "con el Sol a −1°, la cumbre todavía brilla y el valle no");
+  ok(sunLight({ sunAlt: -3.5, sunAz: 270, hzSun: 4, alt: altCumbre, dKm: 60, az: 90 }) < 0.05, "a −3,5° se apaga también la cumbre");
+  // la curvatura: una cumbre hacia el Sol lo ve más alto que una del lado contrario
+  const cerca = sunLight({ sunAlt: -1.6, sunAz: 270, hzSun: 0, alt: altCumbre, dKm: 60, az: 270 });
+  const lejos = sunLight({ sunAlt: -1.6, sunAz: 270, hzSun: 0, alt: altCumbre, dKm: 60, az: 90 });
+  ok(cerca > lejos, `la cumbre del lado del Sol se apaga después (${cerca.toFixed(2)} > ${lejos.toFixed(2)})`);
+  // mediodía: todo al sol, sin arrebol; de noche, nada
+  ok(sunLight({ sunAlt: 60, sunAz: 0, hzSun: 5, alt: 0, dKm: 1, az: 180 }) === 1 && glowOf(60, 1) === 0, "a mediodía todo al sol y sin arrebol");
+  ok(sunLight({ sunAlt: -20, sunAz: 0, hzSun: 0, alt: 3, dKm: 50, az: 0 }) === 0, "de noche, nada");
+  ok(glowOf(1, 1) > 0.95 && glowOf(4, 1) > 0.3 && glowOf(4, 1) < 0.8 && glowOf(1, 0) === 0, "el arrebol, fuerte con el Sol rasante y solo donde da el Sol");
+  const tl = readFileSync(new URL("../src/sky/terrainLayer.js", import.meta.url), "utf8");
+  ok(/litAt\(b, j, true\)/.test(tl) && /litAt\(b, j, false\)/.test(tl) && /glowOf\(sunAlt, lt\)/.test(tl), "el pintado usa la luz del filo y la del pie de cada banda");
+}
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.18.2 — 17 de noviembre de 2026
+
+- El paisaje sigue la luz del Sol según las montañas: cuando el Sol se esconde
+  tras el horizonte de montañas del lugar, el valle y las lomas cercanas pasan a
+  la sombra (más oscuros y azulados, solo con la luz del cielo), aunque el Sol
+  siga sobre el horizonte astronómico.
+- Arrebol: con el Sol rasante, las cumbres altas que todavía lo ven se encienden
+  de anaranjado y la nieve de rosa; se apagan unos minutos después que el valle
+  (y se encienden antes al amanecer), según su altura y la curvatura de la
+  Tierra. Desde Cayambe, el volcán sigue rosado hasta que el Sol baja unos 1,7°.
+
 ## 1.18.1 — 17 de noviembre de 2026
 
 - La hora del Cielo es ahora la del lugar que miras, no la de tu teléfono: si
