@@ -67,6 +67,12 @@ copia; nuestro render 3D es propio, con Three.js.)
   se pide citar la fuente. GeoColor es un producto de NOAA/CIRA.
 - **EUMETSAT EUMETView** (<https://view.eumetsat.int/>): servicio WMS público de EUMETSAT; se cita "EUMETSAT".
 
+## Foto 360° del cielo
+La «Foto 360°» (`src/sky/pano360.js`) lleva en su sello y en sus metadatos (XMP: `dc:creator`, `dc:rights`)
+los créditos de los datos que aparecen en ella: HYG v4.1 (CC BY-SA 4.0) y las líneas de Stellarium (CC BY-SA)
+siempre; AWS Terrain Tiles si hay relieve; Wikidata y © colaboradores de OpenStreetMap (ODbL) si hay nombres
+de montañas; Open-Meteo (CC BY 4.0) si hay nubes; Solar System Scope (CC BY 4.0) si hay planetas.
+
 ## Relieve (horizonte real)
 
 - **AWS Terrain Tiles** (<https://registry.opendata.aws/terrain-tiles/> y

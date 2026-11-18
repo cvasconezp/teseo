@@ -594,6 +594,7 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-share-head h2 { margin: 0; font-family: var(--serif); font-size: 26px; font-weight: 600; color: #fff; }
 /* postal vertical 9:16: el alto manda (≤ 70 % de la pantalla) y el ancho sale de la proporción; nunca desborda */
 .sk-share-preview { flex: 0 1 auto; min-height: 0; display: grid; place-items: center; border-radius: 14px; overflow: hidden; background: #05080f; border: 1px solid var(--line-soft); aspect-ratio: 1080 / 1920; height: min(70vh, 640px, calc(100vh - 260px), calc((100vw - 54px) * 16 / 9)); max-height: 70vh; margin: 0 auto; max-width: 100%; }
+.sk-share-preview.is-wide { aspect-ratio: 2 / 1; height: auto; width: min(100%, 720px); }
 .sk-share-preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .sk-share-preview p { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 16px; color: var(--mute); text-align: center; }
 .sk-share-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

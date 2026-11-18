@@ -1,5 +1,18 @@
 # Cambios
 
+## 1.19.0 — 17 de noviembre de 2026
+
+- Foto 360°: en Mi cielo, el menú «…» tiene «Foto 360°». Guarda el cielo del
+  lugar, la fecha y la hora elegidos, con las capas encendidas (montañas,
+  nubes, atmósfera, monumentos, planetas, líneas y nombres), en una imagen
+  equirectangular de 4096 × 2048 (2048 × 1024 en equipos con poca memoria).
+  Lleva los metadatos 360° (XMP «GPano»), así que Google Fotos, Facebook y los
+  visores 360° la abren para mirar alrededor; abre hacia donde estabas mirando.
+- En el suelo, bajo el observador, un sello con Teseo, la web, el lugar, la
+  fecha y los créditos de los datos que aparecen en la foto (estrellas,
+  constelaciones y, si están, relieve, nombres de montañas, nubes y planetas).
+  Los mismos créditos van dentro del archivo (autor y derechos en el XMP).
+
 ## 1.18.3 — 17 de noviembre de 2026
 
 - Apuntar al cielo: al arrastrar con el dedo y volver a apuntar, los puntos

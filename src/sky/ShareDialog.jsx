@@ -19,7 +19,7 @@ export function canShareFile(file) {
   try { return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); } catch { return false; }
 }
 
-export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkState, shareText, shareUrl, fileName, metric }) {
+export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkState, shareText, shareUrl, fileName, metric, title, making, alt, hint }) {
   const m = metric || { event: "sky_postcard", params: {} };
   const [state, setState] = useState("making");        // making | ready | failed
   const [url, setUrl] = useState(null);
@@ -28,16 +28,20 @@ export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkS
   const boxRef = useRef(null);
   const reportRef = useRef(null);
   const [shareable, setShareable] = useState(false);
+  const [dims, setDims] = useState([1080, 1920]);       // tamaño de la vista previa (la foto 360° es 2:1)
 
   useEffect(() => {
     let dead = false, objectUrl = null;
     (async () => {
       try {
-        const { canvas, report } = await build();
-        const blob = await canvasBlob(canvas);
+        // build() da un lienzo (postal, PNG) o ya un archivo hecho (foto 360°: { blob, type, width, height, fileName })
+        const res = await build();
+        const { canvas, report } = res;
+        const blob = res.blob || await canvasBlob(canvas);
         if (dead) return;
         if (!blob) { setState("failed"); track(m.event, { ...m.params, state: "fail" }); return; }
-        const file = new File([blob], fileName || fileNameFor(name), { type: "image/png" });
+        if (res.width && res.height) setDims([res.width, res.height]);
+        const file = new File([blob], res.fileName || fileName || fileNameFor(name), { type: res.type || "image/png" });
         fileRef.current = file; reportRef.current = report;
         objectUrl = URL.createObjectURL(blob);
         setShareable(canShareFile(file));
@@ -93,13 +97,13 @@ export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkS
     <div className="sk-modal" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="sk-share" role="dialog" aria-modal="true" aria-labelledby="sk-share-title" ref={boxRef} tabIndex={-1} onKeyDown={onKey}>
         <header className="sk-share-head">
-          <h2 id="sk-share-title">{t.shareTitle}</h2>
+          <h2 id="sk-share-title">{title || t.shareTitle}</h2>
           <button type="button" className="sk-iconbtn" onClick={onClose} aria-label={t.close}><Icon name="close" size={18} /></button>
         </header>
-        <div className={`sk-share-preview is-${state}`} data-hero={report ? report.hero : undefined} data-hero-source={report ? report.heroSource : undefined} data-overflow={report ? String(report.overflow) : undefined} data-truncated={report ? String(report.truncated) : undefined} data-safe={report && report.safeZoneOk != null ? String(report.safeZoneOk) : undefined}>
-          {state === "making" && <p role="status"><i className="sk-spin" />{t.shareMaking}</p>}
+        <div className={`sk-share-preview is-${state}${dims[0] > dims[1] ? " is-wide" : ""}`} data-hero={report ? report.hero : undefined} data-hero-source={report ? report.heroSource : undefined} data-overflow={report ? String(report.overflow) : undefined} data-truncated={report ? String(report.truncated) : undefined} data-safe={report && report.safeZoneOk != null ? String(report.safeZoneOk) : undefined}>
+          {state === "making" && <p role="status"><i className="sk-spin" />{making || t.shareMaking}</p>}
           {state === "failed" && <p role="alert"><Icon name="warn" size={18} />{t.shareFailed}</p>}
-          {state === "ready" && <img src={url} alt={name ? t.shareAlt(name) : t.shareAltSky} width="1080" height="1920" />}
+          {state === "ready" && <img src={url} alt={alt || (name ? t.shareAlt(name) : t.shareAltSky)} width={dims[0]} height={dims[1]} />}
         </div>
         <div className="sk-share-actions">
           <button type="button" className="sk-btn primary" onClick={send} disabled={state !== "ready"} data-autofocus><Icon name="share" size={17} />{t.shareSend}</button>
@@ -110,7 +114,7 @@ export default function ShareDialog({ t, name, build, onClose, onCopyLink, linkS
           </button>
         </div>
         <p className={`sk-share-msg${msg ? " tone-" + msg.tone : ""}`} role="status" aria-live="polite">
-          {msg ? msg.text : state === "ready" && !shareable ? t.shareNoFiles : ""}
+          {msg ? msg.text : state === "ready" && !shareable ? t.shareNoFiles : state === "ready" && hint ? hint : ""}
           <span className="sk-sr">{linkState === "ok" ? t.linkCopied : linkState === "fail" ? t.linkFailed : ""}</span>
         </p>
       </div>

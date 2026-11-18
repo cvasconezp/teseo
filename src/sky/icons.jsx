@@ -8,6 +8,7 @@ const P = {
   plus: <path d="M12 5v14M5 12h14" />,
   minus: <path d="M5 12h14" />,
   target: <><circle cx="12" cy="12" r="3" /><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4" /></>,
+  pano: <><ellipse cx="12" cy="12" rx="9" ry="9" /><ellipse cx="12" cy="12" rx="9" ry="3.6" /><path d="M12 3v18" strokeWidth="1.1" /></>,
   camera: <><path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10.5H4V8.5Z" /><circle cx="12" cy="13.4" r="3.2" /></>,
   expand: <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />,
   shrink: <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />,

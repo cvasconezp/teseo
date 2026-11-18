@@ -130,7 +130,7 @@ console.log("Postal vertical 9:16: formato, cuadrícula de datos y Killa Ñan");
   const dlg = readFileSync(new URL("../src/sky/ShareDialog.jsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/sky/sky.css", import.meta.url), "utf8");
   const prev = (css.match(/\.sk-share-preview \{[^}]*\}/) || [""])[0];
-  ok(/width="1080" height="1920"/.test(dlg), "la vista previa declara width 1080 y height 1920");
+  ok(/useState\(\[1080, 1920\]\)/.test(dlg) && /width=\{dims\[0\]\} height=\{dims\[1\]\}/.test(dlg), "la vista previa declara 1080 × 1920 por defecto (la foto 360°, su propio tamaño)");
   ok(/aspect-ratio: 1080 \/ 1920/.test(prev) && /max-height: 70vh/.test(prev) && /object-fit: contain/.test(css.match(/\.sk-share-preview img \{[^}]*\}/)[0]), "CSS: proporción 9:16, máx. 70vh y object-fit: contain", prev);
 
   // la ficha usa también textos de Constellations.jsx (JSX, no importable en Node): se copian aquí los que hacen falta

@@ -38,9 +38,11 @@ import ConstellationSheet from "./sky/ConstellationSheet.jsx";
 import ShareDialog from "./sky/ShareDialog.jsx";
 import TimeSheet, { ArRail } from "./sky/TimeSheet.jsx";
 import { RATES, REAL } from "./sky/timeDial.js";
-import { stepFieldTz, setMinuteTz, fetchTimeZone, cachedTimeZone } from "./sky/placeTime.js";
+import { stepFieldTz, setMinuteTz, fetchTimeZone, cachedTimeZone, tzParts } from "./sky/placeTime.js";
 import { buildPostcard } from "./sky/postcard.js";
 import { snapshotView } from "./sky/viewSnapshot.js";
+import { captureFaces, equirectFromFaces, layoutPanoLabels, drawPanoLabels, drawNadirStamp, withGPano, panoFileName, panoSize, altAzOf, panoCredits } from "./sky/pano360.js";
+import { labelStyle } from "./sky/viewSnapshot.js";
 import { starHex } from "./sky/starColor.js";
 import { perfFlag, createFrameStats, createAdaptive } from "./sky/perf.js";
 import { fetchWikiFor, fetchImageCredit } from "./sky/wiki.js";
@@ -295,6 +297,7 @@ const TC = {
     canvasAria: "Sky map seen from Earth, from the centre of the celestial sphere: stars, constellations and objects in their real positions. Arrow keys look around, + and − zoom, Escape closes the open panel.",
     skyFrom: "Sky seen from", backToEarth: "Back to Earth",
     zoomIn: "Zoom in", zoomOut: "Zoom out", centerView: "Center the view", centerObj: "Center on the object",
+    pano360Aria: "Save a 360° photo of this sky (JPEG)", pano360Title: "360° photo", pano360Making: "Taking the 360° photo… (a few seconds)", pano360Alt: "Preview of the 360° photo", pano360Text: "This sky in 360°, made with Teseo", pano360Hint: "Google Photos, Facebook and 360° viewers open it so you can look around.",
     postcardAria: "Save a postcard of this sky (PNG)", fullOn: "Full screen", fullOff: "Exit full screen",
     close: "Close", now: "Now", west: "W",
     kinds: { con: "Constellation", star: "Star", solar: "Solar system" },
@@ -434,6 +437,7 @@ const TC = {
     canvasAria: "Mapa del cielo visto desde la Tierra, desde el centro de la esfera celeste: estrellas, constelaciones y objetos en su posición real. Flechas para mirar alrededor, + y − para acercar, Escape para cerrar el panel abierto.",
     skyFrom: "Cielo visto desde", backToEarth: "Volver a la Tierra",
     zoomIn: "Acercar", zoomOut: "Alejar", centerView: "Centrar la vista", centerObj: "Centrar en el objeto",
+    pano360Aria: "Guardar una foto 360° de este cielo (JPEG)", pano360Title: "Foto 360°", pano360Making: "Tomando la foto 360°… (unos segundos)", pano360Alt: "Vista previa de la foto 360°", pano360Text: "Este cielo en 360°, hecho con Teseo", pano360Hint: "Google Fotos, Facebook y los visores 360° la abren para mirar alrededor.",
     postcardAria: "Guardar una postal de este cielo (PNG)", fullOn: "Pantalla completa", fullOff: "Salir de pantalla completa",
     close: "Cerrar", now: "Ahora", west: "O",
     kinds: { con: "Constelación", star: "Estrella", solar: "Sistema solar" },
@@ -1570,6 +1574,17 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       camera.quaternion.copy(lookQuat(lk.yaw, lk.pitch, lk.qF));
       applyFov();
       if (E2E) window.__teseoSky = {
+        // foto 360° (pruebas): brillo medio de la franja baja de cada cara, ocultando objetos por nombre de clave
+        panoFaces: (hide = []) => {
+          const objs = { ground: r.ground, atm: r.atm && r.atm.mesh, clouds: r.clouds && r.clouds.mesh, terrain: r.terrain && r.terrain.group, points: r.points, lines: r.lines, horizon: r.horizon };
+          const prev = {}; for (const k of hide) if (objs[k]) { prev[k] = objs[k].visible; objs[k].visible = false; }
+          r.horizon.position.set(0.003, 0, 0.003);
+          const faces = captureFaces({ THREE, renderer, scene: r.scene, near: camera.near, far: camera.far, size: 128 });
+          r.horizon.position.set(0, 0, 0);
+          for (const k in prev) objs[k].visible = prev[k];
+          const band = (f, y0, y1) => { let s = 0, n = 0; for (let y = y0; y < y1; y++) for (let x = 0; x < f.width; x++) { const o = (y * f.width + x) * 4; s += f.data[o] + f.data[o + 1] + f.data[o + 2]; n++; } return Math.round(s / n / 3); };
+          return faces.map((f, i) => [["e","w","zen","nad","s","n"][i], band(f, 120, 128), band(f, 0, 8), band(f, 60, 68)]);
+        },
         cam: () => ({ fov: camera.fov, aspect: camera.aspect, q: camera.quaternion.toArray(), p: camera.position.toArray(), mode: r.mode, ar: r.ar.on, local: r.localModeOn, localQuat: r.localQuat.toArray(), span: lk.span, w: mount.clientWidth, h: mount.clientHeight, vx: r.viewShift.cx, vy: r.viewShift.cy, flying: !!lk.fly, pm: camera.projectionMatrix.toArray(), mwi: camera.matrixWorldInverse.toArray() }),
         bodies: () => (r.showSolar ? r.bodies : []).map((b) => ({ name: b.name, nx: b.nx, ny: b.ny, nz: b.nz, mag: b.mag })),
         atm: () => ({ on: r.atmOn, dome: r.atm.visible, counts: r.atmCounts || null, solarVis: r.solarVis || null }),
@@ -2878,6 +2893,78 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     return out;
   }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars, hzData, peakList, cloudsOn, wxData, placeTz]);
   const openShare = useCallback(() => { setShareState(null); setShare(true); }, []);
+  // ── foto 360° (pano360.js): seis caras desde el observador → equirectangular con nombres y metadatos ──
+  const [pano, setPano] = useState(false);
+  const panoLabels = useCallback(() => {
+    const ref = sceneRef.current, out = [], lq = ref.localQuat, v = new THREE.Vector3();
+    const toAA = (x, y, z) => { v.set(x, y, z).applyQuaternion(lq); return altAzOf([v.x, v.y, v.z]); };
+    if (ref.cardNames) for (let k = 0; k < 8; k++) out.push({ name: ref.cardNames[k], cls: k === 0 ? "cardn" : "card", alt: 1.2, az: k * 45 });
+    for (const p of [...(ref.monLabels || []), ...(ref.peakLabels || [])].slice(0, 30)) out.push({ name: p.label, cls: "peak", alt: p.alt, az: p.az, subText: p.subText != null ? p.subText : p.ele_m });
+    if (ref.showSolar) for (const b of (ref.bodies || [])) {
+      if (ref.visOn && ref.solarVis && ref.solarVis[b.name] === false) continue;
+      const a = toAA(b.nx, b.ny, b.nz); if (a.alt < -1) continue;
+      out.push({ name: bodyName(b.name, ref.lang), cls: "solar", ...a });
+    }
+    const pa = ref.posAttr.array;
+    for (const ab in ref.conCentroid) {
+      const c = ref.conCentroid[ab]; if (!c.idxs.length) continue;
+      let cx = 0, cy = 0, cz = 0;
+      for (const i of c.idxs) { cx += pa[i * 3]; cy += pa[i * 3 + 1]; cz += pa[i * 3 + 2]; }
+      const a = toAA(cx, cy, cz); if (a.alt < 3) continue;
+      if (ref.hzData) { v.set(cx, cy, cz).normalize().applyQuaternion(lq); if (behindTerrain(ref.hzData, [v.x, v.y, v.z])) continue; }
+      out.push({ name: c.name, cls: "con", ...a });
+    }
+    const sv = ref.visOn ? ref.starVis : null;
+    for (let q = 0, n = 0; q < ref.namedStars.length && n < 60 && ref.namedStars[q].mag <= 2.8; q++) {
+      const st = ref.namedStars[q]; if (sv && !sv[st.i]) continue;
+      const a = toAA(pa[st.i * 3], pa[st.i * 3 + 1], pa[st.i * 3 + 2]); if (a.alt < 2) continue;
+      out.push({ name: st.name, cls: "star", ...a }); n++;
+    }
+    return out;
+  }, []);
+  const buildPano = useCallback(async () => {
+    const ref = sceneRef.current; if (!ref) throw new Error("sin escena");
+    await new Promise((r) => setTimeout(r, 60));          // que se vea «Tomando la foto…» antes del trabajo
+    const { W, H, face } = panoSize(navigator.deviceMemory, ref.renderer.capabilities.maxTextureSize || 4096);
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(ref.camera.quaternion);
+    const heading = altAzOf([fwd.x, fwd.y, fwd.z]).az;    // la foto abre hacia donde mirabas
+    const u = ref.points.material.uniforms, saved = [u.uScale.value, u.uPx.value, u.uDpr.value];
+    const faces = captureFaces({ THREE, renderer: ref.renderer, scene: ref.scene, near: ref.camera.near, far: ref.camera.far, size: face,
+      before: (cam) => {
+        // estrellas del mismo tamaño aparente que en el teléfono; atmósfera y nubes centradas en el observador
+        u.uScale.value = starScaleFor(90); u.uPx.value = 1; u.uDpr.value = face / 1024;
+        // las caras miran justo al horizonte: el centro del suelo (bajo el observador) caería en su plano (w = 0)
+        // y la GPU descartaría sus triángulos; 3 mm de corrimiento lo evitan sin que se note
+        ref.horizon.position.set(0.003, 0, 0.003);
+        if (ref.atm.visible) ref.atm.follow(cam);
+        if (ref.clouds.visible) ref.clouds.follow(cam);
+      },
+      after: () => {
+        [u.uScale.value, u.uPx.value, u.uDpr.value] = saved;
+        ref.horizon.position.set(0, 0, 0);
+        if (ref.atm.visible) ref.atm.follow(ref.camera);
+        if (ref.clouds.visible) ref.clouds.follow(ref.camera);
+        if (ref.wake) ref.wake();
+      } });
+    await new Promise((r) => setTimeout(r, 0));
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    g.putImageData(equirectFromFaces(faces, W, H, heading), 0, 0);
+    // nombres de ~1,6° de alto (como unos 16 px en el visor de un teléfono); sello de ~35° de ancho
+    const f = (W / 4096) * 1.4;
+    const measure = (text, cls) => { const st = labelStyle(cls); g.font = st.font; return g.measureText(st.upper ? String(text).toUpperCase() : String(text)).width * (st.spacing ? 1.15 : 1); };
+    drawPanoLabels(g, layoutPanoLabels(panoLabels(), { W, H, heading, f, measure }), LABEL_COLOR, { W, f });
+    const when = new Date(whenStr), tzo = placeTz ? { timeZone: placeTz } : {};
+    const place = placeKind === "me" ? (lang === "es" ? "Mi ubicación" : "My location") : placeKind === "custom" ? `${lat.toFixed(2)}°, ${lon.toFixed(2)}°` : placeKind;
+    const stamp = when.toLocaleString(lang === "es" ? "es-EC" : "en-US", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...tzo });
+    const credits = panoCredits({ terrain: !!(ref.hzData && ref.terrain.group.visible), peaks: !!(ref.peakLabels && ref.peakLabels.length), clouds: !!ref.clouds.visible, planets: !!ref.showSolar }, lang);
+    drawNadirStamp(g, { W, H, f: (W / 4096) * 1.7, lines: ["Teseo · teseo.yachaydeep.com", place, stamp], small: credits });
+    const blob0 = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.9));
+    if (!blob0) throw new Error("sin JPEG");
+    const bytes = withGPano(new Uint8Array(await blob0.arrayBuffer()), { W, H, heading, title: `${lang === "es" ? "Cielo de" : "Sky from"} ${place} · ${stamp}`, credits });
+    const p = tzParts(when, placeTz);
+    return { blob: new Blob([bytes], { type: "image/jpeg" }), type: "image/jpeg", width: W, height: H, fileName: panoFileName(place, p) };
+  }, [whenStr, placeTz, placeKind, lat, lon, lang, panoLabels]);
 
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) { setGeo("unsupported"); return; }
@@ -3571,6 +3658,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           <span className="sk-rail-gap is-extra" aria-hidden="true" />
           {!arOn && <button type="button" className={`is-extra${selObj ? " is-on" : ""}`} onClick={() => { recenter(); setRailOpen(false); }} aria-label={selObj ? t.centerObj : t.centerView} title={selObj ? t.centerObj : t.centerView}><Icon name="target" size={20} /></button>}
           <button type="button" className="is-extra" onClick={() => { openShare(); setRailOpen(false); }} aria-label={t.postcardAria} title={t.postcardAria}><Icon name="camera" size={20} /></button>
+          {inMySky && <button type="button" className="is-extra sk-pano-btn" onClick={() => { track("sky_pano360", { state: "open" }); setPano(true); setRailOpen(false); }} aria-label={t.pano360Aria} title={t.pano360Aria}><Icon name="pano" size={20} /></button>}
           {!immersive && <button type="button" className={`is-extra${full ? " is-on" : ""}`} onClick={() => { track("sky_fullscreen", { state: full ? "off" : "on" }); setFull(f => !f); setRailOpen(false); }} aria-pressed={full} aria-label={full ? t.fullOff : t.fullOn} title={full ? t.fullOff : t.fullOn}><Icon name={full ? "shrink" : "expand"} size={20} /></button>}
           {/* el pie de la app no se ve en esta pestaña: los créditos y «Teseo en números» se abren desde aquí */}
           <button type="button" className="is-extra" onClick={() => { setRailOpen(false); window.dispatchEvent(new CustomEvent("teseo:credits")); }} aria-label={t.credits} title={t.credits}><Icon name="info" size={20} /></button>
@@ -3744,6 +3832,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       {share && sky && (
         <ShareDialog t={t} name={liveObj && liveObj.layer !== "note" ? (selCon ? selCon.la : describeObject(liveObj, lang, t, false).name) : (sel && selMeta ? selMeta.la : null)}
           build={buildShare} onClose={() => setShare(false)} onCopyLink={shareLink} linkState={shareState} />
+      )}
+      {pano && sky && (
+        <ShareDialog t={t} name={null} build={buildPano} onClose={() => setPano(false)} onCopyLink={shareLink} linkState={shareState}
+          shareText={t.pano360Text} title={t.pano360Title} making={t.pano360Making} alt={t.pano360Alt} hint={t.pano360Hint}
+          metric={{ event: "sky_pano360", params: {} }} />
       )}
     </div>
     </div>

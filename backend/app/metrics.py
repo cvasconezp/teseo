@@ -147,6 +147,7 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "sky_search":         {"state": {"ok", "empty"}, "kind": SKY_KINDS},
     "sky_ar":             {"state": SKY_AR},
     "sky_postcard":       {"state": {"ok", "fail"}},
+    "sky_pano360":        {"state": {"open", "ok", "fail"}},
     "sky_share":          {"state": {"ok", "fail"}},
     "sky_fullscreen":     {"state": ON_OFF},
     "sky_tour":           {"state": {"start", "done", "skip"}},
@@ -338,7 +339,7 @@ PUBLIC_MIN_COUNT = 5
 PUBLIC_MIN_DEVICE_VISITS = 20
 PUBLIC_TOP = 8                                   # filas por lista
 PUBLIC_DAYS = (7, 30, 90, 365)                   # periodos que admite el endpoint
-PUBLIC_SHARE_EVENTS = ("sky_postcard", "now_share")   # imágenes para compartir (state:ok = se generó)
+PUBLIC_SHARE_EVENTS = ("sky_postcard", "sky_pano360", "now_share")   # imágenes para compartir (state:ok = se generó)
 
 # El parámetro `id` de sky_select es un TOKEN (texto corto de catálogo), así que un
 # cliente malintencionado podría inventarse valores. Para que nada inventado llegue a una
