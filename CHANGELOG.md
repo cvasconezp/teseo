@@ -1,5 +1,18 @@
 # Cambios
 
+## 1.34.0 — 18 de noviembre de 2026
+
+- Imágenes del Hubble, del Webb y de ESO en el cielo: 41 fotos de las que ya
+  usan las fichas aparecen al acercarse a su objeto, en su sitio, a su tamaño
+  y giradas como corresponde, con el centro, el campo y la orientación que
+  publica la página de cada imagen (Orión, el Sombrero, el Anillo, los
+  Pilares, Omega Centauri…). Se descargan solo al acercarse.
+- Campos profundos: el Ultraprofundo del Hubble y el primer campo profundo
+  del Webb muestran su foto dentro del recuadro, con sus miles de galaxias.
+- Fichas: la de Andrómeda muestra primero la galaxia entera (antes, una
+  franja del mosaico del Hubble), y las de agujeros negros avisan de que la
+  imagen es de referencia (la galaxia o región donde están).
+
 ## 1.33.0 — 18 de noviembre de 2026
 
 - Fotos reales en el cielo: 19 galaxias, nebulosas y cúmulos (Andrómeda,

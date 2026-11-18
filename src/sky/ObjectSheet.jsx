@@ -142,6 +142,7 @@ function Visual({ obj, info, t, lang, wiki, wikiState, credit }) {
         <figcaption>
           <b>{who ? `${t.capImgBy(who)} · ${t.capImgCommons}` : mixed ? t.capWikiMixed : t.capWiki}</b>
           {who && mixed && <span>{t.capWikiMixed}</span>}
+          {obj.layer === "blackholes" && <span>{t.capWikiRef}</span>}
           {wiki.imgLang && wiki.imgLang !== lang && <span>{t.capImgOtherLang}</span>}
           <a href={(credit && credit.page) || wiki.imgUrl || wiki.url} target="_blank" rel="noopener noreferrer">{t.capLicense}</a>
         </figcaption>

@@ -417,7 +417,7 @@ const TC = {
     texCredit: { sss: "Texture: Solar System Scope (CC BY 4.0)", svs: "Texture: NASA Scientific Visualization Studio", messenger: "Texture: NASA / JHUAPL / Carnegie (MESSENGER)", usgs: "Texture: USGS / NASA mosaic (public domain)" },
     capMoonPhase: "Lit as it is at the chosen moment. Drag to see its far side.",
     capSunWarn: "Never look at the Sun directly, or through a telescope without a certified solar filter.",
-    capWiki: "Image: Wikipedia / Wikimedia Commons", capWikiMixed: "Image from Wikipedia: it may be a real observation or an illustration",
+    capWiki: "Image: Wikipedia / Wikimedia Commons", capWikiMixed: "Image from Wikipedia: it may be a real observation or an illustration", capWikiRef: "Reference image: it shows the galaxy or region where the black hole is, not the black hole itself.",
     capArtist: "Illustration: artist's concept (Wikipedia)", capLicense: "Author and licence",
     capLoading: "Looking for an image…", imgAlt: (n) => `Image of ${n}`,
     capStar: "Representation: colour from the star's real temperature (HYG catalogue). Not a photograph.",
@@ -559,7 +559,7 @@ const TC = {
     texCredit: { sss: "Textura: Solar System Scope (CC BY 4.0)", svs: "Textura: NASA Scientific Visualization Studio", messenger: "Textura: NASA / JHUAPL / Carnegie (MESSENGER)", usgs: "Textura: mosaico de USGS / NASA (dominio público)" },
     capMoonPhase: "Iluminada como está en el momento elegido. Arrastra para ver su cara oculta.",
     capSunWarn: "Nunca mires al Sol directamente ni con un telescopio sin filtro solar certificado.",
-    capWiki: "Imagen: Wikipedia / Wikimedia Commons", capWikiMixed: "Imagen de Wikipedia: puede ser una observación real o una ilustración",
+    capWiki: "Imagen: Wikipedia / Wikimedia Commons", capWikiMixed: "Imagen de Wikipedia: puede ser una observación real o una ilustración", capWikiRef: "Imagen de referencia: muestra la galaxia o la región donde está el agujero negro, no el agujero negro.",
     capArtist: "Ilustración: concepto artístico (Wikipedia)", capLicense: "Autor y licencia",
     capLoading: "Buscando una imagen…", imgAlt: (n) => `Imagen de ${n}`,
     capStar: "Representación: color según la temperatura real de la estrella (catálogo HYG). No es una fotografía.",
@@ -1913,7 +1913,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         // desde dentro (también apuntando) la cámara está en el centro: el detalle lo decide el campo de visión
         const inside = ar.on || ref.mode === "in", outside = !ar.on && ref.mode === "out";
         if (ref.milky) ref.milky.setOn(inside);        // solo desde dentro de la esfera del cielo
-        if (ref.skyImages) ref.skyImages.setOn(inside);
+        if (ref.skyImages) { ref.skyImages.setOn(inside); if (ref.skyImages.update(ref.camera, H)) ref._dirty = true; }
         const camDist = inside ? 0 : ref.camera.position.length();
         const camPos = ref.camera.position;
         const out = [];

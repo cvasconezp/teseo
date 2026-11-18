@@ -1,0 +1,425 @@
+{
+ "meta": {
+  "source": "Coordenadas, campo y orientación publicados en la página de cada imagen (ESA/Hubble, ESA/Webb, ESO)",
+  "read": "2026-11-18",
+  "without_coordinates": [
+   "messier:1",
+   "deepfield:Campo Profundo del Hubble",
+   "deepfield:Campo Profundo Sur del Hubble",
+   "bh:M87*",
+   "bh:Sgr A*"
+  ]
+ },
+ "images": [
+  {
+   "key": "messier:16",
+   "agency": "esa-webb",
+   "id": "weic2216b",
+   "ra": 274.72992,
+   "dec": -13.85174,
+   "w": 4.21,
+   "h": 7.3,
+   "north": -2.6
+  },
+  {
+   "key": "messier:57",
+   "agency": "esa-webb",
+   "id": "weic2320b",
+   "ra": 283.39504,
+   "dec": 33.02928,
+   "w": 2.14,
+   "h": 2.17,
+   "north": -140.2
+  },
+  {
+   "key": "messier:74",
+   "agency": "esa-webb",
+   "id": "weic2403c",
+   "ra": 24.17438,
+   "dec": 15.78061,
+   "w": 3.28,
+   "h": 2.06,
+   "north": -70.5
+  },
+  {
+   "key": "messier:82",
+   "agency": "esa-webb",
+   "id": "weic2612b",
+   "ra": 148.974,
+   "dec": 69.68089,
+   "w": 9.48,
+   "h": 6.39,
+   "north": 32.3
+  },
+  {
+   "key": "messier:83",
+   "agency": "esa-webb",
+   "id": "potm2310a",
+   "ra": 204.25696,
+   "dec": -29.8681,
+   "w": 5.89,
+   "h": 1.87,
+   "north": -315.0
+  },
+  {
+   "key": "messier:104",
+   "agency": "esa-webb",
+   "id": "weic2427a",
+   "ra": 189.99725,
+   "dec": -11.62246,
+   "w": 7.22,
+   "h": 2.41,
+   "north": -12.2
+  },
+  {
+   "key": "messier:106",
+   "agency": "esa-webb",
+   "id": "potm2407a",
+   "ra": 184.71971,
+   "dec": 47.30728,
+   "w": 3.85,
+   "h": 4.88,
+   "north": 273.4
+  },
+  {
+   "key": "messier:77",
+   "agency": "esa-webb",
+   "id": "potm2604b",
+   "ra": 40.66904,
+   "dec": 0.01237,
+   "w": 2.1,
+   "h": 2.13,
+   "north": 26.5
+  },
+  {
+   "key": "gal:NGC5128",
+   "agency": "esa-webb",
+   "id": "weic2615b",
+   "ra": 201.36525,
+   "dec": -43.01898,
+   "w": 5.74,
+   "h": 5.74,
+   "north": -63.3
+  },
+  {
+   "key": "gal:NGC1365",
+   "agency": "esa-webb",
+   "id": "weic2306e",
+   "ra": 53.38908,
+   "dec": -36.146,
+   "w": 3.74,
+   "h": 2.48,
+   "north": -175.5
+  },
+  {
+   "key": "messier:8",
+   "agency": "esa-hubble",
+   "id": "heic1808a",
+   "ra": 270.91425,
+   "dec": -24.38049,
+   "w": 3.19,
+   "h": 4.02,
+   "north": -45.1
+  },
+  {
+   "key": "messier:27",
+   "agency": "esa-hubble",
+   "id": "opo0306a",
+   "ra": 299.88417,
+   "dec": 22.71198,
+   "w": 2.09,
+   "h": 1.24,
+   "north": -14.1
+  },
+  {
+   "key": "messier:31",
+   "agency": "esa-hubble",
+   "id": "heic1502a",
+   "ra": 11.15413,
+   "dec": 41.59273,
+   "w": 57.98,
+   "h": 18.54,
+   "north": -123.5
+  },
+  {
+   "key": "messier:42",
+   "agency": "esa-hubble",
+   "id": "heic0601a",
+   "ra": 83.79054,
+   "dec": -5.41398,
+   "w": 30.03,
+   "h": 30.03,
+   "north": 0.0
+  },
+  {
+   "key": "messier:51",
+   "agency": "esa-hubble",
+   "id": "heic0506a",
+   "ra": 202.46808,
+   "dec": 47.21317,
+   "w": 9.56,
+   "h": 6.64,
+   "north": -91.9
+  },
+  {
+   "key": "messier:81",
+   "agency": "esa-hubble",
+   "id": "opo1438b",
+   "ra": 148.94004,
+   "dec": 69.01263,
+   "w": 8.8,
+   "h": 6.02,
+   "north": 0.6
+  },
+  {
+   "key": "messier:87",
+   "agency": "esa-hubble",
+   "id": "opo0020a",
+   "ra": 187.70196,
+   "dec": 12.39247,
+   "w": 0.51,
+   "h": 0.54,
+   "north": -65.8
+  },
+  {
+   "key": "messier:101",
+   "agency": "esa-hubble",
+   "id": "heic0602a",
+   "ra": 210.89463,
+   "dec": 54.30101,
+   "w": 13.2,
+   "h": 10.32,
+   "north": -3.5
+  },
+  {
+   "key": "messier:80",
+   "agency": "esa-hubble",
+   "id": "opo9926a",
+   "ra": 244.26096,
+   "dec": -22.97519,
+   "w": 2.93,
+   "h": 3.1,
+   "north": -55.4
+  },
+  {
+   "key": "messier:15",
+   "agency": "esa-hubble",
+   "id": "heic1321a",
+   "ra": 322.49204,
+   "dec": 12.16712,
+   "w": 2.48,
+   "h": 2.66,
+   "north": 46.7
+  },
+  {
+   "key": "gal:NGC1300",
+   "agency": "esa-hubble",
+   "id": "opo0501a",
+   "ra": 49.91925,
+   "dec": -19.41205,
+   "w": 5.54,
+   "h": 3.16,
+   "north": -29.9
+  },
+  {
+   "key": "gal:NGC4038",
+   "agency": "esa-hubble",
+   "id": "potw1345a",
+   "ra": 180.47425,
+   "dec": -18.87538,
+   "w": 2.8,
+   "h": 2.78,
+   "north": -0.0
+  },
+  {
+   "key": "gal:NGC1672",
+   "agency": "esa-hubble",
+   "id": "heic0706a",
+   "ra": 71.4325,
+   "dec": -59.24595,
+   "w": 4.42,
+   "h": 3.17,
+   "north": 34.0
+  },
+  {
+   "key": "gal:NGC1512",
+   "agency": "esa-hubble",
+   "id": "heic1712a",
+   "ra": 60.93696,
+   "dec": -43.37049,
+   "w": 7.54,
+   "h": 2.76,
+   "north": 37.5
+  },
+  {
+   "key": "messier:17",
+   "agency": "eso",
+   "id": "eso1119a",
+   "ra": 275.24446,
+   "dec": -16.14777,
+   "w": 53.4,
+   "h": 53.4,
+   "north": -0.1
+  },
+  {
+   "key": "messier:20",
+   "agency": "eso",
+   "id": "eso0930a",
+   "ra": 270.67479,
+   "dec": -22.97116,
+   "w": 13.89,
+   "h": 22.82,
+   "north": 0.2
+  },
+  {
+   "key": "messier:33",
+   "agency": "eso",
+   "id": "eso1424a",
+   "ra": 23.46717,
+   "dec": 30.67394,
+   "w": 68.01,
+   "h": 57.04,
+   "north": 90.0
+  },
+  {
+   "key": "messier:78",
+   "agency": "eso",
+   "id": "eso1105a",
+   "ra": 86.65592,
+   "dec": 0.11128,
+   "w": 34.43,
+   "h": 33.36,
+   "north": -1.6
+  },
+  {
+   "key": "messier:7",
+   "agency": "eso",
+   "id": "eso1406a",
+   "ra": 268.46337,
+   "dec": -34.79287,
+   "w": 33.11,
+   "h": 32.12,
+   "north": -0.0
+  },
+  {
+   "key": "gal:NGC4945",
+   "agency": "eso",
+   "id": "eso0931a",
+   "ra": 196.36388,
+   "dec": -49.46771,
+   "w": 21.96,
+   "h": 21.96,
+   "north": 0.0
+  },
+  {
+   "key": "gal:NGC2442",
+   "agency": "eso",
+   "id": "ngc2442",
+   "ra": 114.11454,
+   "dec": -69.52518,
+   "w": 12.62,
+   "h": 12.62,
+   "north": 43.4
+  },
+  {
+   "key": "caldwell:92",
+   "agency": "eso",
+   "id": "eso1250a",
+   "ra": 161.27375,
+   "dec": -59.86324,
+   "w": 61.82,
+   "h": 66.34,
+   "north": -0.0
+  },
+  {
+   "key": "caldwell:103",
+   "agency": "eso",
+   "id": "eso0613a",
+   "ra": 84.65829,
+   "dec": -69.09491,
+   "w": 6.78,
+   "h": 6.77,
+   "north": 0.1
+  },
+  {
+   "key": "caldwell:63",
+   "agency": "eso",
+   "id": "eso0907a",
+   "ra": 337.41071,
+   "dec": -20.83717,
+   "w": 28.02,
+   "h": 25.94,
+   "north": 0.1
+  },
+  {
+   "key": "caldwell:65",
+   "agency": "eso",
+   "id": "eso1152a",
+   "ra": 11.88813,
+   "dec": -25.28828,
+   "w": 40.58,
+   "h": 32.09,
+   "north": -0.0
+  },
+  {
+   "key": "caldwell:80",
+   "agency": "eso",
+   "id": "eso1119b",
+   "ra": 201.69696,
+   "dec": -47.47954,
+   "w": 50.88,
+   "h": 50.88,
+   "north": 0.0
+  },
+  {
+   "key": "caldwell:106",
+   "agency": "eso",
+   "id": "eso1302a",
+   "ra": 6.0225,
+   "dec": -72.0815,
+   "w": 46.89,
+   "h": 46.89,
+   "north": -6.3
+  },
+  {
+   "key": "caldwell:94",
+   "agency": "eso",
+   "id": "eso0940a",
+   "ra": 193.41512,
+   "dec": -60.3668,
+   "w": 6.54,
+   "h": 6.56,
+   "north": -1.6
+  },
+  {
+   "key": "caldwell:SMC",
+   "agency": "eso",
+   "id": "eso1714a",
+   "ra": 13.76317,
+   "dec": -72.96405,
+   "w": 354.37,
+   "h": 313.48,
+   "north": 1.2
+  },
+  {
+   "key": "deepfield:Campo Ultraprofundo del Hubble",
+   "agency": "esa-hubble",
+   "id": "heic0406a",
+   "ra": 53.16212,
+   "dec": -27.79139,
+   "w": 3.1,
+   "h": 3.1,
+   "north": 46.5
+  },
+  {
+   "key": "deepfield:Primer campo profundo del Webb",
+   "agency": "esa-webb",
+   "id": "weic2209a",
+   "ra": 110.78567,
+   "dec": -73.44977,
+   "w": 2.27,
+   "h": 2.31,
+   "north": 35.0
+  }
+ ]
+}
