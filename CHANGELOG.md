@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.25.1 — 18 de noviembre de 2026
+
+- SEO: /acerca, /about, sus videos y audio, llms.txt y el archivo de
+  verificación de Google ya no llevan la cabecera «X-Robots-Tag: noindex».
+  La regla que la pone a toda ruta distinta de «/» las incluía, y Google
+  rechazaba indexarlas. Las rutas inventadas siguen con noindex.
+- Landing: el botón de idioma muestra solo «EN» o «ES».
+
 ## 1.25.0 — 18 de noviembre de 2026
 
 - «About Teseo»: la landing en inglés, en teseo.yachaydeep.com/about.

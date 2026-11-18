@@ -28,7 +28,7 @@ PAIRS = [
  ('<a class="brand" href="/acerca" aria-label="Teseo, inicio de esta página">', '<a class="brand" href="/about" aria-label="Teseo, top of this page">'),
  ('<small>Navegación interplanetaria · <span>con Killa Ñan</span></small>', '<small>Interplanetary navigation · <span>with Killa Ñan</span></small>'),
  ('<nav class="links" aria-label="Secciones">', '<nav class="links" aria-label="Sections">'),
- ('<a class="lang-link" href="/about" hreflang="en" lang="en" data-lang="en">English</a>', '<a class="lang-link" href="/acerca" hreflang="es" lang="es" data-lang="es">Español</a>'),
+ ('<a class="lang-link" href="/about" hreflang="en" lang="en" data-lang="en" aria-label="English version" title="English version">EN</a>', '<a class="lang-link" href="/acerca" hreflang="es" lang="es" data-lang="es" aria-label="Versión en español" title="Versión en español">ES</a>'),
  ('<a href="#que-es">Qué es</a>', '<a href="#que-es">What it is</a>'),
  ('<a href="#ciencia">La ciencia</a>', '<a href="#ciencia">The science</a>'),
  ('<a href="#talleres">Talleres</a>', '<a href="#talleres">Workshops</a>'),

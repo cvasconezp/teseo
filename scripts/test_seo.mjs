@@ -43,6 +43,7 @@ const vercel = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url
 const nidx = vercel.headers.find(h => h.headers.some(x => x.key === "X-Robots-Tag"));
 const re = new RegExp("^/" + nidx.source.replace("/:path", "").replace(/^\(/, "(").replace(/\)$/, ")") + "$");
 ok(nidx && re.test("/no-existe") && !re.test("/robots.txt") && !re.test("/sitemap.xml") && !re.test("/assets/x.js"), "las rutas que no existen llevan noindex (la app vive en «/»)");
+ok(nidx && ["/acerca", "/acerca/", "/acerca/video/marte.mp4", "/about", "/about/", "/llms.txt", "/google000184d1da92a93f.html"].every(p => !re.test(p)) && re.test("/acercax"), "las landings, sus videos, llms.txt y la verificación de Google quedan indexables");
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

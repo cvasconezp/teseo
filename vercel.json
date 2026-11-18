@@ -59,7 +59,7 @@
       ]
     },
     {
-      "source": "/:path((?!assets/|textures/|robots\\.txt$|sitemap\\.xml$).+)",
+      "source": "/:path((?!assets/|textures/|acerca(?:/|$)|about(?:/|$)|robots\\.txt$|sitemap\\.xml$|llms\\.txt$|google[0-9a-f]+\\.html$).+)",
       "headers": [
         {
           "key": "X-Robots-Tag",
