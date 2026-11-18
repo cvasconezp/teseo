@@ -4,7 +4,11 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/cal/teseo.ics",
+      "destination": "/api/calendar"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],
@@ -56,5 +60,11 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/calendar.js": {
+      "includeFiles": "public/meteorshowers.json",
+      "maxDuration": 15
+    }
+  }
 }

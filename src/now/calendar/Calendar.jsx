@@ -10,6 +10,7 @@ import { track, trackOnce } from "../../ui/track.js";
 import { buildSkyEvents, buildFeedEvents, sortEvents, groupByMonth, readPlace, TYPES, nextHighlight } from "./events.js";
 import { countdownText, countdownParts, startOfEvent } from "./countdown.js";
 import { NOW_SHARE_KINDS } from "../../share/eventText.js";
+import { feedUrl, subscribeLinks } from "./feed.js";
 import { TC, describeEvent } from "./i18n.js";
 import { downloadIcs } from "./ics.js";
 import { loadIssPasses } from "./issLoader.js";
@@ -377,6 +378,45 @@ function NextUp({ ev, lang, fmt, t, onPassed }) {
   );
 }
 
+// ─── «Suscribirme al calendario» (feed.js + api/calendar.js) ──────────────────
+function Subscribe({ place, placeName, lang, t }) {
+  const S = t.sub2;
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const tz = useMemo(() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return null; } }, []);
+  const links = useMemo(() => subscribeLinks(feedUrl({ lat: place.lat, lon: place.lon, lang, tz, name: place.kind === "preset" ? place.name : null })), [place.lat, place.lon, place.kind, place.name, lang, tz]);
+  const go = (kind) => track("now_item", { card: "calendar", kind: `subscribe_${kind}` });
+  const copy = async () => {
+    go("copy");
+    try { await navigator.clipboard.writeText(links.https); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { setCopied(false); }
+  };
+  return (
+    <div className="cal-sub">
+      <button type="button" className="cal-test__link" aria-expanded={open} aria-controls={id} aria-label={S.btnFor(placeName)}
+        onClick={() => { if (!open) go("open"); setOpen(o => !o); }}>
+        <CalIcon />{S.btn}
+      </button>
+      {open && (
+        <div id={id} className="cal-remind cal-sub__panel" role="group" aria-labelledby={`${id}-h`}>
+          <p id={`${id}-h`} className="cal-remind__h"><CalIcon />{S.title}</p>
+          <p className="cal-remind__p">{S.explain(placeName)}</p>
+          <div className="cal-remind__actions">
+            <a className="btn btn--primary cal-btn" href={links.google} target="_blank" rel="noopener noreferrer" onClick={() => go("google")}>{S.google}<span className="now-sr"> ({t.opensNew})</span></a>
+            <a className="btn btn--ghost cal-btn" href={links.webcal} onClick={() => go("apple")}>{S.apple}</a>
+            <a className="btn btn--ghost cal-btn" href={links.outlook} target="_blank" rel="noopener noreferrer" onClick={() => go("outlook")}>{S.outlook}<span className="now-sr"> ({t.opensNew})</span></a>
+            <button type="button" className="btn btn--ghost cal-btn" onClick={copy}>{copied ? S.copied : S.copy}</button>
+          </div>
+          <p className="cal-remind__p cal-sub__url"><code>{links.https}</code></p>
+          <p className="cal-remind__p">{S.appleNote}</p>
+          <p className="cal-remind__p cal-sub__fine">{S.privacy}</p>
+          <p className="cal-remind__status" role="status" aria-live="polite">{copied ? S.copied : ""}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Datos ───────────────────────────────────────────────────────────────────
 function usePlace() {
   const [place, setPlace] = useState(() => readPlace(typeof localStorage !== "undefined" ? localStorage : null));
@@ -483,6 +523,7 @@ export default function Calendar({ lang = "es", api = "" }) {
           <span><strong>{t.forPlace(placeName)}</strong> · <a className="now-link" href="#sky">{t.changeInSky}</a></span>
         </p>
         <PushTest api={api} lang={lang} t={t} push={push} />
+        <Subscribe place={place} placeName={placeName} lang={lang} t={t} />
       </header>
 
       {highlight && filter === "all" && (

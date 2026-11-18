@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.22.0 — 18 de noviembre de 2026
+
+- «Suscribirme al calendario» en el Calendario del cielo: el calendario de tu
+  lugar entra en Google Calendar, el Calendario del iPhone, iPad o Mac, u
+  Outlook, y se actualiza solo. Trae un año de Luna, eclipses, meteoros,
+  planetas, estaciones e hitos del espacio, más las pasadas visibles de la ISS
+  y los lanzamientos de las próximas semanas, con «Ver en el cielo» y la
+  fuente en cada evento, y avisos solo para lo que no se repite cada semana.
+- Lo calcula el mismo código de la app, en una función de Vercel
+  (teseo.yachaydeep.com/cal/teseo.ics). El enlace lleva el lugar redondeado
+  a ~1 km y no se guarda nada.
+
 ## 1.21.1 — 18 de noviembre de 2026
 
 - Los hitos del espacio también se comparten: la postal lleva el concepto

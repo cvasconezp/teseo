@@ -27,14 +27,9 @@ export function foldLine(line) {
   return out.join("\r\n ");
 }
 
-/**
- * @param {object} ev  { uid, start (ms UTC), durationMin?, allDay?, title, description?, url? }
- * @param {object} [o] { now = Date.now(), prodId }
- * @returns {string} contenido .ics (líneas separadas por CRLF, con CRLF final)
- */
-export function buildIcs(ev, { now = Date.now(), prodId = "-//Teseo//Calendario del cielo//ES" } = {}) {
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", `PRODID:${prodId}`, "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "BEGIN:VEVENT",
-    `UID:${ev.uid}`, `DTSTAMP:${icsUtc(now)}`];
+/** Líneas de un VEVENT (sin plegar). */
+export function veventLines(ev, now = Date.now()) {
+  const lines = ["BEGIN:VEVENT", `UID:${ev.uid}`, `DTSTAMP:${icsUtc(now)}`];
   if (ev.allDay) {
     // fecha completa (sin hora): DTEND exclusivo = día siguiente
     lines.push(`DTSTART;VALUE=DATE:${icsDate(ev.start)}`, `DTEND;VALUE=DATE:${icsDate(ev.start + 86400000)}`);
@@ -44,12 +39,40 @@ export function buildIcs(ev, { now = Date.now(), prodId = "-//Teseo//Calendario 
   lines.push(`SUMMARY:${icsEscape(ev.title)}`);
   if (ev.description) lines.push(`DESCRIPTION:${icsEscape(ev.description)}`);
   if (ev.url) lines.push(`URL:${ev.url}`);
+  if (ev.categories) lines.push(`CATEGORIES:${icsEscape(ev.categories)}`);
   lines.push("TRANSP:TRANSPARENT");
-  // Aviso del propio calendario del teléfono: 30 min antes; en eventos de día completo, la víspera a
-  // las 18:00 (6 h antes de la medianoche de inicio). Así «Añadir a mi calendario» trae notificación.
-  lines.push("BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEscape(ev.title)}`,
-    `TRIGGER:${ev.allDay ? "-PT6H" : "-PT30M"}`, "END:VALARM");
-  lines.push("END:VEVENT", "END:VCALENDAR");
+  if (ev.alarm !== false) {
+    // Aviso del propio calendario del teléfono: 30 min antes; en eventos de día completo, la víspera a
+    // las 18:00 (6 h antes de la medianoche de inicio). Así «Añadir a mi calendario» trae notificación.
+    lines.push("BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEscape(ev.title)}`,
+      `TRIGGER:${ev.allDay ? "-PT6H" : "-PT30M"}`, "END:VALARM");
+  }
+  lines.push("END:VEVENT");
+  return lines;
+}
+
+/**
+ * @param {object} ev  { uid, start (ms UTC), durationMin?, allDay?, title, description?, url? }
+ * @param {object} [o] { now = Date.now(), prodId }
+ * @returns {string} contenido .ics (líneas separadas por CRLF, con CRLF final)
+ */
+export function buildIcs(ev, { now = Date.now(), prodId = "-//Teseo//Calendario del cielo//ES" } = {}) {
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", `PRODID:${prodId}`, "CALSCALE:GREGORIAN", "METHOD:PUBLISH", ...veventLines(ev, now), "END:VCALENDAR"];
+  return lines.map(foldLine).join("\r\n") + "\r\n";
+}
+
+/**
+ * Calendario de suscripción (varios eventos). Pide al calendario que vuelva a leerlo cada `refreshHours`
+ * (REFRESH-INTERVAL, RFC 7986, y X-PUBLISHED-TTL, que es la que leen Apple y Outlook; Google decide por su cuenta).
+ * @param {Array} events [{ uid, start, durationMin?, allDay?, title, description?, url?, categories?, alarm? }]
+ */
+export function buildCalendar(events, { now = Date.now(), name = "Teseo", description = "", refreshHours = 12, prodId = "-//Teseo//Calendario del cielo//ES" } = {}) {
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", `PRODID:${prodId}`, "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+    `NAME:${icsEscape(name)}`, `X-WR-CALNAME:${icsEscape(name)}`];
+  if (description) lines.push(`DESCRIPTION:${icsEscape(description)}`, `X-WR-CALDESC:${icsEscape(description)}`);
+  lines.push(`REFRESH-INTERVAL;VALUE=DURATION:PT${refreshHours}H`, `X-PUBLISHED-TTL:PT${refreshHours}H`);
+  for (const ev of events) lines.push(...veventLines(ev, now));
+  lines.push("END:VCALENDAR");
   return lines.map(foldLine).join("\r\n") + "\r\n";
 }
 
