@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.25.2 — 18 de noviembre de 2026
+
+- GitHub Sponsors activo (github.com/sponsors/cvasconezp). La landing, en
+  español e inglés, cambia «pronto» por el botón «Patrocinar en GitHub».
+  El botón «Sponsor» del repositorio y llms.txt también lo enlazan.
+
 ## 1.25.1 — 18 de noviembre de 2026
 
 - SEO: /acerca, /about, sus videos y audio, llms.txt y el archivo de

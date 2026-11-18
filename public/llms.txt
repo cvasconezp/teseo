@@ -24,3 +24,4 @@ Principios: las cifras salen de datos oficiales y física real (efemérides cont
 - [Código fuente](https://github.com/cvasconezp/teseo)
 - [Créditos y fuentes de datos](https://github.com/cvasconezp/teseo/blob/main/CREDITS.md)
 - [Novedades](https://github.com/cvasconezp/teseo/blob/main/CHANGELOG.md)
+- [Apoyar a Teseo en GitHub Sponsors](https://github.com/sponsors/cvasconezp)
