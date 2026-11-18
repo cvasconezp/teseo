@@ -1859,14 +1859,21 @@ export default function Teseo() {
             {t.skipToContent}
           </a>
           {/* Cabecera */}
-          <header className="shell flex items-center justify-between pt-4 pb-2">
-            <div>
-              <h1 className="wordmark" style={{fontSize:30}}>Teseo</h1>
-              <p className="tagline">{t.tagline}</p>
-              <a className="tagline tagline--kn" href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer"
-                title={t.coopWith} onClick={()=>track("coop_open", { from: "header" })}>{t.allianceShort}</a>
+          {/* Barra superior. Teléfono: cabecera que se desplaza + pestañas fijas (como siempre).
+              ≥ 640 px: cabecera de una línea sobre pestañas finas. ≥ 1100 px: marca, pestañas y
+              botones en una sola barra fija (index.css, «barra superior»). */}
+          <div className="topbar">
+          <header className="topbar__head shell">
+            <div className="brand">
+              <h1 className="wordmark brand__mark">Teseo</h1>
+              <p className="brand__sub">
+                <span className="tagline">{t.tagline}</span>
+                <span className="brand__dot" aria-hidden="true"> · </span>
+                <a className="tagline tagline--kn" href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer"
+                  title={t.coopWith} onClick={()=>track("coop_open", { from: "header" })}>{t.allianceShort}</a>
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="topbar__ctl flex items-center gap-2">
             <button type="button" className={`night-btn night-btn--music${ambient ? " is-on" : ""}`} aria-pressed={ambient}
               aria-label={ambient ? t.ambientOff : t.ambientOn} title={ambient ? t.ambientOff : t.ambientOn}
               onClick={toggleAmbient}>
@@ -1889,6 +1896,7 @@ export default function Teseo() {
 
           {/* Navegación principal: siempre visible */}
           <Tabs tab={tab} onChange={changeTab} lang={lang}/>
+          </div>
 
           <main className="shell app__main pt-4">
             <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} tabIndex={-1} className="panel">

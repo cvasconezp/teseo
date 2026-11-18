@@ -106,6 +106,29 @@ strong { font-weight: 600; color: #fff; }
 .tagline--kn { display: inline-block; margin-top: 1px; color: var(--thread); text-decoration: none; opacity: .92; }
 .tagline--kn:hover { opacity: 1; text-decoration: underline; }
 
+/* ─── Barra superior: marca + pestañas + botones ─────────────────────────────
+   Teléfono (< 640 px): como siempre, cabecera de tres líneas que se desplaza y
+   pestañas fijas debajo (.topbar no genera caja: display: contents).
+   640–1099 px: cabecera de una sola línea y pestañas más finas.
+   ≥ 1100 px: todo en una sola barra fija de ~60 px. */
+.topbar { display: contents; }
+.topbar__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; padding-bottom: 8px; }
+.brand { min-width: 0; }
+.brand__mark { font-size: 30px; }
+.brand__sub { margin: 0; }
+.brand__sub .tagline:not(.tagline--kn) { display: block; }
+.brand__dot { display: none; color: var(--muted); font-size: 12.5px; }
+@media (min-width: 640px) {
+  .topbar__head { padding-top: 10px; padding-bottom: 4px; }
+  .brand { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 12px; }
+  .brand__mark { font-size: 24px; }
+  .brand__sub .tagline, .brand__sub .tagline:not(.tagline--kn) { display: inline; margin-top: 0; font-size: 12.5px; }
+  .brand__dot { display: inline; }
+  .topbar__ctl .night-btn { width: 40px; height: 40px; }
+  .topbar__ctl .lang { min-height: 40px; padding: 3px; }
+  .topbar__ctl .lang span { padding: 5px 10px; }
+}
+
 .lang {
   display: inline-flex; align-items: center; min-height: 44px; padding: 4px;
   border: 1px solid var(--line); border-radius: 999px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
@@ -147,10 +170,39 @@ strong { font-weight: 600; color: #fff; }
   .tabs__tab { font-size: 12px; letter-spacing: -0.01em; }
 }
 @media (min-width: 640px) {
-  .tabs__tab { flex-direction: row; gap: 7px; font-size: 14px; min-height: 54px; }
+  .tabs__tab { flex-direction: row; gap: 7px; font-size: 14px; min-height: 46px; }
 }
 @media (min-width: 1024px) {
   .tabs__tab { gap: 9px; font-size: 15px; }
+}
+/* ≥ 1100 px: una sola barra fija. La cabecera deja de ser caja (display: contents) y sus
+   dos bloques se colocan en la rejilla a izquierda y derecha; las pestañas, al centro,
+   pasan a píldoras. */
+@media (min-width: 1100px) {
+  .topbar {
+    position: sticky; top: 0; z-index: 30;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "brand tabs ctl";
+    align-items: center; column-gap: 16px; min-height: 60px;
+    padding: 8px max(20px, calc((100% - 76rem) / 2));
+    background: rgba(4, 8, 15, 0.82);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar__head { display: contents; }
+  .brand { grid-area: brand; display: block; justify-self: start; }
+  .brand__mark { font-size: 22px; }
+  .brand__sub { margin-top: 4px; white-space: nowrap; line-height: 1.2; }
+  .brand__sub .tagline, .brand__sub .tagline:not(.tagline--kn), .brand__dot { font-size: 11.5px; }
+  .topbar__ctl { grid-area: ctl; justify-self: end; }
+  .topbar__ctl .night-btn { width: 38px; height: 38px; }
+  .topbar__ctl .lang { min-height: 38px; }
+  .topbar .tabs { grid-area: tabs; position: static; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; border: 0; }
+  .topbar .tabs__inner { max-width: none; padding-inline: 0; gap: 4px; }
+  .topbar .tabs__tab { flex: 0 0 auto; min-height: 40px; padding-inline: 16px; border-radius: 999px; font-size: 14.5px; gap: 8px; transition: color .2s, background .2s; }
+  .topbar .tabs__tab:hover { background: rgba(255, 255, 255, 0.05); }
+  .topbar .tabs__tab.is-active { background: var(--panel-strong); box-shadow: inset 0 0 0 1px rgba(242, 196, 109, 0.28); }
+  .topbar .tabs__tab::after { display: none; }
+  html .nav-grid__map { top: 76px; }
 }
 
 /* ─── Rejilla navegador (mapa + resultado) ───────────────────────────────── */
@@ -605,7 +657,7 @@ html.night-vision .night-vision-dim { filter: brightness(.7); }
 
 /* ── teléfono, en Cielo: sin cabecera ni pestañas (van en el menú ☰ de la vista) ── */
 @media (max-width: 899.98px) {
-  .app--sky .app__body > header.shell, .app--sky .tabs { display: none; }
+  .app--sky .topbar__head, .app--sky .tabs { display: none; }
   .app--sky .app__main { padding-top: 0; }
 }
 .app-menu { position: fixed; inset: 0; z-index: 200; background: rgba(2, 4, 10, 0.55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: app-menu-fade 0.2s ease; }

@@ -29,7 +29,9 @@ ok((sky.match(/!covered && !railOpen && \(\s*<ArRail/g) || []).length === 2 && /
 ok(/panel === "time" && \([\s\S]{0,200}<TimeSheet [\s\S]{0,400}docked extra=/.test(sky) && !/<TimePanel /.test(sky), "«Ahora» abre el mismo control de tiempo (ya no el panel antiguo)");
 const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8"), css = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
 ok(/<SkyView lang=\{lang\} onMenu=/.test(app) && /function AppMenu\(/.test(app) && /className="sk-menu-btn"/.test(sky), "en el teléfono, en Cielo: botón ☰ con las secciones, la música, la visión nocturna y el idioma");
-ok(/\.app--sky \.app__body > header\.shell, \.app--sky \.tabs \{ display: none; \}/.test(css), "y sin cabecera ni pestañas: la vista ocupa toda la pantalla");
+ok(/\.app--sky \.topbar__head, \.app--sky \.tabs \{ display: none; \}/.test(css), "y sin cabecera ni pestañas: la vista ocupa toda la pantalla");
+ok(/<div className="topbar">\s*<header className="topbar__head shell">/.test(app) && /@media \(min-width: 1100px\) \{\s*\.topbar \{\s*position: sticky;/.test(css) && /grid-template-areas: "brand tabs ctl"/.test(css), "en escritorio (≥ 1100 px), marca, pestañas y botones van en una sola barra fija");
+ok(/\.topbar \{ display: contents; \}/.test(css) && /class(Name)?="brand__dot"/.test(app), "en el teléfono la cabecera se ve como antes; desde 640 px la marca va en una sola línea");
 ok(/const \[tab,\s*setTab\]\s*= useState\("sky"\)/.test(app), "la pantalla principal (sin enlace) es el Cielo, después de la animación");
 ok(/teseo_place_asked_v1/.test(sky) && /welcome=\{welcomePlace\}/.test(sky) && /if \(welcomePlace && sky\) setPanel\("location"\)/.test(sky), "la primera vez, lo primero que se pide es la ubicación (y no se vuelve a pedir)");
 ok(/welcomeSkip: "Ahora no \(usar Quito\)"/.test(sky) && /!place0\.isDefault \|\| !place0\.local/.test(sky), "con «Ahora no» sigue con Quito; quien ya eligió lugar o llega con un enlace no lo ve");

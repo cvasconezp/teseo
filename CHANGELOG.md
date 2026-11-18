@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.20.1 — 18 de noviembre de 2026
+
+- Cabecera más compacta en el ordenador: marca, pestañas y botones (música,
+  visión nocturna e idioma) van en una sola barra fija de unos 60 px, en lugar
+  de dos bloques que ocupaban unos 190 px. Las pestañas pasan a píldoras al
+  centro y «con Killa Ñan» sigue visible junto al subtítulo. En pantallas
+  medianas (tabletas, ventanas estrechas) la marca va en una sola línea sobre
+  pestañas más finas; en el teléfono no cambia nada.
+
 ## 1.20.0 — 17 de noviembre de 2026
 
 - «Atrás» en el teléfono (gesto o botón): primero cierra lo que esté abierto
