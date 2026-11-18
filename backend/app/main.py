@@ -67,7 +67,7 @@ from app import horizon
 from app import peaks
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.19.1"
+VERSION = "1.20.0"
 _STARTED = time.time()
 
 app = FastAPI(

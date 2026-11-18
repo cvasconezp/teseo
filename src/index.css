@@ -623,3 +623,10 @@ html.night-vision .night-vision-dim { filter: brightness(.7); }
 @keyframes app-menu-in { from { transform: translateX(-100%); } to { transform: none; } }
 @keyframes app-menu-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .app-menu, .app-menu__panel { animation: none; } }
+
+/* «Pulsa de nuevo para salir» (src/ui/backGuard.js) */
+.exit-toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 12px); z-index: 9999;
+  padding: 10px 18px; border-radius: 999px; background: rgba(12, 16, 30, 0.94); color: #eef0fa; font: 500 14px/1.2 Inter, system-ui, sans-serif;
+  border: 1px solid rgba(185, 166, 255, 0.35); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); opacity: 0; pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease; white-space: nowrap; }
+.exit-toast.is-on { opacity: 1; transform: translate(-50%, 0); }

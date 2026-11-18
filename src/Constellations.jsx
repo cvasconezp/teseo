@@ -41,7 +41,7 @@ import { RATES, REAL } from "./sky/timeDial.js";
 import { stepFieldTz, setMinuteTz, fetchTimeZone, cachedTimeZone, tzParts } from "./sky/placeTime.js";
 import { buildPostcard } from "./sky/postcard.js";
 import { snapshotView } from "./sky/viewSnapshot.js";
-import { captureFaces, equirectFromFaces, layoutPanoLabels, drawPanoLabels, drawNadirStamp, withGPano, panoFileName, panoSize, altAzOf, panoCredits } from "./sky/pano360.js";
+import { captureFaces, equirectFromFaces, layoutPanoLabels, drawPanoLabels, drawNadirStamp, withGPano, panoFileName, panoSize, altAzOf, panoCredits, shortCredits } from "./sky/pano360.js";
 import { labelStyle } from "./sky/viewSnapshot.js";
 import { starHex } from "./sky/starColor.js";
 import { perfFlag, createFrameStats, createAdaptive } from "./sky/perf.js";
@@ -2905,6 +2905,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     return out;
   }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars, hzData, peakList, cloudsOn, wxData, placeTz]);
   const openShare = useCallback(() => { setShareState(null); setShare(true); }, []);
+  // «atrás» del teléfono (src/ui/backGuard.js): cierra lo que esté abierto, de lo más encima a lo más abajo
+  const backRef = useRef({});
   // ── foto 360° (pano360.js): seis caras desde el observador → equirectangular con nombres y metadatos ──
   const [pano, setPano] = useState(false);
   const panoLabels = useCallback(() => {
@@ -3201,6 +3203,25 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     };
   }, [arOn, ready, pauseAr]);
 
+  backRef.current = { pano, share, selObj, issSheet, tsOpen, panel, railOpen, ar, tourActive, welcomePlace };
+  useEffect(() => {
+    const onBack = (e) => {
+      const b = backRef.current;
+      if (b.pano) setPano(false);
+      else if (b.share) setShare(false);
+      else if (b.railOpen) setRailOpen(false);
+      else if (b.selObj) setSelObj(null);
+      else if (b.issSheet) setIssSheet(false);
+      else if (b.tsOpen) setTsOpen(false);
+      else if (b.panel && !b.welcomePlace) setPanel(null);
+      else if (b.ar === "on" || b.ar === "paused") stopAr();
+      else if (b.tourActive) setTourActive(false);
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("teseo:back", onBack);
+    return () => window.removeEventListener("teseo:back", onBack);
+  }, [stopAr]);
   // modo manual tras arrastrar: volver a apuntar solo al levantar el teléfono hacia el cielo
   // (primero hay que bajarlo, para no volver en el acto; ver src/sky/arResume.js)
   useEffect(() => {
@@ -3604,6 +3625,13 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     <div ref={wrapRef} className="sk-wrap">
     <div ref={stageRef} className={stageClass} onKeyDown={onStageKey} onPointerDownCapture={bumpCtl}>
       <div ref={mountRef} className="sk-canvas" role="application" tabIndex={0} onKeyDown={onCanvasKey} aria-label={t.canvasAria} />
+      {/* créditos siempre a la vista: una captura de pantalla los lleva (una página no puede detectar la captura) */}
+      {sky && (
+        <p className="sk-credit" aria-hidden="true">
+          <b>Teseo</b> · teseo.yachaydeep.com
+          <small>{shortCredits({ terrain: !!(inMySky && hzData), peaks: !!(peakList && peakList.length), clouds: !!(inMySky && cloudsOn && wxData), planets: showSolar }, lang)}</small>
+        </p>
+      )}
       {PERF_ON && <PerfMeter t={t} lang={lang} apiRef={perfApiRef} />}
       <SkyLabels apiRef={labelsApiRef} colors={LABEL_COLOR} unit={t.lightyears} locale={lang === "es" ? "es" : "en-US"} onNote={openNote} noteAria={t.noteAria} />
 

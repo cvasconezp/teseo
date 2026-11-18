@@ -711,3 +711,12 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
   .sk-stage.has-sheet .sk-arrail { right: 432px; }
   .sk-stage.has-rail .sk-cta { bottom: 16px; }
 }
+
+/* créditos siempre visibles (capturas de pantalla): en el teléfono arriba a la izquierda, bajo el buscador; en el
+   ordenador, abajo a la izquierda. Discretos y sin tapar nada */
+.sk-stage .sk-credit { position: absolute; left: 14px; top: calc(66px + env(safe-area-inset-top, 0px)); z-index: 3; margin: 0; max-width: min(64%, 420px);
+  font: 500 10px/1.3 Inter, system-ui, sans-serif; color: rgba(225, 230, 255, 0.62); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); pointer-events: none; user-select: none; }
+.sk-stage .sk-credit b { color: rgba(201, 184, 255, 0.85); font-weight: 700; }
+.sk-stage .sk-credit small { display: block; font-size: 9px; font-weight: 400; opacity: 0.85; }
+@media (min-width: 900px) { .sk-stage .sk-credit { top: auto; left: 14px; bottom: 10px; font-size: 11px; } .sk-stage .sk-credit small { font-size: 10px; } }
+.sk-stage.is-covered .sk-credit { opacity: 0.35; }

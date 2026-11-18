@@ -1,6 +1,6 @@
 // Pruebas de la foto 360° (src/sky/pano360.js): geometría de las caras, unión equirectangular, nombres,
 // metadatos GPano y nombre del archivo.
-import { dirOf, altAzOf, FACES, rightOf, faceOf, equirectXY, equirectFromFaces, stretchAt, layoutPanoLabels, gpanoXmp, withGPano, panoFileName, panoSize, panoCredits } from "../src/sky/pano360.js";
+import { dirOf, altAzOf, FACES, rightOf, faceOf, equirectXY, equirectFromFaces, stretchAt, layoutPanoLabels, gpanoXmp, withGPano, panoFileName, panoSize, panoCredits, shortCredits } from "../src/sky/pano360.js";
 import { readFileSync } from "node:fs";
 
 let pass = 0, fail = 0;
@@ -80,6 +80,8 @@ ok(cAll.length === 3, "los créditos extra van de dos en dos por línea");
 ok(panoCredits({ clouds: true }, "en")[1] === "Clouds: Open-Meteo.com (CC BY 4.0)", "en inglés");
 const xc = gpanoXmp({ W: 4096, H: 2048, title: "Cielo de Cayambe · 17 <nov>", credits: cAll });
 ok(/<dc:creator><rdf:Seq><rdf:li>Teseo — teseo\.yachaydeep\.com<\/rdf:li>/.test(xc) && /<dc:rights>/.test(xc) && xc.includes("OpenStreetMap (ODbL)") && xc.includes("17 &lt;nov&gt;"), "XMP: autor Teseo, derechos con los créditos y texto escapado");
+
+ok(shortCredits({}) === "Datos: HYG · Stellarium" && shortCredits({ terrain: true, peaks: true, clouds: true, planets: true }, "en") === "Data: HYG · Stellarium · AWS Terrain Tiles · © OpenStreetMap · Wikidata · Open-Meteo · Solar System Scope", "créditos cortos de la marca siempre visible");
 
 // archivo y tamaño
 ok(panoFileName("Pirámides de Guiza", { y: 2026, m: 11, d: 18, h: 6, mi: 5 }) === "teseo-360-piramides-de-guiza-2026-11-18-0605.jpg", "nombre del archivo sin tildes ni espacios");

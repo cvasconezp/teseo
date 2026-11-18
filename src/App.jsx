@@ -37,6 +37,7 @@ import { createAmbient, STORAGE_KEY as AMBIENT_KEY } from "./ui/ambient.js";
 import { pickLang, canonicalFor, searchWithLang } from "./ui/seo.js";
 import { parseHash, hashBelongsTo, hashForTab, hashForQuestion, usageHash } from "./ui/hash.js";
 import { track, startSession, trackNetError } from "./ui/track.js";
+import { installBackGuard, wantsGuard, showExitToast } from "./ui/backGuard.js";
 import {
   IconRoute, IconWindows, IconSky, IconLight, IconProbe, IconRocket, IconPlane,
   IconSwap, IconChevron, IconRetry, IconClose, IconInfo, IconArrow,
@@ -1768,6 +1769,29 @@ export default function Teseo() {
   // la oscuridad (los bastones de la retina casi no reaccionan a la luz roja).
   const [menuOpen, setMenuOpen] = useState(false);       // menú ☰ (teléfono, en Cielo)
   const closeMenu = useCallback(()=>setMenuOpen(false),[]);
+  // «atrás» del teléfono (backGuard.js): primero cierra lo abierto; sin nada abierto, «Pulsa de nuevo para salir»
+  useEffect(() => {
+    if (!wantsGuard()) return undefined;
+    return installBackGuard({
+      onBack: () => { const ev = new CustomEvent("teseo:back", { cancelable: true }); return !window.dispatchEvent(ev); },
+      toast: () => { showExitToast(document.documentElement.lang === "en" ? "Press back again to exit" : "Pulsa de nuevo para salir"); track("app_exit_hint"); },
+    });
+  }, []);
+  // lo de la app va antes que el Cielo (fase de captura): el menú, los créditos y el panel de métricas
+  const backRef = useRef({});
+  backRef.current = { menuOpen, showCredits, usage };
+  useEffect(() => {
+    const onBack = (e) => {
+      const b = backRef.current;
+      if (b.menuOpen) setMenuOpen(false);
+      else if (b.usage) setUsage(null);
+      else if (b.showCredits) setShowCredits(false);
+      else return;
+      e.preventDefault(); e.stopImmediatePropagation();
+    };
+    window.addEventListener("teseo:back", onBack, true);
+    return () => window.removeEventListener("teseo:back", onBack, true);
+  }, []);
   const [night, setNight] = useState(()=>{ try { return localStorage.getItem("teseo-night")==="1"; } catch { return false; } });
   useEffect(()=>{
     try { localStorage.setItem("teseo-night", night ? "1" : "0"); } catch { /* no-op */ }

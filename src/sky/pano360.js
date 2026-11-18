@@ -250,6 +250,16 @@ export function panoCredits(f = {}, lang = "es") {
   return out;
 }
 
+/** Créditos cortos para la marca que siempre se ve en el Cielo (capturas de pantalla). */
+export function shortCredits(f = {}, lang = "es") {
+  const parts = ["HYG", "Stellarium"];
+  if (f.terrain) parts.push("AWS Terrain Tiles");
+  if (f.peaks) parts.push("© OpenStreetMap", "Wikidata");
+  if (f.clouds) parts.push("Open-Meteo");
+  if (f.planets) parts.push("Solar System Scope");
+  return `${lang === "en" ? "Data" : "Datos"}: ${parts.join(" · ")}`;
+}
+
 const xmlEsc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // ── metadatos 360° (XMP «GPano») ──────────────────────────────────────────────

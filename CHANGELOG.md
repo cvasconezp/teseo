@@ -1,5 +1,18 @@
 # Cambios
 
+## 1.20.0 — 17 de noviembre de 2026
+
+- «Atrás» en el teléfono (gesto o botón): primero cierra lo que esté abierto
+  (el menú, una ficha, un panel, el control de tiempo, la postal, la foto 360°
+  o el modo apuntar). Sin nada abierto aparece «Pulsa de nuevo para salir» y
+  solo un segundo atrás en 2 segundos sale de la app. En un ordenador, atrás
+  sigue funcionando como siempre.
+- Créditos siempre visibles en el Cielo: «Teseo · teseo.yachaydeep.com» y las
+  fuentes de los datos que se ven (estrellas, constelaciones y, si están,
+  relieve, montañas, nubes y planetas), pequeños y discretos (en el teléfono
+  bajo el buscador; en el ordenador abajo a la izquierda). Así cualquier captura
+  de pantalla los lleva: una página web no puede detectar las capturas.
+
 ## 1.19.1 — 17 de noviembre de 2026
 
 - Capa «Constelaciones» en Capas → Nuestro vecindario: enciende o apaga juntas
