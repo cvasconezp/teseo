@@ -684,6 +684,35 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-stage .sk-ts-dayrange::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: #8db2ff; border: 2px solid #fff; }
 .sk-stage .sk-ts-phase { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 12.5px; color: rgba(255, 255, 255, 0.75); white-space: nowrap; pointer-events: none; }
 @media (max-width: 899.98px) { .sk-stage .sk-ts .sk-ts-phase { max-width: 40%; } }
+/* Control de tiempo más compacto (1.20.2): mismos controles, ~100 px menos de alto.
+   Asa y flechas más bajas, cifras algo menores, saltos de noche con el icono al lado
+   del texto y franja día/noche más fina. */
+.sk-stage .sk-ts { padding: 2px 12px 10px; }
+.sk-stage .sk-ts-head { height: 14px; }
+.sk-stage .sk-ts-close { top: -4px; width: 34px; height: 34px; }
+.sk-stage .sk-ts-clock { margin: 0 0 2px; }
+.sk-stage .sk-ts-field strong { font-size: clamp(22px, 6.6vw, 31px); line-height: 1.1; }
+.sk-stage .sk-ts-field em { font-size: clamp(20px, 6vw, 28px); }
+.sk-stage .sk-ts-arrow { width: 44px; height: 22px; }
+.sk-stage .sk-ts-arrow span { border-left-width: 7px; border-right-width: 7px; }
+.sk-stage .sk-ts-arrow span.up { border-bottom-width: 8px; }
+.sk-stage .sk-ts-arrow span.down { border-top-width: 8px; }
+.sk-stage .sk-ts-tz { margin: 0 0 6px; font-size: 12px; }
+.sk-stage .sk-ts-speed { padding-top: 5px; }
+.sk-stage .sk-ts-rate { font-size: 12px; margin-bottom: 0; }
+.sk-stage .sk-ts-btn { width: 40px; height: 36px; border-radius: 12px; }
+.sk-stage .sk-ts-slider { height: 24px; }
+.sk-stage .sk-ts-jumps { margin: 5px 0 6px; padding-top: 5px; gap: 4px; }
+.sk-stage .sk-ts-jumps button { flex-direction: row; justify-content: center; gap: 6px; padding: 7px 2px; font-size: 12.5px; }
+.sk-stage .sk-ts-jumps button svg { flex: none; width: 16px; height: 16px; }
+.sk-stage .sk-ts-day { padding-bottom: 16px; }
+.sk-stage .sk-ts-dayrange { height: 18px; border-radius: 9px; }
+.sk-stage .sk-ts-dayrange::-webkit-slider-thumb { width: 24px; height: 24px; }
+.sk-stage .sk-ts-dayrange::-moz-range-thumb { width: 22px; height: 22px; }
+.sk-stage .sk-ts-phase { font-size: 11.5px; }
+.sk-stage .sk-ts-jumps button span { white-space: nowrap; }
+@media (max-width: 480px) { .sk-stage .sk-ts-jumps button { font-size: 12px; gap: 3px; } .sk-stage .sk-ts-jumps button svg { width: 14px; height: 14px; } }
+@media (max-width: 360px) { .sk-stage .sk-ts-jumps button { font-size: 11px; gap: 2px; } }
 .sk-stage .sk-arrail button { position: relative; }
 .sk-stage .sk-arrail button.tone-gold { color: var(--gold, #f2c66d); border-color: rgba(242, 198, 109, 0.6); }
 .sk-stage .sk-arrail button.tone-blue { color: #9cc2ff; border-color: rgba(125, 180, 255, 0.7); }
@@ -720,3 +749,4 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-stage .sk-credit small { display: block; font-size: 9px; font-weight: 400; opacity: 0.85; }
 @media (min-width: 900px) { .sk-stage .sk-credit { top: auto; left: 14px; bottom: 10px; font-size: 11px; } .sk-stage .sk-credit small { font-size: 10px; } }
 .sk-stage.is-covered .sk-credit { opacity: 0.35; }
+.sk-stage .sk-ts-jumps button:last-child svg { order: 2; }

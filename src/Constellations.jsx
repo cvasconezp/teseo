@@ -120,6 +120,7 @@ const PLACES = [
 const ATM_KEY = "teseo_atm";           // interruptor "Atmósfera" (1/0)
 const BORTLE_KEY = "teseo_bortle_v1";  // { lugar: clase } elegida por la persona
 const TERRAIN_KEY = "teseo_terrain";    // interruptor "Montañas" (relieve real; encendido por defecto)
+const DAYWARN_KEY = "teseo_daywarn_off";
 const CONS_KEY = "teseo_cons";          // "Constelaciones" (líneas y nombres; encendido por defecto)
 const PEAKS_KEY = "teseo_peaks";        // "Nombres de las montañas" (OpenStreetMap; apagado por defecto)
 const MONUMENTS_KEY = "teseo_monuments"; // "Monumentos" (pirámides, Stonehenge…; encendido por defecto)
@@ -625,7 +626,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [pk, setPk] = useState({ status: "idle", data: null, key: null });   // nombres de las cumbres (/api/peaks)
   const [monOn, setMonOn] = useState(() => { try { return localStorage.getItem(MONUMENTS_KEY) !== "0"; } catch { return true; } });
   const [monBase, setMonBase] = useState({ status: "idle", key: null, bases: null, ground: null });
-  const [dayHidden, setDayHidden] = useState(false);
+  // Aviso «Es de día»: una vez cerrado no vuelve (ni al mover la hora o el día, ni en otra visita).
+  const [dayHidden, setDayHidden] = useState(() => { try { return localStorage.getItem(DAYWARN_KEY) === "1"; } catch { return false; } });
+  const hideDayWarn = useCallback(() => { setDayHidden(true); try { localStorage.setItem(DAYWARN_KEY, "1"); } catch { /* no-op */ } }, []);
   const [whenStr, setWhenStr] = useState(nowLocalInput());
   // zona horaria IANA del lugar de Mi cielo (Open-Meteo): el reloj, la barra del día y las horas de salida y
   // puesta van en la hora de ese lugar; null = la del teléfono (sin lugar o sin conexión)
@@ -2312,7 +2315,6 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         { elevation_m: elev || 0, latDeg: lat, month: d.getMonth() + 1 });
     } catch { return null; }   // nunca debe romper la vista: sin estado, cielo sin atmósfera
   }, [atmActive, bodies, whenStr, lat, lon, bortle, elev]);
-  useEffect(() => { if (atmState && !starsHidden(atmState)) setDayHidden(false); }, [atmState]);
   const [atmInfo, setAtmInfo] = useState({ stars: null, deep: null });   // recuentos que publica la escena
   useEffect(() => { if (localActive && outside) setOutside(false); }, [localActive, outside]);
   useEffect(() => {
@@ -3657,7 +3659,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         <div className={`sk-top${onMenu && !isWide ? " has-menu" : ""}`}>
           <SearchBox t={t} query={query} setQuery={setQuery} results={results} onResult={onResult} quick={quick} compact={!isWide} />
           {dayWarn && <DayWarning lang={lang} planets={dayPlanets} onNightfall={goNightfall}
-            onAtmOff={() => { setAtmOn(false); track("sky_setting", { setting: "atmosphere", state: "off" }); }} onDismiss={() => setDayHidden(true)} />}
+            onAtmOff={() => { setAtmOn(false); track("sky_setting", { setting: "atmosphere", state: "off" }); }} onDismiss={hideDayWarn} />}
           {(viewFrom || outside || (isWide && localMode) || issSel) && (
             <div className="sk-chips">
               {issSel && (

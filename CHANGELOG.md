@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.20.2 — 18 de noviembre de 2026
+
+- Control de tiempo más compacto, con todos sus controles: flechas y cifras
+  algo menores, «Noche anterior / Ahora / Noche siguiente» con el icono al lado
+  del texto y una franja día/noche más fina. Ocupa unos 100 px menos (en el
+  teléfono pasa de casi la mitad de la pantalla a un tercio).
+- El aviso «Es de día», una vez cerrado, ya no vuelve a aparecer: ni al mover
+  la hora o el día, ni en la siguiente visita.
+
 ## 1.20.1 — 18 de noviembre de 2026
 
 - Cabecera más compacta en el ordenador: marca, pestañas y botones (música,

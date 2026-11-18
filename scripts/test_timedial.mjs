@@ -35,5 +35,8 @@ ok(/\.topbar \{ display: contents; \}/.test(css) && /class(Name)?="brand__dot"/.
 ok(/const \[tab,\s*setTab\]\s*= useState\("sky"\)/.test(app), "la pantalla principal (sin enlace) es el Cielo, después de la animación");
 ok(/teseo_place_asked_v1/.test(sky) && /welcome=\{welcomePlace\}/.test(sky) && /if \(welcomePlace && sky\) setPanel\("location"\)/.test(sky), "la primera vez, lo primero que se pide es la ubicación (y no se vuelve a pedir)");
 ok(/welcomeSkip: "Ahora no \(usar Quito\)"/.test(sky) && /!place0\.isDefault \|\| !place0\.local/.test(sky), "con «Ahora no» sigue con Quito; quien ya eligió lugar o llega con un enlace no lo ve");
+const skyCss = readFileSync(new URL("../src/sky/sky.css", import.meta.url), "utf8");
+ok(/const DAYWARN_KEY = "teseo_daywarn_off"/.test(sky) && /localStorage\.getItem\(DAYWARN_KEY\) === "1"/.test(sky) && /onDismiss=\{hideDayWarn\}/.test(sky) && !/if \(atmState && !starsHidden\(atmState\)\) setDayHidden\(false\)/.test(sky), "el aviso «Es de día», una vez cerrado, no vuelve al mover la hora ni en otra visita");
+ok(/Control de tiempo más compacto/.test(skyCss) && /\.sk-ts-jumps button \{ flex-direction: row;/.test(skyCss) && /\.sk-ts-arrow \{ width: 44px; height: 22px; \}/.test(skyCss), "control de tiempo compacto: los mismos controles en ~100 px menos");
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);
