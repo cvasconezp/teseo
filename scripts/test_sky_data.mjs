@@ -274,5 +274,16 @@ console.log("Textos ES/EN");
   ok(TX.es.rsLine("18:42", "00:10", 85, "05:51") === "Sale 18:42 · más alto 00:10 (85°) · se pone 05:51", "línea de salida, culminación y puesta");
 }
 
+// capa «Constelaciones»: líneas y nombres se encienden y apagan juntos
+{
+  const C = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
+  const P = readFileSync(new URL("../src/sky/panels.jsx", import.meta.url), "utf8");
+  ok(/keys: \["__cons", "__solar"/.test(P) && /role="switch" aria-checked=\{consOn\}/.test(P) && /<span className="sk-count">88<\/span>/.test(P), "Capas: interruptor «Constelaciones» (88), primero del grupo");
+  ok(/localStorage\.getItem\(CONS_KEY\) !== "0"/.test(C) && /localStorage\.setItem\(CONS_KEY/.test(C), "encendida por defecto y recordada en el teléfono");
+  ok(/ref\.lines\.visible = consOn \|\| !!sel/.test(C), "apagada: sin líneas (salvo la constelación elegida en 3D)");
+  ok((C.match(/ref\.consOn !== false/g) || []).length >= 3, "apagada: sin nombres de constelaciones en la vista ni en la foto 360°");
+  ok(/consLayer: "Constelaciones"/.test(C) && /consLayer: "Constellations"/.test(C), "textos en español e inglés");
+}
+
 console.log(`\n${passed} pruebas correctas, ${failed} con fallo`);
 process.exit(failed ? 1 : 0);

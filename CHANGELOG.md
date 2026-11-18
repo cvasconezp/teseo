@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.19.1 — 17 de noviembre de 2026
+
+- Capa «Constelaciones» en Capas → Nuestro vecindario: enciende o apaga juntas
+  las líneas y los nombres de las 88 constelaciones. Viene encendida y la
+  elección se recuerda. Apagada, el cielo queda solo con las estrellas y sus
+  nombres (también en la postal y en la foto 360°); si se elige una
+  constelación para verla en 3D, sus líneas se siguen mostrando.
+
 ## 1.19.0 — 17 de noviembre de 2026
 
 - Foto 360°: en Mi cielo, el menú «…» tiene «Foto 360°». Guarda el cielo del

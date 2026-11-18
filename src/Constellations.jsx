@@ -120,6 +120,7 @@ const PLACES = [
 const ATM_KEY = "teseo_atm";           // interruptor "Atmósfera" (1/0)
 const BORTLE_KEY = "teseo_bortle_v1";  // { lugar: clase } elegida por la persona
 const TERRAIN_KEY = "teseo_terrain";    // interruptor "Montañas" (relieve real; encendido por defecto)
+const CONS_KEY = "teseo_cons";          // "Constelaciones" (líneas y nombres; encendido por defecto)
 const PEAKS_KEY = "teseo_peaks";        // "Nombres de las montañas" (OpenStreetMap; apagado por defecto)
 const MONUMENTS_KEY = "teseo_monuments"; // "Monumentos" (pirámides, Stonehenge…; encendido por defecto)
 const CLOUDS_KEY = "teseo_clouds";      // interruptor "Nubes" (1/0; apagado por defecto: un cielo cubierto no deja ver nada)
@@ -314,6 +315,7 @@ const TC = {
     // ── capas ──
     layersTitle: "Layers", layersLead: "Add what you want to see. Every point sits where the real object is.",
     groups: { near: "Our neighbourhood", deep: "Deep sky", view: "View" },
+    consLayer: "Constellations", consDesc: "The 88 constellations: their lines and names. Lines: Stellarium (modern sky culture, IAU).",
     solarLayer: "Sun, Moon and planets",
     layerDesc: {
       solar: "Where they are right now, computed from their orbits.",
@@ -454,6 +456,7 @@ const TC = {
     // ── capas ──
     layersTitle: "Capas", layersLead: "Suma lo que quieras ver. Cada punto está donde está el objeto real.",
     groups: { near: "Nuestro vecindario", deep: "Cielo profundo", view: "Vista" },
+    consLayer: "Constelaciones", consDesc: "Las 88 constelaciones: sus líneas y sus nombres. Líneas: Stellarium (cultura celeste moderna, UAI).",
     solarLayer: "Sol, Luna y planetas",
     layerDesc: {
       solar: "Dónde están ahora mismo, calculado con sus órbitas.",
@@ -618,6 +621,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [hz, setHz] = useState({ status: "idle", data: null, key: null });   // horizonte real (/api/horizon)
   const [hzRetry, setHzRetry] = useState(0);
   const [peaksOn, setPeaksOn] = useState(() => { try { return localStorage.getItem(PEAKS_KEY) === "1"; } catch { return false; } });
+  const [consOn, setConsOn] = useState(() => { try { return localStorage.getItem(CONS_KEY) !== "0"; } catch { return true; } });
   const [pk, setPk] = useState({ status: "idle", data: null, key: null });   // nombres de las cumbres (/api/peaks)
   const [monOn, setMonOn] = useState(() => { try { return localStorage.getItem(MONUMENTS_KEY) !== "0"; } catch { return true; } });
   const [monBase, setMonBase] = useState({ status: "idle", key: null, bases: null, ground: null });
@@ -1994,14 +1998,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             push(pa[i*3], pa[i*3+1], pa[i*3+2], st[7], "star", st[6], undefined, { pk: { si: i } });
           });
         } else if (camDist > 820) {
-          for (const ab in ref.conCentroid) {
+          if (ref.consOn !== false) for (const ab in ref.conCentroid) {
             const c = ref.conCentroid[ab]; if (!c.idxs.length) continue;
             let cx=0, cy=0, cz=0;
             for (const i of c.idxs) { cx += pa[i*3]; cy += pa[i*3+1]; cz += pa[i*3+2]; }
             const n = c.idxs.length; push(cx/n, cy/n, cz/n, c.name, "con", null, undefined, { ab });
           }
         } else {
-          if (inside && (ar.on || ref.camera.fov > 14)) {
+          if (inside && ref.consOn !== false && (ar.on || ref.camera.fov > 14)) {
             // mirando desde dentro: nombres de constelaciones además de las estrellas brillantes
             for (const ab in ref.conCentroid) {
               const c = ref.conCentroid[ab]; if (!c.idxs.length) continue;
@@ -2408,6 +2412,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const hzData = terrainOn && hz.status === "ok" && hz.key === hzKey ? hz.data : null;
   // nombres de las montañas: solo con el relieve ya dibujado (se anclan en su silueta)
   useEffect(() => { try { localStorage.setItem(PEAKS_KEY, peaksOn ? "1" : "0"); } catch { /* no-op */ } }, [peaksOn]);
+  useEffect(() => { try { localStorage.setItem(CONS_KEY, consOn ? "1" : "0"); } catch { /* no-op */ } }, [consOn]);
+  // constelaciones apagadas: sin líneas ni nombres (salvo la que se ha elegido para verla en 3D)
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref || !ref.lines) return;
+    ref.consOn = consOn;
+    ref.lines.visible = consOn || !!sel;
+    ref._dirty = true; if (ref.wake) ref.wake();
+  }, [consOn, sel, ready]);
   useEffect(() => {
     if (!peaksOn || !hzData || !hzKey) return;
     let alive = true;
@@ -2906,7 +2918,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       out.push({ name: bodyName(b.name, ref.lang), cls: "solar", ...a });
     }
     const pa = ref.posAttr.array;
-    for (const ab in ref.conCentroid) {
+    if (ref.consOn !== false) for (const ab in ref.conCentroid) {
       const c = ref.conCentroid[ab]; if (!c.idxs.length) continue;
       let cx = 0, cy = 0, cz = 0;
       for (const i of c.idxs) { cx += pa[i * 3]; cy += pa[i * 3 + 1]; cz += pa[i * 3 + 2]; }
@@ -3737,6 +3749,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       {sky && panel === "layers" && (
         <LayersPanel t={t} lang={lang} layers={LAYERS} datasets={datasets} enabled={enabled} loadingLayer={loadingLayer} layerError={layerError}
           onToggle={toggleLayer} onRetry={loadLayer} showSolar={showSolar} onToggleSolar={() => setShowSolar(v => !v)}
+          consOn={consOn} onToggleCons={() => { const nv = !consOn; setConsOn(nv); track("sky_setting", { setting: "lines", state: nv ? "on" : "off" }); }}
           constellations={sortedCons} sel={sel} onPick={onPick} labelDensity={labelDensity} onDensity={(v) => { track("sky_setting", { setting: "labels", state: "ok" }); setLabelDensity(v); }}
           vivid={vividStars} onVivid={() => setVividStars(v => !v)} atmosphere={<>{atmControls}{terrainCtl}{wxPanel}</>}
           guides={<GuidesControls lang={lang} value={guidesOn} localAvailable={localActive} onToggle={(k, on) => { track("sky_setting", { setting: "guides", state: on ? "on" : "off" }); toggleGuide(k, on); }} />}

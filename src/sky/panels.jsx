@@ -163,11 +163,11 @@ function PanelShell({ title, onClose, t, children, className = "", labelledBy })
 
 // ── Capas ────────────────────────────────────────────────────────────────
 const GROUPS = [
-  { id: "near", keys: ["__solar", "meteors", "comets", "probes"] },
+  { id: "near", keys: ["__cons", "__solar", "meteors", "comets", "probes"] },
   { id: "deep", keys: ["messier", "caldwell", "galaxies", "blackholes", "pulsars", "exoplanets"] },
 ];
 export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, layerError, onToggle, onRetry,
-  showSolar, onToggleSolar, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid, outside = false, onOutside , atmosphere, guides}) {
+  showSolar, onToggleSolar, consOn = true, onToggleCons, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid, outside = false, onOutside , atmosphere, guides}) {
   // patrón llamativo de la capa (contado en los datos cargados): una línea y un botón para verlo
   const noteLine = (key) => {
     const n = enabled[key] && notes.find((x) => x.layer === key);
@@ -179,6 +179,19 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
     ) : null;
   };
   const row = (key) => {
+    if (key === "__cons") {
+      if (!onToggleCons) return null;
+      return (
+        <div className="sk-layer" key={key}>
+          <button type="button" role="switch" aria-checked={consOn} className="sk-layer-main" onClick={onToggleCons}>
+            <i className="sk-dot" style={{ background: "#c9b8ff" }} />
+            <span className="sk-layer-txt"><b>{t.consLayer}</b><small>{t.consDesc}</small></span>
+            <span className="sk-count">88</span>
+            <i className="sk-switch" />
+          </button>
+        </div>
+      );
+    }
     if (key === "__solar") {
       return (
         <div className="sk-layer" key={key}>
