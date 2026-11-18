@@ -1,0 +1,92 @@
+{
+ "meta": {
+  "source": "Campos profundos del Hubble y del Webb: posiciones y tamaños publicados por STScI/NASA/ESA (HDF, HUDF, HDF-S, SMACS 0723) y por los equipos de COSMOS y CEERS. La distancia es la de sus galaxias más lejanas (tiempo de viaje de la luz), aproximada.",
+  "count": 6
+ },
+ "objects": [
+  {
+   "name": "Campo Profundo del Hubble",
+   "name_en": "Hubble Deep Field",
+   "nx": -0.46013,
+   "ny": -0.07457,
+   "nz": 0.88471,
+   "ra": 189.2058,
+   "dec": 62.2161,
+   "size_arcmin": 2.6,
+   "dist_ly": 13000000000.0,
+   "kind": "campo profundo",
+   "note": "Hubble, 1995: diez días mirando un trozo de cielo que parecía vacío, del tamaño de un grano de arena con el brazo extendido. Aparecieron unas 3.000 galaxias.",
+   "note_en": "Hubble, 1995: ten days staring at a seemingly empty patch of sky, the size of a grain of sand at arm's length. About 3,000 galaxies appeared."
+  },
+  {
+   "name": "Campo Ultraprofundo del Hubble",
+   "name_en": "Hubble Ultra Deep Field",
+   "nx": 0.53039,
+   "ny": 0.70802,
+   "nz": -0.46625,
+   "ra": 53.1625,
+   "dec": -27.7914,
+   "size_arcmin": 3.3,
+   "dist_ly": 13200000000.0,
+   "kind": "campo profundo",
+   "note": "Hubble, 2003–2004, en Fornax: unas 10.000 galaxias en 11 minutos de arco cuadrados; las más lejanas se ven como eran hace más de 13.000 millones de años. Webb volvió a mirarlo (JADES).",
+   "note_en": "Hubble, 2003–2004, in Fornax: about 10,000 galaxies in 11 square arcminutes; the farthest are seen as they were over 13 billion years ago. Webb looked again (JADES)."
+  },
+  {
+   "name": "Campo Profundo Sur del Hubble",
+   "name_en": "Hubble Deep Field South",
+   "nx": 0.4566,
+   "ny": -0.18231,
+   "nz": -0.87079,
+   "ra": 338.2343,
+   "dec": -60.5507,
+   "size_arcmin": 2.6,
+   "dist_ly": 13000000000.0,
+   "kind": "campo profundo",
+   "note": "Hubble, 1998, en Tucana: el gemelo austral del Campo Profundo, para comprobar que el universo se ve igual en la dirección opuesta.",
+   "note_en": "Hubble, 1998, in Tucana: the southern twin of the Deep Field, to check that the universe looks the same in the opposite direction."
+  },
+  {
+   "name": "Primer campo profundo del Webb",
+   "name_en": "Webb's First Deep Field",
+   "nx": -0.10127,
+   "ny": 0.26616,
+   "nz": -0.95859,
+   "ra": 110.8313,
+   "dec": -73.4543,
+   "size_arcmin": 2.4,
+   "dist_ly": 13100000000.0,
+   "kind": "campo profundo",
+   "note": "Webb, julio de 2022: el cúmulo de galaxias SMACS 0723 (a unos 4.600 millones de años luz) actúa de lente y deja ver galaxias mucho más lejanas. Doce horas y media de exposición; al Hubble le habría llevado semanas.",
+   "note_en": "Webb, July 2022: the galaxy cluster SMACS 0723 (about 4.6 billion light-years away) acts as a lens and reveals far more distant galaxies. Twelve and a half hours of exposure; Hubble would have needed weeks."
+  },
+  {
+   "name": "Campo COSMOS",
+   "name_en": "COSMOS field",
+   "nx": -0.86642,
+   "ny": 0.49783,
+   "nz": 0.03849,
+   "ra": 150.119,
+   "dec": 2.206,
+   "size_arcmin": 85.0,
+   "dist_ly": 13000000000.0,
+   "kind": "campo profundo",
+   "note": "En Sextans: dos grados cuadrados (unas diez Lunas llenas) observados por Hubble, Webb (COSMOS-Web) y decenas de telescopios; más de dos millones de galaxias catalogadas.",
+   "note_en": "In Sextans: two square degrees (about ten full Moons) observed by Hubble, Webb (COSMOS-Web) and dozens of telescopes; over two million galaxies catalogued."
+  },
+  {
+   "name": "Franja de Groth",
+   "name_en": "Extended Groth Strip",
+   "nx": -0.49642,
+   "ny": -0.34438,
+   "nz": 0.79685,
+   "ra": 214.75,
+   "dec": 52.83,
+   "size_arcmin": 70.0,
+   "dist_ly": 13000000000.0,
+   "kind": "campo profundo",
+   "note": "Entre la Osa Mayor y el Boyero: una franja larga y estrecha observada por Hubble y, desde 2022, por Webb (CEERS), donde aparecieron galaxias de los primeros 500 millones de años.",
+   "note_en": "Between Ursa Major and Boötes: a long, narrow strip observed by Hubble and, since 2022, by Webb (CEERS), which turned up galaxies from the first 500 million years."
+  }
+ ]
+}

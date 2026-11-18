@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.33.0 — 18 de noviembre de 2026
+
+- Fotos reales en el cielo: 19 galaxias, nebulosas y cúmulos (Andrómeda,
+  Orión, M13, M51, M81, M82, el Sombrero, M101, M87, el Anillo, el Cangrejo,
+  Carina…) se ven en su sitio, a su tamaño y con su orientación reales, también
+  al apuntar con el teléfono. Son recortes de los cartografiados SDSS (luz
+  visible, CC BY) y 2MASS (infrarrojo cercano, dominio público); con la
+  atmósfera encendida se apagan con el brillo del cielo, como la Vía Láctea.
+- Nueva capa «Campos profundos»: el Campo Profundo y el Ultraprofundo del
+  Hubble, el Campo Profundo Sur, el primer campo profundo del Webb, COSMOS y
+  la Franja de Groth, con su recuadro a tamaño real y su explicación.
+
 ## 1.32.0 — 18 de noviembre de 2026
 
 - Cochasquí: ocho de las quince pirámides truncas, cubiertas de hierba como

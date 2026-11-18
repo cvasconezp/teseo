@@ -64,6 +64,7 @@ import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf 
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints } from "./sky/monumentLayer.js";
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
 import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
+import { createSkyImagesLayer } from "./sky/skyImagesLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
@@ -88,6 +89,7 @@ const LAYERS = [
   { key: "caldwell",   file: "/caldwell.json",   es: "Caldwell",         en: "Caldwell",     color: 0xb48cff, size: 8, lazy: true },
   { key: "pulsars",    file: "/pulsars.json",    es: "Púlsares",         en: "Pulsars",      color: 0xff5dc8, size: 6, lazy: true },
   { key: "blackholes", file: "/blackholes.json", es: "Agujeros negros",  en: "Black holes",  color: 0xff7a3c, size: 11 },
+  { key: "deepfields", file: "/deepfields.json", es: "Campos profundos", en: "Deep fields",  color: 0xffe08a, size: 10 },
   { key: "galaxies",   file: "/galaxies.json",   es: "Galaxias",         en: "Galaxies",     color: 0x9db4ff, size: 5, lazy: true },
   { key: "meteors",    file: "/meteorshowers.json", es: "Lluvias de meteoros", en: "Meteor showers", color: 0xffd27a, size: 9 },
   { key: "comets",     api: true, endpoint: "/api/comets", es: "Cometas", en: "Comets", color: 0x8be0ff, size: 9 },
@@ -95,7 +97,7 @@ const LAYERS = [
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
+const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_deepfields:"#ffe08a", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
 // Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
 // de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
 // en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
@@ -200,6 +202,7 @@ const CATEGORY_TERMS = [
   // los púlsares son estrellas de neutrones (y «neutrinos» es una confusión frecuente: también lleva aquí)
   { key: "pulsars",    terms: ["pulsar", "pulsares", "pulsars", "púlsar", "púlsares", "estrella de neutrones", "estrellas de neutrones", "neutrones", "neutron star", "neutron stars", "magnetar", "magnetares", "magnetars", "estrella de neutrinos", "estrellas de neutrinos"] },
   { key: "blackholes", terms: ["agujero negro", "agujeros negros", "agujero", "hoyo negro", "black hole", "blackhole", "black holes"] },
+  { key: "deepfields", terms: ["campo profundo", "campos profundos", "deep field", "deep fields", "ultra deep", "ultraprofundo", "hudf", "smacs"] },
   { key: "galaxies",   terms: ["galaxia", "galaxias", "galaxy", "galaxies"] },
   { key: "comets",     terms: ["cometa", "cometas", "comet", "comets"] },
   { key: "meteors",    terms: ["meteoro", "meteoros", "lluvia de meteoros", "lluvias", "meteor", "meteor shower"] },
@@ -330,6 +333,7 @@ const TC = {
       messier: "Nebulae, clusters and galaxies visible with a small telescope.",
       galaxies: "Other galaxies, millions of light-years away.",
       blackholes: "Confirmed black holes, from Sgr A* to M87*.",
+      deepfields: "Where Hubble and Webb stared for days and found thousands of galaxies.",
       pulsars: "Dead stars spinning up to hundreds of times a second.",
       exoplanets: "Planets around other stars (NASA Exoplanet Archive).",
     },
@@ -471,6 +475,7 @@ const TC = {
       messier: "Nebulosas, cúmulos y galaxias visibles con un telescopio pequeño.",
       galaxies: "Otras galaxias, a millones de años luz.",
       blackholes: "Agujeros negros confirmados, de Sgr A* a M87*.",
+      deepfields: "Donde el Hubble y el Webb miraron durante días y hallaron miles de galaxias.",
       pulsars: "Estrellas muertas que giran hasta cientos de veces por segundo.",
       exoplanets: "Planetas de otras estrellas (NASA Exoplanet Archive).",
     },
@@ -840,7 +845,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     });
     // capas de objetos: Messier / agujeros negros / meteoros siempre están
     // cargadas; el resto solo si el usuario activó su capa.
-    for (const key of ["messier", "caldwell", "blackholes", "meteors", "galaxies", "pulsars", "comets", "probes", "exoplanets"]) {
+    for (const key of ["messier", "caldwell", "blackholes", "deepfields", "meteors", "galaxies", "pulsars", "comets", "probes", "exoplanets"]) {
       const ds = datasets[key];
       if (!ds || !ds.objects) continue;
       const layerName = LAYERS.find(l => l.key === key)?.[lang] || key;
@@ -1173,6 +1178,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       onLoad: () => { const r0 = sceneRef.current; if (r0) r0._dirty = true; } });
     milky.setIntensity(1);
     scene.add(milky.mesh);
+    // fotos reales de galaxias, nebulosas y cúmulos en su sitio y a su tamaño, y el recuadro de los campos profundos
+    const skyImages = createSkyImagesLayer({ onLoad: () => { const r0 = sceneRef.current; if (r0) r0._dirty = true; } });
+    scene.add(skyImages.group);
 
     // ── constellation lines ──
     const segHips = []; // pairs of hip
@@ -1511,7 +1519,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, milky, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
+      atm, clouds, terrain, monuments, milky, skyImages, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1587,6 +1595,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         atm.update(st);
         atm.setEnabled(!!st);
         milky.setIntensity(milkyWayVisibility(st));
+        skyImages.setIntensity(st ? Math.min(1, milkyWayVisibility(st) * 1.6) : 1);
         { const up = st && r.localModeOn ? new THREE.Vector3(0, 1, 0).applyQuaternion(r.localQuat.clone().invert()) : null; milky.setExtinction(st ? st.k : 0, up ? [up.x, up.y, up.z] : null); }
         lines.material.opacity = st && starsHidden(st) ? 0.22 : r.lineBase;
         // Sol, Luna y planetas: el disco se sigue dibujando (con tamaño visible), más tenue si no se ve
@@ -1904,6 +1913,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         // desde dentro (también apuntando) la cámara está en el centro: el detalle lo decide el campo de visión
         const inside = ar.on || ref.mode === "in", outside = !ar.on && ref.mode === "out";
         if (ref.milky) ref.milky.setOn(inside);        // solo desde dentro de la esfera del cielo
+        if (ref.skyImages) ref.skyImages.setOn(inside);
         const camDist = inside ? 0 : ref.camera.position.length();
         const camPos = ref.camera.position;
         const out = [];
@@ -2350,6 +2360,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.points.quaternion.copy(q);
     ref.lines.quaternion.copy(q);
     if (ref.milky) ref.milky.mesh.quaternion.copy(q);
+    if (ref.skyImages) ref.skyImages.group.quaternion.copy(q);
     if (ref.guides) ref.guides.setLocalFrame(active ? q : null, qDate);
     if (ref.issLayer) ref.issLayer.setLocalFrame(active ? q : null);   // la ISS solo existe sobre un horizonte
     (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));

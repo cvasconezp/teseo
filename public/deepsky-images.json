@@ -1,0 +1,165 @@
+{
+ "meta": {
+  "source": "SDSS DR9 (Sloan Digital Sky Survey, CC BY) y 2MASS (UMass/IPAC-Caltech/NASA/NSF, dominio público), mosaicos en color servidos por ESASky",
+  "credits": {
+   "sdss": "Sloan Digital Sky Survey (SDSS), CC BY",
+   "2mass": "2MASS/UMass/IPAC-Caltech/NASA/NSF, dominio público"
+  },
+  "projection": "gnomónica, norte arriba, este a la izquierda",
+  "variant": 0
+ },
+ "objects": [
+  {
+   "id": "m31",
+   "name": "M31 · Galaxia de Andrómeda",
+   "ra": 10.6847,
+   "dec": 41.269,
+   "size": 3.4,
+   "survey": "sdss"
+  },
+  {
+   "id": "m33",
+   "name": "M33 · Galaxia del Triángulo",
+   "ra": 23.4621,
+   "dec": 30.6599,
+   "size": 1.3,
+   "survey": "2mass"
+  },
+  {
+   "id": "m42",
+   "name": "M42 · Nebulosa de Orión",
+   "ra": 83.8221,
+   "dec": -5.3911,
+   "size": 1.4,
+   "survey": "2mass"
+  },
+  {
+   "id": "m13",
+   "name": "M13 · Cúmulo de Hércules",
+   "ra": 250.4235,
+   "dec": 36.4613,
+   "size": 0.45,
+   "survey": "sdss"
+  },
+  {
+   "id": "m51",
+   "name": "M51 · Galaxia del Remolino",
+   "ra": 202.4696,
+   "dec": 47.1952,
+   "size": 0.3,
+   "survey": "sdss"
+  },
+  {
+   "id": "m81",
+   "name": "M81 · Galaxia de Bode",
+   "ra": 148.8882,
+   "dec": 69.0653,
+   "size": 0.6,
+   "survey": "sdss"
+  },
+  {
+   "id": "m82",
+   "name": "M82 · Galaxia del Cigarro",
+   "ra": 148.9685,
+   "dec": 69.6797,
+   "size": 0.3,
+   "survey": "sdss"
+  },
+  {
+   "id": "m104",
+   "name": "M104 · Galaxia del Sombrero",
+   "ra": 189.9976,
+   "dec": -11.6231,
+   "size": 0.22,
+   "survey": "sdss"
+  },
+  {
+   "id": "m101",
+   "name": "M101 · Galaxia del Molinete",
+   "ra": 210.8024,
+   "dec": 54.3488,
+   "size": 0.6,
+   "survey": "sdss"
+  },
+  {
+   "id": "m22",
+   "name": "M22",
+   "ra": 279.0998,
+   "dec": -23.9047,
+   "size": 0.5,
+   "survey": "2mass"
+  },
+  {
+   "id": "m87",
+   "name": "M87 · Virgo A",
+   "ra": 187.7059,
+   "dec": 12.3911,
+   "size": 0.25,
+   "survey": "sdss"
+  },
+  {
+   "id": "m57",
+   "name": "M57 · Nebulosa del Anillo",
+   "ra": 283.3963,
+   "dec": 33.0292,
+   "size": 0.08,
+   "survey": "2mass"
+  },
+  {
+   "id": "m1",
+   "name": "M1 · Nebulosa del Cangrejo",
+   "ra": 83.6331,
+   "dec": 22.0145,
+   "size": 0.16,
+   "survey": "2mass"
+  },
+  {
+   "id": "m83",
+   "name": "M83 · Molinete del Sur",
+   "ra": 204.2538,
+   "dec": -29.8658,
+   "size": 0.35,
+   "survey": "2mass"
+  },
+  {
+   "id": "m3",
+   "name": "M3",
+   "ra": 205.5484,
+   "dec": 28.3773,
+   "size": 0.4,
+   "survey": "sdss"
+  },
+  {
+   "id": "m5",
+   "name": "M5",
+   "ra": 229.6384,
+   "dec": 2.081,
+   "size": 0.45,
+   "survey": "sdss"
+  },
+  {
+   "id": "ngc253",
+   "name": "NGC 253 · Galaxia del Escultor",
+   "ra": 11.888,
+   "dec": -25.2882,
+   "size": 0.6,
+   "survey": "2mass"
+  },
+  {
+   "id": "carina",
+   "name": "Nebulosa de Carina",
+   "ra": 161.265,
+   "dec": -59.6845,
+   "size": 2.2,
+   "survey": "2mass"
+  },
+  {
+   "id": "jewelbox",
+   "name": "NGC 4755 · El Joyero",
+   "ra": 193.4125,
+   "dec": -60.3633,
+   "size": 0.3,
+   "survey": "2mass"
+  }
+ ]
+}
