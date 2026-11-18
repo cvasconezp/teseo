@@ -118,7 +118,13 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   ok(tw2.lat === ka.lat && byId("ponce").lat === ka.lat && near(offsetOf(tw2.lat, tw2.lon, byId("ponce").lat, byId("ponce").lon).az, 270, 0.01), "Tiwanaku: el punto de vista, la portada de Kalasasaya y la estela Ponce están en el mismo eje este–oeste");
   // Machu Picchu
   const ih = bbox(buildFaces(byId("intihuatana")));
+  void ih;
   ok(near(ih.u1, 1.8, 0.01) && near(offsetOf(site("machupicchu").lat, site("machupicchu").lon, byId("intihuatana").lat, byId("intihuatana").lon).d, 5, 0.5), "Machu Picchu: el Intihuatana, 1,8 m, a 5 m del punto de vista");
+  // Cochasquí y Machu Picchu (aproximados)
+  const cq = MONUMENTS.filter((m) => m.site === "cochasqui"), mp = MONUMENTS.filter((m) => m.site === "machupicchu");
+  ok(cq.length === 0 && monumentsNear(site("cochasqui").lat, site("cochasqui").lon, 25).length === 0, "Cochasquí: sin pirámides todavía (pendiente)");
+  const mpi = placeMonuments(mp.filter((m) => m.id !== "intihuatana"), { lat: site("machupicchu").lat, lon: site("machupicchu").lon, ground: 2430 }, Object.fromEntries(mp.map((m) => [m.id, 2430])));
+  ok(mp.length === 20 && mpi.every((it) => it.dz < -10) && mp.filter((m) => m.label !== false).length === 5 && mp.every((m) => m.id === "intihuatana" || /aproximad/.test(m.sub.es)), "Machu Picchu: templos y casas más abajo que la cima del Intihuatana, marcados como aproximados");
   // rótulos y relieve cercano
   const lab = monumentLabels(placeMonuments(tw, { lat: ch.lat, lon: ch.lon, ground: 187 }, Object.fromEntries(tw.map((m) => [m.id, 210]))), "es");
   ok(lab.length === 1 && lab[0].sub === "13 torres de 2 a 6 m de alto", "las Trece Torres llevan un solo rótulo, con su texto");

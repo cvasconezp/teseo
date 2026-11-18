@@ -66,12 +66,46 @@ const paranal = VLT_UT.map(([id, nm, e, n], i) => ({
   kind: "enclosure", radius: 14.5, height: 28.5, foot: 14.5, level: true, color: STEEL, mat: "metal", ground: "desert", solid: true,
 }));
 
+// Cochasquí: pirámides truncas de cangahua, hoy cubiertas de hierba, con su rampa hacia el lado bajo (suroeste).
+// APROXIMADO: se ven ocho con claridad en la imagen satelital (Google Maps, consultada el 18-nov-2026: manchas
+// oscuras de matorral, giradas unos 30°); su posición tiene ±10 m, la planta es la de la mancha y el alto y el largo
+// de la rampa son estimados, salvo la 13 (plataforma de 50 × 30 m y rampa de 67 m: Oberem) y la mayor (plataforma
+// de unos 80 × 90 m: Oberem). Faltan las otras siete y los montículos funerarios.
+// [este, norte] en metros desde (0,0558° N, 78,3080° O), ancho, fondo, alto y largo de la rampa.
+const CQ0 = [0.0558, -78.3080];
+const CQ = [["cq-mayor", 111, 21, 85, 90, 13, 110, true], ["cq-13", 29, 125, 50, 30, 6, 67, false], ["cq-c", 120, 119, 55, 50, 8, 50, false], ["cq-b", 172, -3, 50, 60, 8, 60, false],
+  ["cq-e", 209, -46, 50, 50, 7, 50, false], ["cq-f", 233, -82, 55, 40, 6, 0, false], ["cq-g", 291, -143, 45, 45, 6, 0, false], ["cq-h", 264, 21, 45, 40, 5, 0, false]];
+export const COCHASQUI_DRAFT = CQ.map(([id, e, n, w, d, h, ramp, label]) => ({
+  id, site: "cochasqui", name: { es: "Pirámides de Cochasquí", en: "Cochasquí pyramids" }, sub: { es: "pirámides truncas con rampa · posición aproximada", en: "truncated ramp pyramids · approximate position" }, label,
+  lat: +(CQ0[0] + n / mPerLat).toFixed(6), lon: +(CQ0[1] + e / mPerLon(CQ0[0])).toFixed(6),
+  kind: "tola", w, d, height: h, ramp, rot: 30, foot: Math.max(w, d) * 0.6, far: 6000, relief: true, color: GRASS, mat: "heath", ground: "scrub", solid: true,
+}));
+// Machu Picchu, desde la cima del Intihuatana. APROXIMADO (posición ±10 m sobre la imagen satelital de Google
+// Maps, 18-nov-2026; medidas redondeadas): el Templo de las Tres Ventanas y el Templo Principal en la Plaza
+// Sagrada, unos 15 m más abajo; al otro lado de la plaza, el sector urbano oriental, representado por filas de
+// casas de piedra sin techo sobre terrazas (no es el plano real casa por casa), y el Torreón o Templo del Sol.
+// [este, norte] en metros desde el punto de vista; `drop`: metros por debajo de la cima.
+const MP0 = [-13.16312, -72.545683];
+const mpAt = (e, n) => ({ lat: +(MP0[0] + n / mPerLat).toFixed(6), lon: +(MP0[1] + e / mPerLon(MP0[0])).toFixed(6) });
+const mpBase = { site: "machupicchu", kind: "inca", rot: -35, far: 700, level: true, color: GRANITE, mat: "inca", ground: "grass", solid: true };
+const machu = [
+  { ...mpBase, id: "mp-tres-ventanas", name: { es: "Templo de las Tres Ventanas", en: "Temple of the Three Windows" }, sub: { es: "posición aproximada", en: "approximate position" }, ...mpAt(46, -46), w: 10.6, d: 4.2, height: 3.6, open: "w", windows: 3, drop: 15, foot: 6 },
+  { ...mpBase, id: "mp-templo-principal", name: { es: "Templo Principal", en: "Main Temple" }, sub: { es: "posición aproximada", en: "approximate position" }, ...mpAt(30, -34), w: 11, d: 8, height: 4, open: "s", windows: 0, drop: 15, foot: 7, rot: 55 },
+  { ...mpBase, id: "mp-torreon", name: { es: "Torreón · Templo del Sol", en: "Torreón · Temple of the Sun" }, sub: { es: "posición aproximada", en: "approximate position" }, ...mpAt(103, -89), kind: "torreon", radius: 5, height: 5, drop: 32, foot: 6 },
+];
+for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) {
+  // filas a lo largo del eje de la ciudad (noroeste–sureste), cada una en una terraza más baja hacia el este
+  const u = 8 - k * 17 - (r % 2) * 5, v = r * 13, a = -35 * RAD, e = 78 + v * Math.cos(a) + u * Math.sin(a), n = 40 - v * Math.sin(a) + u * Math.cos(a);
+  machu.push({ ...mpBase, id: `mp-casa-${r * 4 + k + 1}`, name: { es: "Sector urbano", en: "Urban sector" }, sub: { es: "casas sin techo · representación aproximada", en: "roofless houses · approximate rendering" }, label: r === 1 && k === 1,
+    ...mpAt(e, n), w: 9 + ((r + k) % 3), d: 5.5, height: 2.6, gable: 2.2, door: true, drop: 21 + r * 3.2, foot: 6 });
+}
+
 /**
  * Monumentos. `kind`: stepped (cuerpos escalonados), pyramid (caras lisas), stonehenge, mound (túmulo), tower
  * (torre maciza), enclosure (cilindro), sundial (plataforma y poste), arcwall (muro en arco), disc (plataforma
  * redonda baja), terraced (cerro de terrazas, planta rectangular), kalasasaya, gate, stela, intihuatana.
  * `level`: su base está al nivel del suelo del observador (explanadas y cimas llanas). `lift`: sube la base (lo
- * que está sobre otra plataforma). `far`: hasta qué distancia (m) se dibuja (lo pequeño no se ve de lejos). `walkIn`: se puede estar dentro (pero no a menos de `core` m de su centro). `foot`: radio de la planta. `ring`: radio
+ * que está sobre otra plataforma). `far`: hasta qué distancia (m) se dibuja (lo pequeño no se ve de lejos). `drop`: su base (y el suelo a su alrededor) queda esos metros por debajo. `walkIn`: se puede estar dentro (pero no a menos de `core` m de su centro). `foot`: radio de la planta. `ring`: radio
  * donde se mide el suelo. `relief`: el suelo cercano sigue el modelo de relieve (crestas y laderas). `label: false`: sin nombre propio. `sub`: texto bajo el nombre (si no, su alto).
  * `rot`: giro de la planta en grados hacia el este desde el norte (Teotihuacan: 15,5°, la orientación de la
  * Calzada de los Muertos). `site`: id del sitio de places.js desde donde se suele mirar.
@@ -97,6 +131,9 @@ export const MONUMENTS = [
     kind: "stonehenge", axis: 49.9, height: 6.7, color: SARSEN, mat: "sarsen", ground: "grass", solid: false },
   { id: "newgrange", site: "newgrange", name: { es: "Newgrange", en: "Newgrange" }, lat: 53.69509, lon: -6.47531,
     kind: "mound", radius: 42.5, wall: 3, height: 13.5, entrance: 135, color: GRASS, wallColor: QUARTZ, mat: "grass", wallMat: "quartz", ground: "grass", solid: true },
+  // ...cochasqui: PENDIENTE. En la ladera (18 % de pendiente) las pirámides y sus rampas aún no asientan bien
+  // sobre el suelo dibujado; no se publican hasta resolverlo y tener el plano del parque.
+  ...machu,
   ...chankillo,
   // Quitsato: plataforma de 54 m de diámetro con mosaico de piedra y poste de 10 m de alto y 1,3 m de diámetro,
   // sobre la línea ecuatorial. Las líneas del mosaico (ejes, solsticios y diagonales) están simplificadas.
@@ -427,6 +464,46 @@ export function buildFaces(m, opt = {}) {
       quad(out, P(-0.55, 0), P(0.55, 0), P(0.55, 1.6), P(-0.55, 1.6), [0.05, 0.05, 0.05], "door");
       quad(out, P(-0.5, 2.0), P(0.5, 2.0), P(0.5, 2.5), P(-0.5, 2.5), [0.05, 0.05, 0.05], "door");
     }
+  } else if (m.kind === "tola") {
+    // pirámide trunca de tierra cubierta de hierba: taludes tendidos, plataforma y, si la tiene, la rampa al sur de
+    // su planta (girada con ella)
+    // (la ladera cae hacia el suroeste cerca de un 18 %: el pie baja bajo la base y la rampa desciende con el terreno)
+    frustum(out, { z0: -14, z1: m.height, w0: m.w * 1.5, d0: m.d * 1.5, w1: m.w * 0.7, d1: m.d * 0.7, rot: m.rot, col, mat: m.mat });
+    if (m.ramp) {
+      const hw0 = 7, hw1 = 5, y0 = -m.d * 0.35, y1 = -(m.d * 0.5 + m.ramp), P = (x, y, z) => { const q = rotP([x, y, z], m.rot); return [q[0], q[1], z]; };
+      const zf = -0.18 * (m.ramp + m.d * 0.15);
+      quad(out, P(-hw1, y1, zf), P(hw1, y1, zf), P(hw0, y0, m.height), P(-hw0, y0, m.height), col, m.mat);
+      for (const sg of [-1, 1]) quad(out, P(sg * (hw1 + 14), y1, zf - 8), P(sg * hw1, y1, zf), P(sg * hw0, y0, m.height), P(sg * (hw0 + 22), y0, -12), col, m.mat);
+    }
+    for (const f of out) f.smooth = false;
+  } else if (m.kind === "inca") {
+    // edificio inca de sillares: muros con algo de talud, un lado abierto (wayrana) o puerta, hastiales si los
+    // tiene y ventanas trapezoidales (rectángulos oscuros)
+    const T = 0.85, hw = m.w / 2, hd = m.d / 2, R = (x, y) => { const q = rotP([x, y, 0], m.rot); return [q[0], q[1]]; };
+    const wall = (x, y, len, alongX, h) => { const [e, n] = R(x, y); frustum(out, { ce: e, cn: n, z0: -1.5, z1: h, w0: alongX ? len : T * 1.15, d0: alongX ? T * 1.15 : len, w1: alongX ? len : T * 0.85, d1: alongX ? T * 0.85 : len, rot: m.rot, col, mat: m.mat }); };
+    if (m.open !== "n") wall(0, hd, m.w, true, m.height);
+    if (m.open !== "s") wall(0, -hd, m.w, true, m.height);
+    if (m.open !== "e") wall(hw, 0, m.d, false, m.height);
+    if (m.open !== "w") wall(-hw, 0, m.d, false, m.height);
+    if (m.gable) for (const sg of [-1, 1]) {
+      const P = (x, y, z) => { const q = rotP([x, y, z], m.rot); return [q[0], q[1], z]; }, x0 = sg * (hw - T / 2), x1 = sg * (hw + T / 2);
+      for (const x of [x0, x1]) out.push({ v: [P(x, -hd, m.height), P(x, hd, m.height), P(x, 0, m.height + m.gable)], c: col, mat: m.mat });
+      quad(out, P(x0, -hd, m.height), P(x1, -hd, m.height), P(x1, 0, m.height + m.gable), P(x0, 0, m.height + m.gable), col, m.mat);
+      quad(out, P(x0, hd, m.height), P(x1, hd, m.height), P(x1, 0, m.height + m.gable), P(x0, 0, m.height + m.gable), col, m.mat);
+    }
+    const dark = (x, y, wd, z0, z1, alongX, sgn) => {
+      const P = (t, z) => { const q = rotP(alongX ? [x + t, y + sgn * (T * 0.6 + 0.03), z] : [x + sgn * (T * 0.6 + 0.03), y + t, z], m.rot); return [q[0], q[1], z]; };
+      out.push({ v: [P(-wd / 2, z0), P(wd / 2, z0), P(wd * 0.42, z1)], c: [0.05, 0.05, 0.05], mat: "door" }, { v: [P(-wd / 2, z0), P(wd * 0.42, z1), P(-wd * 0.42, z1)], c: [0.05, 0.05, 0.05], mat: "door" });
+    };
+    for (let i = 0; i < (m.windows || 0); i++) for (const sg of [-1, 1]) dark(hw, (i - (m.windows - 1) / 2) * (m.d / m.windows), 1.1, 1.3, 2.7, false, sg);
+    if (m.door) for (const sg of [-1, 1]) dark(0, -hd, 1.2, 0, 2.0, true, sg);
+  } else if (m.kind === "torreon") {
+    // torre de planta semicircular sobre la roca, con el muro recto detrás
+    const seg = 20, P = (a, r, z) => { const q = rotP([r * Math.sin(a), r * Math.cos(a), z], m.rot); return [q[0], q[1], z]; };
+    for (let i = 0; i < seg; i++) { const a = -Math.PI / 2 + (Math.PI * i) / seg, b = -Math.PI / 2 + (Math.PI * (i + 1)) / seg;
+      quad(out, P(a, m.radius * 1.04, -3), P(b, m.radius * 1.04, -3), P(b, m.radius * 0.96, m.height), P(a, m.radius * 0.96, m.height), col, m.mat); }
+    quad(out, P(-Math.PI / 2, m.radius, -3), P(Math.PI / 2, m.radius, -3), P(Math.PI / 2, m.radius, m.height), P(-Math.PI / 2, m.radius, m.height), col, m.mat);
+    for (const f of out) f.smooth = false;
   } else if (m.kind === "tower") {
     // torre maciza de piedra y mortero: paredes con algo de talud y la arista de arriba gastada
     // (el pie baja 2,5 m bajo su base: en una cresta el suelo dibujado queda algo más bajo entre torre y torre, y

@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.31.0 — 18 de noviembre de 2026
+
+- Machu Picchu, primera versión de la ciudadela vista desde la cima del
+  Intihuatana: el Templo de las Tres Ventanas y el Templo Principal en la
+  Plaza Sagrada, el Torreón y filas de casas de piedra sin techo en el sector
+  urbano, todo más abajo que la cima. Las posiciones son aproximadas (±10 m)
+  y las casas son una representación, no el plano real; así lo dice cada
+  rótulo.
+- Cochasquí sigue sin pirámides: en la ladera aún no asientan bien.
+
 ## 1.30.1 — 18 de noviembre de 2026
 
 - Vía Láctea: corregido su brillo con Luna. Con la Luna en el cielo se veía

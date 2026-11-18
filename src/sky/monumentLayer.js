@@ -40,7 +40,7 @@ export function placeMonuments(list, { lat, lon, ground }, bases) {
     const b = bases && bases[m.id];
     if (!Number.isFinite(b) || !Number.isFinite(ground)) continue;
     const o = offsetOf(lat, lon, m.lat, m.lon);
-    out.push({ m, o, dz: b - (ground + EYE_M) + (m.lift || 0), faces: buildFaces(m, { d: o.d }) });
+    out.push({ m, o, dz: b - (ground + EYE_M) + (m.lift || 0) - (m.drop || 0), faces: buildFaces(m, { d: o.d }) });
   }
   return out;
 }
