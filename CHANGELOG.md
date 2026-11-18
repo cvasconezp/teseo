@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.24.2 — 18 de noviembre de 2026
+
+- Landing /acerca: botón «Apoya» junto a «Abrir Teseo» en la barra
+  superior, visible también en el teléfono; lleva a la sección de donaciones.
+
 ## 1.24.1 — 18 de noviembre de 2026
 
 - «Acerca de» más a la vista: botón dorado en la cabecera (en el teléfono,
