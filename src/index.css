@@ -669,7 +669,7 @@ html.night-vision .night-vision-dim { filter: brightness(.7); }
 .app-menu__tabs button svg { width: 24px; height: 24px; }
 .app-menu__tabs button.is-active { color: #fff; background: rgba(124, 58, 237, 0.22); box-shadow: inset 3px 0 0 #f2c66d; }
 .app-menu__opts { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px; }
-.app-menu__opts > button:not(.lang) { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; color: rgba(238, 240, 250, 0.85); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06); font-size: 15px; text-align: left; }
+.app-menu__opts > button:not(.lang), .app-menu__opts > .app-menu__about { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; color: rgba(238, 240, 250, 0.85); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06); font-size: 15px; text-align: left; }
 .app-menu__opts > button[aria-pressed="true"] { color: #fff; border-color: rgba(242, 198, 109, 0.5); }
 .app-menu__opts .lang { align-self: flex-start; margin-top: 4px; }
 @keyframes app-menu-in { from { transform: translateX(-100%); } to { transform: none; } }
@@ -682,3 +682,8 @@ html.night-vision .night-vision-dim { filter: brightness(.7); }
   border: 1px solid rgba(185, 166, 255, 0.35); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); opacity: 0; pointer-events: none;
   transition: opacity .18s ease, transform .18s ease; white-space: nowrap; }
 .exit-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* «Acerca de Teseo» (landing /acerca): enlace en el menú del teléfono y tarjeta en Créditos */
+.app-menu__opts > .app-menu__about { text-decoration: none; }
+.app-menu__opts > .app-menu__about:hover { color: #fff; }
+.who__card--about { display: flex; margin-bottom: 18px; border-color: rgba(242, 196, 109, 0.45); }

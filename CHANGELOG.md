@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.24.0 — 18 de noviembre de 2026
+
+- Nueva página «Acerca de Teseo» en teseo.yachaydeep.com/acerca: qué es la
+  app, sus cuatro secciones, la ciencia de Preguntas (espectro, masa,
+  agujeros negros, catapultas), cómo sabe que lo que dice es cierto, videos,
+  el podcast (generado con NotebookLM), los talleres de Killa Ñan y cómo
+  apoyar el proyecto (PayPal; GitHub Sponsors, pronto). El botón de PayPal
+  se carga solo al pulsarlo. Se enlaza desde el pie, Créditos y el menú del
+  teléfono.
+- Licencia MIT en el repositorio (LICENSE).
+- Lugares destacados: «Catequilla · cima», con las coordenadas GNSS de
+  Cobo (2012). El buscador general ubicaba «Catequillá» a 1,9 km de la cima,
+  y desde ahí Quitsato caía a 93,7° en vez de 90°.
+- Service worker (caché teseo-v4): solo guarda como app la página principal;
+  /acerca y el calendario .ics ya no pueden ocupar su lugar sin conexión.
+
 ## 1.23.0 — 18 de noviembre de 2026
 
 - Cielo → Capas → Montañas → «Astronomía andina» (apagada por defecto):

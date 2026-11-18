@@ -14,4 +14,8 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://teseo.yachaydeep.com/?lang=en" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://teseo.yachaydeep.com/" />
   </url>
+  <url>
+    <loc>https://teseo.yachaydeep.com/acerca</loc>
+    <lastmod>2026-11-18</lastmod>
+  </url>
 </urlset>

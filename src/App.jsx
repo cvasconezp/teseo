@@ -206,6 +206,8 @@ const T = {
     whoLinks:       { web: "Website", fb: "Facebook", ig: "Instagram" },
     creditsGroups:  "Data sources by institution",
     creditsLink:    "Credits and data",
+    aboutLink:      "About Teseo",
+    aboutCard:      ["About Teseo", "What it is, videos, the podcast, workshops and how to support it."],
     usageLoading:   "Loading Teseo in numbers…",
     usageErrTitle:  "Teseo in numbers did not load",
     usageErrBody:   "Check your connection and try again. The rest of Teseo keeps working.",
@@ -399,6 +401,8 @@ const T = {
     whoLinks:       { web: "Sitio web", fb: "Facebook", ig: "Instagram" },
     creditsGroups:  "Fuentes de datos por institución",
     creditsLink:    "Créditos y datos",
+    aboutLink:      "Acerca de Teseo",
+    aboutCard:      ["Acerca de Teseo", "Qué es, videos, el podcast, talleres y cómo apoyarlo."],
     usageLoading:   "Cargando Teseo en números…",
     usageErrTitle:  "No se pudo abrir «Teseo en números»",
     usageErrBody:   "Revisa tu conexión y vuelve a intentarlo. El resto de Teseo sigue funcionando.",
@@ -1308,6 +1312,10 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
             <span>{night ? t.nightOff : t.nightOn}</span>
           </button>
+          <a href="/acerca" className="app-menu__about" onClick={()=>track("about_open", { from: "menu" })}>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg>
+            <span>{t.aboutLink}</span>
+          </a>
           <button type="button" className="lang" aria-label={t.switchLang} onClick={onLang}>
             <span className={lang==="es" ? "is-on" : ""} aria-hidden="true">ES</span>
             <span className={lang==="en" ? "is-on" : ""} aria-hidden="true">EN</span>
@@ -1348,6 +1356,10 @@ function CreditsModal({ lang, onClose }) {
             <IconClose width={20} height={20}/>
           </button>
         </div>
+        <a className="who__card who__card--about" href="/acerca" onClick={()=>track("about_open", { from: "credits" })}>
+          <span className="who__name">{t.aboutCard[0]}</span>
+          <span className="who__text">{t.aboutCard[1]}</span>
+        </a>
         <h3 className="credits__h">{t.whoTitle}</h3>
         <div className="who">
           <a className="who__card who__card--kn" href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>
@@ -2011,6 +2023,8 @@ export default function Teseo() {
               <button type="button" onClick={()=>{ track("credits_open"); setShowCredits(true); }} className="footer__link">
                 {t.creditsLink}
               </button>
+              <span aria-hidden="true" className="footer__sep"/>
+              <a href="/acerca" className="footer__link" onClick={()=>track("about_open", { from: "footer" })}>{t.aboutLink}</a>
             </footer>
           )}
         </div>

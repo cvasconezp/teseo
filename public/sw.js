@@ -1,5 +1,5 @@
 // Teseo service worker — soporte offline
-const CACHE = "teseo-v3";
+const CACHE = "teseo-v4";
 const CORE = [
   "/", "/index.html", "/favicon.svg", "/manifest.webmanifest",
   "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png", "/sky.json",
@@ -27,10 +27,13 @@ self.addEventListener("fetch", (e) => {
   if (req.mode === "navigate") {
     e.respondWith(
       fetch(req).then((r) => {
-        const copy = r.clone();
-        caches.open(CACHE).then((c) => c.put("/index.html", copy));
+        // solo la portada de la app es «el index»: /acerca (la landing) o /cal/teseo.ics no deben pisarlo
+        if (r.ok && (url.pathname === "/" || url.pathname === "/index.html")) {
+          const copy = r.clone();
+          caches.open(CACHE).then((c) => c.put("/index.html", copy));
+        }
         return r;
-      }).catch(() => caches.match("/index.html"))
+      }).catch(() => (url.pathname.startsWith("/acerca") ? caches.match(req) : caches.match("/index.html")))
     );
     return;
   }

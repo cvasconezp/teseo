@@ -109,6 +109,7 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     # «Teseo en números» (src/usage/): desde dónde se abrió la vista pública de uso
     "usage_open":         {"from": {"link"}},   # panel #admin (antes también pie y menú del Cielo)
     "coop_open":          {"from": COOP_FROM},   # enlaces a Killa Ñan (pie, cabecera, créditos)
+    "about_open":         {"from": {"credits", "footer", "menu"}},   # enlace a la landing /acerca
     "data_retry":         {"tab": TABS},
     "net_error":          {"endpoint": ENDPOINTS, "kind": ERROR_KINDS},
     # Ahora en el espacio

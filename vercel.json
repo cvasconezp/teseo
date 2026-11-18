@@ -8,6 +8,14 @@
       "destination": "/api/calendar"
     },
     {
+      "source": "/acerca",
+      "destination": "/acerca/index.html"
+    },
+    {
+      "source": "/acerca/",
+      "destination": "/acerca/index.html"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

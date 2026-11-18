@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Acerca de Teseo · planetario y navegador del espacio, gratis y de código abierto</title>
+<meta name="description" content="Teseo es una app gratuita y de código abierto: mira el cielo desde tu lugar exacto, con tus montañas y tu hora, y descubre qué tan lejos está todo, cuánto tardarías en llegar y cuándo conviene salir. Hecha en Cayambe, Ecuador, con Killa Ñan.">
+<meta name="theme-color" content="#04080F">
+<link rel="canonical" href="https://teseo.yachaydeep.com/acerca">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Teseo · Yachay Deep">
+<meta property="og:title" content="Teseo — El universo es un laberinto. Teseo es tu hilo.">
+<meta property="og:description" content="Planetario y navegador interplanetario gratuito y de código abierto, con el horizonte real de tu lugar. Hecho en Cayambe, Ecuador.">
+<meta property="og:url" content="https://teseo.yachaydeep.com/acerca">
+<meta property="og:image" content="https://teseo.yachaydeep.com/acerca/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Teseo","applicationCategory":"EducationalApplication","operatingSystem":"Web, Android, iOS (navegador)","url":"https://teseo.yachaydeep.com/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"inLanguage":["es","en"],"license":"https://opensource.org/licenses/MIT","author":{"@type":"Person","name":"Carlos Vásconez-Paredes"},"publisher":{"@type":"Organization","name":"Yachay Deep"},"codeRepository":"https://github.com/cvasconezp/teseo"}
+</script>
+<style>
+:root{--bg:#04080F;--bg2:#070D1C;--panel:#0B1224;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.22);--text:#EEF0FA;--soft:#C9CEE0;--muted:#9AA3BD;--gold:#F2C46D;--violet:#A78BFA;--teal:#7EE0C3;--serif:"Cormorant Garamond",Georgia,serif;--sans:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--gold)}a:hover{color:#FFE2A3}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--violet);outline-offset:3px;border-radius:6px}
+img,video{display:block;max-width:100%}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+.skip{position:absolute;left:12px;top:-60px;padding:10px 16px;border-radius:999px;background:var(--panel);color:#fff;z-index:50}.skip:focus{top:10px}
+/* barra */
+.top{position:sticky;top:0;z-index:20;background:rgba(4,8,15,.86);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:10px 26px;padding-top:12px;padding-bottom:12px}
+.brand{display:flex;flex-direction:column;text-decoration:none;margin-right:auto;line-height:1.15}
+.brand b{font-family:var(--serif);font-weight:700;font-size:28px;background:linear-gradient(135deg,#A78BFA,#60A5FA);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand small{font-size:12px;color:var(--muted)}.brand small span{color:var(--gold)}
+.links{display:flex;flex-wrap:wrap;gap:2px 20px;font-size:15px}
+.links a{color:var(--soft);text-decoration:none;padding:6px 0}.links a:hover{color:#fff}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 24px;border-radius:999px;font-weight:600;font-size:16px;text-decoration:none;border:1px solid transparent;cursor:pointer;font-family:inherit}
+.btn--gold{background:var(--gold);color:#04080F}.btn--gold:hover{background:#FFD98C;color:#04080F}
+.btn--ghost{border-color:var(--line2);color:var(--text);background:transparent}.btn--ghost:hover{background:rgba(255,255,255,.06);color:#fff}
+.btn--sm{min-height:44px;padding:0 18px;font-size:15px}
+@media (max-width:760px){.top .wrap{gap:4px 12px;padding-top:8px;padding-bottom:4px}.brand small{display:none}.links{order:3;width:calc(100% + 48px);margin:0 -24px;padding:0 24px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:0 18px;font-size:14px;white-space:nowrap}.links::-webkit-scrollbar{display:none}.links a{padding:8px 0}.top .btn{min-height:44px;padding:0 16px}}
+/* tipografía */
+.kicker{margin:0;font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--gold)}
+h1,h2{font-family:var(--serif);font-weight:600;margin:0;letter-spacing:-.005em}
+h1{font-size:clamp(42px,6.4vw,70px);line-height:1.02}
+h2{font-size:clamp(32px,4.2vw,46px);line-height:1.08}
+h3{margin:0;font-size:20px;font-weight:600;line-height:1.3}
+p{margin:0}
+.lead{font-size:clamp(17px,1.6vw,20px);color:var(--soft);max-width:600px}
+.soft{color:var(--soft)}.muted{color:var(--muted)}
+section{border-top:1px solid var(--line);scroll-margin-top:72px}
+#instalar{scroll-margin-top:96px}
+.sec{padding-top:72px;padding-bottom:72px}
+.alt{background:var(--bg2)}
+.head{display:flex;flex-direction:column;gap:12px;max-width:760px;margin-bottom:34px}
+/* portada */
+.hero{display:flex;flex-wrap:wrap;align-items:center;gap:44px;padding:64px 0 60px}
+.hero__txt{flex:1 1 420px;min-width:0;display:flex;flex-direction:column;gap:20px}
+.hero__fig{flex:1.2 1 520px;min-width:0;margin:0}
+.ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px}
+.shot{border-radius:18px;overflow:hidden;border:1px solid var(--line);background:var(--panel);box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.shot img{width:100%;height:auto;aspect-ratio:16/10;object-fit:cover}
+figcaption{margin-top:10px;font-size:14px;color:var(--muted)}
+/* tarjetas */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.card{display:flex;flex-direction:column;gap:12px;padding:0 0 22px;border-radius:18px;background:var(--panel);border:1px solid var(--line);overflow:hidden;text-decoration:none;color:inherit}
+.card img{width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;object-position:50% 0;border-bottom:1px solid var(--line)}
+.card>:not(img){margin:0 20px}
+.card p{color:var(--soft);font-size:16px}
+.card .go{margin-top:auto;font-weight:600;font-size:15px;color:var(--gold)}
+a.card:hover{border-color:rgba(242,196,109,.45)}a.card:hover h3{color:#fff}
+/* dos columnas */
+.split{display:flex;flex-wrap:wrap;gap:44px;align-items:center}
+.split>*{flex:1 1 440px;min-width:0}
+.ticks{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
+.ticks li{display:flex;gap:12px;color:var(--soft)}
+.ticks li::before{content:"";flex:none;width:8px;height:8px;margin-top:10px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px rgba(242,196,109,.6)}
+.ticks b{color:var(--text);font-weight:600}
+/* preguntas */
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.chip{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line2);color:var(--soft);text-decoration:none;font-size:15px}
+.chip:hover{color:#fff;border-color:rgba(242,196,109,.6)}
+/* confianza */
+.pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:28px}
+.pillars h3{color:var(--gold);font-size:19px;margin-bottom:6px}
+.pillars p{color:var(--soft);font-size:16px}
+/* videos */
+.vids{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,290px));justify-content:center;gap:28px;align-items:start}
+.vid{display:flex;flex-direction:column;gap:12px}
+.vid video{width:100%;height:auto;aspect-ratio:9/16;border-radius:22px;border:1px solid var(--line);background:#000;object-fit:cover}
+.vid p{color:var(--soft);font-size:15px}
+/* podcast */
+.pod{display:flex;flex-wrap:wrap;gap:28px;align-items:center;padding:28px;border-radius:22px;background:var(--panel);border:1px solid var(--line)}
+.pod__icon{flex:none;width:88px;height:88px;border-radius:22px;display:flex;align-items:center;justify-content:center;background:rgba(242,196,109,.12);border:1px solid rgba(242,196,109,.45)}
+.pod__txt{flex:1 1 360px;min-width:0;display:flex;flex-direction:column;gap:8px}
+/* apoya */
+.give{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.give article{display:flex;flex-direction:column;gap:12px;padding:24px;border-radius:18px;background:var(--panel);border:1px solid var(--line)}
+.give article.is-main{border-color:rgba(242,196,109,.5)}
+.give .tag{font-size:13px;font-weight:600;color:var(--muted)}.give .is-main .tag{color:var(--gold)}
+.give p{color:var(--soft);font-size:15px}
+.give .grow{flex:1}
+#paypal-box{min-height:0}
+#paypal-box:not(:empty){margin-top:4px;padding:14px;border-radius:14px;background:#fff}
+.fine{font-size:14px;color:var(--muted)}
+/* cierre y pie */
+.end{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;padding-top:84px;padding-bottom:84px}
+footer{border-top:1px solid var(--line)}
+footer .wrap{display:flex;flex-wrap:wrap;gap:22px 48px;padding-top:36px;padding-bottom:48px;font-size:14px;color:var(--muted)}
+footer .who{flex:1 1 320px;display:flex;flex-direction:column;gap:6px}
+footer nav{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:flex-start}
+footer nav a{color:var(--soft)}
+</style>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/acerca" aria-label="Teseo, inicio de esta página">
+      <b>Teseo</b>
+      <small>Navegación interplanetaria · <span>con Killa Ñan</span></small>
+    </a>
+    <nav class="links" aria-label="Secciones">
+      <a href="#que-es">Qué es</a>
+      <a href="#ciencia">La ciencia</a>
+      <a href="#videos">Videos</a>
+      <a href="#podcast">Podcast</a>
+      <a href="#talleres">Talleres</a>
+      <a href="#apoya">Apoya</a>
+      <a href="https://github.com/cvasconezp/teseo">Código</a>
+    </nav>
+    <a class="btn btn--gold btn--sm" href="/">Abrir Teseo</a>
+  </div>
+</header>
+
+<main id="contenido">
+  <!-- Portada -->
+  <div class="wrap">
+    <div class="hero">
+      <div class="hero__txt">
+        <p class="kicker">Planetario y navegador del espacio · gratis y de código abierto</p>
+        <h1>El universo es un laberinto. Teseo es tu hilo.</h1>
+        <p class="lead">Mira el cielo desde tu lugar exacto, con tus montañas, tus nubes y tu hora. Y descubre qué tan lejos está todo, cuánto tardarías en llegar y cuándo conviene salir.</p>
+        <div class="ctas">
+          <a class="btn btn--gold" href="/">Abrir el cielo</a>
+          <a class="btn btn--ghost" href="#instalar">Instalar en el teléfono</a>
+        </div>
+        <p class="fine">Sin cuenta · sin publicidad · en español e inglés · en el navegador o instalada como app</p>
+      </div>
+      <figure class="hero__fig">
+        <div class="shot"><img src="/acerca/img/cielo-catequilla-junio.webp" width="1280" height="800" alt="Teseo muestra el amanecer desde el cerro Catequilla: sobre la silueta real de las montañas, la marca dorada «Sale el Sol · solsticio de junio, 66,6°» y, junto a ella, el rótulo «Cochasquí, 15 km»."></div>
+        <figcaption>Desde Catequilla, en la latitud cero, el 21 de junio de 2027 a las 06:21: el primer rayo del Sol asoma junto a Cochasquí. Simulación de Teseo con el relieve real.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <!-- Qué es -->
+  <section id="que-es">
+    <div class="wrap sec">
+      <div class="head">
+        <h2>Un Google Maps del cosmos</h2>
+        <p class="soft">Las apps de planetario te dicen qué hay en el cielo. Teseo hace eso y además calcula distancias, rutas y fechas de salida con física real. Tiene cuatro secciones.</p>
+      </div>
+      <div class="grid">
+        <a class="card" href="/#sky">
+          <img src="/acerca/img/cielo-cayambe-noche.webp" width="1280" height="800" loading="lazy" alt="Cielo nocturno sobre Cayambe con las constelaciones de Géminis y Monoceros, y los nombres del Volcán Cayambe y del Churuloma sobre la silueta de las montañas.">
+          <h3>Cielo</h3>
+          <p>Un planetario desde tu lugar: el horizonte real con los nombres de las montañas, las nubes previstas y más de 17.000 objetos.</p>
+          <span class="go">Abrir el cielo</span>
+        </a>
+        <a class="card" href="/#ruta">
+          <img src="/acerca/img/ruta.webp" width="1280" height="800" loading="lazy" alt="La pestaña Ruta: el viaje de la Tierra a Marte por una transferencia de Hohmann, con la duración de unos ocho meses y medio y las fechas de salida y llegada.">
+          <h3>Ruta</h3>
+          <p>Viajes por el sistema solar con física orbital real: cuánto tardarías en llegar a Marte y cuál es la próxima ventana para salir.</p>
+          <span class="go">Planear un viaje</span>
+        </a>
+        <a class="card" href="/#ahora">
+          <img src="/acerca/img/calendario.webp" width="1280" height="640" loading="lazy" alt="El Calendario del cielo con la cuenta regresiva «Lo próximo» hacia las Gemínidas y eventos como la Voyager 1 a un día-luz y Mercurio en máxima elongación.">
+          <h3>Ahora</h3>
+          <p>Lo que pasa hoy en el espacio y el calendario del cielo de tu ciudad, con cuentas regresivas. Se puede suscribir en Google Calendar, iPhone u Outlook.</p>
+          <span class="go">Ver el calendario</span>
+        </a>
+        <a class="card" href="/#preguntas">
+          <img src="/acerca/img/espectro.webp" width="1280" height="800" loading="lazy" alt="El recorrido «¿Cómo sabemos de qué están hechas las estrellas?», con un prisma que descompone la luz y el espectro de colores.">
+          <h3>Preguntas</h3>
+          <p>Diez recorridos interactivos sobre las grandes dudas del universo, con datos publicados que puedes tocar.</p>
+          <span class="go">Explorar las preguntas</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tu cielo -->
+  <section class="alt">
+    <div class="wrap sec">
+      <div class="split">
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <h2>Tu cielo, no un cielo cualquiera</h2>
+          <p class="soft">La mayoría de planetarios dibujan un horizonte plano, igual para Quito que para Madrid. Teseo calcula el tuyo.</p>
+          <ul class="ticks">
+            <li><span><b>Horizonte real.</b> El relieve de hasta 150 km a la redonda, con la curvatura de la Tierra: sabrás a qué hora asoma el Sol o la Luna tras tu montaña, no solo su salida en el libro.</span></li>
+            <li><span><b>Capas que se suman.</b> Constelaciones, Sol y planetas, lluvias de meteoros, cometas, sondas como la Voyager, nubes previstas y la Estación Espacial cuando pasa.</span></li>
+            <li><span><b>Astronomía andina.</b> Por dónde sale el Sol en solsticios y equinoccios sobre tus montañas y, cerca de Quito, los sitios quitu-caranquis según Cristóbal Cobo (2012).</span></li>
+            <li><span><b>Fotos 360° y postales</b> con los créditos de los datos, listas para compartir.</span></li>
+          </ul>
+        </div>
+        <figure style="margin:0">
+          <div class="shot"><img src="/acerca/img/cielo-capas.webp" width="1280" height="800" loading="lazy" alt="El panel Capas abierto sobre el cielo de Cayambe: constelaciones, Sol, Luna y planetas, lluvias de meteoros, cometas y sondas, cada una con su interruptor y su fuente."></div>
+          <figcaption>Cada capa dice de dónde salen sus datos.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- La ciencia -->
+  <section id="ciencia">
+    <div class="wrap sec">
+      <div class="head">
+        <p class="kicker">Laboratorio</p>
+        <h2>La ciencia por dentro</h2>
+        <p class="soft">En Preguntas no se lee sobre el universo: se experimenta. Cambias un número y miras qué pasa, con las cifras que publicaron los equipos científicos.</p>
+      </div>
+      <div class="grid">
+        <a class="card" href="/#preguntas?q=spectrum">
+          <img src="/acerca/img/espectro.webp" width="1280" height="800" loading="lazy" alt="Laboratorio del espectro de la luz con un prisma y el arcoíris de longitudes de onda.">
+          <h3>El espectro de la luz</h3>
+          <p>Compón la atmósfera de un planeta o una estrella, mira aparecer sus líneas y adivina de qué está hecho un astro solo por su luz.</p>
+          <span class="go">¿De qué están hechas las estrellas?</span>
+        </a>
+        <a class="card" href="/#preguntas?q=mass">
+          <img src="/acerca/img/masa.webp" width="1280" height="800" loading="lazy" alt="El recorrido «¿Qué pasa si cambio la masa?» con una tabla de lo que pesaría una persona de 60 kg en Mercurio, Venus, la Tierra y la Luna.">
+          <h3>Masa, peso y estrellas</h3>
+          <p>Pon tu masa en Marte, en el Sol o en una estrella de neutrones. Luego sube la masa de un asteroide hasta una estrella y mira en qué se convierte.</p>
+          <span class="go">¿Qué pasa si cambio la masa?</span>
+        </a>
+        <a class="card" href="/#preguntas?q=bh">
+          <img src="/acerca/img/agujeros.webp" width="1280" height="800" loading="lazy" alt="Calculadora de agujeros negros: con la masa de Sagitario A*, el radio del horizonte es de 12,7 millones de kilómetros.">
+          <h3>Agujeros negros</h3>
+          <p>Elige una masa, de la Tierra a un cuásar, y calcula cuánto mide su horizonte y cuánto se frena el tiempo a su lado.</p>
+          <span class="go">¿Qué pasa cerca de un agujero negro?</span>
+        </a>
+        <a class="card" href="#videos">
+          <img src="/acerca/video/catapultas.jpg" width="540" height="960" loading="lazy" style="aspect-ratio:16/10;object-position:50% 46%" alt="Animación de las cuatro catapultas gravitatorias de la sonda Cassini, con sus pasos por Venus y la Tierra.">
+          <h3>Catapultas gravitatorias</h3>
+          <p>Cómo Cassini llegó a Saturno pasando dos veces por Venus y una por la Tierra. En Ruta, Teseo busca tus propias catapultas.</p>
+          <span class="go">Ver el video</span>
+        </a>
+      </div>
+      <nav class="chips" aria-label="Los diez recorridos de Preguntas">
+        <a class="chip" href="/#preguntas?q=scale">¿Qué tan grande es el universo?</a>
+        <a class="chip" href="/#preguntas?q=time">¿Se puede viajar en el tiempo?</a>
+        <a class="chip" href="/#preguntas?q=gw">¿Qué son las ondas gravitacionales?</a>
+        <a class="chip" href="/#preguntas?q=expansion">¿El universo se expande?</a>
+        <a class="chip" href="/#preguntas?q=dm">¿De qué está hecho el universo?</a>
+        <a class="chip" href="/#preguntas?q=end">¿Cómo terminará el universo?</a>
+        <a class="chip" href="/#preguntas?q=drake">¿Estamos solos?</a>
+      </nav>
+    </div>
+  </section>
+
+  <!-- Confianza -->
+  <section class="alt">
+    <div class="wrap sec">
+      <div class="head"><h2>Cómo sabe Teseo que lo que dice es cierto</h2></div>
+      <div class="pillars">
+        <div><h3>Datos oficiales y física real</h3><p>Efemérides contrastadas con el Observatorio Naval de EE. UU., la NASA y catálogos abiertos. Cada número dice de dónde viene.</p></div>
+        <div><h3>La IA narra, nunca calcula</h3><p>Cuando la app usa inteligencia artificial, solo describe resultados que ya calculó la física.</p></div>
+        <div><h3>Tu lugar es tuyo</h3><p>Sin cuenta ni registro. Tu ubicación se usa para calcular tu cielo, no para perfilarte.</p></div>
+        <div><h3>Código abierto</h3><p>Licencia MIT y pruebas automáticas: cualquiera puede revisar, usar y mejorar el código.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Videos -->
+  <section id="videos">
+    <div class="wrap sec">
+      <div class="head">
+        <h2>Videos</h2>
+        <p class="soft">Hechos con la propia app. Para probar cualquier cosa por tu cuenta, ábrela: todo lo que ves aquí se calcula en vivo.</p>
+      </div>
+      <div class="vids">
+        <div class="vid">
+          <video controls playsinline preload="none" poster="/acerca/video/catapultas.jpg" width="720" height="1280" aria-label="Video: de «estás aquí» a Saturno con las catapultas de Cassini, 11 segundos, sin voz">
+            <source src="/acerca/video/catapultas.mp4" type="video/mp4">
+          </video>
+          <h3>De «estás aquí» a Saturno</h3>
+          <p>Del punto donde estás a la Vía Láctea, y el viaje de Cassini (1997–2004) con cuatro catapultas planetarias. 11 segundos, sin voz.</p>
+        </div>
+        <div class="vid" id="instalar">
+          <video controls playsinline preload="none" poster="/acerca/video/instalar.jpg" width="720" height="1280" aria-label="Video: cómo instalar Teseo en Android desde Chrome, un minuto, con narración">
+            <source src="/acerca/video/instalar.mp4" type="video/mp4">
+          </video>
+          <h3>Instalar en Android</h3>
+          <p>Desde Chrome, en cinco pasos y un minuto, con narración. En iPhone: Compartir → «Añadir a pantalla de inicio».</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Podcast -->
+  <section id="podcast" class="alt">
+    <div class="wrap sec">
+      <div class="pod">
+        <div class="pod__icon" aria-hidden="true">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#F2C46D" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"></path></svg>
+        </div>
+        <div class="pod__txt">
+          <p class="kicker">Podcast</p>
+          <h2 style="font-size:clamp(28px,3.4vw,38px)">Teseo: qué es, qué hace y por qué importa</h2>
+          <p class="soft">Una conversación sobre de dónde viene Teseo, cómo sabe que lo que dice es cierto, la astronomía andina y lo que viene.</p>
+          <p class="fine">Audio generado con NotebookLM de Google (voces de inteligencia artificial) a partir de la documentación de Teseo.</p>
+        </div>
+        <a class="btn btn--gold" href="https://notebooklm.link.google/cSXCkdP5ahzJ" target="_blank" rel="noopener noreferrer">Escuchar en NotebookLM</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Talleres -->
+  <section id="talleres">
+    <div class="wrap sec">
+      <div class="split">
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <h2>Hecho en Cayambe, en la latitud cero</h2>
+          <p class="soft">Teseo nació para los talleres de Killa Ñan, la iniciativa de astronomía comunitaria que trabaja en Cayambe desde 2018. Hoy lo usan aficionados, docentes y curiosos.</p>
+          <ul class="ticks">
+            <li><span><b>Para tu grupo:</b> el calendario del cielo de tu ciudad, suscrito en el teléfono de cada integrante.</span></li>
+            <li><span><b>Para el aula:</b> los recorridos de Preguntas funcionan en el proyector y en el teléfono, sin instalar nada.</span></li>
+            <li><span><b>Para la salida de campo:</b> la hora en que el Sol o la Luna asoman tras tus montañas, y el horizonte con sus nombres.</span></li>
+          </ul>
+          <div class="ctas">
+            <a class="btn btn--ghost btn--sm" href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer">Conocer Killa Ñan</a>
+            <a class="btn btn--ghost btn--sm" href="https://github.com/cvasconezp/teseo/issues" target="_blank" rel="noopener noreferrer">Proponer una mejora</a>
+          </div>
+        </div>
+        <figure style="margin:0">
+          <div class="shot"><img src="/acerca/img/cielo-cayambe-noche.webp" width="1280" height="800" loading="lazy" alt="El cielo de diciembre sobre Cayambe, con el Volcán Cayambe rotulado sobre el horizonte."></div>
+          <figcaption>Una noche de diciembre en Cayambe, con el volcán en el horizonte.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- Apoya -->
+  <section id="apoya" class="alt">
+    <div class="wrap sec">
+      <div class="head">
+        <h2>Apoya a Teseo</h2>
+        <p class="soft">Teseo es y seguirá siendo gratis, sin publicidad y sin pedirte datos. Las donaciones pagan los servidores, el dominio y el tiempo para seguir mejorándolo.</p>
+      </div>
+      <div class="give">
+        <article class="is-main">
+          <p class="tag">Una vez, desde cualquier país</p>
+          <h3>Donar con PayPal</h3>
+          <p class="grow">Con tu cuenta de PayPal o con tarjeta. Tú eliges el monto.</p>
+          <button class="btn btn--gold btn--sm" type="button" id="paypal-load" aria-controls="paypal-box">Donar con PayPal</button>
+          <div id="paypal-box" aria-live="polite"></div>
+          <p class="fine">El botón de PayPal se carga solo cuando lo pulsas. ¿No funciona? <a href="https://www.paypal.com/ncp/payment/ZLGL2E3JZUHG2" target="_blank" rel="noopener noreferrer">Abrir PayPal en otra pestaña</a>.</p>
+        </article>
+        <article>
+          <p class="tag">Mensual</p>
+          <h3>GitHub Sponsors</h3>
+          <p class="grow">Muy pronto: un aporte mensual desde tu cuenta de GitHub, para sostener el proyecto en el tiempo.</p>
+        </article>
+        <article>
+          <p class="tag">Sin dinero</p>
+          <h3>Comparte y colabora</h3>
+          <p class="grow">Comparte una postal o una foto 360°, cuéntanos un error o mejora el código. Todo suma.</p>
+          <a class="btn btn--ghost btn--sm" href="https://github.com/cvasconezp/teseo" target="_blank" rel="noopener noreferrer">Ver el código</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cierre -->
+  <section>
+    <div class="wrap end">
+      <h2>Sal esta noche y mira hacia arriba</h2>
+      <p class="soft" style="max-width:560px">Teseo te dice qué vas a ver, desde dónde y a qué hora.</p>
+      <a class="btn btn--gold" href="/">Abrir el cielo</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="who">
+      <span style="font-family:var(--serif);font-weight:700;font-size:24px;color:var(--violet)">Teseo</span>
+      <span>Yachay Deep Labs × Killa Ñan · Astronomía comunitaria</span>
+      <span>Creado por Carlos Vásconez-Paredes · Cayambe, Ecuador</span>
+    </div>
+    <nav aria-label="Pie de página">
+      <a href="https://github.com/cvasconezp/teseo">Código (licencia MIT)</a>
+      <a href="https://github.com/cvasconezp/teseo/blob/main/CREDITS.md">Créditos y fuentes de datos</a>
+      <a href="https://github.com/cvasconezp/teseo/blob/main/CHANGELOG.md">Novedades</a>
+      <a href="https://www.yachaydeep.com">Yachay Deep</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+// PayPal: el SDK (y sus cookies) se carga solo al pulsar «Donar con PayPal».
+(function () {
+  var btn = document.getElementById("paypal-load"), box = document.getElementById("paypal-box");
+  if (!btn || !box) return;
+  var SDK = "https://www.paypal.com/sdk/js?client-id=BAAx_PPrjDqlhSL5sY3T4XhHxRTBiRsve6SOQ788URlrf_wQgxKKSUwhFP2B-jn5FmkRYvitQpcrrKCykU&components=hosted-buttons&disable-funding=venmo&currency=USD";
+  var FALLBACK = "https://www.paypal.com/ncp/payment/ZLGL2E3JZUHG2";
+  var fail = function () { box.textContent = ""; window.open(FALLBACK, "_blank", "noopener"); btn.disabled = false; btn.textContent = "Donar con PayPal"; };
+  btn.addEventListener("click", function () {
+    btn.disabled = true; btn.textContent = "Cargando PayPal…";
+    var s = document.createElement("script");
+    s.src = SDK; s.async = true;
+    s.onload = function () {
+      try {
+        box.innerHTML = '<div id="paypal-container-ZLGL2E3JZUHG2"></div>';
+        window.paypal.HostedButtons({ hostedButtonId: "ZLGL2E3JZUHG2" }).render("#paypal-container-ZLGL2E3JZUHG2")
+          .then(function () { btn.hidden = true; })
+          .catch(fail);
+      } catch (e) { fail(); }
+    };
+    s.onerror = fail;
+    document.head.appendChild(s);
+  });
+})();
+</script>
+</body>
+</html>
