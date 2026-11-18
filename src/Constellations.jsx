@@ -60,8 +60,8 @@ import { createCloudsLayer, makeOccluder, OCC_HIDE } from "./sky/cloudsLayer.js"
 import { createTerrainLayer } from "./sky/terrainLayer.js";
 import { andeanLabels, TX_AND } from "./sky/andean.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations } from "./sky/horizon.js";
-import { monumentsNear, groundRing, median, silhouette, withMonuments } from "./sky/monuments.js";
-import { createMonumentLayer, placeMonuments, monumentLabels } from "./sky/monumentLayer.js";
+import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
+import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints } from "./sky/monumentLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
@@ -1961,6 +1961,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           for (const p of [...(ref.andLabels || []), ...(ref.monLabels || []), ...(ref.peakLabels || [])]) {
             if (np >= maxP) break;
             // una cumbre que queda detrás de un monumento (una pirámide la tapa) no se nombra
+            // con suelo de verdad, una cumbre más baja que el observador queda tapada por él
+            if (!p.cls && !p.monument && ref.monGround && p.alt < -0.45) continue;
             if (!p.cls && !p.monument && ref.hzData.monuments) { const st = ref.hzData.step_deg || 0.2, ha = ref.hzData.alt[Math.round(p.az / st) % ref.hzData.alt.length]; if (ha > p.alt + 0.4) continue; }
             const ca = Math.cos(p.alt * R);
             tmp.set(860 * ca * Math.sin(p.az * R), 860 * Math.sin(p.alt * R), -860 * ca * Math.cos(p.az * R)).project(ref.camera);
@@ -2459,12 +2461,24 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     setMonBase((s) => (s.key === monKey && s.status === "ok" ? s : { status: "loading", key: monKey, bases: null, ground: null }));
     const R = 12 / 111320, ck = Math.cos((lat * Math.PI) / 180);
     const obs = [[lat, lon], [lat + R, lon], [lat - R, lon], [lat, lon + R / ck], [lat, lon - R / ck]];
-    const rings = monNear.map((m) => groundRing(m, 8));
+    // dónde medir el suelo de cada uno: en explanadas y cimas llanas (m.level), si el observador está al lado,
+    // el monumento va al nivel de sus pies (sin puntos); lo que está sobre una cresta estrecha (m.ring pequeño), en
+    // su centro; el resto, en un anillo fuera de su bulto
+    const rings = monNear.map((m) => (m.level && offsetOf(lat, lon, m.lat, m.lon).d < 600 ? [] : m.ring != null && m.ring < 10 ? [[m.lat, m.lon]] : groundRing(m, 8)));
     fetchElevations([...obs, ...rings.flat()], { api: API }).then((h) => {
       if (!alive) return;
       const bases = {};
-      monNear.forEach((m, i) => { bases[m.id] = median(h.slice(5 + i * 8, 13 + i * 8)); });
-      setMonBase({ status: "ok", key: monKey, bases, ground: median(h.slice(0, 5)) });
+      const ground = median(h.slice(0, 5));
+      let at = 5;
+      monNear.forEach((m, i) => { const n = rings[i].length; bases[m.id] = n ? median(h.slice(at, at + n)) : ground; at += n; });
+      setMonBase({ status: "ok", key: monKey, bases, ground, relief: null });
+      // sitios sobre una cresta o en ladera: además, el relieve del suelo cercano (si falla, el suelo queda llano)
+      if (monNear.some((m) => m.relief)) {
+        const reach = groundReach(monNear.map((m) => ({ m, o: offsetOf(lat, lon, m.lat, m.lon) })));
+        fetchElevations(reliefPoints(lat, lon, reach), { api: API }).then((g) => {
+          if (alive) setMonBase((s0) => (s0.key === monKey && s0.status === "ok" ? { ...s0, relief: { reach, h: g.map((v) => v - ground - 1.7) } } : s0));
+        }, () => { /* sin relieve cercano */ });
+      }
     }, (e) => { if (alive) setMonBase({ status: "error", key: monKey, bases: null, ground: null, error: String(e && e.message || e) }); });
     return () => { alive = false; };
   }, [monOn, monKey, !!hzData, hzRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -2475,11 +2489,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const hzEff = useMemo(() => (hzData && monSil ? withMonuments(hzData, monSil) : hzData), [hzData, monSil]);
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.monuments) return;
-    ref.monuments.set(monItems, atmState);
+    ref.monuments.set(monItems, atmState, monBase.relief || null);
     ref.monGround = monItems.length > 0;
-    ref.monLabels = monItems.length ? monumentLabels(monItems, lang, monSil, hzData ? hzData.step_deg || 0.2 : 0.2).map((p) => ({ ...p, label: p.name, subText: lang === "es" ? `${p.ele_m} m de alto` : `${p.ele_m} m tall` })) : null;
+    ref.monLabels = monItems.length ? monumentLabels(monItems, lang, monSil, hzData ? hzData.step_deg || 0.2 : 0.2).map((p) => ({ ...p, label: p.name, subText: p.sub || (lang === "es" ? `${String(p.ele_m).replace(".", ",")} m de alto` : `${p.ele_m} m tall`) })) : null;
     ref._dirty = true;
-  }, [monItems, monSil, lang, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [monItems, monSil, lang, ready, monBase.relief]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.monuments || !monItems.length) return;
     try { ref.monuments.paint(atmState); } catch { /* no-op */ }

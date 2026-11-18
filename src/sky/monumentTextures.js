@@ -23,6 +23,24 @@ export const MON_MATS = {
   grass: { tile: 2.2, tint: [1.05, 1.1, 0.95], normal: 1.0, macro: 0.75, blend: 1, matte: true },
   sand: { tile: 4.5, tint: [1.1, 1.02, 0.9], normal: 1.0, macro: 0.6, blend: 1, matte: true },
   dirt: { tile: 3.5, tint: [0.9, 0.86, 0.8], normal: 1.0, macro: 0.6, blend: 1, matte: true },
+  // metal acanalado (Paranal) y guijarros (Quitsato)
+  metal: { tile: 5, tint: [3.1, 3.15, 3.2], normal: 0.7, macro: 0.2, blend: 0 },
+  pebble: { tile: 1.8, tint: [0.72, 0.7, 0.67], normal: 1.2, macro: 0.4, blend: 0.6, matte: true },
+  // los mismos archivos con otro tono (`src`: de qué material toman las fotos)
+  gnomon: { src: "metal", tile: 9, tint: [6.0, 2.3, 0.45], normal: 0.25, macro: 0.15, blend: 0 },                    // Quitsato: el poste
+  pebblelight: { src: "pebble", tile: 1.8, tint: [1.55, 1.5, 1.4], normal: 1.2, macro: 0.3, blend: 0.6, matte: true },  // Quitsato: líneas
+  concrete: { src: "casing", tile: 7, tint: [0.9, 0.9, 0.9], normal: 0.5, macro: 0.4, blend: 0 },                    // Paranal: base
+  tower: { src: "basalt", tile: 3.4, tint: [1.75, 1.55, 1.25], normal: 1.3, macro: 0.6, blend: 0.6 },               // Chankillo
+  pirca: { src: "basalt", tile: 2.6, tint: [1.3, 1.24, 1.12], normal: 1.5, macro: 0.5, blend: 0.6 },                // Catequilla
+  pircalight: { src: "basalt", tile: 2.6, tint: [1.9, 1.85, 1.7], normal: 1.2, macro: 0.3, blend: 0.6 },
+  redstone: { src: "blocks", tile: 3.2, tint: [1.0, 0.76, 0.66], normal: 1.4, macro: 0.6, blend: 0.4 },             // Tiwanaku: arenisca
+  andesite: { src: "sarsen", tile: 2.4, tint: [0.8, 0.82, 0.86], normal: 1.0, macro: 0.4, blend: 0.3 },             // Tiwanaku: andesita
+  granite: { src: "sarsen", tile: 2.2, tint: [1.15, 1.15, 1.12], normal: 1.2, macro: 0.4, blend: 0.3 },             // Machu Picchu
+  earth: { src: "dirt", tile: 3.5, tint: [0.98, 0.86, 0.68], normal: 1.0, macro: 0.7, blend: 1, matte: true },       // Akapana
+  // suelos de cada lugar
+  desert: { src: "sand", tile: 4.5, tint: [1.02, 0.84, 0.7], normal: 1.0, macro: 0.6, blend: 1, matte: true },       // Atacama: grava rojiza
+  puna: { src: "sand", tile: 4.5, tint: [0.9, 0.86, 0.64], normal: 1.0, macro: 0.7, blend: 1, matte: true },         // altiplano: paja seca
+  scrub: { src: "sand", tile: 4.5, tint: [0.74, 0.76, 0.56], normal: 1.0, macro: 0.8, blend: 1, matte: true },       // Catequilla: matorral seco
 };
 
 export const monumentTextureUrl = (kind, part) => `/textures/monuments/${kind}_${part}.webp`;
@@ -32,7 +50,7 @@ export const monumentTextureUrl = (kind, part) => `/textures/monuments/${kind}_$
  * que estén todas antes de mostrar el monumento, para que no aparezca en negro.
  */
 export function makeMonumentTexture(kind, THREE, onLoad) {
-  const cfg = MON_MATS[kind] || MON_MATS.dirt, k = MON_MATS[kind] ? kind : "dirt";
+  const cfg = MON_MATS[kind] || MON_MATS.dirt, k = MON_MATS[kind] ? (cfg.src || kind) : "dirt";
   const loader = new THREE.TextureLoader();
   const done = () => { if (onLoad) onLoad(); };
   const mk = (part, color) => {

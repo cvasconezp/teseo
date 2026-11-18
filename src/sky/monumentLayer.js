@@ -40,7 +40,7 @@ export function placeMonuments(list, { lat, lon, ground }, bases) {
     const b = bases && bases[m.id];
     if (!Number.isFinite(b) || !Number.isFinite(ground)) continue;
     const o = offsetOf(lat, lon, m.lat, m.lon);
-    out.push({ m, o, dz: b - (ground + EYE_M), faces: buildFaces(m, { d: o.d }) });
+    out.push({ m, o, dz: b - (ground + EYE_M) + (m.lift || 0), faces: buildFaces(m, { d: o.d }) });
   }
   return out;
 }
@@ -51,14 +51,15 @@ export function placeMonuments(list, { lat, lon, ground }, bases) {
  * la plataforma de arriba queda más alto que su centro), no dentro de la cara.
  */
 export function monumentLabels(items, lang = "es", sil = null, step = 0.2) {
-  return (items || []).map(({ m, o, dz }) => {
+  return (items || []).filter(({ m }) => m.label !== false).map(({ m, o, dz }) => {
     const v = toLocal(apexOf(m), o, dz), q = altAzOf(v);
     let alt = q.alt;
     if (sil && m.solid) {
       const n = sil.length, c = Math.round(q.az / step), w = Math.max(1, Math.round(1 / step));
       for (let j = c - w; j <= c + w; j++) alt = Math.max(alt, sil[((j % n) + n) % n]);
     }
-    return { id: m.id, name: m.name[lang] || m.name.es, ele_m: Math.round(apexOf(m)[2]), az: q.az, alt, dist_km: o.d / 1000, monument: true };
+    const hgt = m.height != null && m.kind !== "stepped" ? m.height : apexOf(m)[2];
+    return { id: m.id, name: m.name[lang] || m.name.es, ele_m: hgt < 30 ? Math.round(hgt * 10) / 10 : Math.round(hgt), sub: m.sub ? (m.sub[lang] || m.sub.es) : null, az: q.az, alt, dist_km: o.d / 1000, monument: true };
   });
 }
 
@@ -117,15 +118,51 @@ const GLSL_OUT = `
 
 const texCache = new Map();
 
+/** Hasta dónde llega el suelo continuo (m): algo más lejos que el monumento más lejano. */
+export function groundReach(items) {
+  let reach = 260;
+  for (const it of items || []) reach = Math.max(reach, it.o.d + footprintRadius(it.m) + 220);
+  return reach;
+}
+
+// Relieve del suelo cercano (para sitios en ladera o sobre una cresta, m.relief): alturas del modelo de relieve
+// en una rejilla polar alrededor del observador (RELIEF_NA acimuts × los radios RELIEF_R, como fracción del
+// alcance del suelo).
+export const RELIEF_R = [0.08, 0.2, 0.38, 0.6, 0.9], RELIEF_NA = 12;
+/** Puntos [lat, lon] de la rejilla, por anillos (de dentro afuera) y, en cada uno, por acimut desde el norte. */
+export function reliefPoints(lat, lon, reach) {
+  const out = [], ck = Math.cos((lat * Math.PI) / 180);
+  for (const f of RELIEF_R) for (let i = 0; i < RELIEF_NA; i++) {
+    const a = (i / RELIEF_NA) * 2 * Math.PI, r = f * reach;
+    out.push([lat + (r * Math.cos(a)) / 110574, lon + (r * Math.sin(a)) / (111320 * ck)]);
+  }
+  return out;
+}
+/** Altura del relieve (m, respecto a los ojos) en (e, n): interpolada en la rejilla; a los pies, 1,7 m abajo. */
+export function reliefAt(grid, e, n) {
+  const r = Math.hypot(e, n), NA = RELIEF_NA, rad = RELIEF_R.map((f) => f * grid.reach);
+  let az = (Math.atan2(e, n) / (2 * Math.PI)) * NA; if (az < 0) az += NA;
+  const i0 = Math.floor(az) % NA, i1 = (i0 + 1) % NA, fa = az - Math.floor(az);
+  const ring = (j) => grid.h[j * NA + i0] * (1 - fa) + grid.h[j * NA + i1] * fa;
+  if (r <= rad[0]) { const t = r / rad[0]; return -EYE_M * (1 - t) + ring(0) * t; }
+  for (let j = 1; j < rad.length; j++) if (r <= rad[j]) { const t = (r - rad[j - 1]) / (rad[j] - rad[j - 1]); return ring(j - 1) * (1 - t) + ring(j) * t; }
+  return ring(rad.length - 1);
+}
+
 /**
  * Altura (m, respecto a los ojos) del suelo continuo en un punto (e, n) alrededor del observador: a sus pies,
  * 1,7 m por debajo; junto a cada monumento, la de su base; entre medias, una mezcla suave según la cercanía.
+ * Con `grid` (relieve cercano), lejos de los monumentos manda el relieve: una cresta cae por detrás.
  */
-export function groundHeight(e, n, items) {
-  let sw = 1 / (e * e + n * n + 16), sh = -EYE_M * sw;
+export function groundHeight(e, n, items, grid = null) {
+  let sw, sh;
+  if (grid) { sw = 1 / (22 * 22); sh = reliefAt(grid, e, n) * sw; }
+  else { sw = 1 / (e * e + n * n + 16); sh = -EYE_M * sw; }
   for (const it of items) {
-    const d = Math.hypot(e - it.o.e, n - it.o.n), r = Math.max(d - 0.7 * footprintRadius(it.m), 1.5), w = 1 / (r * r);
-    sw += w; sh += it.dz * w;
+    const d = Math.hypot(e - it.o.e, n - it.o.n), r = Math.max(d - 0.7 * footprintRadius(it.m), 1.5);
+    // con relieve, cada monumento solo levanta el suelo a su alrededor (hasta 45 m de su borde)
+    const w = grid ? Math.max(0, 1 / (r * r) - 1 / (45 * 45)) : 1 / (r * r);
+    sw += w; sh += (it.dz - (it.m.lift || 0)) * w;
   }
   return sh / sw;
 }
@@ -188,15 +225,14 @@ export function createMonumentLayer({ onReady = null } = {}) {
     for (const T of texCache.values()) T.waiters = [];
   }
 
-  function build(list) {
+  function build(list, grid = null) {
     clear();
     items = list || [];
     if (!items.length) return;
     let far = 1;
     for (const it of items) for (const f of it.faces) for (const v of f.v) { const q = toLocal(v, it.o, it.dz); far = Math.max(far, Math.hypot(q[0], q[1], q[2])); }
     // el suelo llega algo más lejos que el monumento más lejano
-    let reach = 260;
-    for (const it of items) reach = Math.max(reach, it.o.d + footprintRadius(it.m) + 220);
+    const reach = groundReach(items);
     k = Math.min(1, MAX_R / Math.max(far, reach));
     shared.uK.value = k;
     box = new THREE.Box3();
@@ -251,7 +287,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
       const NR = 64, NS = 144, r0 = 0.6, verts = (NR + 1) * NS + 1;
       const pos = new Float32Array(verts * 3), uv = new Float32Array(verts * 2), col = new Float32Array(verts * 4), idx = [];
       const put = (i, e, n, r) => {
-        const h = groundHeight(e, n, items) - (r * r * (1 - K_REFR)) / (2 * R_E);
+        const h = groundHeight(e, n, items, grid && grid.reach === reach ? grid : null) - (r * r * (1 - K_REFR)) / (2 * R_E);
         pos.set([e * k, h * k, -n * k], i * 3); uv.set([e / tile, n / tile], i * 2);
         const fade = 1 - Math.min(1, Math.max(0, (r - 0.7 * reach) / (0.3 * reach)));
         col.set([1, 1, 1, fade * fade * (3 - 2 * fade)], i * 4);
@@ -313,7 +349,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
 
   return {
     group,
-    set(list, st) { build(list); paint(st); show(); },
+    set(list, st, grid = null) { build(list, grid); paint(st); show(); },
     paint,
     setEnabled(b) { enabledFlag = !!b; show(); },
     get items() { return items; },

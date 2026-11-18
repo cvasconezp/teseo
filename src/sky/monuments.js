@@ -8,6 +8,14 @@
 // Micerino (donde el modelo mezcla árboles o la ladera; coordenadas de Wikipedia). La base se asienta sobre el
 // suelo del mismo modelo (el servidor da la altura del terreno alrededor: /api/elevation).
 //
+// Sitios añadidos en la segunda tanda (Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku y el Intihuatana de
+// Machu Picchu): la posición de cada estructura se leyó sobre imagen satelital (Esri World Imagery) con una
+// rejilla en metros, con un margen de unos 3 a 5 m, y se contrastó con lo publicado: en Chankillo, las torres
+// cubren el arco anual del Sol visto desde el punto de observación oeste (Ghezzi y Ruggles 2007); en Catequilla,
+// el disco lítico cae donde lo sitúan las coordenadas UTM de Cobo (2017) y el muro mide 107 m de arco con 68 m
+// de diámetro; en Paranal, la separación entre los cuatro telescopios es la de las estaciones del VLTI (ESO).
+// Las medidas (alto, diámetro, lado) son las publicadas; lo aproximado se dice en cada entrada.
+//
 // Marco local: E (este), N (norte), U (arriba), en metros desde el centro de la base del monumento.
 
 const RAD = Math.PI / 180;
@@ -21,9 +29,50 @@ const YUCATAN = [0.8, 0.77, 0.68];     // Chichén Itzá: caliza clara
 const SARSEN = [0.62, 0.61, 0.56];     // Stonehenge: arenisca sarsen
 const QUARTZ = [0.9, 0.89, 0.86];      // Newgrange: muro de cuarzo
 const GRASS = [0.42, 0.55, 0.3];       // Newgrange: el túmulo con hierba
+const TAN = [0.74, 0.66, 0.52];        // Chankillo: piedra y mortero de barro
+const PIRCA = [0.6, 0.57, 0.52];       // Catequilla: muro de piedra de campo
+const STEEL = [0.78, 0.8, 0.82];       // Paranal: cerramiento metálico
+const ORANGE = [0.9, 0.45, 0.12];      // Quitsato: el poste
+const PEBBLE = [0.5, 0.48, 0.45];      // Quitsato: mosaico de piedra
+const EARTH = [0.55, 0.47, 0.36];      // Tiwanaku: Akapana, hoy un cerro de tierra
+const REDSTONE = [0.66, 0.5, 0.42];    // Tiwanaku: arenisca roja de Kalasasaya
+const ANDESITE = [0.55, 0.56, 0.58];   // Tiwanaku: andesita gris (Puerta del Sol, estela Ponce)
+const GRANITE = [0.72, 0.72, 0.7];     // Machu Picchu: granito
+
+// Chankillo: las Trece Torres, de norte (1) a sur (13). Desplazamiento [este, norte] en metros desde el punto
+// de referencia (9,561149° S, 78,227355° O), giro de la planta y alto. La fila mide unos 205 m; las tres últimas
+// se tuercen hacia el suroeste. Planta de unos 12 × 8 m (publicado: 75 a 125 m²) con ~4,5 m entre torres. El alto
+// publicado va de 2 a 6 m: el de cada torre aquí es aproximado.
+const CH0 = [-9.561149, -78.227355];
+const CH_TOWERS = [[-15, 95, 0, 4.5], [-15, 79, 0, 5], [-15, 63, 0, 5.5], [-13, 47, 0, 6], [-12, 31, 0, 5.5], [-12, 15, 0, 5], [-12, -1, 0, 4.5],
+  [-12, -17, 0, 4.5], [-12, -33, 0, 5], [-12, -49, 0, 5], [-15, -65, 12, 4.5], [-21, -81, 20, 4], [-27, -97, 22, 3]];
+const mPerLat = 110574, mPerLon = (lat) => 111320 * Math.cos(lat * RAD);
+const chankillo = CH_TOWERS.map(([e, n, rot, h], i) => ({
+  id: `chankillo-${i + 1}`, site: "chankillo", name: { es: "Trece Torres", en: "Thirteen Towers" },
+  sub: { es: "13 torres de 2 a 6 m de alto", en: "13 towers, 2 to 6 m tall" }, label: i === 6,
+  lat: +(CH0[0] + n / mPerLat).toFixed(6), lon: +(CH0[1] + e / mPerLon(CH0[0])).toFixed(6),
+  kind: "tower", w: 8, d: 12, height: h, rot, foot: 7.2, ring: 3, far: 4000, relief: true, color: TAN, mat: "tower", ground: "sand", solid: true,
+}));
+// Paranal: los cuatro telescopios de 8,2 m del VLT. Separación entre ellos: estaciones U1–U4 del VLTI (ESO,
+// «VLTI Station Position Technical Data»), en metros [este, norte] desde el centro de la red; ese centro se
+// ancló sobre la imagen satelital (24,627477° S, 70,404966° O). Cerramiento: cilindro de 29 m de diámetro y
+// 28,5 m de alto (ESO).
+const VLT0 = [-24.627477, -70.404966];
+const VLT_UT = [["ut1", "Antu", -9.925, -20.335], ["ut2", "Kueyen", 14.887, 30.502], ["ut3", "Melipal", 44.915, 66.183], ["ut4", "Yepun", 103.306, 43.999]];
+const paranal = VLT_UT.map(([id, nm, e, n], i) => ({
+  id: `vlt-${id}`, site: "paranal", name: { es: `VLT UT${i + 1} · ${nm}`, en: `VLT UT${i + 1} · ${nm}` },
+  lat: +(VLT0[0] + n / 110750).toFixed(6), lon: +(VLT0[1] + e / mPerLon(VLT0[0])).toFixed(6),
+  sub: { es: "28,5 m de alto · 29 m de diámetro", en: "28.5 m tall · 29 m across" },
+  kind: "enclosure", radius: 14.5, height: 28.5, foot: 14.5, level: true, color: STEEL, mat: "metal", ground: "desert", solid: true,
+}));
 
 /**
- * Monumentos. `kind`: stepped (cuerpos escalonados), pyramid (caras lisas), stonehenge, mound (túmulo).
+ * Monumentos. `kind`: stepped (cuerpos escalonados), pyramid (caras lisas), stonehenge, mound (túmulo), tower
+ * (torre maciza), enclosure (cilindro), sundial (plataforma y poste), arcwall (muro en arco), disc (plataforma
+ * redonda baja), terraced (cerro de terrazas, planta rectangular), kalasasaya, gate, stela, intihuatana.
+ * `level`: su base está al nivel del suelo del observador (explanadas y cimas llanas). `lift`: sube la base (lo
+ * que está sobre otra plataforma). `far`: hasta qué distancia (m) se dibuja (lo pequeño no se ve de lejos). `walkIn`: se puede estar dentro (pero no a menos de `core` m de su centro). `foot`: radio de la planta. `ring`: radio
+ * donde se mide el suelo. `relief`: el suelo cercano sigue el modelo de relieve (crestas y laderas). `label: false`: sin nombre propio. `sub`: texto bajo el nombre (si no, su alto).
  * `rot`: giro de la planta en grados hacia el este desde el norte (Teotihuacan: 15,5°, la orientación de la
  * Calzada de los Muertos). `site`: id del sitio de places.js desde donde se suele mirar.
  */
@@ -48,10 +97,46 @@ export const MONUMENTS = [
     kind: "stonehenge", axis: 49.9, height: 6.7, color: SARSEN, mat: "sarsen", ground: "grass", solid: false },
   { id: "newgrange", site: "newgrange", name: { es: "Newgrange", en: "Newgrange" }, lat: 53.69509, lon: -6.47531,
     kind: "mound", radius: 42.5, wall: 3, height: 13.5, entrance: 135, color: GRASS, wallColor: QUARTZ, mat: "grass", wallMat: "quartz", ground: "grass", solid: true },
+  ...chankillo,
+  // Quitsato: plataforma de 54 m de diámetro con mosaico de piedra y poste de 10 m de alto y 1,3 m de diámetro,
+  // sobre la línea ecuatorial. Las líneas del mosaico (ejes, solsticios y diagonales) están simplificadas.
+  { id: "quitsato", site: "quitsato", name: { es: "Reloj solar Quitsato", en: "Quitsato sundial" }, lat: 0.0, lon: -78.175,
+    sub: { es: "poste de 10 m · 54 m de diámetro", en: "10 m pole · 54 m across" },
+    kind: "sundial", radius: 27, pole: 0.65, height: 10, foot: 0, far: 2500, core: 2.5, walkIn: true, level: true, color: ORANGE, mat: "gnomon", ground: "grass", solid: true },
+  // Catequilla: muro semicircular de 68 m de diámetro (107 m de arco) y unos 2 m de grueso; hoy asoma entre 0,25
+  // y 1,2 m. Sus extremos miran a la salida del Sol de diciembre (113,5°) y a la puesta de junio (293,5°); el arco
+  // pasa por el norte. Centro del arco: 12 m al oeste y 6 m al norte del vértice de la cima.
+  { id: "catequilla-muro", site: "catequilla", name: { es: "Muro semicircular", en: "Semicircular wall" }, lat: 0.000261, lon: -78.428534,
+    sub: { es: "68 m de diámetro", en: "68 m across" },
+    kind: "arcwall", radius: 34, thick: 2, height: 0.9, az0: 293.5, az1: 473.5, foot: 0, far: 600, walkIn: true, level: true, color: PIRCA, mat: "pirca", ground: "scrub", solid: false },
+  // el disco lítico: plataforma de piedra de unos 8 m de diámetro, 43 m al norte y 33 m al oeste del vértice
+  // (coordenadas UTM de Cobo 2017), con sus tres líneas de piedra (dos diámetros y un radio)
+  { id: "catequilla-disco", site: "catequilla", name: { es: "Disco lítico", en: "Lithic disc" }, lat: 0.000599, lon: -78.428722,
+    sub: { es: "8 m de diámetro", en: "8 m across" },
+    kind: "disc", radius: 4, height: 0.3, foot: 4, far: 600, level: true, color: PIRCA, mat: "pirca", ground: "scrub", solid: false },
+  ...paranal,
+  // Tiwanaku. Akapana: plataforma de siete terrazas, hoy un cerro de tierra de 16,5 m; planta de unos 197 × 180 m
+  // (con su saliente este, 257 m). Kalasasaya: plataforma de unos 130 × 120 m cercada por pilares de arenisca
+  // (alto del muro y de los pilares, aproximado). La Puerta del Sol (3 m de alto y 3,8 m de ancho, de una pieza
+  // de andesita) y la estela Ponce (3 m) están sobre ella.
+  { id: "akapana", site: "tiwanaku", name: { es: "Akapana", en: "Akapana" }, lat: -16.556330, lon: -68.672853,
+    kind: "terraced", w: 197, d: 180, topW: 96, topD: 86, height: 16.5, tiers: 7, rot: 0, foot: 133, level: true, color: EARTH, mat: "earth", ground: "puna", solid: true },
+  { id: "kalasasaya", site: "tiwanaku", name: { es: "Kalasasaya", en: "Kalasasaya" }, lat: -16.554757, lon: -68.673444,
+    sub: { es: "plataforma de 130 × 120 m", en: "130 × 120 m platform" },
+    kind: "kalasasaya", w: 133, d: 126, height: 3.2, pillar: 4.4, rot: 0, foot: 92, level: true, color: REDSTONE, mat: "redstone", ground: "puna", solid: true },
+  { id: "puerta-del-sol", site: "tiwanaku", name: { es: "Puerta del Sol", en: "Gate of the Sun" }, lat: -16.554314, lon: -68.673931,
+    kind: "gate", w: 3.8, d: 0.5, height: 3.0, rot: 0, lift: 3.2, foot: 2, far: 800, level: true, color: ANDESITE, mat: "andesite", ground: "puna", solid: true },
+  { id: "ponce", site: "tiwanaku", name: { es: "Estela Ponce", en: "Ponce Stela" }, lat: -16.554766, lon: -68.673331,
+    kind: "stela", w: 0.75, d: 0.6, height: 3.0, rot: 0, lift: 3.2, foot: 0.6, far: 800, level: true, color: ANDESITE, mat: "andesite", ground: "puna", solid: true },
+  // Machu Picchu: el Intihuatana, tallado en la roca de la cima: unos 1,8 m en total, con un prisma vertical de
+  // 0,66 m. Forma simplificada (tres cuerpos) y posición aproximada (±20 m).
+  { id: "intihuatana", site: "machupicchu", name: { es: "Intihuatana", en: "Intihuatana" }, lat: -13.163075, lon: -72.545683,
+    kind: "intihuatana", height: 1.8, rot: 20, foot: 1.6, far: 300, level: true, color: GRANITE, mat: "granite", ground: "grass", solid: true },
 ];
 
 /** Radio (m) de la planta: hasta él no se puede estar «dentro» del monumento. */
 export function footprintRadius(m) {
+  if (m.foot != null) return m.foot;
   if (m.kind === "mound") return m.radius;
   if (m.kind === "stonehenge") return 0;              // se puede estar en el centro del círculo
   return (m.base / 2) * Math.SQRT2;
@@ -67,13 +152,13 @@ export function offsetOf(lat0, lon0, lat, lon) {
 export function monumentsNear(lat, lon, km = 20) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [];
   return MONUMENTS.map((m) => ({ m, o: offsetOf(lat, lon, m.lat, m.lon) }))
-    .filter(({ m, o }) => o.d <= km * 1000 && (m.kind === "stonehenge" || o.d > footprintRadius(m) + 3))
+    .filter(({ m, o }) => o.d <= Math.min(km * 1000, m.far || Infinity) && (m.core == null || o.d > m.core) && (m.walkIn || m.kind === "stonehenge" || o.d > footprintRadius(m) + 3))
     .sort((a, b) => a.o.d - b.o.d).map(({ m }) => m);
 }
 
 /** Puntos donde medir el suelo alrededor de un monumento (fuera de su bulto en el modelo de relieve). */
 export function groundRing(m, n = 8) {
-  const r = Math.max(25, footprintRadius(m) + 30);
+  const r = m.ring != null ? m.ring : Math.max(25, footprintRadius(m) + 30);
   const out = [];
   for (let k = 0; k < n; k++) {
     const a = (k / n) * 2 * Math.PI;
@@ -175,14 +260,14 @@ function vnoise3(x, y, z, s) {
  * piedra y v sube, así la textura no se corta entre caras.
  */
 function rock(out, e, n, z0, h, w, t, rot, col, mat, seed, o = {}) {
-  const NS = o.ns || 28, NZ = o.nz || Math.max(3, Math.min(16, Math.round(h / 0.38))), pw = o.pw || 3.4;
+  const NS = o.ns || 28, NZ = o.nz || Math.max(3, Math.min(16, Math.round(h / 0.38))), pw = o.pw || 3.4, bk = o.bump == null ? 1 : o.bump;
   const taperK = o.taper == null ? 0.12 : o.taper, sink = o.sink == null ? 0.12 : o.sink, perim = 1.8 * (w + t);
   const P = (i, j) => {
     const th = (i / NS) * 2 * Math.PI, c = Math.cos(th), sn = Math.sin(th), zf = j / NZ;
     let x = Math.sign(c) * Math.pow(Math.abs(c), 2 / pw) * w / 2, y = Math.sign(sn) * Math.pow(Math.abs(sn), 2 / pw) * t / 2;
     const z = -sink + zf * (h + sink);
-    const bump = 1 + 0.11 * (vnoise3(x * 0.9 + 3, y * 0.9 + 5, z * 0.7, seed) - 0.5) * 2 + 0.04 * (vnoise3(x * 3.1, y * 3.1, z * 2.6, seed + 7) - 0.5) * 2;
-    const round = zf > 0.84 ? 1 - 0.3 * Math.pow((zf - 0.84) / 0.16, 2) : 1;
+    const bump = 1 + bk * (0.11 * (vnoise3(x * 0.9 + 3, y * 0.9 + 5, z * 0.7, seed) - 0.5) * 2 + 0.04 * (vnoise3(x * 3.1, y * 3.1, z * 2.6, seed + 7) - 0.5) * 2);
+    const round = zf > 0.84 ? 1 - 0.3 * (o.edge == null ? 1 : o.edge) * Math.pow((zf - 0.84) / 0.16, 2) : 1;
     const k = (1 - taperK * zf) * bump * round;
     const q = rotP([x * k, y * k, 0], rot);
     const zt = j === NZ ? z - (0.03 + 0.1 * vnoise3(c * 1.3, sn * 1.3, 0.5, seed + 3)) * Math.min(1, h) : z;
@@ -198,6 +283,56 @@ function rock(out, e, n, z0, h, w, t, rot, col, mat, seed, o = {}) {
     const a = P(i, NZ), b = P(i + 1, NZ);
     out.push({ v: [top.p, a.p, b.p], uv: [[0, 0], a.l, b.l], c: col, mat, smooth: true });
   }
+}
+
+/**
+ * Cilindro (o tronco de cono) vertical: pared lisa a la luz, con la textura rodeándolo (u = arco en metros,
+ * v = altura). `cap`: tapa de arriba.
+ */
+function cyl(out, { e = 0, n = 0, z0, z1, r0, r1 = r0, seg = 48, col, mat, cap = true, tone = 1 }) {
+  const P = (i, top) => { const a = (i / seg) * 2 * Math.PI, r = top ? r1 : r0; return [e + r * Math.sin(a), n + r * Math.cos(a), top ? z1 : z0]; };
+  const per = 2 * Math.PI * Math.max(r0, r1);
+  for (let i = 0; i < seg; i++) {
+    const a = P(i, 0), b = P(i + 1, 0), c = P(i + 1, 1), d = P(i, 1), u0 = (i / seg) * per, u1 = ((i + 1) / seg) * per;
+    out.push({ v: [a, b, c], uv: [[u0, z0], [u1, z0], [u1, z1]], c: col, mat, smooth: true, tone },
+      { v: [a, c, d], uv: [[u0, z0], [u1, z1], [u0, z1]], c: col, mat, smooth: true, tone });
+  }
+  if (cap && r1 > 0) for (let i = 0; i < seg; i++) out.push({ v: [[e, n, z1], P(i, 1), P(i + 1, 1)], c: col, mat, tone });
+}
+
+/** Círculo horizontal (suelo de una plataforma) a la altura z. */
+function disk(out, { e = 0, n = 0, z, r, seg = 72, col, mat, tone = 1 }) {
+  for (let i = 0; i < seg; i++) {
+    const a = (i / seg) * 2 * Math.PI, b = ((i + 1) / seg) * 2 * Math.PI;
+    out.push({ v: [[e, n, z], [e + r * Math.sin(a), n + r * Math.cos(a), z], [e + r * Math.sin(b), n + r * Math.cos(b), z]], c: col, mat, tone });
+  }
+}
+
+/** Franja horizontal de ancho w desde el radio r0 al r1, hacia el acimut az, a la altura z. */
+function ray(out, az, r0, r1, w, z, col, mat, o = [0, 0]) {
+  const sx = Math.sin(az * RAD), sy = Math.cos(az * RAD), tx = sy * w / 2, ty = -sx * w / 2;
+  const P = (r, k) => [o[0] + sx * r + tx * k, o[1] + sy * r + ty * k, z];
+  quad(out, P(r0, -1), P(r0, 1), P(r1, 1), P(r1, -1), col, mat);
+}
+
+/**
+ * Muro en arco de piedra de campo, bajo y desmoronado: su alto cambia a lo largo (entre 0,3 y 1,3 veces el
+ * medio) y por fuera queda algo más abajo que por dentro, como un muro que contiene una explanada.
+ */
+function arcWall(out, m) {
+  const N = Math.max(24, Math.round(((m.az1 - m.az0) * RAD * m.radius) / 1.6)), ri = m.radius - m.thick / 2, ro = m.radius + m.thick / 2;
+  const at = (k, r, z) => { const a = (m.az0 + ((m.az1 - m.az0) * k) / N) * RAD; return [r * Math.sin(a), r * Math.cos(a), z]; };
+  const hAt = (k) => m.height * (0.3 + 1.0 * vnoise3(k * 0.37, 1.5, 2.5, 9)) * Math.min(1, Math.min(k, N - k) / 3 + 0.25);
+  for (let k = 0; k < N; k++) {
+    const h0 = hAt(k), h1 = hAt(k + 1), k0 = out.length;
+    quad(out, at(k, ro, -0.4), at(k + 1, ro, -0.4), at(k + 1, ro, h1), at(k, ro, h0), m.color, m.mat);      // cara de fuera
+    quad(out, at(k + 1, ri, 0), at(k, ri, 0), at(k, ri, h0), at(k + 1, ri, h1), m.color, m.mat);            // cara de dentro
+    quad(out, at(k, ro, h0), at(k + 1, ro, h1), at(k + 1, ri, h1), at(k, ri, h0), m.color, m.mat);          // coronación
+    const tone = 0.85 + 0.3 * hash3(k, 3, 7, 11);
+    for (let j = k0; j < out.length; j++) out[j].tone = tone;
+  }
+  quad(out, at(0, ri, 0), at(0, ro, -0.4), at(0, ro, hAt(0)), at(0, ri, hAt(0)), m.color, m.mat);
+  quad(out, at(N, ro, -0.4), at(N, ri, 0), at(N, ri, hAt(N)), at(N, ro, hAt(N)), m.color, m.mat);
 }
 
 /** Suelo que rodea un monumento (para recibir su sombra): { radius, mat }. */
@@ -292,6 +427,80 @@ export function buildFaces(m, opt = {}) {
       quad(out, P(-0.55, 0), P(0.55, 0), P(0.55, 1.6), P(-0.55, 1.6), [0.05, 0.05, 0.05], "door");
       quad(out, P(-0.5, 2.0), P(0.5, 2.0), P(0.5, 2.5), P(-0.5, 2.5), [0.05, 0.05, 0.05], "door");
     }
+  } else if (m.kind === "tower") {
+    // torre maciza de piedra y mortero: paredes con algo de talud y la arista de arriba gastada
+    frustum(out, { z0: 0, z1: m.height - 0.35, w0: m.w, d0: m.d, w1: m.w * 0.95, d1: m.d * 0.96, rot: m.rot, col, mat: m.mat, top: false });
+    frustum(out, { z0: m.height - 0.35, z1: m.height, w0: m.w * 0.95, d0: m.d * 0.96, w1: m.w * 0.9, d1: m.d * 0.93, rot: m.rot, col, mat: m.mat });
+  } else if (m.kind === "enclosure") {
+    // cerramiento del telescopio: base de hormigón y, encima, el cilindro metálico que gira con el telescopio; un
+    // techo casi plano y la banda de las compuertas de ventilación
+    cyl(out, { z0: 0, z1: 5, r0: m.radius + 0.25, seg: 64, col, mat: "concrete", cap: false });
+    cyl(out, { z0: 5, z1: 5.3, r0: m.radius + 0.25, r1: m.radius, seg: 64, col, mat: "concrete", cap: false });
+    cyl(out, { z0: 5.3, z1: 11, r0: m.radius, seg: 64, col, mat: m.mat, cap: false });
+    cyl(out, { z0: 11, z1: 16, r0: m.radius, seg: 64, col, mat: m.mat, cap: false, tone: 0.72 });
+    cyl(out, { z0: 16, z1: m.height - 0.8, r0: m.radius, seg: 64, col, mat: m.mat, cap: false });
+    cyl(out, { z0: m.height - 0.8, z1: m.height, r0: m.radius, r1: m.radius - 2.2, seg: 64, col, mat: m.mat, cap: true, tone: 1.08 });
+  } else if (m.kind === "sundial") {
+    // plataforma de mosaico de piedra (oscura) con sus líneas claras: el eje norte–sur, la línea equinoccial, las
+    // de los solsticios (a 23,5° de la equinoccial), las de la eclíptica (a 23,5° del eje) y las diagonales
+    disk(out, { z: 0.02, r: m.radius, col: PEBBLE, mat: "pebble" });
+    const lines = [0, 90, 66.5, 113.5, 23.5, 156.5, 45, 135];
+    for (const az of lines) for (const a of [az, az + 180]) ray(out, a, m.pole + 0.5, m.radius - 0.6, az % 90 === 0 ? 0.9 : 0.55, 0.045, PEBBLE, "pebblelight");
+    // borde claro
+    { const seg = 96, r0 = m.radius - 0.6, r1 = m.radius;
+      for (let i = 0; i < seg; i++) { const a = (i / seg) * 2 * Math.PI, b = ((i + 1) / seg) * 2 * Math.PI, P = (t, r) => [r * Math.sin(t), r * Math.cos(t), 0.045];
+        quad(out, P(a, r0), P(a, r1), P(b, r1), P(b, r0), PEBBLE, "pebblelight"); } }
+    // el poste (gnomon)
+    cyl(out, { z0: 0, z1: m.height, r0: m.pole, seg: 28, col, mat: m.mat });
+  } else if (m.kind === "arcwall") {
+    arcWall(out, m);
+  } else if (m.kind === "disc") {
+    // plataforma baja de piedra con sus tres líneas: dos diámetros (norte–sur y este–oeste) y un radio
+    cyl(out, { z0: -0.2, z1: m.height, r0: m.radius, r1: m.radius - 0.25, seg: 40, col, mat: m.mat });
+    for (const a of [0, 180, 90, 270]) ray(out, a, 0, m.radius - 0.4, 0.45, m.height + 0.03, col, "pircalight");
+    ray(out, 315, 0, m.radius - 0.4, 0.45, m.height + 0.03, col, "pircalight");
+  } else if (m.kind === "terraced") {
+    // cerro de terrazas gastadas: cada cuerpo con mucho talud (la tierra se ha corrido) y una repisa estrecha
+    const n = m.tiers, h = m.height / n;
+    for (let i = 0; i < n; i++) {
+      const f0 = i / n, f1 = (i + 1) / n, L = (a, b, t) => a + (b - a) * t;
+      const w0 = L(m.w, m.topW, f0), d0 = L(m.d, m.topD, f0), w1 = L(m.w, m.topW, f1), d1 = L(m.d, m.topD, f1);
+      frustum(out, { z0: i * h, z1: (i + 1) * h, w0, d0, w1: L(w0, w1, 0.82), d1: L(d0, d1, 0.82), rot: m.rot, col, mat: m.mat });
+    }
+  } else if (m.kind === "kalasasaya") {
+    // plataforma cercada: muro de sillares entre pilares de arenisca que sobresalen, y la explanada de tierra
+    frustum(out, { z0: 0, z1: m.height, w0: m.w, d0: m.d, w1: m.w - 0.3, d1: m.d - 0.3, rot: m.rot, col, mat: m.mat, top: false });
+    { const hw = m.w / 2 - 0.15, hd = m.d / 2 - 0.15, z = m.height, T = (x, y) => { const q = rotP([x, y, z], m.rot); return [q[0], q[1], z]; };
+      quad(out, T(-hw, -hd), T(hw, -hd), T(hw, hd), T(-hw, hd), EARTH, "earth"); }
+    const stepP = 4.6, pil = (x, y, az, seed) => { const q = rotP([x, y, 0], m.rot); rock(out, q[0], q[1], 0, m.pillar * (0.88 + 0.24 * hash3(seed, 1, 1, 3)), 1.15, 0.8, az + m.rot, col, m.mat, seed, { ns: 10, nz: 4, pw: 5, taper: 0.06, sink: 0.05 }); };
+    let seed = 1;
+    for (let x = -m.w / 2; x <= m.w / 2 + 1e-6; x += (m.w / Math.round(m.w / stepP))) { pil(x, -m.d / 2 - 0.15, 0, seed++); pil(x, m.d / 2 + 0.15, 0, seed++); }
+    for (let y = -m.d / 2 + stepP; y <= m.d / 2 - stepP + 1e-6; y += (m.d / Math.round(m.d / stepP))) {
+      pil(-m.w / 2 - 0.15, y, 90, seed++);
+      if (Math.abs(y) > 6) pil(m.w / 2 + 0.15, y, 90, seed++);               // en el centro del lado este va la escalinata
+    }
+    // escalinata del este (seis peldaños) y su portada de piedra
+    for (let i = 0; i < 6; i++) {
+      const zt = (m.height * (i + 1)) / 6, x = m.w / 2 + (6 - i) * 0.62 - 0.31, q = rotP([x, 0, 0], m.rot);
+      block(out, q[0], q[1], 0, zt, 0.62, 8, m.rot, col, m.mat);
+    }
+    for (const sg of [-1, 1]) { const q = rotP([m.w / 2 - 1.2, sg * 2.1, 0], m.rot); block(out, q[0], q[1], m.height, 2.7, 1.1, 1.1, m.rot, col, m.mat); }
+    { const q = rotP([m.w / 2 - 1.2, 0, 0], m.rot); block(out, q[0], q[1], m.height + 2.7, 0.8, 1.2, 5.6, m.rot, col, m.mat); }
+  } else if (m.kind === "gate") {
+    // portada de una sola pieza: el vano, oscuro, en las dos caras (mira al este y al oeste)
+    block(out, 0, 0, 0, m.height, m.d, m.w, m.rot, col, m.mat);
+    for (const sg of [-1, 1]) {
+      const a = sg * (m.d / 2 + 0.03), P = (t, z) => { const q = rotP([a, t, z], m.rot); return [q[0], q[1], z]; };
+      quad(out, P(-0.42, 0), P(0.42, 0), P(0.42, 1.4), P(-0.42, 1.4), [0.05, 0.05, 0.05], "door");
+    }
+  } else if (m.kind === "stela") {
+    rock(out, 0, 0, 0, m.height, m.w, m.d, m.rot, col, m.mat, 41, { ns: 14, nz: 8, pw: 6, taper: 0.05, sink: 0.05 });
+  } else if (m.kind === "intihuatana") {
+    // tres cuerpos de la misma roca: el afloramiento tallado, la mesa y el prisma
+    const q = (x, y) => { const r = rotP([x, y, 0], m.rot); return [r[0], r[1]]; };
+    rock(out, 0, 0, 0, 0.72, 3.0, 2.3, m.rot, col, m.mat, 61, { ns: 24, nz: 5, pw: 9, taper: 0.06, sink: 0.2, bump: 0.45, edge: 0.25 });
+    { const [x, y] = q(0.25, 0.1); rock(out, x, y, 0.66, 0.5, 1.9, 1.45, m.rot, col, m.mat, 62, { ns: 24, nz: 5, pw: 10, taper: 0.04, sink: 0, bump: 0.3, edge: 0.2 }); }
+    { const [x, y] = q(0.35, 0.2); rock(out, x, y, 1.12, m.height - 1.12, 0.46, 0.34, m.rot, col, m.mat, 63, { ns: 16, nz: 5, pw: 12, taper: 0.08, sink: 0, bump: 0.2, edge: 0.15 }); }
   } else if (m.kind === "stonehenge") {
     stonehenge(out, m);
   }
@@ -336,6 +545,8 @@ function stonehenge(out, m) {
 /** Lo más alto del monumento (para el nombre): [e, n, u]. */
 export function apexOf(m) {
   if (m.kind === "stonehenge") return [0, 0, m.height];
+  if (m.kind === "arcwall") { const a = ((m.az0 + m.az1) / 2) * RAD; return [m.radius * Math.sin(a), m.radius * Math.cos(a), m.height]; }
+  if (m.kind === "kalasasaya") return [m.w / 2, -m.d / 4, m.pillar];
   return [0, 0, m.height + (m.temple ? m.temple.h : 0)];
 }
 

@@ -1,5 +1,26 @@
 # Cambios
 
+## 1.28.0 — 18 de noviembre de 2026
+
+- Monumentos en seis sitios más de «Mi cielo», con sus medidas reales:
+  - Chankillo: las Trece Torres sobre su cresta, vistas desde el punto de
+    observación oeste. El Sol de diciembre sale por la torre 13 y el de junio
+    junto a la torre 1, como describen Ghezzi y Ruggles (2007).
+  - Reloj solar Quitsato: la plataforma de 54 m con su mosaico y el poste de
+    10 m, que proyecta su sombra a la hora real.
+  - Catequilla: el muro semicircular de 68 m de diámetro y el disco lítico.
+  - Paranal: los cuatro telescopios de 8,2 m del VLT.
+  - Tiwanaku: Akapana, Kalasasaya, la Puerta del Sol y la estela Ponce.
+  - Machu Picchu: el Intihuatana (forma simplificada).
+- Esos sitios pasan a ser un punto de vista frente al monumento (Chankillo,
+  Quitsato, Tiwanaku, Paranal y Machu Picchu cambian unos metros de lugar).
+- En Chankillo el suelo cercano sigue el relieve: la cresta cae por detrás de
+  las torres y estas quedan contra el cielo.
+- Lo pequeño ya no se dibuja de lejos, y las cumbres que quedan bajo el suelo
+  no se nombran.
+- Cochasquí queda pendiente: hace falta un plano con la posición de cada
+  pirámide.
+
 ## 1.27.0 — 18 de noviembre de 2026
 
 - Monumentos más reales en «Mi cielo» (Teotihuacan, Chichén Itzá, Guiza,
