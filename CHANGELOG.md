@@ -1,5 +1,24 @@
 # Cambios
 
+## 1.29.0 — 18 de noviembre de 2026
+
+- La Vía Láctea se ve en el cielo: su resplandor, las nubes de polvo y las
+  Nubes de Magallanes, detrás de las estrellas (mapa «Deep Star Maps 2020» de
+  la NASA, dominio público). Sigue la oscuridad del cielo: entera en un sitio
+  oscuro, tenue en las afueras, nada en una ciudad, de día o con Luna llena.
+- Corregido: los puntos negros del cielo. Eran estrellas que la atmósfera
+  apaga (crepúsculo, ciudad) y que oscurecían el fondo en vez de no dibujarse.
+- Planetas:
+  - Texturas del Sol, Venus, la Tierra, Marte, Júpiter, Saturno, Urano y
+    Neptuno al doble de resolución, y marcadores más nítidos.
+  - Marte, Júpiter, Saturno, Urano y Neptuno llevan su orientación real (eje,
+    achatamiento, inclinación de los anillos) a cualquier zoom. Antes, de
+    lejos, Saturno era un dibujo con los anillos siempre abiertos.
+  - Al acercarse ya no hay salto: el planeta encoge poco a poco hasta que su
+    tamaño real lo alcanza.
+  - El zoom máximo es unas tres veces mayor.
+- Reloj solar Quitsato: si uno se coloca dentro del poste, no se dibuja.
+
 ## 1.28.0 — 18 de noviembre de 2026
 
 - Monumentos en seis sitios más de «Mi cielo», con sus medidas reales:

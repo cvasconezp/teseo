@@ -4,7 +4,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { ephemeris } from "./ephemeris.js";
 import { ErrorNotice } from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS } from "./net.js";
-import { BODIES, BODY_NAMES, bodyName, textureUrl, drawBodySprite, SPRITE_PX } from "./sky/bodies.js";
+import { BODIES, BODY_NAMES, bodyName, textureUrl, drawBodySprite, SPRITE_PX, SPRITE_RES } from "./sky/bodies.js";
 import { searchMoons, moonName, moonOrbit, MOON_INFO, MOON_KEYS, moonsSky, planetPole, planetOrientation, POLAR_FLATTENING } from "./sky/moons.js";
 import { drawSphere } from "./sky/art.js";
 import { RING_URL } from "./sky/bodies.js";
@@ -62,6 +62,7 @@ import { andeanLabels, TX_AND } from "./sky/andean.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations } from "./sky/horizon.js";
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints } from "./sky/monumentLayer.js";
+import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
@@ -1155,14 +1156,22 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         "varying vec3 vColor;",
         "void main(){",
         "  vec4 t = texture2D(map, gl_PointCoord);",
-        "  if (t.a < 0.02) discard;",
+        // una estrella apagada por la atmósfera (color 0) no debe dejar huella: sin esto oscurecía el cielo
+        "  if (t.a < 0.02 || max(vColor.r, max(vColor.g, vColor.b)) < 0.003) discard;",
         "  gl_FragColor = vec4(vColor, 1.0) * t;",
         "}",
       ].join("\n"),
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      // suma su luz al color y deja intacta la transparencia del lienzo (el cielo de la página se ve a través)
+      transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+      blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
     });
     const points = new THREE.Points(sGeo, sMat);
     scene.add(points);
+    // la Vía Láctea (src/sky/milkyWayLayer.js): detrás de las estrellas, en el mismo marco
+    const milky = createMilkyWayLayer({ small: Math.min(window.innerWidth || 1000, window.innerHeight || 1000) < 700 || renderer.capabilities.maxTextureSize < 4096,
+      onLoad: () => { const r0 = sceneRef.current; if (r0) r0._dirty = true; } });
+    milky.setIntensity(1);
+    scene.add(milky.mesh);
 
     // ── constellation lines ──
     const segHips = []; // pairs of hip
@@ -1263,7 +1272,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     let sceneDead = false;
     BODY_NAMES.forEach(nm => {
       const b = BODIES[nm];
-      const c = document.createElement("canvas"); c.width = c.height = SPRITE_PX;
+      const c = document.createElement("canvas"); c.width = c.height = SPRITE_RES;
       drawBodySprite(c, nm, null, null);
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
       // tamaño fijo en pantalla (no crece al acercarse): es un marcador, no una escala
@@ -1294,8 +1303,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, transparent: true, depthTest: false, sizeAttenuation: false }));
       sp.userData.px = 13; sp.renderOrder = 2; moonGroup.add(sp); moonSprites[key] = sp;
     });
-    // con mucho zoom, los planetas con lunas se dibujan como son: tamaño real, textura, achatamiento, anillos con su
-    // inclinación de esa fecha y el eje girado como se ve en el cielo (el marcador de tamaño fijo se oculta)
+    // los planetas con lunas se dibujan siempre como son: textura, achatamiento, anillos con su inclinación de esa
+    // fecha y el eje girado como se ve en el cielo. Con poco zoom van agrandados (son un marcador); al acercarse
+    // encogen poco a poco hasta que su tamaño real los alcanza, sin saltos. RS: lado del lienzo.
+    const RS = 512;
     const REAL = ["Marte", "Júpiter", "Saturno", "Urano", "Neptuno"];
     const realSprites = {};
     let ringProfile = null;
@@ -1305,26 +1316,31 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         const rs = realSprites["Saturno"]; if (rs && rs.wantB != null) paintReal("Saturno", rs.wantB);   // repintar con la textura de los anillos
       } catch { /* sin perfil: anillo liso */ } }; ri.src = RING_URL; }
     REAL.forEach((nm) => {
-      const c = document.createElement("canvas"); c.width = c.height = 256;
+      const c = document.createElement("canvas"); c.width = c.height = RS;
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, sizeAttenuation: false }));
       sp.visible = false; sp.renderOrder = 1; solarGroup.add(sp);
-      realSprites[nm] = { sp, c, tex, B: null, img: null, Rc: BODIES[nm].ring ? 54 : 124 };
+      realSprites[nm] = { sp, c, tex, B: null, img: null, Rc: BODIES[nm].ring ? 108 : 150 };
     });
     const paintReal = (nm, B) => {
       const rs = realSprites[nm], im = solarImg[nm]; if (!rs || !im) return;
       if (!rs.img) { try { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; const g = c.getContext("2d"); g.drawImage(im, 0, 0); rs.img = g.getImageData(0, 0, c.width, c.height); } catch { return; } }
       const x = rs.c.getContext("2d"), Rc = rs.Rc, Bt = B * Math.PI / 180;
-      x.clearRect(0, 0, 256, 256); x.save(); x.translate(128, 128);
+      x.clearRect(0, 0, RS, RS); x.save(); x.translate(RS / 2, RS / 2);
+      // halo de su color (lo hace localizable; no es parte del planeta)
+      { const m = /^#?([0-9a-f]{6})$/i.exec(BODIES[nm].color || ""), n = m ? parseInt(m[1], 16) : 0xdddddd, rgb = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+        const h = x.createRadialGradient(0, 0, Rc * 0.7, 0, 0, RS / 2);
+        h.addColorStop(0, `rgba(${rgb},0.3)`); h.addColorStop(0.5, `rgba(${rgb},0.09)`); h.addColorStop(1, `rgba(${rgb},0)`);
+        x.fillStyle = h; x.fillRect(-RS / 2, -RS / 2, RS, RS); }
       const ringBand = (front) => {
         if (!BODIES[nm].ring) return;
         const inner = Rc * 1.236, outer = Rc * 2.27, sinB = Math.abs(Math.sin(Bt));
         const near = Bt >= 0 ? [0, Math.PI] : [Math.PI, 2 * Math.PI], [a0, a1] = front ? near : [near[1], near[0] + 2 * Math.PI];
-        for (let r = inner; r <= outer; r += 0.6) {
+        for (let r = inner; r <= outer; r += 0.7) {
           let col = "226,205,160", al = 0.7;
           if (ringProfile) { const n = ringProfile.length / 4, i = Math.min(n - 1, Math.floor(((r - inner) / (outer - inner)) * n)) * 4; col = `${ringProfile[i]},${ringProfile[i + 1]},${ringProfile[i + 2]}`; al = ringProfile[i + 3] / 255; }
           if (al < 0.03) continue;
-          x.beginPath(); x.ellipse(0, 0, r, Math.max(0.3, r * sinB), 0, a0, a1); x.strokeStyle = `rgba(${col},${(al * 0.95).toFixed(3)})`; x.lineWidth = 0.8; x.stroke();
+          x.beginPath(); x.ellipse(0, 0, r, Math.max(0.3, r * sinB), 0, a0, a1); x.strokeStyle = `rgba(${col},${(al * 0.95).toFixed(3)})`; x.lineWidth = 1; x.stroke();
         }
       };
       ringBand(false);
@@ -1364,17 +1380,31 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         sp.scale.set(px * k, px * k, 1);
       }
       moonGroup.visible = camera.fov < 7;                                  // se separan del planeta a partir de ~10° de campo
+      // de 7° a 2° de campo el planeta encoge del tamaño del marcador a algo menos de la mitad; cuando su disco
+      // real es mayor que eso, manda el real
+      const shrink = camera.fov >= 7 ? 1 : camera.fov <= 2 ? 0.45 : 0.45 + 0.55 * (camera.fov - 2) / 5;
       for (const nm of REAL) {
         const rs = realSprites[nm], bb = bs.find((x) => x.name === nm), mk = solarSprites[nm];
-        const deep = moonGroup.visible && !!bb && !!bb.dist_au && !!solarImg[nm];
-        rs.sp.visible = deep; if (mk) mk.visible = !deep;
-        if (!deep) continue;
-        const rPx = Math.max(2.5, (BODIES[nm].diameter_km / 2 / (bb.dist_au * 149597870.7)) / k);
-        const size = (256 * rPx) / rs.Rc;
+        const have = !!bb && !!bb.dist_au && !!solarImg[nm] && rs.B != null;
+        rs.sp.visible = have; if (mk) mk.visible = !have;
+        rs.drawnPx = 0; rs.exag = 1;
+        if (!have) continue;
+        const real = (BODIES[nm].diameter_km / 2 / (bb.dist_au * 149597870.7)) / k;
+        const mark = mk ? mk.userData.px * (BODIES[nm].ring ? 21 : 28) / SPRITE_PX : 12;
+        const rPx = Math.max(real, mark * shrink);
+        const size = (RS * rPx) / rs.Rc;
         rs.sp.scale.set(size * k, size * k, 1);
-        if (mk) mk.userData.discPx = rPx * (BODIES[nm].ring ? 2.27 : 1);
+        rs.drawnPx = rPx; rs.exag = rPx / Math.max(real, 1e-6);
+        if (mk) { mk.userData.discPx = rPx * (BODIES[nm].ring ? 2.27 : 1); rs.sp.material.opacity = mk.material.opacity; }
       }
-      for (const key in moonSprites) { const v = moonSprites[key].userData.px * k; moonSprites[key].scale.set(v, v, 1); }
+      for (const key in moonSprites) {
+        const ms = moonSprites[key], v = ms.userData.px * k; ms.scale.set(v, v, 1);
+        // mientras el planeta va agrandado, una luna que caería dentro de su dibujo no se muestra
+        const o = moonOrbit(key), rs = o ? realSprites[o.parent] : null;
+        let hide = false;
+        if (rs && rs.sp.visible && rs.exag > 1.25) { const sep = ms.position.distanceTo(rs.sp.position) / 860 / k; hide = sep < rs.drawnPx * (BODIES[o.parent].ring ? 2.4 : 1.25); }
+        ms.visible = !hide;
+      }
     };
     sizeSolar();
     // modo apuntar: el zoom es el campo de visión. `span` = grados que abarca el lado largo.
@@ -1459,7 +1489,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
+      atm, clouds, terrain, monuments, milky, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1534,6 +1564,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         r.visOn = !!st || !!hzd;         // hay listas de «qué se ve» (atmósfera, nubes o montañas)
         atm.update(st);
         atm.setEnabled(!!st);
+        milky.setIntensity(milkyWayVisibility(st));
         lines.material.opacity = st && starsHidden(st) ? 0.22 : r.lineBase;
         // Sol, Luna y planetas: el disco se sigue dibujando (con tamaño visible), más tenue si no se ve
         r.solarVis = {};
@@ -1616,6 +1647,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         },
         // mirar a una altura/azimut del lugar (pruebas y capturas; solo en «Mi cielo»)
         lookAltAz: (alt, az, span) => { const v = altAzToLocal(alt, az); r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), span, true); r.wake(); },
+        // mirar a una dirección ecuatorial (la de un cuerpo de bodies()), con el campo `span`
+        lookEq: (nx, ny, nz, span) => { r.lookAt(new THREE.Vector3(nx, ny, nz).normalize().applyQuaternion(r.localQuat), span, true); r.wake(); },
         // mueve el reloj de la ISS (pruebas): al segundo, y whenStr con él
         issSeek: (ms) => { const ck = issClock.current; ck.t = ms; ck.live = false; ck.lastMin = Math.floor(ms / 60000); if (ck.onMinute) ck.onMinute(ms); r.wake(); },
         stars: () => { const u = r.points.material.uniforms, c = r.points.geometry.attributes.scolor.array; let mx = 0; for (let i = 0; i < c.length; i++) mx = Math.max(mx, c[i]); return { uScale: u.uScale.value, uPx: u.uPx.value, uDpr: u.uDpr.value, pr: renderer.getPixelRatio(), maxColor: mx, visible: r.points.visible, op: r.points.material.opacity }; },
@@ -1794,7 +1827,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         lastCam.px = cp.x; lastCam.py = cp.y; lastCam.pz = cp.z; lastCam.qx = cq.x; lastCam.qy = cq.y; lastCam.qz = cq.z; lastCam.qw = cq.w; lastCam.fov = ref.camera.fov; lastCam.vx = vs.cx; lastCam.vy = vs.cy; lastCam.us = us;
         if (ref.atm.visible) ref.atm.follow(ref.camera);
         if (ref.clouds.visible) ref.clouds.follow(ref.camera);
-        if (ref.moonGroup && ref.moonGroup.visible) ref.updateRealPlanets();
+        if (ref.updateRealPlanets) ref.updateRealPlanets();      // el eje de cada planeta, como se ve en el cielo (a cualquier zoom)
         ref.renderer.render(ref.scene, ref.camera);
         drawnN++;
       }
@@ -1845,6 +1878,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         const W = mount.clientWidth, H = mount.clientHeight;
         // desde dentro (también apuntando) la cámara está en el centro: el detalle lo decide el campo de visión
         const inside = ar.on || ref.mode === "in", outside = !ar.on && ref.mode === "out";
+        if (ref.milky) ref.milky.setOn(inside);        // solo desde dentro de la esfera del cielo
         const camDist = inside ? 0 : ref.camera.position.length();
         const camPos = ref.camera.position;
         const out = [];
@@ -1997,6 +2031,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         }
         // las lunas de otros planetas: con mucho zoom, su nombre junto al punto
         if (ref.showSolar && ref.moonGroup && ref.moonGroup.visible && ref.camera.fov < 4) for (const m of (ref.moonSky || [])) {
+          if (ref.moonSprites[m.key] && !ref.moonSprites[m.key].visible) continue;      // tapada por el dibujo agrandado del planeta
           if (m.state === "hidden") continue;
           const mo = moonObjFrom(ref.bodies, m.key, new Date(whenRef.current || Date.now()));
           if (so0 && so0.layer === "moon" && so0.name === m.key) continue;      // la abierta ya tiene su nombre (arriba)
@@ -2289,6 +2324,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.localQuat = q; ref.localModeOn = active; ref.localLat = active ? lat : null;
     ref.points.quaternion.copy(q);
     ref.lines.quaternion.copy(q);
+    if (ref.milky) ref.milky.mesh.quaternion.copy(q);
     if (ref.guides) ref.guides.setLocalFrame(active ? q : null, qDate);
     if (ref.issLayer) ref.issLayer.setLocalFrame(active ? q : null);   // la ISS solo existe sobre un horizonte
     (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));

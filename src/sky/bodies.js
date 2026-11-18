@@ -102,12 +102,16 @@ export function makeFallbackCanvas(id, W = 512, H = 256) {
 // Dibuja en un canvas 128×128 el cuerpo con halo + (si hay) su textura real
 // recortada en círculo. `img` puede ser null: se usa la textura de respaldo.
 // Para la Luna, `phase` = { illum 0..1, waxing } pinta la fase real del momento.
-export const SPRITE_PX = 128;
+export const SPRITE_PX = 128;      // lado del dibujo en unidades lógicas (las proporciones del disco se dan sobre 128)
+export const SPRITE_RES = 256;     // lado real del lienzo: el doble, para que el disco se vea nítido en pantallas densas
 export function drawBodySprite(canvas, key, img, phase) {
   const b = BODIES[key]; if (!b) return;
   const S = SPRITE_PX, cx = S / 2, cy = S / 2;
-  const x = canvas.getContext("2d");
-  x.clearRect(0, 0, S, S);
+  const x = canvas.getContext("2d"), dev = canvas.width / S;
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.clearRect(0, 0, canvas.width, canvas.height);
+  x.setTransform(dev, 0, 0, dev, 0, 0);          // se dibuja en unidades lógicas, a la resolución del lienzo
+  x.imageSmoothingQuality = "high";
   const col = hexToRgb(b.color);
   const R = b.ring ? 21 : b.id === "sun" ? 26 : 28;     // radio del disco en px
 
@@ -153,11 +157,12 @@ export function drawBodySprite(canvas, key, img, phase) {
     x.beginPath(); x.arc(cx, cy, R + 0.5, 0, Math.PI * 2); x.clip();
     x.fillStyle = "rgba(4,7,14,0.86)";
     // fila a fila: el terminador es una semielipse de semieje R·(1−2k)
-    for (let yy = -R; yy <= R; yy++) {
+    const st = 1 / Math.max(1, dev);
+    for (let yy = -R; yy <= R; yy += st) {
       const w = Math.sqrt(Math.max(0, R * R - yy * yy));
       const xt = w * (1 - 2 * k);                       // límite luz/sombra (lado iluminado a la derecha)
-      if (lit > 0) x.fillRect(cx - w - 1, cy + yy, xt + w + 1, 1);
-      else x.fillRect(cx - xt, cy + yy, xt + w + 1, 1);
+      if (lit > 0) x.fillRect(cx - w - 1, cy + yy, xt + w + 1, st);
+      else x.fillRect(cx - xt, cy + yy, xt + w + 1, st);
     }
     x.restore();
   }
