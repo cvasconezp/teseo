@@ -93,7 +93,7 @@ ISS_KINDS = {"view", "show", "retry", "list_all", "remove", "sheet", "play"}
 ISS_STATES = {"ok", "empty", "stale", "fail", "hidden"}
 PUSH_KINDS = {"on", "off", "test", "denied", "unsupported", "ios_install"}
 # Imagen para compartir de la pestaña Ahora: tipo de elemento (misma lista que NOW_SHARE_KINDS en src/ui/track.js)
-NOW_SHARE_KINDS = {"moon", "eclipse", "meteor", "planet", "season", "iss", "launch", "sun", "asteroid", "mars"}
+NOW_SHARE_KINDS = {"moon", "eclipse", "meteor", "planet", "season", "milestone", "iss", "launch", "sun", "asteroid", "mars"}
 
 EVENTS: Dict[str, Dict[str, Any]] = {
     # sesión y navegación

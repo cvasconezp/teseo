@@ -18,7 +18,7 @@ export const TE = {
     // tipo (línea bajo el título)
     type: {
       moon: "Fase de la Luna · Calendario del cielo", eclipseMoon: "Eclipse de Luna · Calendario del cielo", eclipseSun: "Eclipse de Sol · Calendario del cielo",
-      meteor: "Lluvia de meteoros · Calendario del cielo", planet: "Planetas · Calendario del cielo", season: "Estaciones · Calendario del cielo",
+      meteor: "Lluvia de meteoros · Calendario del cielo", planet: "Planetas · Calendario del cielo", season: "Estaciones · Calendario del cielo", milestone: "Hito del espacio · Calendario del cielo",
       iss: "Estación Espacial Internacional · Calendario del cielo", launch: "Lanzamiento · Ahora en el espacio", sun: (d) => `Actividad solar · ${d}`,
       asteroid: "Asteroide que pasa cerca · Ahora en el espacio", mars: (phase) => `${phase} · Ahora en el espacio`,
     },
@@ -60,7 +60,7 @@ export const TE = {
     gSpeed: "Velocidad", gSpeedSub: "respecto a la Tierra",
     gFromEarth: "Distancia a la Tierra", gFromSun: "Distancia al Sol", gSignal: "Una señal de radio tarda", gSignalSub: "solo ida, a la velocidad de la luz",
     gPhase: "Situación", phase: { cruise: "En ruta a Marte", orbit: "En órbita de Marte", other: "Nave de la lista de Marte" },
-    gLaunched: "Lanzamiento", gAgency: "Agencia", au: "UA",
+    gLaunched: "Lanzamiento", gAgency: "Agencia", au: "UA", gLightDay: (au) => `1 día-luz · unas ${au} UA`,
     km: (n) => `${n} km`, mkm: (n) => `${n} millones de km`,
     // dato curioso / frase
     eclipseSafety: "Nunca mires al Sol sin gafas con filtro solar certificado (ISO 12312-2) o por proyección.",
@@ -98,6 +98,7 @@ export const TE = {
       launch: "Launch Library 2 (The Space Devs)",
       sun: "SILSO (Real Observatorio de Bélgica) · NOAA SWPC · NASA SDO/HMI",
       asteroid: "NASA/JPL CNEOS",
+      milestone: "NASA (misión Voyager: science.nasa.gov/mission/voyager)",
       mars: "NASA JPL Horizons",
     },
   },
@@ -114,7 +115,7 @@ export const TE = {
     shareBtn: (title) => `Share image: ${title}`, shareBtnShort: "Share",
     type: {
       moon: "Moon phase · Sky calendar", eclipseMoon: "Lunar eclipse · Sky calendar", eclipseSun: "Solar eclipse · Sky calendar",
-      meteor: "Meteor shower · Sky calendar", planet: "Planets · Sky calendar", season: "Seasons · Sky calendar",
+      meteor: "Meteor shower · Sky calendar", planet: "Planets · Sky calendar", season: "Seasons · Sky calendar", milestone: "Space milestone · Sky calendar",
       iss: "International Space Station · Sky calendar", launch: "Launch · Now in space", sun: (d) => `Solar activity · ${d}`,
       asteroid: "Asteroid passing close · Now in space", mars: (phase) => `${phase} · Now in space`,
     },
@@ -155,7 +156,7 @@ export const TE = {
     gSpeed: "Speed", gSpeedSub: "relative to Earth",
     gFromEarth: "Distance to Earth", gFromSun: "Distance to the Sun", gSignal: "A radio signal takes", gSignalSub: "one way, at the speed of light",
     gPhase: "Status", phase: { cruise: "On its way to Mars", orbit: "In orbit around Mars", other: "Spacecraft on the Mars list" },
-    gLaunched: "Launch", gAgency: "Agency", au: "AU",
+    gLaunched: "Launch", gAgency: "Agency", au: "AU", gLightDay: (au) => `1 light-day · about ${au} AU`,
     km: (n) => `${n} km`, mkm: (n) => `${n} million km`,
     eclipseSafety: "Never look at the Sun without certified solar filter glasses (ISO 12312-2) or by projection.",
     sunCurio: "Each spot is a cooler region of the Sun with intense magnetic fields; many are bigger than Earth.",
@@ -190,6 +191,7 @@ export const TE = {
       launch: "Launch Library 2 (The Space Devs)",
       sun: "SILSO (Royal Observatory of Belgium) · NOAA SWPC · NASA SDO/HMI",
       asteroid: "NASA/JPL CNEOS",
+      milestone: "NASA (Voyager mission: science.nasa.gov/mission/voyager)",
       mars: "NASA JPL Horizons",
     },
   },

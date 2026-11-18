@@ -10,7 +10,7 @@
 
 export const MILESTONES = [
   {
-    id: "voyager1-lightday", kind: "lightday", craft: "Voyager 1",
+    id: "voyager1-lightday", kind: "lightday", craft: "Voyager 1", launched: "1977-09-05",
     t: Date.UTC(2026, 10, 18, 10, 16, 7), allDay: false,
     km: 25902068356,
     source: "https://science.nasa.gov/mission/voyager/where-are-voyager-1-and-voyager-2-now/",

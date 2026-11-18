@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.21.1 — 18 de noviembre de 2026
+
+- Los hitos del espacio también se comparten: la postal lleva el concepto
+  artístico de la nave (NASA/JPL-Caltech, rotulado como ilustración), cuándo
+  fue o cuánto falta, la distancia a la Tierra y lo que tarda una señal de
+  radio (24 h en el caso del día-luz), con la NASA como fuente.
+
 ## 1.21.0 — 18 de noviembre de 2026
 
 - Calendario del cielo: nueva categoría «Hitos del espacio», con fecha, hora y

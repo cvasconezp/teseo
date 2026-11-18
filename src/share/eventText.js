@@ -26,7 +26,7 @@ import { TE, cardFileName } from "./i18n.js";
 export { TE, cardFileName };
 
 const DAY = 86400000, HOUR = 3600000, MIN = 60000;
-export const NOW_SHARE_KINDS = ["moon", "eclipse", "meteor", "planet", "season", "iss", "launch", "sun", "asteroid", "mars"];
+export const NOW_SHARE_KINDS = ["moon", "eclipse", "meteor", "planet", "season", "milestone", "iss", "launch", "sun", "asteroid", "mars"];
 /** Zona horaria de los atajos de lugar del Cielo (Quito, Cayambe, Guayaquil, Cuenca: todos en Ecuador continental). */
 export const PRESET_TZ = "America/Guayaquil";
 
@@ -269,6 +269,26 @@ export function eventCardText(spec, lang = "es", place = null, now = Date.now())
       out.credit = T.pcData(T.src.season);
       out.visual = { type: "earth", label: T.lblEarth, season: d.k, lon: pl.lon, lat: pl.lat, place: pl.name };
       out.sky = { date: ev.t, center: bodyDir("Sol", ev.t, pl), zenith: false, reticle: true, local: pl.lat != null };
+      break;
+    }
+    case "milestone": {
+      // Hito del espacio (milestones.js): fecha y cifras de la NASA; la imagen es el concepto artístico de la NASA
+      out.title = info.title; out.type = T.type.milestone;
+      if (ev.allDay) { add(T.gWhen, f.dateUtc(ev.t)); push(untilCell(ev.t, now, lang, f, { days: true })); }
+      else { whenCell(ev.t); push(untilCell(ev.t, now, lang, f)); }
+      if (ev.sub === "lightday" && d.km) {
+        add(T.gFromEarth, kmText(d.km, f, T), T.gLightDay(f.n(d.km / AU_KM, 0)), "data", 1);
+        add(T.gSignal, sigText(86400, f, lang), T.gSignalSub, "data", 1);
+      }
+      if (d.launched) add(T.gLaunched, f.dateUtc(Date.parse(`${d.launched}T12:00:00Z`)), d.craft, "data", 2);
+      add(T.gAgency, "NASA", null, "data", 3);
+      out.curio = firstSentences(info.what, 150);
+      out.credit = T.pcData(T.src.milestone);
+      const nasa = nasaImageFor({ layer: "probes", name: d.craft || "" });
+      out.visual = nasa
+        ? { type: "craft", url: nasa.srcBig, label: T.lblCraftNasa(nasaKindKey(nasa) === "photo" || nasaKindKey(nasa) === "processed" ? "photo" : nasa.kind, nasa.credit), labelFallback: T.lblCraftArt, name: d.craft }
+        : { type: "craft", url: null, label: T.lblCraftArt, labelFallback: T.lblCraftArt, name: d.craft };
+      out.sky = { date: ev.t, center: null, zenith: true, reticle: false, local: pl.lat != null };
       break;
     }
     case "iss": {

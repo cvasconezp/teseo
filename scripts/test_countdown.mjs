@@ -63,6 +63,16 @@ const nx3 = nextHighlight({ now: at("2027-08-14T12:00:00Z"), lat: 0, lon: -78.43
 ok(nx3 && nx3.id === "milestone-voyager2-50y", "en agosto de 2027: los 50 años de la Voyager 2 (el eclipse lunar penumbral del 17 no cuenta)");
 ok(!isHighlight({ type: "eclipse", sub: "moon", data: { type: "penumbral" } }) && isHighlight({ type: "eclipse", sub: "moon", data: { type: "total" } }), "un eclipse lunar penumbral no entra en «Lo próximo»; uno total, sí");
 
+console.log("Compartir un hito");
+const { eventCardText, NOW_SHARE_KINDS } = await import("../src/share/eventText.js");
+const card = eventCardText({ kind: "milestone", ev: vEv }, "es", { lat: -0.22, lon: -78.51, kind: "preset", name: "Quito" }, now);
+ok(NOW_SHARE_KINDS.includes("milestone"), "los hitos se pueden compartir");
+ok(/Voyager 1 llega a 1 día-luz/.test(card.title) && card.type === "Hito del espacio · Calendario del cielo", "postal: título y tipo");
+ok(card.grid.some(c => c.label === "Una señal de radio tarda" && c.value === "24 h 0 min") && card.grid.some(c => c.label === "Distancia a la Tierra"), "postal: distancia y «una señal de radio tarda 24 h»");
+ok(card.visual && card.visual.type === "craft" && /NASA/.test(card.credit), "postal: imagen de la nave (NASA) y crédito de la NASA");
+const card2 = eventCardText({ kind: "milestone", ev: milestoneEvents(Date.UTC(2027, 7, 1), Date.UTC(2027, 8, 30))[0] }, "en", null, now);
+ok(/50 years since Voyager 2 launched/.test(card2.title) && card2.grid.some(c => c.label === "Launch"), "postal del aniversario (en inglés)");
+
 const cal = readFileSync(new URL("../src/now/calendar/Calendar.jsx", import.meta.url), "utf8");
 ok(/new Date\(d\.getFullYear\(\), d\.getMonth\(\), d\.getDate\(\)\)\.getTime\(\)/.test(cal) && /<NextUp key=\{highlight\.id\}/.test(cal) && /className=\{`cal-cd is-\$\{cd\.state\}`\}/.test(cal), "la agenda empieza hoy a medianoche, muestra «Lo próximo» y el «cuánto falta» de cada evento");
 
