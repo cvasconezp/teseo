@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.32.0 — 18 de noviembre de 2026
+
+- Cochasquí: ocho de las quince pirámides truncas, cubiertas de hierba como
+  están hoy, con su rampa hacia el suroeste y asentadas en la ladera. Posición
+  (±10 m), alto y largo de las rampas son aproximados; faltan las otras siete
+  y los montículos funerarios.
+- Corregido: en sitios en ladera, un monumento cercano y más alto podía
+  levantar el suelo dibujado por encima de los ojos del observador.
+
 ## 1.31.0 — 18 de noviembre de 2026
 
 - Machu Picchu, primera versión de la ciudadela vista desde la cima del

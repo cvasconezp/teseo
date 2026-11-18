@@ -38,7 +38,7 @@ export const MON_MATS = {
   granite: { src: "sarsen", tile: 2.2, tint: [1.15, 1.15, 1.12], normal: 1.2, macro: 0.4, blend: 0.3 },             // Machu Picchu
   earth: { src: "dirt", tile: 3.5, tint: [0.98, 0.86, 0.68], normal: 1.0, macro: 0.7, blend: 1, matte: true },       // Akapana
   inca: { src: "yucatan", tile: 3.2, tint: [0.72, 0.73, 0.72], normal: 1.5, macro: 0.5, blend: 0.3 },                // Machu Picchu: sillares de granito
-  heath: { src: "grass", tile: 2.2, tint: [0.78, 0.8, 0.6], normal: 1.0, macro: 0.85, blend: 1, matte: true },          // Cochasquí: matorral sobre las pirámides
+  heath: { src: "grass", tile: 2.2, tint: [0.78, 0.9, 0.66], normal: 1.0, macro: 0.85, blend: 1, matte: true },         // Cochasquí: hierba más oscura sobre las pirámides
   // suelos de cada lugar
   desert: { src: "sand", tile: 4.5, tint: [1.02, 0.84, 0.7], normal: 1.0, macro: 0.6, blend: 1, matte: true },       // Atacama: grava rojiza
   puna: { src: "sand", tile: 4.5, tint: [0.9, 0.86, 0.64], normal: 1.0, macro: 0.7, blend: 1, matte: true },         // altiplano: paja seca

@@ -122,7 +122,7 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   ok(near(ih.u1, 1.8, 0.01) && near(offsetOf(site("machupicchu").lat, site("machupicchu").lon, byId("intihuatana").lat, byId("intihuatana").lon).d, 5, 0.5), "Machu Picchu: el Intihuatana, 1,8 m, a 5 m del punto de vista");
   // Cochasquí y Machu Picchu (aproximados)
   const cq = MONUMENTS.filter((m) => m.site === "cochasqui"), mp = MONUMENTS.filter((m) => m.site === "machupicchu");
-  ok(cq.length === 0 && monumentsNear(site("cochasqui").lat, site("cochasqui").lon, 25).length === 0, "Cochasquí: sin pirámides todavía (pendiente)");
+  ok(cq.length === 8 && cq.every((m) => /aproximada/.test(m.sub.es) && m.relief) && monumentsNear(site("cochasqui").lat, site("cochasqui").lon, 25).length === 8 && near(bbox(buildFaces(byId("cq-13"))).u1, 6, 1e-9), "Cochasquí: ocho pirámides con rampa sobre la ladera, marcadas como aproximadas");
   const mpi = placeMonuments(mp.filter((m) => m.id !== "intihuatana"), { lat: site("machupicchu").lat, lon: site("machupicchu").lon, ground: 2430 }, Object.fromEntries(mp.map((m) => [m.id, 2430])));
   ok(mp.length === 20 && mpi.every((it) => it.dz < -10) && mp.filter((m) => m.label !== false).length === 5 && mp.every((m) => m.id === "intihuatana" || /aproximad/.test(m.sub.es)), "Machu Picchu: templos y casas más abajo que la cima del Intihuatana, marcados como aproximados");
   // rótulos y relieve cercano
@@ -132,7 +132,7 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   ok(near(reliefAt(grid, 0, 0), -1.7, 1e-9) && near(reliefAt(grid, 300, 0), -10, 1e-9) && reliefPoints(0, 0, 500).length === RELIEF_R.length * RELIEF_NA && RELIEF_R.length * RELIEF_NA <= 64,
     "relieve cercano: a los pies, 1,7 m bajo los ojos; lejos, el del modelo; cabe en una consulta");
   const far = { m: { id: "x", foot: 5 }, o: { e: 230, n: 0, d: 230 }, dz: 25 };
-  ok(near(groundHeight(1, 0, [far], grid), reliefAt(grid, 1, 0), 1e-9) && near(groundHeight(230, 0, [far], grid), 25, 0.8), "con relieve, un monumento lejano no levanta el suelo bajo el observador, solo el suyo");
+  ok(near(groundHeight(0, 0, [far], grid), -1.7, 0.05) && near(groundHeight(0, 0, [{ ...far, o: { e: 30, n: 0, d: 30 } }], grid), -1.7, 0.6) && near(groundHeight(230, 0, [far], grid), 25, 0.8), "con relieve, ningún monumento (ni uno cercano y más alto) levanta el suelo bajo los pies del observador");
 }
 
 console.log("Integración");

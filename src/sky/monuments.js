@@ -75,10 +75,10 @@ const paranal = VLT_UT.map(([id, nm, e, n], i) => ({
 const CQ0 = [0.0558, -78.3080];
 const CQ = [["cq-mayor", 111, 21, 85, 90, 13, 110, true], ["cq-13", 29, 125, 50, 30, 6, 67, false], ["cq-c", 120, 119, 55, 50, 8, 50, false], ["cq-b", 172, -3, 50, 60, 8, 60, false],
   ["cq-e", 209, -46, 50, 50, 7, 50, false], ["cq-f", 233, -82, 55, 40, 6, 0, false], ["cq-g", 291, -143, 45, 45, 6, 0, false], ["cq-h", 264, 21, 45, 40, 5, 0, false]];
-export const COCHASQUI_DRAFT = CQ.map(([id, e, n, w, d, h, ramp, label]) => ({
+const COCHASQUI_DRAFT = CQ.map(([id, e, n, w, d, h, ramp, label]) => ({
   id, site: "cochasqui", name: { es: "Pirámides de Cochasquí", en: "Cochasquí pyramids" }, sub: { es: "pirámides truncas con rampa · posición aproximada", en: "truncated ramp pyramids · approximate position" }, label,
   lat: +(CQ0[0] + n / mPerLat).toFixed(6), lon: +(CQ0[1] + e / mPerLon(CQ0[0])).toFixed(6),
-  kind: "tola", w, d, height: h, ramp, rot: 30, foot: Math.max(w, d) * 0.6, far: 6000, relief: true, color: GRASS, mat: "heath", ground: "scrub", solid: true,
+  kind: "tola", w, d, height: h, ramp, rot: 30, foot: Math.hypot(w, d) * 0.78, far: 6000, relief: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
 }));
 // Machu Picchu, desde la cima del Intihuatana. APROXIMADO (posición ±10 m sobre la imagen satelital de Google
 // Maps, 18-nov-2026; medidas redondeadas): el Templo de las Tres Ventanas y el Templo Principal en la Plaza
@@ -131,8 +131,7 @@ export const MONUMENTS = [
     kind: "stonehenge", axis: 49.9, height: 6.7, color: SARSEN, mat: "sarsen", ground: "grass", solid: false },
   { id: "newgrange", site: "newgrange", name: { es: "Newgrange", en: "Newgrange" }, lat: 53.69509, lon: -6.47531,
     kind: "mound", radius: 42.5, wall: 3, height: 13.5, entrance: 135, color: GRASS, wallColor: QUARTZ, mat: "grass", wallMat: "quartz", ground: "grass", solid: true },
-  // ...cochasqui: PENDIENTE. En la ladera (18 % de pendiente) las pirámides y sus rampas aún no asientan bien
-  // sobre el suelo dibujado; no se publican hasta resolverlo y tener el plano del parque.
+  ...COCHASQUI_DRAFT,
   ...machu,
   ...chankillo,
   // Quitsato: plataforma de 54 m de diámetro con mosaico de piedra y poste de 10 m de alto y 1,3 m de diámetro,
@@ -468,12 +467,12 @@ export function buildFaces(m, opt = {}) {
     // pirámide trunca de tierra cubierta de hierba: taludes tendidos, plataforma y, si la tiene, la rampa al sur de
     // su planta (girada con ella)
     // (la ladera cae hacia el suroeste cerca de un 18 %: el pie baja bajo la base y la rampa desciende con el terreno)
-    frustum(out, { z0: -14, z1: m.height, w0: m.w * 1.5, d0: m.d * 1.5, w1: m.w * 0.7, d1: m.d * 0.7, rot: m.rot, col, mat: m.mat });
+    frustum(out, { z0: -9, z1: m.height, w0: m.w * 1.0 + 15 * 0.7, d0: m.d * 1.0 + 15 * 0.7, w1: m.w * 0.72, d1: m.d * 0.72, rot: m.rot, col, mat: m.mat });
     if (m.ramp) {
       const hw0 = 7, hw1 = 5, y0 = -m.d * 0.35, y1 = -(m.d * 0.5 + m.ramp), P = (x, y, z) => { const q = rotP([x, y, z], m.rot); return [q[0], q[1], z]; };
       const zf = -0.18 * (m.ramp + m.d * 0.15);
       quad(out, P(-hw1, y1, zf), P(hw1, y1, zf), P(hw0, y0, m.height), P(-hw0, y0, m.height), col, m.mat);
-      for (const sg of [-1, 1]) quad(out, P(sg * (hw1 + 14), y1, zf - 8), P(sg * hw1, y1, zf), P(sg * hw0, y0, m.height), P(sg * (hw0 + 22), y0, -12), col, m.mat);
+      for (const sg of [-1, 1]) quad(out, P(sg * (hw1 + 6), y1, zf - 4), P(sg * hw1, y1, zf), P(sg * hw0, y0, m.height), P(sg * (hw0 + 10), y0, -5), col, m.mat);
     }
     for (const f of out) f.smooth = false;
   } else if (m.kind === "inca") {

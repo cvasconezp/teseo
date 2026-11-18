@@ -1670,6 +1670,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         },
         // mirar a una altura/azimut del lugar (pruebas y capturas; solo en «Mi cielo»)
         lookAltAz: (alt, az, span) => { const v = altAzToLocal(alt, az); r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), span, true); r.wake(); },
+        // monumentos (pruebas): cuántos hay, si hay relieve cercano y el rango de alturas de cada malla
+        mon: () => ({ n: r.monuments.items.length, loading: r.monuments.loading, vis: r.monuments.group.visible, meshes: r.monuments.group.children.filter((c) => c.isMesh).map((c) => { c.geometry.computeBoundingBox(); const b = c.geometry.boundingBox; return [c.renderOrder, c.geometry.attributes.position.count, +b.min.y.toFixed(1), +b.max.y.toFixed(1), Number.isFinite(b.min.y)]; }) }),
         // mirar a una dirección ecuatorial (la de un cuerpo de bodies()), con el campo `span`
         lookEq: (nx, ny, nz, span) => { r.lookAt(new THREE.Vector3(nx, ny, nz).normalize().applyQuaternion(r.localQuat), span, true); r.wake(); },
         // mueve el reloj de la ISS (pruebas): al segundo, y whenStr con él

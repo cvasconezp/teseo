@@ -156,7 +156,9 @@ export function reliefAt(grid, e, n) {
  */
 export function groundHeight(e, n, items, grid = null) {
   let sw, sh;
-  if (grid) { sw = 1 / (22 * 22); sh = reliefAt(grid, e, n) * sw; }
+  // (a los pies del observador manda siempre su propio suelo: si no, un monumento cercano y más alto podría
+  // levantar el suelo por encima de sus ojos)
+  if (grid) { const w0 = 1 / (e * e + n * n + 4); sw = 1 / (22 * 22) + w0; sh = reliefAt(grid, e, n) / (22 * 22) - EYE_M * w0; }
   else { sw = 1 / (e * e + n * n + 16); sh = -EYE_M * sw; }
   for (const it of items) {
     const d = Math.hypot(e - it.o.e, n - it.o.n), r = Math.max(d - 0.7 * footprintRadius(it.m), 1.5);
