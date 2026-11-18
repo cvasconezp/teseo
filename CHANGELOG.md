@@ -1,5 +1,27 @@
 # Cambios
 
+## 1.25.0 — 18 de noviembre de 2026
+
+- «About Teseo»: la landing en inglés, en teseo.yachaydeep.com/about.
+  - Se genera desde /acerca con scripts/build_about_en.py, que falla si
+    alguna frase queda sin traducir; la prueba test_landing.mjs comprueba
+    que las dos versiones estén sincronizadas.
+  - Selector «English | Español» en la barra. Elegir una versión fija
+    también el idioma de la app.
+  - Si el navegador está en el otro idioma, un aviso discreto ofrece la otra
+    versión, sin redirigir.
+  - Videos y podcast marcados como «narrated in Spanish».
+  - La app enlaza a /about cuando está en inglés.
+- SEO:
+  - Las dos versiones de la landing se declaran equivalentes (hreflang) en
+    las páginas y en el sitemap.
+  - El sitemap incluye los ocho videos (título, miniatura, duración).
+  - Datos estructurados de los videos y del podcast en /acerca.
+  - Metadatos completos para compartir en redes.
+  - Nuevo llms.txt, que describe Teseo para los buscadores con IA.
+  - Enlaces a /acerca y /about en la portada estática de la app.
+- Analítica sin cookies (Vercel) también en las landings.
+
 ## 1.24.2 — 18 de noviembre de 2026
 
 - Landing /acerca: botón «Apoya» junto a «Abrir Teseo» en la barra

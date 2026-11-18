@@ -1295,7 +1295,7 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
           </button>
         </div>
-        <a href="/acerca" className="app-menu__about" onClick={()=>track("about_open", { from: "menu" })}>
+        <a href={aboutHref(lang)} className="app-menu__about" onClick={()=>track("about_open", { from: "menu" })}>
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg>
           <span><b>{t.aboutCard[0]}</b><small>{t.aboutCard[1]}</small></span>
         </a>
@@ -1328,6 +1328,9 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
   );
 }
 
+// Página «Acerca de»: /acerca en español, /about en inglés
+const aboutHref = (lang) => (lang === "en" ? "/about" : "/acerca");
+
 // ─── CRÉDITOS ────────────────────────────────────────────────────────────────
 
 function CreditsModal({ lang, onClose }) {
@@ -1358,7 +1361,7 @@ function CreditsModal({ lang, onClose }) {
             <IconClose width={20} height={20}/>
           </button>
         </div>
-        <a className="who__card who__card--about" href="/acerca" onClick={()=>track("about_open", { from: "credits" })}>
+        <a className="who__card who__card--about" href={aboutHref(lang)} onClick={()=>track("about_open", { from: "credits" })}>
           <span className="who__name">{t.aboutCard[0]}</span>
           <span className="who__text">{t.aboutCard[1]}</span>
         </a>
@@ -1888,7 +1891,7 @@ export default function Teseo() {
               </p>
             </div>
             <div className="topbar__ctl flex items-center gap-2">
-            <a href="/acerca" className="about-btn" aria-label={t.aboutLink} title={t.aboutLink}
+            <a href={aboutHref(lang)} className="about-btn" aria-label={t.aboutLink} title={t.aboutLink}
               onClick={()=>track("about_open", { from: "header" })}>
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg><span>{t.aboutShort}</span>
             </a>
@@ -2030,7 +2033,7 @@ export default function Teseo() {
                 {t.creditsLink}
               </button>
               <span aria-hidden="true" className="footer__sep"/>
-              <a href="/acerca" className="footer__link" onClick={()=>track("about_open", { from: "footer" })}>{t.aboutLink}</a>
+              <a href={aboutHref(lang)} className="footer__link" onClick={()=>track("about_open", { from: "footer" })}>{t.aboutLink}</a>
             </footer>
           )}
         </div>

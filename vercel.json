@@ -16,6 +16,14 @@
       "destination": "/acerca/index.html"
     },
     {
+      "source": "/about",
+      "destination": "/about/index.html"
+    },
+    {
+      "source": "/about/",
+      "destination": "/about/index.html"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

@@ -1,0 +1,26 @@
+# Teseo
+
+> Teseo es una app web gratuita y de código abierto (licencia MIT) de divulgación astronómica, hecha en Cayambe, Ecuador, por Yachay Deep Labs con la iniciativa de astronomía comunitaria Killa Ñan. Es planetario, navegador interplanetario, calendario del cielo y laboratorio. Disponible en español e inglés, en el navegador o instalada como app (PWA), sin cuenta y sin publicidad.
+
+Teseo is a free, open-source (MIT) astronomy app made in Cayambe, Ecuador, by Yachay Deep Labs with the community astronomy initiative Killa Ñan. It works as a planetarium, an interplanetary navigator, a sky calendar and a science lab, in English and Spanish.
+
+Principios: las cifras salen de datos oficiales y física real (efemérides contrastadas con el Observatorio Naval de EE. UU., NASA/JPL y catálogos abiertos); cuando la app usa IA, solo narra resultados ya calculados, nunca calcula.
+
+## Páginas
+
+- [Acerca de Teseo (español)](https://teseo.yachaydeep.com/acerca): qué es, la ciencia, videos, podcast, talleres y cómo apoyar
+- [About Teseo (English)](https://teseo.yachaydeep.com/about): the same page in English
+- [La app](https://teseo.yachaydeep.com/): abre en la pestaña Cielo
+
+## Secciones de la app
+
+- [Cielo](https://teseo.yachaydeep.com/#sky): planetario desde la ubicación del usuario, con el horizonte real calculado con el relieve de hasta 150 km y la curvatura de la Tierra, nombres de montañas, nubes previstas, más de 17.000 objetos, astronomía andina (salidas del Sol en solsticios y equinoccios; sitios quitu-caranquis según Cristóbal Cobo, 2012), fotos 360° y postales
+- [Ruta](https://teseo.yachaydeep.com/#ruta): viajes por el sistema solar con mecánica orbital (transferencias de Hohmann, ventanas de lanzamiento, trayectorias realistas)
+- [Ahora](https://teseo.yachaydeep.com/#ahora): lo que pasa hoy en el espacio y calendario del cielo por ciudad (eclipses, lluvias de meteoros, solsticios, lanzamientos, hitos como la Voyager 1 a un día-luz), suscribible en Google Calendar, iPhone y Outlook
+- [Preguntas](https://teseo.yachaydeep.com/#preguntas): diez recorridos interactivos con datos publicados: tamaño del universo, masa, agujeros negros, expansión, materia oscura, viajes en el tiempo, ondas gravitacionales, ecuación de Drake, espectro de las estrellas y el final del universo
+
+## Opcional
+
+- [Código fuente](https://github.com/cvasconezp/teseo)
+- [Créditos y fuentes de datos](https://github.com/cvasconezp/teseo/blob/main/CREDITS.md)
+- [Novedades](https://github.com/cvasconezp/teseo/blob/main/CHANGELOG.md)

@@ -35,7 +35,8 @@ ok(/<div id="root">\s*<!--[\s\S]*?<h1[^>]*>Teseo<\/h1>/.test(html), "portada est
 console.log("sitemap, robots y servidor");
 const sm = readFileSync(new URL("../public/sitemap.xml", import.meta.url), "utf8");
 ok(sm.includes("<loc>https://teseo.yachaydeep.com/</loc>") && sm.includes("<loc>https://teseo.yachaydeep.com/?lang=en</loc>") && /<lastmod>\d{4}-\d\d-\d\d<\/lastmod>/.test(sm), "sitemap con los dos idiomas y fecha");
-ok((sm.match(/hreflang=/g) || []).length === 6, "sitemap con hreflang");
+ok((sm.match(/hreflang=/g) || []).length === 12 && sm.includes("<loc>https://teseo.yachaydeep.com/acerca</loc>") && sm.includes("<loc>https://teseo.yachaydeep.com/about</loc>"), "sitemap con hreflang: app y landing, tres variantes por página");
+ok((sm.match(/<video:video>/g) || []).length === 8 && /xmlns:video=/.test(sm), "sitemap de videos de la landing");
 const robots = readFileSync(new URL("../public/robots.txt", import.meta.url), "utf8");
 ok(/Allow: \//.test(robots) && /Sitemap: https:\/\/teseo\.yachaydeep\.com\/sitemap\.xml/.test(robots), "robots.txt permite rastrear y anuncia el sitemap");
 const vercel = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8"));

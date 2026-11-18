@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
   <url>
     <loc>https://teseo.yachaydeep.com/</loc>
-    <lastmod>2026-11-17</lastmod>
+    <lastmod>2026-11-18</lastmod>
     <xhtml:link rel="alternate" hreflang="es" href="https://teseo.yachaydeep.com/" />
     <xhtml:link rel="alternate" hreflang="en" href="https://teseo.yachaydeep.com/?lang=en" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://teseo.yachaydeep.com/" />
   </url>
   <url>
     <loc>https://teseo.yachaydeep.com/?lang=en</loc>
-    <lastmod>2026-11-17</lastmod>
+    <lastmod>2026-11-18</lastmod>
     <xhtml:link rel="alternate" hreflang="es" href="https://teseo.yachaydeep.com/" />
     <xhtml:link rel="alternate" hreflang="en" href="https://teseo.yachaydeep.com/?lang=en" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://teseo.yachaydeep.com/" />
@@ -17,5 +17,87 @@
   <url>
     <loc>https://teseo.yachaydeep.com/acerca</loc>
     <lastmod>2026-11-18</lastmod>
+    <xhtml:link rel="alternate" hreflang="es" href="https://teseo.yachaydeep.com/acerca" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://teseo.yachaydeep.com/about" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://teseo.yachaydeep.com/acerca" />
+    <video:video>
+      <video:thumbnail_loc>https://teseo.yachaydeep.com/acerca/video/en-un-minuto.jpg</video:thumbnail_loc>
+      <video:title>Teseo en un minuto</video:title>
+      <video:description>El mapa del cielo, tu horizonte, los viajes por el sistema solar y las grandes preguntas, filmados en la propia app Teseo.</video:description>
+      <video:content_loc>https://teseo.yachaydeep.com/acerca/video/en-un-minuto.mp4</video:content_loc>
+      <video:duration>44</video:duration>
+      <video:publication_date>2026-11-17</video:publication_date>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://teseo.yachaydeep.com/acerca/video/estrellas.jpg</video:thumbnail_loc>
+      <video:title>¿Cómo sabemos de qué está hecha una estrella?</video:title>
+      <video:description>El espectro de la luz, sus rayas oscuras y cómo se descubrió el helio en el Sol, explicado con la app Teseo.</video:description>
+      <video:content_loc>https://teseo.yachaydeep.com/acerca/video/estrellas.mp4</video:content_loc>
+      <video:duration>103</video:duration>
+      <video:publication_date>2026-11-16</video:publication_date>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://teseo.yachaydeep.com/acerca/video/vida-estrella.jpg</video:thumbnail_loc>
+      <video:title>¿Cómo vive y muere una estrella?</video:title>
+      <video:description>De la nube de gas a la enana blanca, la supernova o el agujero negro: la vida de una estrella depende de su masa.</video:description>
+      <video:content_loc>https://teseo.yachaydeep.com/acerca/video/vida-estrella.mp4</video:content_loc>
+      <video:duration>134</video:duration>
+      <video:publication_date>2026-11-16</video:publication_date>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://teseo.yachaydeep.com/acerca/video/marte.jpg</video:thumbnail_loc>
+      <video:title>¿Por qué no vamos a Marte cualquier día?</video:title>
+      <video:description>La transferencia de Hohmann, el ángulo de 44° y la ventana de lanzamiento que se repite cada 26 meses.</video:description>
+      <video:content_loc>https://teseo.yachaydeep.com/acerca/video/marte.mp4</video:content_loc>
+      <video:duration>128</video:duration>
+      <video:publication_date>2026-11-16</video:publication_date>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://teseo.yachaydeep.com/acerca/video/jupiter.jpg</video:thumbnail_loc>
+      <video:title>Las lunas de Júpiter</video:title>
+      <video:description>Cuatro puntitos de luz que cambiaron la astronomía, y cómo ver las lunas de Júpiter esta noche con Teseo.</video:description>
+      <video:content_loc>https://teseo.yachaydeep.com/acerca/video/jupiter.mp4</video:content_loc>
+      <video:duration>132</video:duration>
+      <video:publication_date>2026-11-16</video:publication_date>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://teseo.yachaydeep.com/acerca/video/horizonte.jpg</video:thumbnail_loc>
+      <video:title>El cielo empieza en tus montañas</video:title>
+      <video:description>Tu horizonte real con el relieve, la curvatura de la Tierra, las nubes y los monumentos, calculado por Teseo.</video:description>
+      <video:content_loc>https://teseo.yachaydeep.com/acerca/video/horizonte.mp4</video:content_loc>
+      <video:duration>79</video:duration>
+      <video:publication_date>2026-11-17</video:publication_date>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://teseo.yachaydeep.com/acerca/video/estamos-solos.jpg</video:thumbnail_loc>
+      <video:title>¿Estamos solos?</video:title>
+      <video:description>La ecuación de Drake con números que puedes cambiar tú en Teseo.</video:description>
+      <video:content_loc>https://teseo.yachaydeep.com/acerca/video/estamos-solos.mp4</video:content_loc>
+      <video:duration>117</video:duration>
+      <video:publication_date>2026-11-17</video:publication_date>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://teseo.yachaydeep.com/acerca/video/fin-universo.jpg</video:thumbnail_loc>
+      <video:title>¿Cómo terminará el universo?</video:title>
+      <video:description>La expansión, la energía oscura y los finales posibles del universo.</video:description>
+      <video:content_loc>https://teseo.yachaydeep.com/acerca/video/fin-universo.mp4</video:content_loc>
+      <video:duration>131</video:duration>
+      <video:publication_date>2026-11-17</video:publication_date>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+  </url>
+  <url>
+    <loc>https://teseo.yachaydeep.com/about</loc>
+    <lastmod>2026-11-18</lastmod>
+    <xhtml:link rel="alternate" hreflang="es" href="https://teseo.yachaydeep.com/acerca" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://teseo.yachaydeep.com/about" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://teseo.yachaydeep.com/acerca" />
   </url>
 </urlset>

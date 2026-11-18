@@ -33,7 +33,7 @@ self.addEventListener("fetch", (e) => {
           caches.open(CACHE).then((c) => c.put("/index.html", copy));
         }
         return r;
-      }).catch(() => (url.pathname.startsWith("/acerca") ? caches.match(req) : caches.match("/index.html")))
+      }).catch(() => ((url.pathname.startsWith("/acerca") || url.pathname.startsWith("/about")) ? caches.match(req) : caches.match("/index.html")))
     );
     return;
   }
