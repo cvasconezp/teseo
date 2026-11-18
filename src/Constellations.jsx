@@ -65,6 +65,7 @@ import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, relie
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
 import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
 import { createSkyImagesLayer } from "./sky/skyImagesLayer.js";
+import { createCometLayer } from "./sky/cometLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
@@ -1181,6 +1182,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // fotos reales de galaxias, nebulosas y cúmulos en su sitio y a su tamaño, y el recuadro de los campos profundos
     const skyImages = createSkyImagesLayer({ onLoad: () => { const r0 = sceneRef.current; if (r0) r0._dirty = true; } });
     scene.add(skyImages.group);
+    // cometas con coma, cola y órbita (src/sky/cometLayer.js)
+    const cometLayer = createCometLayer();
+    scene.add(cometLayer.group);
 
     // ── constellation lines ──
     const segHips = []; // pairs of hip
@@ -1519,7 +1523,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, milky, skyImages, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
+      atm, clouds, terrain, monuments, milky, skyImages, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -2361,6 +2365,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.lines.quaternion.copy(q);
     if (ref.milky) ref.milky.mesh.quaternion.copy(q);
     if (ref.skyImages) ref.skyImages.group.quaternion.copy(q);
+    if (ref.cometLayer) ref.cometLayer.group.quaternion.copy(q);
     if (ref.guides) ref.guides.setLocalFrame(active ? q : null, qDate);
     if (ref.issLayer) ref.issLayer.setLocalFrame(active ? q : null);   // la ISS solo existe sobre un horizonte
     (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));
@@ -2822,6 +2827,21 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const openIssRef = useRef(openIss);
   openIssRef.current = openIss;
   useEffect(() => { if (selObj) setIssSheet(false); }, [selObj]);
+  // cometas: coma y cola (si la capa está encendida) y la órbita del cometa abierto
+  const [cometOrbits, setCometOrbits] = useState(null);
+  useEffect(() => {
+    if (!enabled.comets || cometOrbits) return;
+    let alive = true;
+    fetch("/comet-orbits.json").then((r) => r.json()).then((d) => { if (alive) setCometOrbits(d.comets || {}); }).catch(() => { if (alive) setCometOrbits({}); });
+    return () => { alive = false; };
+  }, [enabled.comets, cometOrbits]);
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref || !ref.cometLayer) return;
+    const on = !!enabled.comets && !viewFrom && datasets.comets && cometOrbits;
+    ref.cometLayer.set(on ? datasets.comets.objects : [], cometOrbits);
+    ref.cometLayer.showOrbit(on && selObj && selObj.layer === "comets" ? selObj.name : null);
+    ref._dirty = true; if (ref.wake) ref.wake();
+  }, [enabled.comets, datasets.comets, cometOrbits, selObj, viewFrom, ready]);
   // centrar: en la ISS si está sobre el horizonte a esa hora; si no, en la culminación
   const centerIss = useCallback(() => {
     const ref = sceneRef.current; if (!ref || !issOn || ref.ar.on) return;

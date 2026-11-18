@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.35.0 — 18 de noviembre de 2026
+
+- Cometas como cometas: con la capa encendida, los que están a menos de 4 UA
+  del Sol llevan coma y dos colas (gas, azulada; polvo, amarillenta) que
+  apuntan en sentido contrario al Sol. La dirección es real; el largo y el
+  brillo de la cola son una estimación a partir de su distancia al Sol y de
+  su magnitud total.
+- Al abrir un cometa se dibuja su órbita en el cielo, vista desde la Tierra
+  de ese momento (elementos orbitales de JPL SBDB).
+
 ## 1.34.0 — 18 de noviembre de 2026
 
 - Imágenes del Hubble, del Webb y de ESO en el cielo: 41 fotos de las que ya
