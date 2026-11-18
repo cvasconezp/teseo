@@ -1283,7 +1283,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     };
     BODY_NAMES.forEach(nm => {
       const b = BODIES[nm];
-      const c = document.createElement("canvas"); c.width = c.height = b.id === "sun" ? 1024 : SPRITE_RES;   // el Sol, con detalle para ver sus manchas
+      const c = document.createElement("canvas"); c.width = c.height = b.id === "sun" ? 1024 : b.id === "moon" ? (Math.min(window.innerWidth || 1000, window.innerHeight || 1000) < 700 ? 1024 : 2048) : SPRITE_RES;   // el Sol y la Luna, con detalle para acercarse
       drawBodySprite(c, nm, null, null);
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
       // tamaño fijo en pantalla (no crece al acercarse): es un marcador, no una escala
@@ -1587,6 +1587,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         atm.update(st);
         atm.setEnabled(!!st);
         milky.setIntensity(milkyWayVisibility(st));
+        { const up = st && r.localModeOn ? new THREE.Vector3(0, 1, 0).applyQuaternion(r.localQuat.clone().invert()) : null; milky.setExtinction(st ? st.k : 0, up ? [up.x, up.y, up.z] : null); }
         lines.material.opacity = st && starsHidden(st) ? 0.22 : r.lineBase;
         // Sol, Luna y planetas: el disco se sigue dibujando (con tamaño visible), más tenue si no se ve
         r.solarVis = {};

@@ -18,15 +18,16 @@ export const milkyU = (raDeg) => 0.5 - raDeg / 360;
 /**
  * Cuánto se ve la Vía Láctea (0–1) con el cielo del momento (st = skyState o null si la atmósfera está apagada):
  * nada con el Sol a menos de 8° bajo el horizonte, todo desde 16°; se apaga con la contaminación lumínica (brillo
- * del cielo en el cenit, mag/arcsec²: desde 21,6 en un cielo oscuro hasta 18,6 en una ciudad) y con la Luna.
+ * del cielo en el cenit, mag/arcsec², con la Luna incluida: desde 21,6 en un cielo oscuro hasta 18,6 en una ciudad).
  */
 export function milkyWayVisibility(st) {
   if (!st) return 1;
   const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const night = 1 - sm(-16, -8, st.sunAlt);
-  const dark = Math.pow(Math.min(1, Math.max(0, (st.b0Mag - 18.6) / 3.0)), 1.5);
-  const moonRatio = st.zenith && st.zenith.parts && st.b0Nl ? st.zenith.parts.moon / st.b0Nl : 0;
-  return night * dark / (1 + 0.8 * Math.max(0, moonRatio));
+  // brillo total del cielo en el cenit (mag/arcsec²): contaminación lumínica y Luna juntas. Así un cielo más
+  // oscuro nunca la muestra menos, tampoco con Luna
+  const mag = st.zenith && Number.isFinite(st.zenith.mag) ? Math.min(st.zenith.mag, st.b0Mag) : st.b0Mag;
+  return night * Math.pow(Math.min(1, Math.max(0, (mag - 18.6) / 3.0)), 1.5);
 }
 
 // con el cielo más oscuro la imagen entra al 80 %: se ve con claridad sin tapar las estrellas débiles
@@ -49,6 +50,16 @@ export function createMilkyWayLayer({ radius = 895, small = false, onLoad = null
   // suma luz sin tocar la transparencia del lienzo (el cielo de la página se ve a través de él)
   const mat = new THREE.MeshBasicMaterial({ map: tex, color: 0x000000, side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false, fog: false,
     blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor });
+  // hacia el horizonte hay más aire: la extinción la apaga como a las estrellas (uK = coeficiente, mag por masa de
+  // aire; uUp = cenit del lugar en el marco de la esfera). Sin lugar o sin atmósfera, uK = 0.
+  const ext = { uUp: { value: new THREE.Vector3(0, 0, 1) }, uK: { value: 0 } };
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, ext);
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vMwDir;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvMwDir = normalize(position);");
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vMwDir; uniform vec3 uUp; uniform float uK;")
+      .replace("#include <map_fragment>", "#include <map_fragment>\n{ float alt = max(dot(normalize(vMwDir), uUp), 0.0); float am = 1.0 / (alt + 0.025 * exp(-11.0 * alt)); diffuseColor.rgb *= pow(10.0, -0.4 * uK * (am - 1.0)); }");
+  };
+  mat.customProgramCacheKey = () => "teseo-milkyway-v1";
   const mesh = new THREE.Mesh(geo, mat);
   mesh.renderOrder = -5; mesh.frustumCulled = false;
   let level = 1;
@@ -56,6 +67,8 @@ export function createMilkyWayLayer({ radius = 895, small = false, onLoad = null
     mesh,
     /** Intensidad 0–1 (ver milkyWayVisibility). */
     setIntensity(v) { level = Math.min(1, Math.max(0, v)); mat.color.setScalar(level * GAIN); mesh.visible = level > 0.004 && mesh.userData.on !== false; },
+    /** Extinción: coeficiente k (0 = sin atmósfera) y cenit del lugar en el marco de la esfera ([x, y, z]) o null. */
+    setExtinction(k, up) { ext.uK.value = up ? Math.max(0, k || 0) : 0; if (up) ext.uUp.value.set(up[0], up[1], up[2]).normalize(); },
     setOn(b) { mesh.userData.on = !!b; mesh.visible = !!b && level > 0.004; },
     get intensity() { return level; },
     dispose() { geo.dispose(); mat.dispose(); tex.dispose(); if (mesh.parent) mesh.parent.remove(mesh); },

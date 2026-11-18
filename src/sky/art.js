@@ -347,7 +347,8 @@ export function artOptions(obj) {
  * `tex` = { data, width, height } (ImageData de la textura), `lon0` = longitud central (rad),
  * `tilt` = inclinación del eje (rad). Para la Luna, `phase` = { illum, waxing }.
  */
-export function drawSphere(ctx, tex, cx, cy, R, { lon0 = 0, tilt = 0, phase = null, sun = false, lat0 = 0 } = {}) {
+// `flat`: sin oscurecimiento hacia el limbo (la Luna llena se ve casi igual de brillante en el borde que en el centro)
+export function drawSphere(ctx, tex, cx, cy, R, { lon0 = 0, tilt = 0, phase = null, sun = false, lat0 = 0, flat = false } = {}) {
   // lat0: latitud del punto que mira al observador (rad; > 0 se ve más el hemisferio norte)
   const D = Math.ceil(R * 2), img = ctx.createImageData(D, D), out = img.data;
   const ct = Math.cos(tilt), st = Math.sin(tilt), cb = Math.cos(lat0), sb = Math.sin(lat0);
@@ -366,12 +367,13 @@ export function drawSphere(ctx, tex, cx, cy, R, { lon0 = 0, tilt = 0, phase = nu
       let u = (lon / TAU + 0.5) % 1; if (u < 0) u += 1;
       const tx = Math.min(W - 1, Math.floor(u * W)), ty = Math.min(H - 1, Math.max(0, Math.floor((0.5 - lat / Math.PI) * H)));
       const p = (ty * W + tx) * 4, q = (j * D + i) * 4;
-      let sh = sun ? 0.82 + 0.18 * zz : 0.35 + 0.65 * Math.pow(zz, 0.55);          // limbo más oscuro
+      let sh = flat ? 0.9 + 0.1 * zz : sun ? 0.82 + 0.18 * zz : 0.35 + 0.65 * Math.pow(zz, 0.55);          // limbo más oscuro
       if (k != null) {
         // fase: terminador = semielipse de semieje (1 − 2k); el lado iluminado depende de si crece
         const w = Math.sqrt(Math.max(0, 1 - yy * yy)), xt = w * (1 - 2 * k);
-        const lit = phase.waxing ? xx > xt : xx < -xt;
-        if (!lit) sh *= 0.13;
+        // terminador suave (unos pocos píxeles), no un corte a cuchillo
+        const sd = phase.waxing ? xx - xt : -xt - xx, lit = Math.max(0, Math.min(1, sd * R / 3 + 0.5));
+        sh *= 0.13 + 0.87 * lit;
       }
       // borde suavizado
       const edge = Math.min(1, (1 - Math.sqrt(d2)) * R);

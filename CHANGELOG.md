@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.30.1 — 18 de noviembre de 2026
+
+- Vía Láctea: corregido su brillo con Luna. Con la Luna en el cielo se veía
+  menos en un sitio oscuro que en uno con luces; ahora cuenta el brillo total
+  del cielo y un sitio más oscuro nunca la muestra menos. Además se apaga
+  hacia el horizonte, como las estrellas.
+- La Luna, de cerca: se dibuja como esfera a alta resolución (antes era el
+  mapa plano recortado en un lienzo pequeño y se veía pixelada), con el
+  terminador suave y la textura al doble de resolución.
+
 ## 1.30.0 — 18 de noviembre de 2026
 
 - El Sol real: en el cielo, el Sol es la imagen en luz visible del Solar

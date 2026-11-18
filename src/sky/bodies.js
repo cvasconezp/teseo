@@ -1,3 +1,4 @@
+import { drawSphere } from "./art.js";
 // bodies.js — datos y texturas 2D de Sol, Luna y planetas para la vista Cielo.
 // Sin dependencia de three: solo metadatos reales y dibujo en <canvas>.
 // La clave de cada cuerpo es el nombre en español que devuelve ephemeris.js.
@@ -153,6 +154,16 @@ export function drawBodySprite(canvas, key, img, phase, opts = null) {
     }
     x.restore();
   };
+  // la Luna: proyectada como esfera (no el mapa plano recortado), con su fase y a la resolución del lienzo
+  if (b.id === "moon" && img && typeof document !== "undefined") {
+    try {
+      if (!img._teseoData) { const tc = document.createElement("canvas"); tc.width = img.naturalWidth; tc.height = img.naturalHeight; const tg = tc.getContext("2d", { willReadFrequently: true }); tg.drawImage(img, 0, 0); img._teseoData = tg.getImageData(0, 0, tc.width, tc.height); }
+      const Rd = Math.round(R * dev), off = document.createElement("canvas"); off.width = off.height = 2 * Rd;
+      drawSphere(off.getContext("2d"), img._teseoData, Rd, Rd, Rd, { lon0: 0, flat: true, phase: phase && phase.illum != null ? phase : null });
+      x.drawImage(off, cx - R, cy - R, 2 * R, 2 * R);
+      return;
+    } catch { /* si el navegador no deja leer la imagen, sigue con el disco plano */ }
+  }
   if (b.ring) ring(false);
   disc();
   if (b.ring) ring(true);
