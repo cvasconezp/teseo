@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.18.3 — 17 de noviembre de 2026
+
+- Apuntar al cielo: al arrastrar con el dedo y volver a apuntar, los puntos
+  cardinales ya no se desconfiguran (el este aparecía en el norte real). En
+  Android llegan dos señales de orientación, una con brújula y otra relativa
+  con su cero arbitrario; si la de brújula se cortaba, se usaba la relativa
+  tal cual. Ahora se aprende la diferencia entre ambas y la relativa se
+  convierte al norte verdadero.
+- Cada vez que se empieza a apuntar, y al volver a la app, se olvidan los
+  ajustes de brújula anteriores (en iPhone podían quedar viejos). Si el norte
+  pasa de alineado a mano a venir de la brújula, la alineación manual se borra.
+
 ## 1.18.2 — 17 de noviembre de 2026
 
 - El paisaje sigue la luz del Sol según las montañas: cuando el Sol se esconde

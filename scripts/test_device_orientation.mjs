@@ -4,8 +4,9 @@
 import * as THREE from "three";
 import {
   cameraQuat, cameraLook, lookFromQuat, wrap360, angleDiff, smoothAngle, normalizeScreenAngle,
-  validAngles, compassReliable, compassAlphaOffset, compassPoint8,
+  validAngles, compassReliable, compassAlphaOffset, compassPoint8, createFrameBridge,
 } from "../src/sky/deviceOrientation.js";
+import { readFileSync } from "node:fs";
 
 let failed = 0, passed = 0;
 const ok = (cond, name, detail = "") => {
@@ -187,6 +188,34 @@ console.log("Valores nulos y brújula de iOS");
   l = cameraLook(30 - 50 + off, 120, 0, 0);
   ok(near(l.alt, 30) && nearAng(l.az, 140), "tras girar 50° a la derecha y subir 30° → az 140°, alt 30°", fmt(l));
   ok([0, 44, 90, 135, 180, 225, 270, 315, 338, 359].map(compassPoint8).join("") === "0123456700", "compassPoint8: N, NE, E, SE, S, SO, O, NO");
+}
+
+// ── Puente relativo → absoluto (Android): tras arrastrar y volver a apuntar, el norte no salta ──
+{
+  const br = createFrameBridge();
+  ok(br.relative(30, 0) === null && !br.known, "sin evento absoluto aún, el relativo no se convierte");
+  // el cero relativo está 123° corrido: absoluto = relativo − 123
+  let t = 0;
+  for (let i = 0; i < 40; i++) { t += 33; const absA = wrap360(10 + i); br.absolute(absA, t); br.relative(wrap360(absA + 123), t + 5); }
+  ok(br.known && Math.abs(angleDiff(br.offset, -123)) < 0.5, `aprende el desfase entre relativo y absoluto (${br.offset.toFixed(1)}°)`);
+  // el absoluto se corta: el relativo sale ya con el norte verdadero
+  ok(Math.abs(angleDiff(br.relative(123, t + 2000), 0)) < 0.5 && Math.abs(angleDiff(br.relative(wrap360(270 + 123), t + 2100), 270)) < 0.5, "si el absoluto se corta, el relativo se convierte: norte y este en su sitio");
+  ok(br.sinceAbsolute(t + 2000) === 2000 - 0 + 0 && br.sinceAbsolute(t + 10) === 10, "sabe cuánto hace del último absoluto");
+  // un relativo lejano en el tiempo no estropea el desfase
+  br.relative(200, t + 5000);
+  ok(Math.abs(angleDiff(br.offset, -123)) < 0.5, "solo aprende de pares casi simultáneos");
+  br.reset();
+  ok(!br.known && br.relative(50, 0) === null, "reset: olvida el desfase (nuevo arranque del sensor)");
+  // giro rápido entre el absoluto y el relativo: el suavizado no deja saltar el desfase
+  const b2 = createFrameBridge();
+  b2.absolute(0, 0); b2.relative(123, 10);
+  b2.absolute(0, 100); b2.relative(123 + 20, 110);   // lectura desfasada por un giro
+  ok(Math.abs(angleDiff(b2.offset, -123)) < 4, `un par desfasado mueve poco el desfase (${b2.offset.toFixed(1)}°)`);
+  const pt = readFileSync(new URL("../src/sky/pointing.js", import.meta.url), "utf8");
+  ok(/bridge\.absolute\(alpha, now\)/.test(pt) && /bridge\.relative\(alpha, now\)/.test(pt) && /sinceAbsolute\(now\) < 400\) return/.test(pt), "el lector usa el puente: el relativo solo manda si el absoluto se cortó");
+  ok(/iosOffset = 0; iosLocked = false; bridge\.reset\(\)/.test(pt) && /iosLocked = false; bridge\.reset\(\);\s*acquireLock/.test(pt), "cada arranque y cada regreso a la página olvidan los desfases viejos");
+  const cons = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
+  ok(/s === "absolute" && prevSrc === "relative" && pointAzOffset !== 0\) \{ pointAzOffset = 0/.test(cons), "al pasar de norte relativo a brújula se borra la alineación manual");
 }
 
 console.log(`\n${passed} pruebas correctas, ${failed} fallidas`);

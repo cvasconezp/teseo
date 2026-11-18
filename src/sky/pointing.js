@@ -9,7 +9,9 @@
 //   2. Android/Chrome: `deviceorientationabsolute` (alpha absoluto), o
 //      `deviceorientation` con event.absolute === true.
 //   3. Solo orientación relativa: funciona, pero el norte hay que alinearlo a mano.
-import { validAngles, normalizeScreenAngle, compassReliable, compassAlphaOffset, smoothAngle, wrap360 } from "./deviceOrientation.js";
+// En Android llegan a la vez el absoluto y el relativo: el relativo solo se usa si el absoluto se corta, y
+// convertido al norte con el desfase aprendido (createFrameBridge), para que el cielo no quede girado.
+import { validAngles, normalizeScreenAngle, compassReliable, compassAlphaOffset, smoothAngle, wrap360, createFrameBridge } from "./deviceOrientation.js";
 
 /** ¿Tiene sentido ofrecer el modo? Táctil + API de orientación + contexto seguro. */
 export function pointingSupported() {
@@ -45,6 +47,7 @@ export function createPointing(onStatus) {
   let rank = 0, lastBestAt = 0;          // 2 = absoluto/brújula, 1 = relativo
   let iosOffset = 0, iosLocked = false;  // desfase alpha relativo → absoluto (brújula de iOS)
   let wakeLock = null, wantLock = false;
+  const bridge = createFrameBridge();    // Android: relativo → absoluto si el evento absoluto se corta
 
   const setStatus = (s) => { if (s !== status) { status = s; if (onStatus) onStatus(s); } };
 
@@ -60,6 +63,7 @@ export function createPointing(onStatus) {
     let a = alpha, r = 1;
     if (absolute) {
       r = 2;
+      bridge.absolute(alpha, now);
     } else if (hasCompass) {
       // iOS: el desfase se fija (y se afina despacio) solo en posturas donde la brújula es fiable
       const off = compassAlphaOffset(heading, alpha);
@@ -70,6 +74,13 @@ export function createPointing(onStatus) {
     } else if (iosLocked) {
       a = wrap360(alpha + iosOffset);                      // evento suelto sin brújula: se mantiene el norte conocido
       r = 2;
+    } else {
+      // Android, evento relativo: se aprende su desfase con el absoluto; mientras llega el absoluto, manda él
+      const conv = bridge.relative(alpha, now);
+      if (conv !== null) {
+        if (bridge.sinceAbsolute(now) < 400) return;
+        a = conv; r = 2;                                   // el absoluto se cortó: el relativo, ya con el norte
+      }
     }
     // si hay una fuente mejor activa, se ignoran los eventos relativos que llegan en paralelo
     if (r < rank && now - lastBestAt < 1500) return;
@@ -95,7 +106,13 @@ export function createPointing(onStatus) {
     if (wakeLock) { const l = wakeLock; wakeLock = null; l.release().catch(() => {}); }
   };
   // el sistema suelta el bloqueo al ocultar la página: se vuelve a pedir al regresar
-  const onVisible = () => { if (document.visibilityState === "visible") acquireLock(); };
+  // al volver a la página, iOS y Android pueden reiniciar el cero del alpha relativo: se olvida el desfase
+  // aprendido (la brújula o el evento absoluto lo vuelven a fijar en cuanto llegan)
+  const onVisible = () => {
+    if (document.visibilityState !== "visible") return;
+    iosLocked = false; bridge.reset();
+    acquireLock();
+  };
 
   const listen = () => {
     if (!running) return;
@@ -113,6 +130,8 @@ export function createPointing(onStatus) {
   function start() {
     if (running) return;
     running = true; rank = 0; lastBestAt = 0; pose.fresh = false;
+    // cada arranque de los sensores tiene su propio cero relativo: nada de desfases viejos
+    iosOffset = 0; iosLocked = false; bridge.reset();
     setStatus("starting");
     const DOE = window.DeviceOrientationEvent;
     if (DOE && typeof DOE.requestPermission === "function") {

@@ -707,9 +707,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const panelRef = useRef(null);
   const pointRef = useRef(null);
   if (!pointRef.current) {
+    let prevSrc = null;
     pointRef.current = createPointing((s) => {
-      if (s === "denied" || s === "nosensor") { setAr("off"); setArSrc(null); setArError(s); track("sky_ar", { state: s }); }
-      else setArSrc(s === "absolute" || s === "relative" ? s : null);
+      if (s === "denied" || s === "nosensor") { setAr("off"); setArSrc(null); setArError(s); track("sky_ar", { state: s }); prevSrc = null; return; }
+      // de norte relativo (alineado a mano) a norte de brújula: la alineación manual ya no vale (se sumaría al
+      // norte verdadero y dejaría el cielo girado)
+      if (s === "absolute" && prevSrc === "relative" && pointAzOffset !== 0) { pointAzOffset = 0; setArAligned(false); }
+      if (s === "absolute" || s === "relative") prevSrc = s;
+      setArSrc(s === "absolute" || s === "relative" ? s : null);
     });
   }
   const selObjRef = useRef(null);

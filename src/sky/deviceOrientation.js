@@ -153,6 +153,36 @@ export function compassAlphaOffset(compassHeading, alpha) {
   return wrap360(360 - compassHeading - alpha);
 }
 
+// ── Puente entre la orientación relativa y la absoluta (Android) ────────
+// Chrome manda dos eventos: `deviceorientationabsolute` (alpha respecto del norte, con brújula) y
+// `deviceorientation` (alpha relativo: su cero es hacia donde apuntaba el teléfono al arrancar el sensor).
+// Los dos giran sobre la misma vertical, así que difieren en un ángulo fijo. Mientras llegan ambos se aprende
+// ese ángulo; si el absoluto se corta (el sistema a veces lo pausa), el relativo se convierte con él y el
+// norte no salta. Antes se pasaba al relativo tal cual y el cielo quedaba girado (el este en el norte real)
+// hasta que volvía el absoluto.
+
+/** Crea el puente. `absolute(alpha, ms)` y `relative(alpha, ms)` con cada evento; `relative` devuelve el
+ *  alpha absoluto equivalente, o null si aún no se conoce el desfase. */
+export function createFrameBridge({ pairMs = 120, k = 0.15 } = {}) {
+  let abs = null, absAt = -1e12, off = 0, known = false;
+  return {
+    absolute(alpha, now) { abs = alpha; absAt = now; },
+    relative(alpha, now) {
+      if (abs !== null && Math.abs(now - absAt) <= pairMs) {
+        const o = wrap360(abs - alpha);
+        off = known ? smoothAngle(off, o, k) : o;
+        known = true;
+      }
+      return known ? wrap360(alpha + off) : null;
+    },
+    /** ms desde el último evento absoluto (Infinity si nunca llegó). */
+    sinceAbsolute(now) { return abs === null ? Infinity : now - absAt; },
+    reset() { abs = null; absAt = -1e12; off = 0; known = false; },
+    get known() { return known; },
+    get offset() { return off; },
+  };
+}
+
 /** Punto cardinal de 8 rumbos para un azimut: 0 = N, 1 = NE, 2 = E … 7 = NO. */
 export function compassPoint8(az) {
   return Math.round(wrap360(az) / 45) % 8;
