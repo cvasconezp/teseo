@@ -63,6 +63,7 @@ import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakNam
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints } from "./sky/monumentLayer.js";
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
+import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
@@ -1270,9 +1271,19 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // se encuentren: no representan su tamaño aparente real.
     const solarSprites = {}, solarCanvas = {}, solarImg = {}, solarTex = {};
     let sceneDead = false;
+    // el Sol real de ese momento (imagen de SDO con sus manchas; src/sky/sunImage.js) o null: la textura genérica
+    let sunReal = null;
+    const setSunReal = (img) => {
+      if (sceneDead || !solarCanvas["Sol"]) return;
+      sunReal = img || null;
+      drawBodySprite(solarCanvas["Sol"], "Sol", solarImg["Sol"] || null, null, sunReal ? { real: { img: sunReal, ...SDO_DISC } } : null);
+      solarTex["Sol"].needsUpdate = true;
+      if (!sunReal && solarSprites["Sol"]) solarSprites["Sol"].material.rotation = 0;
+      const r0 = sceneRef.current; if (r0) r0._dirty = true;
+    };
     BODY_NAMES.forEach(nm => {
       const b = BODIES[nm];
-      const c = document.createElement("canvas"); c.width = c.height = SPRITE_RES;
+      const c = document.createElement("canvas"); c.width = c.height = b.id === "sun" ? 1024 : SPRITE_RES;   // el Sol, con detalle para ver sus manchas
       drawBodySprite(c, nm, null, null);
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
       // tamaño fijo en pantalla (no crece al acercarse): es un marcador, no una escala
@@ -1285,7 +1296,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         if (sceneDead) return;
         solarImg[nm] = img;
         { const rs = realSprites[nm]; if (rs && rs.wantB != null) { paintReal(nm, rs.wantB); if (sceneRef.current && sceneRef.current.sizeSolar) sceneRef.current.sizeSolar(); } }
-        drawBodySprite(c, nm, img, nm === "Luna" ? (sceneRef.current && sceneRef.current.moonPhase) : null);
+        drawBodySprite(c, nm, img, nm === "Luna" ? (sceneRef.current && sceneRef.current.moonPhase) : null, nm === "Sol" && sunReal ? { real: { img: sunReal, ...SDO_DISC } } : null);
         tex.needsUpdate = true;
       };
       img.onerror = () => { /* textura aún no publicada (p. ej. marte, venus): queda el disco de respaldo */ };
@@ -1353,6 +1364,17 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // cada cuadro: el eje del planeta, girado según hacia dónde queda el norte del cielo en la pantalla
     const vP = new THREE.Vector3(), vQ = new THREE.Vector3();
     const updateRealPlanets = () => {
+      // el Sol real: su eje de rotación, como se ve en el cielo (la imagen de SDO trae el norte solar arriba)
+      if (sunReal && solarSprites["Sol"]) {
+        const sp = solarSprites["Sol"], p = sp.position, n = p.length();
+        if (n) {
+          const d = [p.x / n, p.y / n, p.z / n], pl = SUN_POLE, dot = pl[0] * d[0] + pl[1] * d[1] + pl[2] * d[2];
+          const w = [pl[0] - dot * d[0], pl[1] - dot * d[1], pl[2] - dot * d[2]], wn = Math.hypot(w[0], w[1], w[2]) || 1;
+          vP.copy(p).applyMatrix4(solarGroup.matrixWorld).project(camera);
+          vQ.set(p.x + w[0] / wn * 0.4, p.y + w[1] / wn * 0.4, p.z + w[2] / wn * 0.4).applyMatrix4(solarGroup.matrixWorld).project(camera);
+          sp.material.rotation = Math.atan2(-(vQ.x - vP.x) * (mount.clientWidth || 1), (vQ.y - vP.y) * (mount.clientHeight || 1));
+        }
+      }
       for (const nm of REAL) {
         const rs = realSprites[nm]; if (!rs.sp.visible || !rs.pole) continue;
         const p = rs.sp.position, n = p.length(); if (!n) continue;
@@ -1491,7 +1513,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       recolorStars: () => paintStars(),
       atm, clouds, terrain, monuments, milky, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
-      sunSprite, applyViewpoint, redrawMoon, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
+      sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
       mode: "in",
       look: { yaw: 0, pitch: 0, span: SPAN_DEF, spanT: SPAN_DEF, vy: 0, vp: 0, drag: false, fly: null, local: false, qF: lookFrame(false), minPitch: PITCH_MIN_FREE },
@@ -2439,6 +2461,15 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       sp.userData.px = m.mag < 7 ? 15 : m.mag < 10 ? 12 : 10;           // las más brillantes, algo mayores
     }
     ref.moonSky = sky2;
+    // el Sol real de ese momento (SDO, con sus manchas): solo se vuelve a pedir al cambiar de cuarto de hora
+    if (ref.setSunReal) {
+      const tW = new Date(whenStr).getTime(), slot = showSolar && !viewFrom ? sdoSlot(tW) : null;
+      if (slot !== ref.sunSlot) {
+        ref.sunSlot = slot;
+        if (slot == null) ref.setSunReal(null);
+        else loadSunImage(tW, { api: API }).then((r) => { const r1 = sceneRef.current; if (r1 && r1.sunSlot === slot) r1.setSunReal(r ? r.img : null); });
+      }
+    }
     // planetas realistas: posición, polo y, si cambió la inclinación (o llegó la textura), un repintado
     for (const nm in (ref.realSprites || {})) {
       const rs = ref.realSprites[nm], pb = bodies.find((x) => x.name === nm); if (!pb) continue;

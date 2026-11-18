@@ -30,7 +30,7 @@ export const MON_MATS = {
   gnomon: { src: "metal", tile: 9, tint: [6.0, 2.3, 0.45], normal: 0.25, macro: 0.15, blend: 0 },                    // Quitsato: el poste
   pebblelight: { src: "pebble", tile: 1.8, tint: [1.55, 1.5, 1.4], normal: 1.2, macro: 0.3, blend: 0.6, matte: true },  // Quitsato: líneas
   concrete: { src: "casing", tile: 7, tint: [0.9, 0.9, 0.9], normal: 0.5, macro: 0.4, blend: 0 },                    // Paranal: base
-  tower: { src: "basalt", tile: 3.4, tint: [1.75, 1.55, 1.25], normal: 1.3, macro: 0.6, blend: 0.6 },               // Chankillo
+  tower: { src: "yucatan", tile: 4.2, tint: [1.0, 0.88, 0.7], normal: 1.3, macro: 0.6, blend: 0.3 },               // Chankillo: mampostería
   pirca: { src: "basalt", tile: 2.6, tint: [1.3, 1.24, 1.12], normal: 1.5, macro: 0.5, blend: 0.6 },                // Catequilla
   pircalight: { src: "basalt", tile: 2.6, tint: [1.9, 1.85, 1.7], normal: 1.2, macro: 0.3, blend: 0.6 },
   redstone: { src: "blocks", tile: 3.2, tint: [1.0, 0.76, 0.66], normal: 1.4, macro: 0.6, blend: 0.4 },             // Tiwanaku: arenisca

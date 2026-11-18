@@ -1,5 +1,19 @@
 # Cambios
 
+## 1.30.0 — 18 de noviembre de 2026
+
+- El Sol real: en el cielo, el Sol es la imagen en luz visible del Solar
+  Dynamics Observatory de la NASA de ese momento, con sus manchas (una cada
+  15 minutos, desde mayo de 2010) y girado según su eje. Al acercarse se ven
+  las manchas. Para fechas futuras o anteriores a 2010 queda el Sol genérico.
+- Chankillo: las torres ya no parecen flotar (el suelo llega a su pie, con
+  una malla más fina sobre la cresta) y su mampostería se ve más clara.
+- Tiwanaku: el punto de vista y la estela Ponce quedan en el eje de
+  Kalasasaya; la portada enmarca la estela y el Sol de los equinoccios se
+  pone detrás.
+- Sitios: cada uno enlaza su página de Wikipedia desde el panel «Lugar», y
+  Chankillo explica cómo usar las torres como calendario.
+
 ## 1.29.0 — 18 de noviembre de 2026
 
 - La Vía Láctea se ve en el cielo: su resplandor, las nubes de polvo y las

@@ -104,7 +104,8 @@ export function makeFallbackCanvas(id, W = 512, H = 256) {
 // Para la Luna, `phase` = { illum 0..1, waxing } pinta la fase real del momento.
 export const SPRITE_PX = 128;      // lado del dibujo en unidades lógicas (las proporciones del disco se dan sobre 128)
 export const SPRITE_RES = 256;     // lado real del lienzo: el doble, para que el disco se vea nítido en pantallas densas
-export function drawBodySprite(canvas, key, img, phase) {
+// `opts.real` = { img, c, r }: una imagen real del disco (el Sol de SDO), con su centro y radio como fracción del lado.
+export function drawBodySprite(canvas, key, img, phase, opts = null) {
   const b = BODIES[key]; if (!b) return;
   const S = SPRITE_PX, cx = S / 2, cy = S / 2;
   const x = canvas.getContext("2d"), dev = canvas.width / S;
@@ -127,6 +128,12 @@ export function drawBodySprite(canvas, key, img, phase) {
   const disc = () => {
     x.save();
     x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.clip();
+    const real = opts && opts.real;
+    if (real && real.img) {
+      // el disco real, tal como se ve: su norte queda arriba (el sprite se gira después según el cielo)
+      const w = real.img.naturalWidth || real.img.width, h = real.img.naturalHeight || real.img.height;
+      x.drawImage(real.img, (real.c - real.r) * w, (real.c - real.r) * h, 2 * real.r * w, 2 * real.r * h, cx - R, cy - R, R * 2, R * 2);
+    } else
     // hemisferio central de la textura equirectangular
     x.drawImage(src, sw * 0.25, 0, sw * 0.5, sh, cx - R, cy - R, R * 2, R * 2);
     if (b.id !== "sun") {                               // volumen: limbo más oscuro

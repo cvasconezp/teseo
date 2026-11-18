@@ -2,7 +2,7 @@
 // astronómicos y arqueológicos (places.js). Elegir un resultado llama a onPlace({ name, lat, lon, elev }).
 import { useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
-import { SITES, TP, searchPlaces, searchSites, placeLine } from "./places.js";
+import { SITES, TP, searchPlaces, searchSites, placeLine, siteUrl } from "./places.js";
 
 export function PlaceSearch({ lang = "es", onPlace }) {
   const tp = TP[lang] || TP.es;
@@ -65,7 +65,7 @@ export function SiteChips({ lang = "es", placeName, localMode, onPlace }) {
           return <button key={s.id} type="button" aria-pressed={cur === s} onClick={() => onPlace({ name: nm, lat: s.lat, lon: s.lon, elev: s.elev })}>{nm}</button>;
         })}
       </div>
-      {cur && <p className="sk-site-note">{cur.note[lang] || cur.note.es}</p>}
+      {cur && <p className="sk-site-note">{cur.note[lang] || cur.note.es}{siteUrl(cur, lang) && <> <a href={siteUrl(cur, lang)} target="_blank" rel="noopener noreferrer">{tp.siteMore}</a></>}</p>}
       <small className="sk-hint">{tp.sitesHint}</small>
     </div>
   );

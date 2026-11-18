@@ -160,8 +160,8 @@ export function groundHeight(e, n, items, grid = null) {
   else { sw = 1 / (e * e + n * n + 16); sh = -EYE_M * sw; }
   for (const it of items) {
     const d = Math.hypot(e - it.o.e, n - it.o.n), r = Math.max(d - 0.7 * footprintRadius(it.m), 1.5);
-    // con relieve, cada monumento solo levanta el suelo a su alrededor (hasta 45 m de su borde)
-    const w = grid ? Math.max(0, 1 / (r * r) - 1 / (45 * 45)) : 1 / (r * r);
+    // con relieve, cada monumento solo levanta el suelo a su alrededor (hasta 80 m de su borde, sobre todo en los primeros 25)
+    const w = grid ? Math.max(0, 1 / (r * r) - 1 / (80 * 80)) * 4 : 1 / (r * r);
     sw += w; sh += (it.dz - (it.m.lift || 0)) * w;
   }
   return sh / sw;
@@ -284,7 +284,8 @@ export function createMonumentLayer({ onReady = null } = {}) {
     // recibe las sombras y se desvanece hacia fuera, donde sigue el horizonte del relieve
     {
       const near = items.reduce((a, b) => (a.o.d <= b.o.d ? a : b)), gmat = groundPatch(near.m).mat, tile = (MON_MATS[gmat] || MON_MATS.dirt).tile;
-      const NR = 64, NS = 144, r0 = 0.6, verts = (NR + 1) * NS + 1;
+      // con relieve (crestas, laderas) la malla es más fina, para que el suelo llegue al pie de cada monumento
+      const fine = !!(grid && grid.reach === reach), NR = fine ? 168 : 64, NS = fine ? 288 : 144, r0 = 0.6, verts = (NR + 1) * NS + 1;
       const pos = new Float32Array(verts * 3), uv = new Float32Array(verts * 2), col = new Float32Array(verts * 4), idx = [];
       const put = (i, e, n, r) => {
         const h = groundHeight(e, n, items, grid && grid.reach === reach ? grid : null) - (r * r * (1 - K_REFR)) / (2 * R_E);

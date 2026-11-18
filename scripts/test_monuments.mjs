@@ -115,6 +115,7 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   ok(near(ak.u1, 16.5, 1e-9) && near(ak.e1 - ak.e0, 197, 0.01), "Tiwanaku: Akapana, 16,5 m de alto y 197 m de ancho");
   const tw2 = site("tiwanaku"), itemsT = placeMonuments([ka, ps], { lat: tw2.lat, lon: tw2.lon, ground: 3863 }, { kalasasaya: 3863, "puerta-del-sol": 3863 });
   ok(near(itemsT[1].dz - itemsT[0].dz, ka.height, 1e-9) && near(bbox(buildFaces(ps)).u1, 3, 1e-9), "Tiwanaku: la Puerta del Sol (3 m) está sobre la plataforma de Kalasasaya");
+  ok(tw2.lat === ka.lat && byId("ponce").lat === ka.lat && near(offsetOf(tw2.lat, tw2.lon, byId("ponce").lat, byId("ponce").lon).az, 270, 0.01), "Tiwanaku: el punto de vista, la portada de Kalasasaya y la estela Ponce están en el mismo eje este–oeste");
   // Machu Picchu
   const ih = bbox(buildFaces(byId("intihuatana")));
   ok(near(ih.u1, 1.8, 0.01) && near(offsetOf(site("machupicchu").lat, site("machupicchu").lon, byId("intihuatana").lat, byId("intihuatana").lon).d, 5, 0.5), "Machu Picchu: el Intihuatana, 1,8 m, a 5 m del punto de vista");
@@ -125,7 +126,7 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   ok(near(reliefAt(grid, 0, 0), -1.7, 1e-9) && near(reliefAt(grid, 300, 0), -10, 1e-9) && reliefPoints(0, 0, 500).length === RELIEF_R.length * RELIEF_NA && RELIEF_R.length * RELIEF_NA <= 64,
     "relieve cercano: a los pies, 1,7 m bajo los ojos; lejos, el del modelo; cabe en una consulta");
   const far = { m: { id: "x", foot: 5 }, o: { e: 230, n: 0, d: 230 }, dz: 25 };
-  ok(near(groundHeight(1, 0, [far], grid), reliefAt(grid, 1, 0), 1e-9) && near(groundHeight(230, 0, [far], grid), 25, 0.5), "con relieve, un monumento lejano no levanta el suelo bajo el observador, solo el suyo");
+  ok(near(groundHeight(1, 0, [far], grid), reliefAt(grid, 1, 0), 1e-9) && near(groundHeight(230, 0, [far], grid), 25, 0.8), "con relieve, un monumento lejano no levanta el suelo bajo el observador, solo el suyo");
 }
 
 console.log("Integración");

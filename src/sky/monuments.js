@@ -126,7 +126,7 @@ export const MONUMENTS = [
     kind: "kalasasaya", w: 133, d: 126, height: 3.2, pillar: 4.4, rot: 0, foot: 92, level: true, color: REDSTONE, mat: "redstone", ground: "puna", solid: true },
   { id: "puerta-del-sol", site: "tiwanaku", name: { es: "Puerta del Sol", en: "Gate of the Sun" }, lat: -16.554314, lon: -68.673931,
     kind: "gate", w: 3.8, d: 0.5, height: 3.0, rot: 0, lift: 3.2, foot: 2, far: 800, level: true, color: ANDESITE, mat: "andesite", ground: "puna", solid: true },
-  { id: "ponce", site: "tiwanaku", name: { es: "Estela Ponce", en: "Ponce Stela" }, lat: -16.554766, lon: -68.673331,
+  { id: "ponce", site: "tiwanaku", name: { es: "Estela Ponce", en: "Ponce Stela" }, lat: -16.554757, lon: -68.673331,   // en el eje este–oeste de Kalasasaya, tras su portada
     kind: "stela", w: 0.75, d: 0.6, height: 3.0, rot: 0, lift: 3.2, foot: 0.6, far: 800, level: true, color: ANDESITE, mat: "andesite", ground: "puna", solid: true },
   // Machu Picchu: el Intihuatana, tallado en la roca de la cima: unos 1,8 m en total, con un prisma vertical de
   // 0,66 m. Forma simplificada (tres cuerpos) y posición aproximada (±20 m).
@@ -429,7 +429,9 @@ export function buildFaces(m, opt = {}) {
     }
   } else if (m.kind === "tower") {
     // torre maciza de piedra y mortero: paredes con algo de talud y la arista de arriba gastada
-    frustum(out, { z0: 0, z1: m.height - 0.35, w0: m.w, d0: m.d, w1: m.w * 0.95, d1: m.d * 0.96, rot: m.rot, col, mat: m.mat, top: false });
+    // (el pie baja 2,5 m bajo su base: en una cresta el suelo dibujado queda algo más bajo entre torre y torre, y
+    // sin esto parecerían flotar)
+    frustum(out, { z0: -2.5, z1: m.height - 0.35, w0: m.w * 1.02, d0: m.d * 1.02, w1: m.w * 0.95, d1: m.d * 0.96, rot: m.rot, col, mat: m.mat, top: false });
     frustum(out, { z0: m.height - 0.35, z1: m.height, w0: m.w * 0.95, d0: m.d * 0.96, w1: m.w * 0.9, d1: m.d * 0.93, rot: m.rot, col, mat: m.mat });
   } else if (m.kind === "enclosure") {
     // cerramiento del telescopio: base de hormigón y, encima, el cilindro metálico que gira con el telescopio; un
