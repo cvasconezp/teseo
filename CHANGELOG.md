@@ -1,5 +1,23 @@
 # Cambios
 
+## 1.44.0 — 19 de noviembre de 2026
+
+Revisión completa del Cielo (catálogos, capas, posiciones y fichas).
+
+- Planetas: Saturno estaba a 0,12° (7′) de su sitio y Júpiter a 1,4′; faltaban
+  sus perturbaciones mutuas. Con ellas, el Sol y los siete planetas quedan a
+  1,5′ o menos de JPL Horizons en cuatro fechas entre 2020 y 2035 (prueba
+  nueva, permanente).
+- TON 618 estaba 14′ al norte de su sitio (declinación mal convertida).
+- NGC 5866 salía dos veces (es M102): se quita de «Galaxias».
+- Buscador: «Orión» da primero la constelación (antes, las Oriónidas); no
+  distingue acentos y el nombre exacto va antes que lo que empieza igual.
+- Comprobado sin cambios: integridad de los once catálogos (13.000 objetos);
+  posiciones frente a SIMBAD de Messier, Caldwell, las listas escogidas,
+  estrellas con nombre, fotos y muestras de NGC, galaxias y púlsares
+  (mediana de 0,05′ o menos); los 16 interruptores de capas; y la ficha de
+  un objeto de cada capa, sin errores.
+
 ## 1.43.0 — 18 de noviembre de 2026
 
 - De cerca, como por un telescopio: con menos de 25° de campo, los objetos

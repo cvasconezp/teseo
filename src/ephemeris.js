@@ -45,6 +45,15 @@ function sunRect(d) {
   return { x: r * cosd(lon), y: r * sind(lon), r, lon, M, w };
 }
 
+// Perturbaciones mutuas (Schlyter, «How to compute planetary positions», §10): grados; argumentos = anomalías medias
+const PERTURB = {
+  Jupiter: (Mj, Ms) => ({ lon: -0.332 * sind(2 * Mj - 5 * Ms - 67.6) - 0.056 * sind(2 * Mj - 2 * Ms + 21) + 0.042 * sind(3 * Mj - 5 * Ms + 21) - 0.036 * sind(Mj - 2 * Ms)
+    + 0.022 * cosd(Mj - Ms) + 0.023 * sind(2 * Mj - 3 * Ms + 52) - 0.016 * sind(Mj - 5 * Ms - 69) }),
+  Saturn: (Mj, Ms) => ({ lon: 0.812 * sind(2 * Mj - 5 * Ms - 67.6) - 0.229 * cosd(2 * Mj - 4 * Ms - 2) + 0.119 * sind(Mj - 2 * Ms - 3) + 0.046 * sind(2 * Mj - 6 * Ms - 69) + 0.014 * sind(Mj - 3 * Ms + 32),
+    lat: -0.020 * cosd(2 * Mj - 4 * Ms - 2) + 0.018 * sind(2 * Mj - 6 * Ms - 49) }),
+  Uranus: (Mj, Ms, Mu) => ({ lon: 0.040 * sind(Ms - 2 * Mu + 6) + 0.035 * sind(Ms - 3 * Mu + 33) - 0.015 * sind(Mj - Mu + 20) }),
+};
+
 export function ephemeris(date) {
   const d = dayNum(date);
   const ecl = 23.4393 - 3.563e-7 * d;
@@ -60,9 +69,17 @@ export function ephemeris(date) {
     const xv = p.a * (cosd(E) - p.e), yv = p.a * Math.sqrt(1 - p.e * p.e) * sind(E);
     const v = atan2d(yv, xv), r = Math.sqrt(xv * xv + yv * yv);
     const lon = v + p.w;
-    const xh = r * (cosd(p.N) * cosd(lon) - sind(p.N) * sind(lon) * cosd(p.i));
-    const yh = r * (sind(p.N) * cosd(lon) + cosd(p.N) * sind(lon) * cosd(p.i));
-    const zh = r * (sind(lon) * sind(p.i));
+    let xh = r * (cosd(p.N) * cosd(lon) - sind(p.N) * sind(lon) * cosd(p.i));
+    let yh = r * (sind(p.N) * cosd(lon) + cosd(p.N) * sind(lon) * cosd(p.i));
+    let zh = r * (sind(lon) * sind(p.i));
+    // Júpiter, Saturno y Urano se perturban entre sí: correcciones de Schlyter a la longitud (y, en Saturno, a la
+    // latitud) heliocéntricas. Sin ellas Saturno quedaba a 0,12° de su sitio (7′, más que su tamaño en el cielo).
+    const pert = PERTURB[key];
+    if (pert) {
+      const Mj = PLANETS.Jupiter(d).M, Ms = PLANETS.Saturn(d).M, Mu = PLANETS.Uranus(d).M, c = pert(Mj, Ms, Mu);
+      const rr = Math.sqrt(xh * xh + yh * yh + zh * zh), lo = atan2d(yh, xh) + c.lon, la = asind(zh / rr) + (c.lat || 0);
+      xh = rr * cosd(la) * cosd(lo); yh = rr * cosd(la) * sind(lo); zh = rr * sind(la);
+    }
     const xg = xh + sun.x, yg = yh + sun.y, zg = zh;
     // r_au, hel y geo (eclíptica de la fecha, UA): para la magnitud aparente (src/sky/planetMag.js)
     out.push({ name: nameES(key), body: "planet", planet: key, ...dirObj(eclToEq(xg, yg, zg, ecl)), dist_au: Math.sqrt(xg*xg+yg*yg+zg*zg),

@@ -125,6 +125,8 @@ def build_galaxies(rows):
             continue
         if (r.get("M") or "").strip():
             continue                      # las galaxias Messier van en su capa
+        if (r.get("Name") or "").strip() == "NGC5866":
+            continue                      # es M102 (OpenNGC no lo marca como Messier): ya está en su capa
         mag = best_mag(r)
         if mag is None or mag > GAL_MAG_LIMIT:
             continue

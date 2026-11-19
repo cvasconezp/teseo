@@ -869,8 +869,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     };
     const score = (label, exact) => {
       if (exact) return -1;                         // «C8» o «NGC 104» escritos enteros: ese objeto primero
-      const l = label.toLowerCase();
-      return l.startsWith(q) ? 0 : (" " + l).includes(" " + q) ? 1 : 2;
+      // sin acentos («Orión» es Orion) y, si el nombre entero es lo escrito, antes que lo que solo empieza igual (Oriónidas)
+      const plain = (x) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(), l = plain(label), qq = plain(q);
+      if (l === qq || l.split(" · ")[0] === qq) return -0.5;
+      return l.startsWith(qq) ? 0 : (" " + l).includes(" " + qq) ? 1 : 2;
     };
     const r = [];
     const kinds = TC[lang].kinds;

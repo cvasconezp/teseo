@@ -28,7 +28,7 @@ CURATED = [
     (169.5455, +48.0373,         6000,         7, "estelar", "fuera del plano galáctico", "XTE J1118+480"),
     (274.8417, -25.4073,        20000,       6.4, "estelar", "microquasar variable", "V4641 Sgr"),
     ( 10.6837, +41.2694,      2540000,     1.4e8, "supermasivo", "en la galaxia de Andrómeda", "M31* (Andrómeda)"),
-    (187.0999, +31.7174,  10400000000,     6.6e10, "supermasivo", "uno de los más masivos (cuásar)", "TON 618"),
+    (187.1040, +31.4771,  10400000000,     6.6e10, "supermasivo", "uno de los más masivos (cuásar)", "TON 618"),
     (308.1085, +40.9576,        24000,       2.4, "estelar", "binaria de rayos X masiva", "Cygnus X-3"),
     (236.7878, -47.6701,        30000,       9.4, "estelar", "nova de rayos X", "4U 1543-47"),
     # --- añadidos (coordenadas J2000 de literatura) ---
