@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.41.2 — 18 de noviembre de 2026
+
+- Cochasquí: la pirámide G con sus medidas publicadas (plataforma de
+  75–78 × 58–64 m, 21 m de alto por el lado bajo, rampa ancha y eje a 33°).
+
 ## 1.41.1 — 18 de noviembre de 2026
 
 - Cochasquí: la pirámide K con sus dos rampas pequeñas hacia el norte, y

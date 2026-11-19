@@ -124,12 +124,13 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   const cq = MONUMENTS.filter((m) => m.site === "cochasqui"), mp = MONUMENTS.filter((m) => m.site === "machupicchu");
   { const pyr = cq.filter((m) => m.kind === "tola"), mounds = cq.filter((m) => m.kind === "mound"), L = (x) => byId("cq-" + x);
     ok(pyr.length === 15 && pyr.map((m) => m.name.es.slice(-1)).join("") === "ABCDEFGHJKLMNOP" && mounds.length === 11 && cq.every((m) => m.relief), "Cochasquí: las quince pirámides (A–P, sin la I) y once montículos funerarios, sobre la ladera");
-    ok(pyr.filter((m) => m.ramp > 0).map((m) => m.name.es.slice(-1)).join("") === "BCEFGJKLM" && pyr.every((m) => m.rot === 27.6), "con rampa: B, C, E, F, G, J, K, L y M; todas giradas 27,6° (el eje medido de la rampa de la E)");
+    ok(pyr.filter((m) => m.ramp > 0).map((m) => m.name.es.slice(-1)).join("") === "BCEFGJKLM" && pyr.every((m) => m.rot === (m.id === "cq-g" ? 33 : 27.6)), "con rampa: B, C, E, F, G, J, K, L y M; giradas 27,6° (el eje medido de la rampa de la E), y la G, 33° (el de la suya)");
+    ok(near(L("g").w * 0.72, 76.5, 2) && near(L("g").d * 0.72, 61, 3) && near(L("g").w + 10.5, 117, 8) && /21 m/.test(L("g").sub.es) && !/estimado/.test(L("g").sub.es) && !/estimado/.test(L("e").sub.es) && L("g").rampW > 1, "la G con sus medidas publicadas: plataforma de 75–78 × 58–64 m, base de 110–125 m, 21 m por el lado bajo y rampa ancha");
     ok(L("e").ramp === 67 && near(L("e").d * 0.72, 49, 2.5) && near(L("e").w * 0.72, 30, 1) && L("g").w > L("m").w && L("m").ramp > 200 && L("g").height >= pyr.reduce((a, m) => Math.max(a, m.height), 0), "la E con las medidas de Oberem (plataforma de 51 × 28 m, rampa de 67 m); la G es la mayor y la M tiene una rampa de más de 200 m");
     // en el plano, la E queda entre la D (al oeste) y la F; la G, al sur de la F; la K y la L, hacia el sureste; la M, al suroeste
     const E = (x) => offsetOf(L("g").lat, L("g").lon, L(x).lat, L(x).lon);
     ok(E("d").e < E("e").e && E("e").e < E("f").e && E("f").n > 80 && E("k").e > 100 && E("k").n < -60 && E("l").e > E("k").e && E("m").e < -150 && E("m").n < -100 && E("a").n > 200, "disposición del plano de Wentscher: D–E–F en la fila alta, G en el centro, K y L al sureste, M al suroeste, A arriba");
-    ok(cq.every((m) => /estimado|diámetro/.test(m.sub.es)) && monumentsNear(site("cochasqui").lat, site("cochasqui").lon, 25).length === 26, "cada una dice que su alto es estimado; desde el mirador se cargan las 26 piezas");
+    ok(cq.every((m) => /estimado|diámetro|lado bajo/.test(m.sub.es)) && monumentsNear(site("cochasqui").lat, site("cochasqui").lon, 25).length === 26, "cada una dice que su alto es estimado; desde el mirador se cargan las 26 piezas");
     // el suelo: pocas consultas de altura (4 anillos de 8 puntos para las grandes y un punto para el resto)
     ok(cq.filter((m) => m.ring == null).length === 4 && cq.filter((m) => m.ring == null).length * 8 + cq.filter((m) => m.ring != null).length + 5 <= 80, "las alturas del terreno caben en una sola consulta (menos de 80 puntos)");
     const f = buildFaces(byId("cqm-a")), bb = bbox(f);

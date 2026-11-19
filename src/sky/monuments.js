@@ -73,18 +73,23 @@ const paranal = VLT_UT.map(([id, nm, e, n], i) => ({
 // excavación de la E (escala 0,75 m por píxel, norte arriba; error estimado ±15 m). Nueve tienen rampa, hacia el
 // lado bajo: B, C, E, F, G, J, K, L y M. De Oberem: la plataforma de la E (51 × 27–30 m; 11 m de alto por el sur y
 // 3,5 por el norte), su rampa (67 m) y su eje, 27° 38′ al este del norte, que es el giro de todo el conjunto.
+// De la G (E. Rojas Vallejo, TFM, UPV 2025, con datos de Uhle y Ugalde): base de unos 110–125 × 100–110 m, plataforma
+// de 75–78 × 58–64 m, 21–22 m de alto por el sur y 5 por el norte, rampa de unos 40 m de ancho en su arranque y eje
+// a unos 33° (ese texto da 220 m de rampa; en el plano mide unos 160 m hasta el pie de la pirámide: se deja la del plano).
 // El ALTO de las demás es ESTIMADO (no está en el plano). La K tiene además dos rampas pequeñas al norte (`rampsN`).
 // [este, norte] en metros desde (0,0558° N, 78,3080° O), ancho, fondo, alto y largo de la rampa.
 const CQ0 = [0.0558, -78.3080];
 const CQ = [["cq-a", "A", 100, 245, 21, 21, 3, 0], ["cq-b", "B", 174, 178, 58, 46, 8, 31], ["cq-c", "C", 290, 126, 40, 34, 6, 27], ["cq-d", "D", -105, 171, 75, 57, 8, 0], ["cq-e", "E", 12, 136, 42, 68, 8, 67],
-  ["cq-f", "F", 94, 133, 48, 35, 6, 23], ["cq-g", "G", 111, 21, 104, 87, 15, 158], ["cq-h", "H", 214, 17, 42, 33, 5, 0], ["cq-j", "J", 184, -28, 45, 34, 6, 25], ["cq-k", "K", 247, -70, 64, 69, 10, 62],
+  ["cq-f", "F", 94, 133, 48, 35, 6, 23], ["cq-g", "G", 111, 21, 106, 86, 14, 158], ["cq-h", "H", 214, 17, 42, 33, 5, 0], ["cq-j", "J", 184, -28, 45, 34, 6, 25], ["cq-k", "K", 247, -70, 64, 69, 10, 62],
   ["cq-l", "L", 326, -113, 59, 46, 8, 56], ["cq-m", "M", -99, -128, 93, 72, 12, 260], ["cq-n", "N", 335, -70, 30, 19, 3, 0], ["cq-o", "O", 376, -154, 19, 19, 2, 0], ["cq-p", "P", 346, 173, 21, 21, 3, 0]];
-const CQ_NOTE = { G: ["la mayor", "the largest"], E: ["excavada en 1964–65", "excavated in 1964–65"], M: ["rampa de 260 m", "260 m ramp"] };
+const CQ_NOTE = { G: ["la mayor · 21 m de alto por el lado bajo", "the largest · 21 m tall on the downhill side"], E: ["excavada en 1964–65 · 11 m por el lado bajo", "excavated in 1964–65 · 11 m on the downhill side"], M: ["rampa de 260 m", "260 m ramp"] };
+const CQ_MEASURED = new Set(["G", "E"]);   // con medidas publicadas; el resto, alto estimado
+const CQ_ROT = { G: 33 };                   // eje de su rampa (los demás, el de la E: 27° 38′)
 const cqAt = (e, n) => ({ lat: +(CQ0[0] + n / mPerLat).toFixed(6), lon: +(CQ0[1] + e / mPerLon(CQ0[0])).toFixed(6) });
 const COCHASQUI = CQ.map(([id, L, e, n, w, d, h, ramp]) => ({
   id, site: "cochasqui", name: { es: `Pirámide ${L}`, en: `Pyramid ${L}` }, label: !!CQ_NOTE[L],
-  sub: { es: `${CQ_NOTE[L] ? CQ_NOTE[L][0] + " · " : ""}${ramp ? "con rampa" : "sin rampa"} · alto estimado`, en: `${CQ_NOTE[L] ? CQ_NOTE[L][1] + " · " : ""}${ramp ? "with ramp" : "no ramp"} · height estimated` },
-  ...cqAt(e, n), kind: "tola", w, d, height: h, ramp, rot: 27.6, foot: Math.hypot(w, d) * 0.78, far: 6000, relief: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
+  sub: { es: `${CQ_NOTE[L] ? CQ_NOTE[L][0] + " · " : ""}${ramp ? "con rampa" : "sin rampa"}${CQ_MEASURED.has(L) ? "" : " · alto estimado"}`, en: `${CQ_NOTE[L] ? CQ_NOTE[L][1] + " · " : ""}${ramp ? "with ramp" : "no ramp"}${CQ_MEASURED.has(L) ? "" : " · height estimated"}` },
+  ...cqAt(e, n), kind: "tola", w, d, height: h, ramp, rot: CQ_ROT[L] || 27.6, ...(L === "G" ? { rampW: 1.7 } : {}), foot: Math.hypot(w, d) * 0.78, far: 6000, relief: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
   // el suelo de las pequeñas se mide en su centro (un punto); el de las cuatro grandes, en un anillo a su alrededor
   ...(w >= 60 ? {} : { ring: 3 }),
   ...(L === "K" ? { rampsN: 2 } : {}),
@@ -490,7 +495,7 @@ export function buildFaces(m, opt = {}) {
     // (la ladera cae hacia el suroeste cerca de un 18 %: el pie baja bajo la base y la rampa desciende con el terreno)
     frustum(out, { z0: -9, z1: m.height, w0: m.w * 1.0 + 15 * 0.7, d0: m.d * 1.0 + 15 * 0.7, w1: m.w * 0.72, d1: m.d * 0.72, rot: m.rot, col, mat: m.mat });
     if (m.ramp) {
-      const hw0 = 7, hw1 = 5, y0 = -m.d * 0.35, y1 = -(m.d * 0.5 + m.ramp), P = (x, y, z) => { const q = rotP([x, y, z], m.rot); return [q[0], q[1], z]; };
+      const hw0 = 7 * (m.rampW || 1), hw1 = 5 * (m.rampW || 1), y0 = -m.d * 0.35, y1 = -(m.d * 0.5 + m.ramp), P = (x, y, z) => { const q = rotP([x, y, z], m.rot); return [q[0], q[1], z]; };
       const zf = -0.18 * (m.ramp + m.d * 0.15);
       quad(out, P(-hw1, y1, zf), P(hw1, y1, zf), P(hw0, y0, m.height), P(-hw0, y0, m.height), col, m.mat);
       for (const sg of [-1, 1]) quad(out, P(sg * (hw1 + 6), y1, zf - 4), P(sg * hw1, y1, zf), P(sg * hw0, y0, m.height), P(sg * (hw0 + 10), y0, -5), col, m.mat);
