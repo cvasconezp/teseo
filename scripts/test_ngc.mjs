@@ -32,5 +32,12 @@ ok(/MAG_LAYERS = new Set\(\["messier", "caldwell", "galaxies", "ngc"\]\)/.test(s
 ok(/\^\(ngc\|ic\)\\s\*\\d/.test(src) && /key === "ngc" \? o\.name\.replace\(" ", ""\)/.test(src), "el buscador los encuentra con la capa apagada («ngc 2024», «ngc2024», «ic 434»)");
 ok(/"caldwell", "ngc", "galaxies"/.test(panels) && /L === "ngc"/.test(desc) && /srcGalaxy/.test(desc.split('L === "ngc"')[1].split("} else if")[0]), "fila en el panel de capas y ficha con tipo, magnitud, tamaño y fuente (OpenNGC)");
 
+console.log("Cada capa enciende y apaga lo suyo");
+{ const img = read("../src/sky/skyImagesLayer.js");
+  ok(/hipsOn: true, ngcOn: true/.test(src) && /ref\.ngcOn = !!enabled\.ngc/.test(src), "NGC/IC sale al acercarse desde el arranque (sin tener que tocar el interruptor) y obedece a su capa");
+  ok(/setPhotos\(!!enabled\.photo\)/.test(src) && /setFrames\(!!enabled\.deepfields\)/.test(src) && /setPhotos\(b\)/.test(img) && /setFrames\(b\)/.test(img), "«Mapa fotográfico» enciende y apaga todas las fotos; «Campos profundos», sus recuadros");
+  ok(/m == null \? 0\.75/.test(src) && /ud\.layer === "ngc" \? \{ visible: true/.test(src), "los objetos sin magnitud publicada también se dibujan, y NGC/IC no se oculta por brillo (se ve de cerca)");
+}
+
 console.log(`\n${pass} ok, ${fail} fallas`);
 process.exit(fail ? 1 : 0);

@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.38.1 — 18 de noviembre de 2026
+
+- Revisión de capas, interruptor por interruptor. Corregido: la capa NGC e
+  IC no aparecía hasta tocar algún interruptor; los recuadros de los campos
+  profundos se veían con su capa apagada; las fotos de los objetos seguían
+  a la vista con «Mapa fotográfico» apagado (ahora esa capa enciende todas
+  las fotos); y los objetos sin magnitud publicada no se dibujaban.
+
 ## 1.38.0 — 18 de noviembre de 2026
 
 - Capa nueva «NGC e IC»: 960 nebulosas, cúmulos y galaxias de esos

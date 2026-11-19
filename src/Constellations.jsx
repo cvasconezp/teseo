@@ -1561,7 +1561,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, milky, skyImages, hips, hipsOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
+      atm, clouds, terrain, monuments, milky, skyImages, hips, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1672,7 +1672,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             let a = 1;
             const d = st || hzd ? dirOf(ob.nx, ob.ny, ob.nz) : null;
             if (st && d[1] > 0) {
-              const v = visibility({ mag: (ob.mag ?? 99) + extPenalty(ud.layer, ob), dir: d }, st);
+              // NGC/IC solo se dibuja al acercarse (vista «de telescopio»): no se oculta por brillo, solo por nubes u horizonte
+              const v = ud.layer === "ngc" ? { visible: true, alpha: 0.8 } : visibility({ mag: (ob.mag ?? 99) + extPenalty(ud.layer, ob), dir: d }, st);
               if (v.visible && occ && occ(d) > OCC_HIDE) v.visible = false;
               a = v.visible ? Math.max(0.55, v.alpha) : 0;
               ud.vis[i] = v.visible ? 1 : 0;
@@ -1692,6 +1693,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       applyFov();
       if (E2E) window.__teseoSky = {
         hips: () => (r.hips ? { ...r.hips.stats, active: r.hips.active } : null),
+        // estado de cada capa (pruebas): puntos a la vista por capa, mapa fotográfico, cometas dibujados
+        layers: () => { const o = {}; for (const l of (r.layerObjs || [])) { o[l.key] = o[l.key] || { n: 0, visible: false }; o[l.key].n += l.points.userData.objs.length; o[l.key].visible = o[l.key].visible || l.points.visible; } return { pts: o, photo: !!r.hipsOn, img: r.skyImages ? r.skyImages.state : null, cometItems: r.cometLayer ? r.cometLayer.group.children.length : 0, fov: r.camera.fov }; },
         // foto 360° (pruebas): brillo medio de la franja baja de cada cara, ocultando objetos por nombre de clave
         panoFaces: (hide = []) => {
           const objs = { ground: r.ground, atm: r.atm && r.atm.mesh, clouds: r.clouds && r.clouds.mesh, terrain: r.terrain && r.terrain.group, points: r.points, lines: r.lines, horizon: r.horizon };
@@ -2295,7 +2298,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       // Messier y galaxias: el símbolo crece y brilla según su magnitud integrada (tres tamaños) y, con la
       // atmósfera, se oculta si no se vería (applyAtm). El resto de capas: símbolo fijo por capa.
       const byMag = MAG_LAYERS.has(cfg.key);
-      const magSize = (m) => (m == null ? 1 : m <= 4.5 ? 1.55 : m <= 7.5 ? 1.1 : 0.75);
+      const magSize = (m) => (m == null ? 0.75 : m <= 4.5 ? 1.55 : m <= 7.5 ? 1.1 : 0.75);   // sin magnitud publicada: el símbolo pequeño (antes no se dibujaban)
       const groups = cfg.key === "exoplanets"
         ? [["exoplanets", data.objects.filter(o => !o.hab), cfg.color, 5],
            ["exoplanets", data.objects.filter(o => o.hab), 0xaaff7a, 12]]
@@ -2888,7 +2891,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.cometLayer.showOrbit(on && selObj && selObj.layer === "comets" ? selObj.name : null);
     ref._dirty = true; if (ref.wake) ref.wake();
   }, [enabled.comets, datasets.comets, cometOrbits, selObj, viewFrom, ready]);
-  useEffect(() => { const ref = sceneRef.current; if (!ref) return; ref.hipsOn = !!enabled.photo; ref._dirty = true; if (ref.wake) ref.wake(); }, [enabled.photo, ready]);
+  // «Mapa fotográfico» enciende todas las fotos del cielo (placas, recortes e imágenes de agencia); «Campos profundos», sus recuadros
+  useEffect(() => { const ref = sceneRef.current; if (!ref) return; ref.hipsOn = !!enabled.photo; if (ref.skyImages) { ref.skyImages.setPhotos(!!enabled.photo); ref.skyImages.setFrames(!!enabled.deepfields); } ref._dirty = true; if (ref.wake) ref.wake(); }, [enabled.photo, enabled.deepfields, ready]);
   // centrar: en la ISS si está sobre el horizonte a esa hora; si no, en la culminación
   const centerIss = useCallback(() => {
     const ref = sceneRef.current; if (!ref || !issOn || ref.ar.on) return;

@@ -44,7 +44,8 @@ const CDN = { "esa-webb": "https://cdn.esawebb.org/archives/images/screen/", "es
 
 export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
   const group = new THREE.Group();
-  const mats = [];
+  const mats = [], frames = [], imgs = [];
+  let framesOn = true, photosOn = true;
   let level = 1, on = true, dark = 1, eff = 1, under = 0, shown = -1;
   const loader = new THREE.TextureLoader();
   const apply = () => { eff = Math.max(eff, level); shown = eff * (1 - under); for (const m of mats) m.color.setScalar(shown); group.visible = on && (level > 0.004 || dark > 0.004); };
@@ -62,14 +63,14 @@ export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = 
       blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor });
     mats.push(m);
     { const k = surveyKey(o.id); if (k) surveyByKey.set(k, { m, size: o.size }); }
-    const mesh = new THREE.Mesh(g, m); mesh.renderOrder = -4; mesh.frustumCulled = false; group.add(mesh);
+    const mesh = new THREE.Mesh(g, m); mesh.renderOrder = -4; mesh.frustumCulled = false; mesh.visible = photosOn; group.add(mesh); imgs.push(mesh);
   };
   const addFrame = (o) => {
     const cs = tanCorners(o.ra, o.dec, o.size_arcmin / 60), pts = [];
     for (const v of [...cs, cs[0]]) pts.push(v[0] * radius, v[1] * radius, v[2] * radius);
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
     const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.9, depthTest: false }));
-    line.renderOrder = 0.5; line.frustumCulled = false; group.add(line);
+    line.renderOrder = 0.5; line.frustumCulled = false; line.visible = framesOn; group.add(line); frames.push(line);
   };
   if (fetchImpl) {
     fetchImpl("/deepsky-images.json").then((r) => r.json()).then((d) => { for (const o of d.objects || []) addImage(o); apply(); if (onLoad) onLoad(); }).catch(() => { /* sin fotos: quedan los puntos */ });
@@ -112,6 +113,7 @@ export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = 
       // bajo el mapa fotográfico (hipsLayer.js) los recortes se retiran: es el mismo cielo y sumarían su luz
       const sh = eff * (1 - under); if (Math.abs(sh - shown) > 0.004) { shown = sh; for (const m of mats) m.color.setScalar(shown); } }
     if (!agency.length) return false;
+    if (!photosOn) { let ch = false; for (const a of agency) if (a.mesh.visible) { a.mesh.visible = false; a.k = 0; ch = true; } return ch; }
     inv.copy(group.quaternion).invert();
     camera.getWorldDirection(fwd).applyQuaternion(inv);
     const fov = camera.fov, aspect = camera.aspect || 1, diag = (fov / 2) * Math.hypot(1, aspect);
@@ -139,6 +141,11 @@ export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = 
     /** `v`: brillo a simple vista (0–1, según el cielo); `darkness`: 1 de noche, 0 de día (para el brillo «de telescopio»). */
     setIntensity(v, darkness = 1) { level = Math.min(1, Math.max(0, v)); dark = Math.min(1, Math.max(0, darkness)); eff = level; apply(); },
     setOn(b) { on = !!b; apply(); },
+    /** Los recuadros de los campos profundos (capa «Campos profundos»). */
+    setFrames(b) { framesOn = !!b; for (const l of frames) l.visible = framesOn; },
+    /** Las fotos de los objetos: recortes de cartografiados e imágenes de agencia (capa «Mapa fotográfico»). */
+    setPhotos(b) { photosOn = !!b; for (const m of imgs) m.visible = photosOn; },
+    get state() { return { frames: frames.filter((l) => l.visible).length, photos: imgs.filter((m) => m.visible).length, agency: agency.filter((a) => a.mesh.visible).length }; },
     /** Cuánto se ve el mapa fotográfico de fondo (0–1): los recortes de cartografiado se apagan en esa medida. */
     setUnder(k) { under = Math.min(1, Math.max(0, k || 0)); },
     get count() { return mats.length; },
