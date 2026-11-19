@@ -66,7 +66,7 @@ import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js"
 import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
 import { createSkyImagesLayer } from "./sky/skyImagesLayer.js";
 import { createCometLayer } from "./sky/cometLayer.js";
-import { moveComets } from "./sky/cometSky.js";
+import { cometsAt, minorObjects } from "./sky/cometSky.js";
 import { createHipsLayer } from "./sky/hipsLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
@@ -98,11 +98,13 @@ const LAYERS = [
   { key: "galaxies",   file: "/galaxies.json",   es: "Galaxias",         en: "Galaxies",     color: 0x9db4ff, size: 5, lazy: true },
   { key: "meteors",    file: "/meteorshowers.json", es: "Lluvias de meteoros", en: "Meteor showers", color: 0xffd27a, size: 9 },
   { key: "comets",     api: true, endpoint: "/api/comets", es: "Cometas", en: "Comets", color: 0x8be0ff, size: 9 },
+  // planetas enanos y asteroides: elementos de JPL (public/minor-bodies.json); su posición se calcula aquí para cada fecha
+  { key: "minor",      file: "/minor-bodies.json", es: "Planetas enanos y asteroides", en: "Dwarf planets & asteroids", color: 0xe6b877, size: 8, lazy: true },
   { key: "probes",     api: true, endpoint: "/api/probes", es: "Sondas y telescopios", en: "Probes & telescopes", color: 0xe6ebff, size: 10 },
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_deepfields:"#ffe08a", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
+const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_deepfields:"#ffe08a", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_minor:"#e6b877", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
 // Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
 // de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
 // en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
@@ -210,6 +212,7 @@ const CATEGORY_TERMS = [
   { key: "deepfields", terms: ["campo profundo", "campos profundos", "deep field", "deep fields", "ultra deep", "ultraprofundo", "hudf", "smacs"] },
   { key: "galaxies",   terms: ["galaxia", "galaxias", "galaxy", "galaxies"] },
   { key: "comets",     terms: ["cometa", "cometas", "comet", "comets"] },
+  { key: "minor",      terms: ["asteroide", "asteroides", "asteroid", "asteroids", "planeta enano", "planetas enanos", "dwarf planet", "dwarf planets"] },
   { key: "meteors",    terms: ["meteoro", "meteoros", "lluvia de meteoros", "lluvias", "meteor", "meteor shower"] },
   { key: "caldwell",   terms: ["caldwell"] },
   { key: "messier",    terms: ["messier", "nebulosa", "nebulosas", "cúmulo", "cumulo", "cúmulos", "nebula", "cluster"] },
@@ -220,7 +223,7 @@ function labelForObj(key, o, lang) {
   if (key === "messier") return `${o.name}${o.cn ? " · " + o.cn : ""}`;
   if (key === "galaxies") return o.name + (o.cat && o.cat !== o.name ? " · " + o.cat : "");
   if (key === "caldwell") { const cn = caldwellCommon(o, lang); return o.c == null ? (cn || o.name) : `${o.name}${cn ? " · " + cn : ""}`; }
-  if (key === "meteors") return lang === "en" ? (o.name_en || o.name) : o.name;
+  if (key === "meteors" || key === "minor") return lang === "en" ? (o.name_en || o.name) : o.name;
   return o.name;
 }
 // estrella del catálogo ([hip, nx, ny, nz, mag, color, dist_ly, nombre]) -> objeto seleccionable
@@ -333,7 +336,8 @@ const TC = {
     layerDesc: {
       solar: "Where they are right now, computed from their orbits.",
       meteors: "The point each shower seems to come from.",
-      comets: "Today's positions, from NASA Horizons.",
+      comets: "Famous comets (NASA Horizons) and the bright ones of the season. They move with the date.",
+      minor: "Pluto, Ceres, Vesta, Eris, Apophis and more, where they are on the chosen date. Source: JPL.",
       probes: "Voyager, James Webb and other spacecraft, today.",
       messier: "Nebulae, clusters and galaxies visible with a small telescope.",
       galaxies: "Other galaxies, millions of light-years away.",
@@ -397,7 +401,7 @@ const TC = {
     closeSheet: "Close this card", sheetExpand: "Expand the card", sheetCollapse: "Shrink the card",
     typeSun: "Star · the centre of the solar system", typeMoon: "Earth's natural satellite", typePlanet: "Planet of the solar system",
     typeStar: "Star", typeGalaxy: "Galaxy", typeBlackHole: "Black hole ·", typePulsar: "Pulsar · a spinning neutron star",
-    typeMeteor: "Meteor shower", typeComet: "Comet", typeProbe: "Spacecraft or space telescope", typeExoplanet: "Exoplanet",
+    typeMeteor: "Meteor shower", typeComet: "Comet", typeDwarf: "Dwarf planet", typeAsteroid: "Asteroid", typeNea: "Near-Earth asteroid", typeTno: "Trans-Neptunian object", fDiameter: "Diameter", fOrbit: "One orbit", yearsN: (n) => `${n} years`, cometExtra: "Comet of the season: its position is computed from its orbit (JPL), not from Horizons.", minorSrc: "JPL Small-Body Database (orbit); position computed by Teseo", typeProbe: "Spacecraft or space telescope", typeExoplanet: "Exoplanet",
     inConst: (c) => `in ${c}`, orbits: (h) => `orbits ${h}`,
     fDistance: "Distance", fLightLeft: "Its light left", fLightTakes: "Its light takes", fVoyager: "Aboard Voyager 1 you'd take",
     ago: (s) => `${s} ago`, fLightHint: "you see it as it was then", au: "AU (Earth–Sun distances)",
@@ -475,7 +479,8 @@ const TC = {
     layerDesc: {
       solar: "Dónde están ahora mismo, calculado con sus órbitas.",
       meteors: "El punto del que parece venir cada lluvia.",
-      comets: "Posiciones de hoy, de NASA Horizons.",
+      comets: "Los famosos (NASA Horizons) y los brillantes del momento. Se mueven con la fecha.",
+      minor: "Plutón, Ceres, Vesta, Eris, Apofis y más, donde están en la fecha elegida. Fuente: JPL.",
       probes: "Voyager, James Webb y otras naves, hoy.",
       messier: "Nebulosas, cúmulos y galaxias visibles con un telescopio pequeño.",
       galaxies: "Otras galaxias, a millones de años luz.",
@@ -539,7 +544,7 @@ const TC = {
     closeSheet: "Cerrar la ficha", sheetExpand: "Ampliar la ficha", sheetCollapse: "Reducir la ficha",
     typeSun: "Estrella · el centro del sistema solar", typeMoon: "Satélite natural de la Tierra", typePlanet: "Planeta del sistema solar",
     typeStar: "Estrella", typeGalaxy: "Galaxia", typeBlackHole: "Agujero negro", typePulsar: "Púlsar · una estrella de neutrones que gira",
-    typeMeteor: "Lluvia de meteoros", typeComet: "Cometa", typeProbe: "Sonda o telescopio espacial", typeExoplanet: "Exoplaneta",
+    typeMeteor: "Lluvia de meteoros", typeComet: "Cometa", typeDwarf: "Planeta enano", typeAsteroid: "Asteroide", typeNea: "Asteroide cercano a la Tierra", typeTno: "Objeto transneptuniano", fDiameter: "Diámetro", fOrbit: "Una vuelta al Sol", yearsN: (n) => `${n} años`, cometExtra: "Cometa del momento: su posición se calcula con su órbita (JPL), no viene de Horizons.", minorSrc: "JPL Small-Body Database (órbita); posición calculada por Teseo", typeProbe: "Sonda o telescopio espacial", typeExoplanet: "Exoplaneta",
     inConst: (c) => `en ${c}`, orbits: (h) => `orbita ${h}`,
     fDistance: "Distancia", fLightLeft: "Su luz salió hace", fLightTakes: "Su luz tarda", fVoyager: "En la Voyager 1 tardarías",
     ago: (s) => s, fLightHint: "lo ves como era entonces", au: "UA (distancias Tierra–Sol)",
@@ -667,9 +672,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // se recalculan una vez por hora simulada
   const cometHour = Math.round(new Date(whenStr).getTime() / 3600000);
   const datasets = useMemo(() => {
-    const c = datasetsRaw.comets; if (!c || !c.objects || !cometOrbits || !Number.isFinite(cometHour)) return datasetsRaw;
-    const moved = moveComets(c.objects, cometOrbits, cometHour * 3600000);
-    return moved === c.objects ? datasetsRaw : { ...datasetsRaw, comets: { ...c, objects: moved } };
+    let out = datasetsRaw; if (!Number.isFinite(cometHour)) return out;
+    const ms = cometHour * 3600000, c = datasetsRaw.comets, mn = datasetsRaw.minor;
+    if (c && c.objects && cometOrbits) { const moved = cometsAt(c.objects, cometOrbits, ms); if (moved !== c.objects) out = { ...out, comets: { ...c, objects: moved, count: moved.length } }; }
+    if (mn && mn.objects) out = { ...out, minor: { ...mn, objects: minorObjects(mn.objects, ms) } };
+    return out;
   }, [datasetsRaw, cometOrbits, cometHour]);
   const bodiesEph = useMemo(() => withMags(ephemeris(new Date(whenStr))), [whenStr]);
   const topoKey = localMode && lat != null && lon != null ? `${lat}|${lon}|${elev || 0}` : "";
@@ -859,7 +866,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     });
     // capas de objetos: Messier / agujeros negros / meteoros siempre están
     // cargadas; el resto solo si el usuario activó su capa.
-    for (const key of ["messier", "caldwell", "blackholes", "deepfields", "meteors", "galaxies", "pulsars", "comets", "probes", "exoplanets"]) {
+    for (const key of ["messier", "caldwell", "blackholes", "deepfields", "meteors", "galaxies", "pulsars", "comets", "minor", "probes", "exoplanets"]) {
       const ds = datasets[key];
       if (!ds || !ds.objects) continue;
       const layerName = LAYERS.find(l => l.key === key)?.[lang] || key;
@@ -944,6 +951,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       const cfg = LAYERS.find(l => l.key === "probes"); if (cfg) loadLayer(cfg);
     }
     // Caldwell (Omega Centauri, la Tarántula, las Nubes de Magallanes…): también se encuentra con la capa apagada
+    // planetas enanos y asteroides (Plutón, Ceres, Vesta…): igual
+    if (query.trim().length >= 2 && !datasets.minor && !loadingLayer.minor && !layerError.minor) {
+      const cfg = LAYERS.find(l => l.key === "minor"); if (cfg) loadLayer(cfg);
+    }
     if (query.trim().length >= 2 && !datasets.caldwell && !loadingLayer.caldwell && !layerError.caldwell) {
       const cfg = LAYERS.find(l => l.key === "caldwell"); if (cfg) loadLayer(cfg);
     }
@@ -2022,7 +2033,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         // si el grupo coincide con un planeta (sus orbitadores), el "+N" va en el nombre del planeta
         const groups = [];
         if (camDist < 1050) for (const o of (ref.layerObjs || [])) {
-          if (!o.points.visible || (o.key !== "probes" && o.key !== "comets")) continue;
+          if (!o.points.visible || (o.key !== "probes" && o.key !== "comets" && o.key !== "minor")) continue;
           const objs = o.points.userData.objs;
           for (let q = 0; q < objs.length; q++) {
             const ob = objs[q];
@@ -2147,7 +2158,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         if (camDist < 1050) {
           const lim = CATALOG_LABELS[ref.labelDensity || "normal"];
           for (const o of (ref.layerObjs || [])) {
-            if (!o.points.visible || o.key === "probes" || o.key === "comets") continue;   // naves y cometas: ya agrupados arriba
+            if (!o.points.visible || o.key === "probes" || o.key === "comets" || o.key === "minor") continue;   // naves y cometas: ya agrupados arriba
             const objs = o.points.userData.objs, cls = "obj_" + o.key, ov = ref.visOn ? o.points.userData.vis : null;
             // de catálogo: se cuentan los que caen en pantalla y solo se nombran si son pocos (hay zoom suficiente)
             let nCat = 0; const cat = [];
@@ -2349,7 +2360,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (!selObj) return;
     const L = selObj.layer;
     const kind = L === "solar" ? (selObj.name === "Sol" ? "sun" : selObj.name === "Luna" ? "moon" : "planet") : L === "moon" ? "satellite" : L === "con" ? "constellation"
-      : ["star", "messier", "caldwell", "pulsars", "blackholes", "galaxies", "meteors", "comets", "probes", "exoplanets"].includes(L) ? L : "other";
+      : ["star", "messier", "caldwell", "pulsars", "blackholes", "galaxies", "meteors", "comets", "minor", "probes", "exoplanets"].includes(L) ? L : "other";
     // id: solo nombres de catálogo cortos (planeta en inglés, M31, Sgr A*, Ori, estrella con nombre propio)
     const id = L === "solar" ? (BODIES[selObj.name] || {}).en : L === "moon" ? selObj.name : L === "con" ? selObj.ab : (L === "star" || L === "messier" || L === "caldwell" || L === "blackholes") ? selObj.name : undefined;
     track("sky_select", id ? { kind, id } : { kind });

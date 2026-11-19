@@ -1,5 +1,5 @@
 // Pruebas de los cometas (src/sky/cometSky.js): órbita de dos cuerpos, brillo, cola en sentido contrario al Sol.
-import { trueAnomaly, posAtNu, cometHelio, cometMag, tailModel, cometView, jdOf, earthHelio, cometAt, moveComets } from "../src/sky/cometSky.js";
+import { trueAnomaly, posAtNu, cometHelio, cometMag, tailModel, cometView, jdOf, earthHelio, cometAt, moveComets, cometsAt, cometObject, minorObjects, asteroidMag } from "../src/sky/cometSky.js";
 import fs from "node:fs";
 
 let pass = 0, fail = 0;
@@ -10,7 +10,9 @@ const EL = JSON.parse(read("../public/comet-orbits.json")).comets;
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], norm = (a) => Math.hypot(...a);
 
 console.log("Órbita");
-ok(Object.keys(EL).length === 7 && Object.values(EL).every((e) => e.q > 0 && e.e > 0 && e.tp > 2400000), "siete cometas con sus elementos (JPL SBDB)");
+ok(Object.values(EL).filter((e) => !e.extra).length === 7 && Object.values(EL).every((e) => e.q > 0 && e.e > 0 && e.tp > 2400000), "los siete cometas famosos con sus elementos (JPL SBDB)");
+{ const ex = Object.entries(EL).filter(([, e]) => e.extra);
+  ok(ex.length >= 3 && ex.length <= 16 && ex.every(([n, e]) => /^[CP]\/\d{4} |^\d+P\//.test(n) && e.M1 != null && e.K1 != null && e.best <= 14), `cometas del momento: ${ex.length}, con su fórmula de brillo y magnitud prevista ≤ 14`); }
 const hal = EL["1P/Halley"];
 ok(near(trueAnomaly(hal.q, hal.e, 0).r, hal.q, 1e-9) && near(trueAnomaly(hal.q, hal.e, 0).nu, 0, 1e-9), "en el perihelio está a la distancia q");
 // Halley: afelio a unas 35 UA, a medio periodo (~38 años) del perihelio
@@ -60,6 +62,28 @@ console.log("Con la fecha");
   ok(m30.every((c) => c.moved && near(Math.hypot(c.nx, c.ny, c.nz), 1, 1e-9) && c.dist_km > 0 && c.light_min > 0 && /Z$/.test(c.epoch) && c.ra_deg >= 0 && c.ra_deg < 360) && m30[0].epoch.slice(0, 10) === "2026-12-19", "el cometa movido lleva su ascensión recta, distancia, tiempo de luz y fecha nuevas");
   ok(ang([b30[0].nx, b30[0].ny, b30[0].nz], [m30[0].nx, m30[0].ny, m30[0].nz]) > dE, "también hacia atrás en el tiempo");
   ok(typeof m30[0].approaching === "boolean" && moveComets([{ name: "X/Desconocido", nx: 1, ny: 0, nz: 0, dist_au: 2, epoch: NOW[0].epoch }], EL, t0 + day)[0].moved === undefined, "un cometa sin elementos se queda donde estaba");
+}
+
+console.log("Cometas del momento, planetas enanos y asteroides");
+{
+  const t0 = Date.UTC(2026, 10, 19), all = cometsAt([], EL, t0, 99), some = cometsAt([], EL, t0, 14.5), none = cometsAt([], EL, t0, -5);
+  const nx = Object.values(EL).filter((e) => e.extra).length;
+  ok(all.length === nx && some.length <= all.length && none.length === 0 && all.every((c) => c.extra && c.mag != null && near(Math.hypot(c.nx, c.ny, c.nz), 1, 1e-9) && c.dist_au > 0), "los cometas del momento salen de su órbita, y solo mientras su brillo previsto supera el límite");
+  const famous = [{ name: "2P/Encke", nx: 0.94916, ny: -0.26172, nz: 0.17494, dist_au: 0.9278, epoch: "2026-11-19T00:01Z" }];
+  const mix = cometsAt(famous, EL, Date.parse(famous[0].epoch), 99);
+  ok(mix[0] === famous[0] && mix.length === 1 + nx && !cometsAt(famous, EL, t0, 99).some((c, i, a) => a.findIndex((x) => x.name === c.name) !== i), "los famosos conservan su dato de Horizons y no se duplican");
+  ok(cometObject("X", EL["2P/Encke"], t0).epoch === "2026-11-19T00:00Z", "cada cometa calculado lleva la fecha de su posición");
+  const MB = JSON.parse(read("../public/minor-bodies.json")).objects, m = minorObjects(MB, t0), by = Object.fromEntries(m.map((o) => [o.name, o]));
+  ok(MB.length === 17 && m.length === 17 && MB.every((o) => o.name && o.name_en && o.note_es && o.note_en && o.wiki_en && o.wiki_es && o.el && o.el.q > 0 && ["dwarf", "asteroid", "nea", "tno"].includes(o.kind)), "17 cuerpos con nombre, nota, artículo y órbita en los dos idiomas");
+  // JPL Horizons, 19-nov-2026 0 h UT: Plutón 306,320° −23,637° 36,02 UA · Ceres 116,079° +25,019° 1,969 UA m 7,9 · Vesta 15,596° −4,407° 1,694 UA m 7,1 · Eros 268,542° −25,806° · Eris 26,722° −0,181° 94,62 UA
+  const sepDeg = (o, ra, dec) => { const R = Math.PI / 180, b = [Math.cos(dec * R) * Math.cos(ra * R), Math.cos(dec * R) * Math.sin(ra * R), Math.sin(dec * R)], a = [o.nx, o.ny, o.nz], x = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; return Math.atan2(norm(x), dot(a, b)) / R; };
+  const errs = [sepDeg(by["Plutón"], 306.32034, -23.63702), sepDeg(by.Ceres, 116.07856, 25.01911), sepDeg(by.Vesta, 15.5956, -4.40699), sepDeg(by.Eros, 268.54188, -25.80649), sepDeg(by.Eris, 26.72226, -0.1811)];
+  ok(errs.every((e) => e < 0.06), `posición frente a JPL Horizons: Plutón, Ceres, Vesta, Eros y Eris a menos de 0,06° (máx. ${Math.max(...errs).toFixed(3)}°)`);
+  ok(near(by["Plutón"].dist_au, 36.023, 0.06) && near(by.Ceres.dist_au, 1.9687, 0.002) && near(by.Eris.dist_au, 94.616, 0.02), "distancias: Plutón 36 UA, Ceres 1,97 UA, Eris 94,6 UA");
+  ok(near(by.Ceres.mag, 7.9, 0.15) && near(by.Vesta.mag, 7.08, 0.15) && near(by.Eros.mag, 14.23, 0.2) && near(by.Eris.mag, 18.6, 0.2), "magnitud (sistema H, G): Ceres 7,9, Vesta 7,1, Eros 14,2, Eris 18,6, como en Horizons");
+  ok(near(asteroidMag(3.34, 0.12, 1, 1, 0), 3.34, 1e-9) && asteroidMag(3.34, 0.12, 2, 1, 0.3) > asteroidMag(3.34, 0.12, 2, 1, 0) && asteroidMag(null, 0.15, 1, 1, 0) === null, "la magnitud absoluta H es la de 1 UA sin fase; con fase, más débil");
+  const later = Object.fromEntries(minorObjects(MB, t0 + 60 * 86400000).map((o) => [o.name, o]));
+  ok(sepDeg(later.Vesta, by.Vesta.ra_deg, by.Vesta.dec_deg) > 3 && sepDeg(later["Plutón"], by["Plutón"].ra_deg, by["Plutón"].dec_deg) < 2 && typeof by.Apofis.approaching === "boolean", "con la fecha: Vesta se mueve varios grados en dos meses; Plutón, casi nada");
 }
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);

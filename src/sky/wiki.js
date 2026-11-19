@@ -150,6 +150,11 @@ export function wikiCandidates(obj, lang) {
   }
   else if (L === "meteors") { const ok = (x) => METEOR_RE.test(x || ""); add("es", obj.wiki_es || obj.name, ok); add("en", obj.name_en || obj.name, ok); if (lang === "en") out.reverse(); }
   else if (L === "exoplanets") { const ok = (x) => PLANET_RE.test(x || ""); both((lg) => add(lg, obj.name, ok)); if (obj.host) both((lg) => add(lg, obj.host, ok)); }
+  else if (L === "minor") {
+    // planetas enanos y asteroides: títulos explícitos (scripts/build_minor_bodies.py), primero en el idioma activo
+    const first = lang === "es" ? "es" : "en", second = first === "es" ? "en" : "es";
+    for (const lg of [first, second]) { const tt = lg === "es" ? obj.wiki_es : obj.wiki_en; if (tt) add(lg, tt); }
+  }
   else if (L === "probes" || L === "comets") {
     const re = L === "probes" ? SPACECRAFT_RE : COMET_RE, ok = (x) => re.test(x || "");
     const m = mappedTitle(L, obj.name);                          // el mapa ya está comprobado: sin filtro

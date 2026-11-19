@@ -88,7 +88,8 @@ export const TX = {
     layerDesc: {
       solar: "Dónde están ahora, calculado con sus órbitas. Fuente: efemérides de Paul Schlyter (≈ 1–2′).",
       meteors: "El punto del que parece salir cada lluvia (radiante). Fuente: calendario de la IMO.",
-      comets: "Posiciones de hoy. Fuente: NASA/JPL Horizons.",
+      comets: "Los famosos y los brillantes del momento; se mueven con la fecha. Fuente: NASA/JPL (Horizons y SBDB).",
+      minor: "Plutón, Ceres, Vesta, Eris, Apofis y más, donde están en la fecha elegida. Fuente: NASA/JPL (SBDB).",
       probes: "Voyager, James Webb y otras naves, hoy. Fuente: NASA/JPL Horizons.",
       messier: "Nebulosas, cúmulos y galaxias al alcance de un telescopio pequeño. Fuente: OpenNGC y SEDS.",
       galaxies: "Otras galaxias, a millones de años luz. Fuente: OpenNGC; distancia por corrimiento al rojo (aprox.).",
@@ -278,7 +279,8 @@ export const TX = {
     layerDesc: {
       solar: "Where they are right now, computed from their orbits. Source: Paul Schlyter's ephemerides (≈ 1–2′).",
       meteors: "The point each shower seems to come from (its radiant). Source: IMO calendar.",
-      comets: "Today's positions. Source: NASA/JPL Horizons.",
+      comets: "Famous comets and the bright ones of the season; they move with the date. Source: NASA/JPL (Horizons and SBDB).",
+      minor: "Pluto, Ceres, Vesta, Eris, Apophis and more, where they are on the chosen date. Source: NASA/JPL (SBDB).",
       probes: "Voyager, James Webb and other spacecraft, today. Source: NASA/JPL Horizons.",
       messier: "Nebulae, clusters and galaxies within reach of a small telescope. Source: OpenNGC and SEDS.",
       galaxies: "Other galaxies, millions of light-years away. Source: OpenNGC; distance from redshift (approx.).",

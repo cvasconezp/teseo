@@ -15,6 +15,8 @@ export const R3 = {
     capRep: {
       probe: "Representación esquemática de una sonda espacial. No es una foto ni el aspecto exacto de esta nave.",
       telescope: "Representación esquemática de un telescopio espacial. No es una foto ni el aspecto exacto de esta nave.",
+      asteroid: "Representación esquemática de un asteroide. No es una foto ni la forma real de este cuerpo.",
+      dwarf: "Representación esquemática de un planeta enano. No es una foto ni el aspecto real de este cuerpo.",
       comet: "Representación esquemática de un cometa: núcleo, cola de polvo (curva) y cola de gas (recta). No es una foto.",
       meteor: "Esquema de una lluvia de meteoros: los trazos parecen salir de un mismo punto, el radiante. No es una foto.",
       nebula: "Representación esquemática de una nebulosa. No es una imagen real de este objeto.",
@@ -217,6 +219,8 @@ export const R3 = {
     capRep: {
       probe: "Schematic representation of a space probe. Not a photo, nor this spacecraft's exact look.",
       telescope: "Schematic representation of a space telescope. Not a photo, nor this spacecraft's exact look.",
+      asteroid: "Schematic illustration of an asteroid. Not a photo, nor the real shape of this body.",
+      dwarf: "Schematic illustration of a dwarf planet. Not a photo, nor the real look of this body.",
       comet: "Schematic representation of a comet: nucleus, dust tail (curved) and gas tail (straight). Not a photo.",
       meteor: "Diagram of a meteor shower: the streaks seem to come from one point, the radiant. Not a photo.",
       nebula: "Schematic representation of a nebula. Not a real image of this object.",

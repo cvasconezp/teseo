@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.37.0 — 18 de noviembre de 2026
+
+- Capa nueva «Planetas enanos y asteroides»: Plutón, Ceres, Eris, Haumea,
+  Makemake, Sedna, Vesta, Palas, Juno, Higía, Iris, Hebe, Psique, Eros,
+  Apofis, Bennu y Ryugu, en su sitio para la fecha elegida, con distancia,
+  diámetro, periodo, magnitud y una nota de cada uno. Se encuentran con el
+  buscador aunque la capa esté apagada. Órbitas de JPL; las posiciones
+  coinciden con Horizons a unas centésimas de grado (Bennu, cerca de 1°).
+- Cometas del momento: además de los siete famosos, los que estos meses
+  llegan a magnitud 14 o más brillante según JPL, mientras lo sean.
+
 ## 1.36.0 — 18 de noviembre de 2026
 
 - Mapa fotográfico de todo el cielo: al acercarse (menos de 24° de campo) el

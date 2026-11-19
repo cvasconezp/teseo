@@ -132,3 +132,56 @@ export function moveComets(objects, orbits, ms, tolMs = 45 * 60000) {
   });
   return changed ? out : objects;
 }
+
+/** Un cometa «del momento» (sin dato de Horizons) como objeto de la capa: posición de dos cuerpos en `ms`. */
+export function cometObject(name, el, ms) {
+  const k = cometAt(el, ms), k2 = cometAt(el, ms + 3600000), d = k.dir;
+  if (![d[0], d[1], d[2], k.delta].every(Number.isFinite)) return null;
+  const ra = ((Math.atan2(d[1], d[0]) / R) % 360 + 360) % 360, dec = Math.asin(Math.max(-1, Math.min(1, d[2]))) / R;
+  return { name, nx: d[0], ny: d[1], nz: d[2], ra_deg: +ra.toFixed(4), dec_deg: +dec.toFixed(4), dist_au: +k.delta.toFixed(4), dist_km: Math.round(k.delta * AU_KM),
+    light_min: +((k.delta * AU_KM) / 299792.458 / 60).toFixed(1), approaching: k2.delta < k.delta, sun_dist_au: +k.r.toFixed(4), sun_dist_km: Math.round(k.r * AU_KM),
+    epoch: new Date(ms).toISOString().slice(0, 16) + "Z", mag: k.mag == null ? null : +k.mag.toFixed(1), extra: true };
+}
+
+/**
+ * Los cometas de la capa en la fecha `ms`: los de Horizons (movidos si la fecha no es la del dato) más los «del
+ * momento» de comet-orbits.json (`extra`), estos solo mientras su brillo previsto supera la magnitud `magLim`.
+ */
+export function cometsAt(objects, orbits, ms, magLim = 14.5) {
+  const base = moveComets(objects, orbits, ms) || [];
+  if (!orbits || !Number.isFinite(ms)) return base;
+  const have = new Set(base.map((c) => c.name)), add = [];
+  for (const [name, el] of Object.entries(orbits)) {
+    if (!el.extra || have.has(name)) continue;
+    const o = cometObject(name, el, ms); if (o && o.mag != null && o.mag <= magLim) add.push(o);
+  }
+  return add.length ? [...base, ...add] : base;
+}
+
+/** Magnitud de un asteroide o planeta enano (sistema H, G): `r` y `delta` en UA, `alpha` = ángulo de fase (rad). */
+export function asteroidMag(H, G, r, delta, alpha) {
+  if (H == null) return null;
+  const t = Math.tan(Math.min(alpha, 2.9) / 2), p1 = Math.exp(-3.33 * Math.pow(t, 0.63)), p2 = Math.exp(-1.87 * Math.pow(t, 1.22));
+  return H + 5 * Math.log10(r * delta) - 2.5 * Math.log10(Math.max(1e-9, (1 - G) * p1 + G * p2));
+}
+
+/**
+ * Planetas enanos y asteroides (public/minor-bodies.json) en la fecha `ms`: cada objeto con su dirección, distancias,
+ * magnitud y si se acerca. Dos cuerpos desde elementos recientes de JPL: bien durante unos años alrededor de hoy.
+ */
+export function minorObjects(objects, ms) {
+  if (!objects || !Number.isFinite(ms)) return [];
+  const E = earthHelio(ms), out = [];
+  for (const o of objects) {
+    if (!o.el) continue;
+    const h = cometHelio(o.el, ms), geo = sub(h.p, E), delta = Math.hypot(geo[0], geo[1], geo[2]), d = unit(geo);
+    if (![d[0], d[1], d[2], delta].every(Number.isFinite)) continue;
+    const re = Math.hypot(E[0], E[1], E[2]), cosA = Math.max(-1, Math.min(1, (h.r * h.r + delta * delta - re * re) / (2 * h.r * delta)));
+    const mag = asteroidMag(o.H, o.G == null ? 0.15 : o.G, h.r, delta, Math.acos(cosA)), d2 = cometAt(o.el, ms + 3600000).delta;
+    const ra = ((Math.atan2(d[1], d[0]) / R) % 360 + 360) % 360, dec = Math.asin(Math.max(-1, Math.min(1, d[2]))) / R;
+    out.push({ ...o, nx: d[0], ny: d[1], nz: d[2], ra_deg: +ra.toFixed(4), dec_deg: +dec.toFixed(4), dist_au: +delta.toFixed(4), dist_km: Math.round(delta * AU_KM),
+      light_min: +((delta * AU_KM) / 299792.458 / 60).toFixed(1), approaching: d2 < delta, sun_dist_au: +h.r.toFixed(4), sun_dist_km: Math.round(h.r * AU_KM),
+      mag: mag == null ? null : +mag.toFixed(1), epoch: new Date(ms).toISOString().slice(0, 16) + "Z" });
+  }
+  return out;
+}

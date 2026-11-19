@@ -22,6 +22,7 @@ export function artKind(obj) {
   const L = obj.layer;
   if (L === "probes") return craftKind(obj.name);
   if (L === "comets") return "comet";
+  if (L === "minor") return obj.kind === "dwarf" || obj.kind === "tno" ? "dwarf" : "asteroid";
   if (L === "meteors") return "meteor";
   if (L === "pulsars") return "pulsar";
   if (L === "blackholes") return "blackhole";
@@ -246,6 +247,28 @@ function blackhole(ctx, cx, cy, u) {
   disc(true);
   ctx.restore();
 }
+// asteroide (roca irregular con cráteres) o planeta enano (esfera helada): luz desde arriba a la izquierda
+function minorBody(ctx, cx, cy, u, round) {
+  const R = u * (round ? 0.62 : 0.58), N = 40, pts = [];
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2, k = round ? 1 : 1 + 0.16 * Math.sin(a * 2 + 0.6) + 0.09 * Math.sin(a * 3 + 2.1) + 0.05 * Math.sin(a * 7 + 1.3);
+    pts.push([cx + Math.cos(a) * R * k * (round ? 1 : 1.18), cy + Math.sin(a) * R * k * (round ? 1 : 0.86)]);
+  }
+  ctx.save();
+  ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.closePath(); ctx.clip();
+  const g = ctx.createRadialGradient(cx - R * 0.45, cy - R * 0.45, R * 0.05, cx, cy, R * 1.5);
+  if (round) { g.addColorStop(0, "#f1e6d6"); g.addColorStop(0.45, "#b9a58e"); g.addColorStop(0.8, "#4b4037"); g.addColorStop(1, "#0b0907"); }
+  else { g.addColorStop(0, "#c9c2b6"); g.addColorStop(0.45, "#857d72"); g.addColorStop(0.8, "#37322d"); g.addColorStop(1, "#080706"); }
+  ctx.fillStyle = g; ctx.fillRect(cx - R * 2, cy - R * 2, R * 4, R * 4);
+  // cráteres: un borde claro del lado de la luz y sombra dentro
+  for (const [dx, dy, rr] of [[-0.25, -0.1, 0.16], [0.28, 0.18, 0.2], [0.05, -0.38, 0.1], [-0.42, 0.3, 0.09], [0.45, -0.22, 0.08], [-0.05, 0.35, 0.12]]) {
+    const x = cx + dx * R, y = cy + dy * R, r0 = rr * R * (round ? 0.8 : 1);
+    ctx.beginPath(); ctx.ellipse(x, y, r0, r0 * 0.8, 0, 0, Math.PI * 2); ctx.fillStyle = "rgba(0,0,0,0.28)"; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + r0 * 0.12, y + r0 * 0.12, r0, r0 * 0.8, 0, 0, Math.PI * 2); ctx.strokeStyle = "rgba(255,255,255,0.16)"; ctx.lineWidth = Math.max(1, u * 0.012); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function pulsar(ctx, cx, cy, u) {
   ctx.save(); ctx.translate(cx, cy);
   // líneas del campo magnético
@@ -330,6 +353,7 @@ export function drawArt(ctx, kind, x, y, w, h, o = {}) {
   else if (kind === "galaxy") galaxy(ctx, cx, cy, u, r, o.hubble ? hubbleFamily(o.hubble) : "S");
   else if (kind === "blackhole") blackhole(ctx, cx, cy, u);
   else if (kind === "pulsar") pulsar(ctx, cx, cy, u);
+  else if (kind === "asteroid" || kind === "dwarf") minorBody(ctx, cx, cy, u, kind === "dwarf");
   else if (kind === "star") star(ctx, cx, cy, u, o.hex);
   else if (kind === "exoplanet") exoplanet(ctx, cx, cy, u, o.obj || {});
   else nebula(ctx, cx, cy, u, r);

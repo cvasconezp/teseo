@@ -236,11 +236,22 @@ export function describeObject(o, lang, t, meteorActive) {
     d.note = t.radiantNote;
     if (o.parent) { say(null, t.meteorParent(o.parent)); d.details.push([t.dParent, o.parent]); }
     d.details.push([t.dSource, t.srcMeteor]);
+  } else if (L === "minor") {
+    // planeta enano o asteroide: dónde está en esa fecha (dos cuerpos con elementos de JPL)
+    d.name = (es ? o.name : o.name_en) || o.name;
+    d.type = { dwarf: t.typeDwarf, nea: t.typeNea, tno: t.typeTno }[o.kind] || t.typeAsteroid; d.visual = "photo";
+    const km = o.dist_km != null ? o.dist_km : (o.dist_au != null ? o.dist_au * AU_KM : null);
+    if (km != null) nearFacts(km, o.dist_au);
+    if (o.diam_km) d.facts.push({ label: t.fDiameter, value: `${num(o.diam_km, lang, o.diam_km < 10 ? 2 : 0)} km` });
+    if (o.period_y) d.facts.push({ label: t.fOrbit, value: t.yearsN(num(o.period_y, lang, o.period_y >= 100 ? 0 : 1)) });
+    d.note = [(es ? o.note_es : o.note_en) || "", o.approaching ? t.approaching : t.receding].filter(Boolean).join(" ");
+    if (o.mag != null) d.details.push([t.dMagnitude, `${num(o.mag, lang, 1)} · ${t.magHint}`]);
+    d.details.push([t.dSource, t.minorSrc]);
   } else if (L === "comets" || L === "probes") {
     d.type = L === "comets" ? t.typeComet : t.typeProbe; d.visual = L === "comets" ? "comet" : "probe";
     const km = o.dist_km != null ? o.dist_km : (o.dist_au != null ? o.dist_au * AU_KM : null);
     if (km != null) nearFacts(km, o.dist_au);
-    if (L === "comets") d.note = o.approaching ? t.approaching : t.receding;
+    if (L === "comets") d.note = (o.approaching ? t.approaching : t.receding) + (o.extra ? " " + t.cometExtra : "");
     else {
       // nota corta + estado de la misión en el idioma activo (campos opcionales del backend)
       const note = (es ? o.note_es : o.note_en) || "", status = (es ? o.status_note : o.status_note_en) || "";
