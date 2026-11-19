@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.45.0 — 19 de noviembre de 2026
+
+- Lugar nuevo «Cochasquí · sobre la pirámide G»: el observador de pie en la
+  plataforma de la pirámide mayor, 14 m sobre la ladera, con las otras
+  catorce alrededor y su rampa bajando al sur.
+
 ## 1.44.1 — 19 de noviembre de 2026
 
 - Buscador: las constelaciones se encuentran también con acento («Orión»);

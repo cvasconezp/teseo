@@ -147,6 +147,12 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
       const lay = readFileSync(new URL("../src/sky/monumentLayer.js", import.meta.url), "utf8");
       const grid = { reach: 900, h: new Array(RELIEF_R.length * RELIEF_NA).fill(5) }, it = [{ m: { ...L("k") }, o: { e: 100, n: 100, d: 141 }, dz: 40 }];
       ok(near(groundHeight(100, 100, it, grid), groundHeight(100, 100, [], grid), 1e-9) && groundHeight(100, 100, [{ ...it[0], m: { ...L("k"), seat: false } }], grid) > 30 && /depthWrite: true, \.\.\.\(ground \? \{ polygonOffset: true/.test(lay), "una pieza asentada no levanta el suelo a su alrededor; el suelo escribe profundidad (tapa lo enterrado)"); }
+    const s0q = site("cochasqui");
+    { // de pie en la plataforma de la G: los ojos a 1,7 m sobre ella y todo lo demás, más abajo
+      const sg = site("cochasqui-g"), nearG = monumentsNear(sg.lat, sg.lon, 25), bases = Object.fromEntries(nearG.map((m) => [m.id, 3100]));
+      const items = placeMonuments(nearG, { lat: sg.lat, lon: sg.lon, ground: 3100 }, bases), g = items.find((it) => it.m.id === "cq-g");
+      ok(sg && nearG.some((m) => m.id === "cq-g") && g && g.o.d < 5 && near(g.dz + L("g").height, -1.7, 1e-9) && near(items.up, L("g").height, 1e-9) && items.filter((it) => it.m.id !== "cq-g").every((it) => near(it.dz, -1.7 - L("g").height, 1e-9)), "lugar «sobre la pirámide G»: la plataforma queda 1,7 m bajo los ojos y las demás pirámides, 14 m más abajo");
+      ok(near(groundHeight(300, 0, items), -1.7 - L("g").height, 0.5) && !monumentLabels(items, "es").some((l) => /Pirámide G/.test(l.name || l.text || "")) && !placeMonuments(monumentsNear(s0q.lat, s0q.lon, 25), { lat: s0q.lat, lon: s0q.lon, ground: 3100 }, bases).up, "el suelo baja con ellas, la G no lleva etiqueta bajo los pies y desde el mirador de abajo nada cambia"); }
     // el mirador no cae dentro de ninguna pirámide ni sobre una rampa
     const s0 = site("cochasqui");
     ok(pyr.every((m) => { const o = offsetOf(s0.lat, s0.lon, m.lat, m.lon); return Math.hypot(o.e, o.n) > Math.hypot(m.w, m.d) / 2 + 25; }), "el mirador queda en campo abierto, a más de 25 m de cualquier pirámide"); }

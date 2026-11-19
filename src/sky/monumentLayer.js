@@ -45,6 +45,10 @@ export function placeMonuments(list, { lat, lon, ground }, bases, relief = null)
     const dz0 = relief && m.seat ? reliefAt(relief, o.e, o.n) : b - (ground + EYE_M);
     out.push({ m, o, dz: dz0 + (m.lift || 0) - (m.drop || 0), faces: buildFaces(m, { d: o.d }) });
   }
+  // Subido a una plataforma (`standOn`): si el lugar cae dentro de la plataforma de una pirámide, los ojos van a 1,7 m
+  // sobre ella, así que todo lo demás (y el suelo) baja lo que haga falta.
+  const st = out.find((it) => it.m.standOn && it.o.d < Math.min(it.m.w, it.m.d) * 0.36 - 2);
+  if (st) { const up = st.dz + st.m.height + EYE_M; if (up > 0.01) { for (const it of out) it.dz -= up; out.up = up; } }
   return out;
 }
 
@@ -54,7 +58,8 @@ export function placeMonuments(list, { lat, lon, ground }, bases, relief = null)
  * la plataforma de arriba queda más alto que su centro), no dentro de la cara.
  */
 export function monumentLabels(items, lang = "es", sil = null, step = 0.2) {
-  return (items || []).filter(({ m }) => m.label !== false).map(({ m, o, dz }) => {
+  // (la pirámide sobre cuya plataforma se está de pie no lleva etiqueta: no tiene cima a la vista)
+  return (items || []).filter(({ m, o }) => m.label !== false && !(m.standOn && o.d < Math.min(m.w, m.d) * 0.36)).map(({ m, o, dz }) => {
     const v = toLocal(apexOf(m), o, dz), q = altAzOf(v);
     let alt = q.alt;
     if (sil && m.solid) {
@@ -159,6 +164,8 @@ export function reliefAt(grid, e, n) {
  */
 export function groundHeight(e, n, items, grid = null) {
   let sw, sh;
+  // `items.up`: el observador está subido a una plataforma (placeMonuments): todo el suelo queda esos metros más abajo
+  const up = (items && items.up) || 0;
   // (a los pies del observador manda siempre su propio suelo: si no, un monumento cercano y más alto podría
   // levantar el suelo por encima de sus ojos)
   if (grid) { const w0 = 1 / (e * e + n * n + 4); sw = 1 / (22 * 22) + w0; sh = reliefAt(grid, e, n) / (22 * 22) - EYE_M * w0; }
@@ -170,9 +177,9 @@ export function groundHeight(e, n, items, grid = null) {
     const d = Math.hypot(e - it.o.e, n - it.o.n), r = Math.max(d - 0.7 * footprintRadius(it.m), 1.5);
     // con relieve, cada monumento solo levanta el suelo a su alrededor (hasta 80 m de su borde, sobre todo en los primeros 25)
     const w = grid ? Math.max(0, 1 / (r * r) - 1 / (80 * 80)) * 4 : 1 / (r * r);
-    sw += w; sh += (it.dz - (it.m.lift || 0)) * w;
+    sw += w; sh += (it.dz + up - (it.m.lift || 0)) * w;
   }
-  return sh / sw;
+  return sh / sw - up;
 }
 
 export function createMonumentLayer({ onReady = null } = {}) {

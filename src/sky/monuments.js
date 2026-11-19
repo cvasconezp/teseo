@@ -93,6 +93,8 @@ const COCHASQUI = CQ.map(([id, L, e, n, w, d, h, ramp]) => ({
   // el suelo de las pequeñas se mide en su centro (un punto); el de las cuatro grandes, en un anillo a su alrededor
   ...(w >= 60 ? {} : { ring: 3 }),
   ...(L === "K" ? { rampsN: 2 } : {}),
+  // se puede subir a la plataforma de la G (lugar «Cochasquí · sobre la pirámide G»)
+  ...(L === "G" ? { standOn: true, walkIn: true } : {}),
 }));
 // montículos funerarios redondos del mismo plano (los que se ven en el terreno): [este, norte], radio y alto (m).
 // El «a» mide unos 40 m de diámetro y 5 de alto (Oberem); el alto de los demás es estimado.
