@@ -148,6 +148,7 @@ const CLOUDS_KEY = "teseo_clouds";      // interruptor "Nubes" (1/0; apagado por
 // estrella de la misma magnitud integrada. APROXIMACIÓN declarada en la interfaz (deepNote).
 const EXTENDED_PENALTY = { galaxy: 1.5, nebula: 1.5, snr: 1.5, open: 1.0, globular: 1.0, cluster: 1.0, planetary: 1.0, clneb: 1.0, dark: 1.5, other: 1.5 };
 const extPenalty = (key, ob) => key === "galaxies" ? 1.5 : (EXTENDED_PENALTY[ob.type] ?? 1.5);
+const TELE_FOV = 25;  // con menos de 25° de campo la vista es «de telescopio»: los objetos de catálogo tienen nombre y se pueden elegir aunque no se vean a simple vista
 const NGC_FOV = 40;   // la capa NGC/IC aparece con menos de 40° de campo: de lejos serían cientos de puntos sin nombre
 const MAG_LAYERS = new Set(["messier", "caldwell", "galaxies", "ngc"]);   // símbolo según su magnitud y visibilidad con atmósfera
 const loadBortleMap = () => { try { return JSON.parse(localStorage.getItem(BORTLE_KEY) || "{}") || {}; } catch { return {}; } };
@@ -906,7 +907,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       }
       for (const o of ds.objects) {
         const hay = (o.name + " " + (key === "ngc" ? o.name.replace(" ", "") + " " : "") + (o.cn || "") + " " + (o.cat || "") + " " + (o.name_en || "") + conExp(o.name, o.const)).toLowerCase();
-        if (hay.includes(q)) r.push({ type: "layer", layer: key, obj: o, label: labelForObj(key, o, lang), kind: layerName });
+        // «ngc 206» es NGC 206 antes que NGC 2060: la designación exacta va primero
+        if (hay.includes(q)) r.push({ type: "layer", layer: key, obj: o, label: labelForObj(key, o, lang), kind: layerName, exact: o.name.toLowerCase() === q || o.name.replace(" ", "").toLowerCase() === q });
       }
       if (r.length > 60) break;
     }
@@ -1699,9 +1701,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
               if (v.visible && occ && occ(d) > OCC_HIDE) v.visible = false;
               a = v.visible ? Math.max(0.55, v.alpha) : 0;
               ud.vis[i] = v.visible ? 1 : 0;
+              // «de telescopio» (al acercarse): no cuenta si se ve a simple vista, solo si lo tapa una nube
+              ud.tele[i] = occ && occ(d) > OCC_HIDE ? 0 : 1;
               if (o.points.visible && ud.layer === "messier") { nDeepTot++; if (v.visible) nDeep++; }
-            } else ud.vis[i] = 1;                     // sin atmósfera o bajo el horizonte (lo cubre el suelo)
-            if (ud.vis[i] && hzd && behind(d)) ud.vis[i] = 0;
+            } else { ud.vis[i] = 1; ud.tele[i] = 1; }   // sin atmósfera o bajo el horizonte (lo cubre el suelo)
+            if (hzd && behind(d)) { ud.vis[i] = 0; ud.tele[i] = 0; }
             arr[i*3] = ud.baseCol[i*3] * a; arr[i*3+1] = ud.baseCol[i*3+1] * a; arr[i*3+2] = ud.baseCol[i*3+2] * a;
           }
           col.needsUpdate = true;
@@ -2199,7 +2203,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           const lim = CATALOG_LABELS[ref.labelDensity || "normal"];
           for (const o of (ref.layerObjs || [])) {
             if (!o.points.visible || o.key === "probes" || o.key === "comets" || o.key === "minor") continue;   // naves y cometas: ya agrupados arriba
-            const objs = o.points.userData.objs, cls = "obj_" + o.key, ov = ref.visOn ? o.points.userData.vis : null;
+            const objs = o.points.userData.objs, cls = "obj_" + o.key, ov = ref.visOn ? (ref.camera.fov < TELE_FOV ? o.points.userData.tele : o.points.userData.vis) : null;
             // de catálogo: se cuentan los que caen en pantalla y solo se nombran si son pocos (hay zoom suficiente)
             let nCat = 0; const cat = [];
             for (let q = 0; q < objs.length; q++) {
@@ -2350,7 +2354,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         const pts = new THREE.Points(g, m);
         pts.visible = !!enabled[cfg.key];
         if (ref.localQuat) pts.quaternion.copy(ref.localQuat);
-        pts.userData = { layer: cfg.key, objs: list, baseCol, vis: byMag ? new Uint8Array(list.length).fill(1) : null };
+        pts.userData = { layer: cfg.key, objs: list, baseCol, vis: byMag ? new Uint8Array(list.length).fill(1) : null, tele: byMag ? new Uint8Array(list.length).fill(1) : null };
         ref.scene.add(pts);
         ref.layerObjs.push({ key: cfg.key, points: pts });
       });
@@ -3589,7 +3593,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       for (const o of (ref.layerObjs || [])) {
         if (!o.points.visible) continue;
         const objs = o.points.userData.objs || [], kind = (LAYERS.find(l => l.key === o.key) || {})[L] || o.key;
-        const ov = ref.visOn ? o.points.userData.vis : null;
+        // al acercarse (vista de telescopio) se puede elegir también lo que no se ve a simple vista: está en la foto
+        const ov = ref.visOn ? (ref.camera.fov < TELE_FOV ? o.points.userData.tele : o.points.userData.vis) : null;
         for (let i = 0; i < objs.length; i++) { if (ov && !ov[i]) continue; const ob = objs[i]; consider(ob.nx * 870, ob.ny * 870, ob.nz * 870, 0, isNotable(o.key, ob, ref.when) ? 6 : 1, () => ({ ...ob, layer: o.key }), labelForObj(o.key, ob, L), kind); }
       }
       // la ISS: su punto ya está en coordenadas del mundo (marco local), con la máxima prioridad

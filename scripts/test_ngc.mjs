@@ -7,10 +7,10 @@ const D = JSON.parse(read("../public/ngc.json")), O = D.objects, by = Object.fro
 const norm = (s) => s.replace(/\s+/g, "").toUpperCase();
 
 console.log("Catálogo");
-ok(O.length === D.count && O.length > 700 && O.length < 2500 && /OpenNGC/.test(D.meta.source) && /CC BY-SA/.test(D.meta.source), `${O.length} objetos de OpenNGC (CC BY-SA 4.0)`);
+ok(O.length === D.count && O.length > 3500 && O.length < 6000 && /OpenNGC/.test(D.meta.source) && /CC BY-SA/.test(D.meta.source), `${O.length} objetos de OpenNGC (CC BY-SA 4.0)`);
 ok(O.every((o) => /^(NGC|IC) \d+[A-Z]?( NED\d+)?$/.test(o.name) && Math.abs(Math.hypot(o.nx, o.ny, o.nz) - 1) < 1e-4 && ["galaxy", "open", "globular", "nebula", "planetary", "snr", "clneb", "cluster", "dark", "other"].includes(o.type)), "cada objeto: nombre «NGC n» o «IC n», dirección unitaria y un tipo conocido");
-ok(new Set(O.map((o) => o.name)).size === O.length && O.every((o) => o.mag == null || o.mag <= D.meta.mag_lim), "sin repetidos y hasta la magnitud 13");
-ok(O.filter((o) => o.mag == null).every((o) => o.type !== "galaxy" && (o.size >= 4 || o.cn)), "sin magnitud solo entran nebulosas y cúmulos grandes o con nombre propio");
+ok(new Set(O.map((o) => o.name)).size === O.length && O.every((o) => o.mag == null || o.mag <= D.meta.mag_lim), "sin repetidos y hasta la magnitud 14,5");
+ok(O.filter((o) => o.mag == null).every((o) => o.type !== "galaxy" || o.cn) && by["NGC 206"] && by["NGC 206"].type === "cluster" && by["NGC 206"].const === "And", "sin magnitud entran nebulosas, cúmulos y asociaciones (NGC 206, la nube de estrellas de Andrómeda), no las galaxias anónimas");
 { // nada de lo que ya está en otras capas
   const cw = new Set(JSON.parse(read("../public/caldwell.json")).objects.flatMap((o) => (o.ids || []).map(norm)));
   const gal = new Set(JSON.parse(read("../public/galaxies.json")).objects.map((o) => norm(o.cat || "")));
@@ -22,7 +22,7 @@ ok(O.filter((o) => o.mag == null).every((o) => o.type !== "galaxy" && (o.size >=
 { const f = by["NGC 2024"], ra = (Math.atan2(f.ny, f.nx) * 180 / Math.PI + 360) % 360, dec = Math.asin(f.nz) * 180 / Math.PI;
   ok(f && f.cn === "Flame Nebula" && Math.abs(ra - 85.43) < 0.1 && Math.abs(dec + 1.85) < 0.1 && f.const === "Ori" && f.const_es === "Orión", "NGC 2024, la Nebulosa de la Llama, en su sitio en Orión"); }
 ok(by["IC 434"] && by["IC 434"].type === "nebula" && O.filter((o) => o.type === "planetary").length > 50 && O.filter((o) => o.type === "globular").length > 80, "están IC 434 (la de la Cabeza de Caballo), nebulosas planetarias y cúmulos globulares");
-ok(fs.statSync(new URL("../public/ngc.json", import.meta.url)).size < 200000, "el fichero pesa menos de 200 KB");
+ok(fs.statSync(new URL("../public/ngc.json", import.meta.url)).size < 700000, "el fichero pesa menos de 700 KB (unos 95 KB comprimido)");
 
 console.log("En la vista");
 const src = read("../src/Constellations.jsx"), panels = read("../src/sky/panels.jsx"), desc = read("../src/sky/describe.js");
@@ -38,6 +38,9 @@ console.log("Cada capa enciende y apaga lo suyo");
   ok(/setPhotos\(!!enabled\.photo\)/.test(src) && /setFrames\(!!enabled\.deepfields\)/.test(src) && /setPhotos\(b\)/.test(img) && /setFrames\(b\)/.test(img), "«Mapa fotográfico» enciende y apaga todas las fotos; «Campos profundos», sus recuadros");
   ok(/m == null \? 0\.75/.test(src) && /ud\.layer === "ngc" \? \{ visible: true/.test(src), "los objetos sin magnitud publicada también se dibujan, y NGC/IC no se oculta por brillo (se ve de cerca)");
 }
+
+console.log("De cerca, como por un telescopio");
+ok(/const TELE_FOV = 25/.test(src) && (src.match(/ref\.camera\.fov < TELE_FOV \? o\.points\.userData\.tele : o\.points\.userData\.vis/g) || []).length === 2 && /ud\.tele\[i\] = occ && occ\(d\) > OCC_HIDE \? 0 : 1/.test(src), "con menos de 25° de campo, los objetos de catálogo se nombran y se pueden elegir aunque no se vean a simple vista (M110, M32); solo los tapa una nube o el relieve");
 
 console.log(`\n${pass} ok, ${fail} fallas`);
 process.exit(fail ? 1 : 0);

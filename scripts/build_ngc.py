@@ -2,8 +2,8 @@
 """Catálogo NGC/IC de la capa «NGC e IC» (public/ngc.json).
 
 Fuente: OpenNGC (Mattia Verga, https://github.com/mattiaverga/OpenNGC), CC BY-SA 4.0. Entran los objetos reales
-(no estrellas sueltas, duplicados ni inexistentes) de magnitud 13 o más brillantes, más las nebulosas y cúmulos sin
-magnitud publicada que son grandes (≥ 4′) o tienen nombre propio (Cabeza de Caballo, Roseta…). Se dejan fuera los
+(no estrellas sueltas, duplicados ni inexistentes) de magnitud 14,5 o más brillantes, más las nebulosas, cúmulos y
+asociaciones sin magnitud publicada (NGC 206, la nube de estrellas de Andrómeda). Se dejan fuera los
 que ya están en otras capas: Messier, Caldwell (public/caldwell.json) y Galaxias (public/galaxies.json).
 """
 import csv, io, json, math, os, sys, urllib.request
@@ -13,13 +13,13 @@ from build_caldwell import TYPE_MAP
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 URL = "https://raw.githubusercontent.com/mattiaverga/OpenNGC/master/database_files/NGC.csv"
 CACHE = "/tmp/ngc/NGC.csv"
-MAG_LIM = 13.0
+MAG_LIM = 14.5
 if not os.path.exists(CACHE):
     os.makedirs(os.path.dirname(CACHE), exist_ok=True)
     open(CACHE, "wb").write(urllib.request.urlopen(urllib.request.Request(URL, headers={"User-Agent": "teseo-build"}), timeout=120).read())
 rows = list(csv.DictReader(io.open(CACHE, encoding="utf-8"), delimiter=";"))
 TYPES = dict(TYPE_MAP); TYPES.update({"GTrpl": "galaxy", "GCl": "globular"})
-SKIP = {"*", "**", "*Ass", "Dup", "NonEx", "Other", "Nova"}
+SKIP = {"*", "**", "Dup", "NonEx", "Other", "Nova"}
 norm = lambda s: s.replace(" ", "").upper()
 have = set()
 for o in json.load(open(os.path.join(ROOT, "public", "caldwell.json")))["objects"]: have.update(norm(x) for x in o.get("ids", []))
@@ -37,7 +37,7 @@ for r in rows:
     ty = TYPES.get(r["Type"], "other")
     if mag is not None:
         if mag > MAG_LIM: continue
-    elif ty == "galaxy" or not ((size or 0) >= 4 or cn): continue
+    elif ty == "galaxy" and not cn: continue        # sin magnitud: todo menos las galaxias anónimas
     ra, dec = math.radians(deg(r["RA"], True)), math.radians(deg(r["Dec"], False))
     m = __import__("re").match(r"^(NGC|IC)0*(\d+)(.*)$", r["Name"])
     o = {"name": f"{m.group(1)} {m.group(2)}{m.group(3)}" if m else r["Name"], "type": ty,
@@ -46,7 +46,7 @@ for r in rows:
     if size: o["size"] = round(size, 1)
     if r["Const"]: o["const"] = r["Const"]; o["const_es"] = CONST_ES.get(r["Const"], r["Const"])
     if cn: o["cn"] = cn
-    if ty == "galaxy" and r["Hubble"]: o["hubble"] = r["Hubble"]
+    if ty == "galaxy" and r["Hubble"] and (mag or 99) <= 13: o["hubble"] = r["Hubble"]
     out.append(o)
 out.sort(key=lambda o: (o.get("mag", 99), o["name"]))
 json.dump({"meta": {"source": "OpenNGC (Mattia Verga), CC BY-SA 4.0", "url": "https://github.com/mattiaverga/OpenNGC", "mag_lim": MAG_LIM,

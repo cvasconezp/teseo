@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.43.0 — 18 de noviembre de 2026
+
+- De cerca, como por un telescopio: con menos de 25° de campo, los objetos
+  de catálogo (Messier, Caldwell, Galaxias) tienen nombre y se pueden elegir
+  aunque no se vean a simple vista con la atmósfera de ese momento (M110 y
+  M32 junto a Andrómeda, por ejemplo). Antes quedaban en la foto sin poder
+  tocarlos.
+- NGC e IC, ampliado: de 960 a 4.550 objetos (hasta magnitud 14,5, y las
+  nebulosas, cúmulos y asociaciones sin magnitud publicada, como NGC 206).
+
 ## 1.42.0 — 18 de noviembre de 2026
 
 - Mapa fotográfico, más nítido: el DSS llega ahora a su detalle nativo y,
