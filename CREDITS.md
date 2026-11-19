@@ -32,6 +32,7 @@ copia; nuestro render 3D es propio, con Three.js.)
 | Líneas de constelaciones | Stellarium "western/modern skyculture" + IAU | CC BY-SA (datos; atribución) |
 | Cúmulos/nebulosas/galaxias (Messier/NGC) | OpenNGC (M. Verga) | CC-BY-SA-4.0 |
 | Capa «NGC e IC» (`public/ngc.json`, `scripts/build_ngc.py`) | [OpenNGC](https://github.com/mattiaverga/OpenNGC) (M. Verga) | CC-BY-SA-4.0 |
+| Cochasquí: disposición de las pirámides y montículos (`src/sky/monuments.js`) | Plano de J. Wentscher (1982), en U. Oberem y W. Wurster, *Excavaciones en Cochasquí, Ecuador, 1964–1965* (1989), consultado en la tesis de D. S. Pachacama (PUCE, 2025); medidas de la pirámide E: U. Oberem (comp.), *Cochasquí: estudios arqueológicos* (1981) | Datos y medidas citados; el plano no se reproduce |
 | Distancias Messier | SEDS / valores publicados | dominio público (hechos) |
 | Púlsares | ATNF Pulsar Catalogue (CSIRO) | citar Manchester et al. 2005 |
 | Posiciones de planetas, cometas, sondas y telescopios | NASA JPL Horizons (API) | dominio público (US gov); crédito "NASA/JPL-Caltech" |

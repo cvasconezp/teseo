@@ -66,19 +66,36 @@ const paranal = VLT_UT.map(([id, nm, e, n], i) => ({
   kind: "enclosure", radius: 14.5, height: 28.5, foot: 14.5, level: true, color: STEEL, mat: "metal", ground: "desert", solid: true,
 }));
 
-// Cochasquí: pirámides truncas de cangahua, hoy cubiertas de hierba, con su rampa hacia el lado bajo (suroeste).
-// APROXIMADO: se ven ocho con claridad en la imagen satelital (Google Maps, consultada el 18-nov-2026: manchas
-// oscuras de matorral, giradas unos 30°); su posición tiene ±10 m, la planta es la de la mancha y el alto y el largo
-// de la rampa son estimados, salvo la 13 (plataforma de 50 × 30 m y rampa de 67 m: Oberem) y la mayor (plataforma
-// de unos 80 × 90 m: Oberem). Faltan las otras siete y los montículos funerarios.
+// Cochasquí: las 15 pirámides truncas de cangahua (A–P, sin la I), hoy cubiertas de hierba, y los montículos
+// funerarios redondos que se ven en el terreno. Posición, planta y largo de las rampas: plano de J. Wentscher (1982,
+// en Oberem y Wurster 1989), medido sobre su reproducción en la tesis de D. Pachacama (PUCE, 2025) y ajustado a la
+// imagen satelital por el cruce de caminos del noroeste, el seto del norte, el camino al páramo y la cubierta de la
+// excavación de la E (escala 0,75 m por píxel, norte arriba; error estimado ±15 m). Nueve tienen rampa, hacia el
+// lado bajo: B, C, E, F, G, J, K, L y M. De Oberem: la plataforma de la E (51 × 27–30 m; 11 m de alto por el sur y
+// 3,5 por el norte), su rampa (67 m) y su eje, 27° 38′ al este del norte, que es el giro de todo el conjunto.
+// El ALTO de las demás es ESTIMADO (no está en el plano). La K tiene además dos rampas pequeñas al norte: no se dibujan.
 // [este, norte] en metros desde (0,0558° N, 78,3080° O), ancho, fondo, alto y largo de la rampa.
 const CQ0 = [0.0558, -78.3080];
-const CQ = [["cq-mayor", 111, 21, 85, 90, 13, 110, true], ["cq-13", 29, 125, 50, 30, 6, 67, false], ["cq-c", 120, 119, 55, 50, 8, 50, false], ["cq-b", 172, -3, 50, 60, 8, 60, false],
-  ["cq-e", 209, -46, 50, 50, 7, 50, false], ["cq-f", 233, -82, 55, 40, 6, 0, false], ["cq-g", 291, -143, 45, 45, 6, 0, false], ["cq-h", 264, 21, 45, 40, 5, 0, false]];
-const COCHASQUI_DRAFT = CQ.map(([id, e, n, w, d, h, ramp, label]) => ({
-  id, site: "cochasqui", name: { es: "Pirámides de Cochasquí", en: "Cochasquí pyramids" }, sub: { es: "pirámides truncas con rampa · posición aproximada", en: "truncated ramp pyramids · approximate position" }, label,
-  lat: +(CQ0[0] + n / mPerLat).toFixed(6), lon: +(CQ0[1] + e / mPerLon(CQ0[0])).toFixed(6),
-  kind: "tola", w, d, height: h, ramp, rot: 30, foot: Math.hypot(w, d) * 0.78, far: 6000, relief: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
+const CQ = [["cq-a", "A", 100, 245, 21, 21, 3, 0], ["cq-b", "B", 174, 178, 58, 46, 8, 31], ["cq-c", "C", 290, 126, 40, 34, 6, 27], ["cq-d", "D", -105, 171, 75, 57, 8, 0], ["cq-e", "E", 12, 136, 42, 68, 8, 67],
+  ["cq-f", "F", 94, 133, 48, 35, 6, 23], ["cq-g", "G", 111, 21, 104, 87, 15, 158], ["cq-h", "H", 214, 17, 42, 33, 5, 0], ["cq-j", "J", 184, -28, 45, 34, 6, 25], ["cq-k", "K", 247, -70, 64, 69, 10, 62],
+  ["cq-l", "L", 326, -113, 59, 46, 8, 56], ["cq-m", "M", -99, -128, 93, 72, 12, 260], ["cq-n", "N", 335, -70, 30, 19, 3, 0], ["cq-o", "O", 376, -154, 19, 19, 2, 0], ["cq-p", "P", 346, 173, 21, 21, 3, 0]];
+const CQ_NOTE = { G: ["la mayor", "the largest"], E: ["excavada en 1964–65", "excavated in 1964–65"], M: ["rampa de 260 m", "260 m ramp"] };
+const cqAt = (e, n) => ({ lat: +(CQ0[0] + n / mPerLat).toFixed(6), lon: +(CQ0[1] + e / mPerLon(CQ0[0])).toFixed(6) });
+const COCHASQUI = CQ.map(([id, L, e, n, w, d, h, ramp]) => ({
+  id, site: "cochasqui", name: { es: `Pirámide ${L}`, en: `Pyramid ${L}` }, label: !!CQ_NOTE[L],
+  sub: { es: `${CQ_NOTE[L] ? CQ_NOTE[L][0] + " · " : ""}${ramp ? "con rampa" : "sin rampa"} · alto estimado`, en: `${CQ_NOTE[L] ? CQ_NOTE[L][1] + " · " : ""}${ramp ? "with ramp" : "no ramp"} · height estimated` },
+  ...cqAt(e, n), kind: "tola", w, d, height: h, ramp, rot: 27.6, foot: Math.hypot(w, d) * 0.78, far: 6000, relief: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
+  // el suelo de las pequeñas se mide en su centro (un punto); el de las cuatro grandes, en un anillo a su alrededor
+  ...(w >= 60 ? {} : { ring: 3 }),
+}));
+// montículos funerarios redondos del mismo plano (los que se ven en el terreno): [este, norte], radio y alto (m).
+// El «a» mide unos 40 m de diámetro y 5 de alto (Oberem); el alto de los demás es estimado.
+const CQM = [["cqm-a", -352, -422, 20, 5, "a"], ["cqm-c", -312, -404, 12, 3], ["cqm-2", -385, -462, 21, 4], ["cqm-3", -314, -460, 15, 3], ["cqm-e", -308, -505, 14, 3], ["cqm-f", -358, -577, 11, 2.5],
+  ["cqm-g", -332, -609, 11, 2.5], ["cqm-m", 78, -557, 9, 2], ["cqm-x", -22, -678, 22, 3.5], ["cqm-t1", 48, -154, 11, 2.5], ["cqm-t2", 29, -268, 10, 2]];
+const COCHASQUI_MOUNDS = CQM.map(([id, e, n, radius, h, L]) => ({
+  id, site: "cochasqui", name: { es: L ? `Montículo funerario ${L}` : "Montículo funerario", en: L ? `Burial mound ${L}` : "Burial mound" }, label: !!L,
+  sub: { es: L ? "40 m de diámetro" : "alto estimado", en: L ? "40 m across" : "height estimated" },
+  ...cqAt(e, n), kind: "mound", radius, wall: 0, skirt: 4, seg: 28, rings: 5, height: h, ring: 3, far: 2500, relief: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
 }));
 // Machu Picchu, desde la cima del Intihuatana. APROXIMADO (posición ±10 m sobre la imagen satelital de Google
 // Maps, 18-nov-2026; medidas redondeadas): el Templo de las Tres Ventanas y el Templo Principal en la Plaza
@@ -131,7 +148,8 @@ export const MONUMENTS = [
     kind: "stonehenge", axis: 49.9, height: 6.7, color: SARSEN, mat: "sarsen", ground: "grass", solid: false },
   { id: "newgrange", site: "newgrange", name: { es: "Newgrange", en: "Newgrange" }, lat: 53.69509, lon: -6.47531,
     kind: "mound", radius: 42.5, wall: 3, height: 13.5, entrance: 135, color: GRASS, wallColor: QUARTZ, mat: "grass", wallMat: "quartz", ground: "grass", solid: true },
-  ...COCHASQUI_DRAFT,
+  ...COCHASQUI,
+  ...COCHASQUI_MOUNDS,
   ...machu,
   ...chankillo,
   // Quitsato: plataforma de 54 m de diámetro con mosaico de piedra y poste de 10 m de alto y 1,3 m de diámetro,
@@ -440,10 +458,11 @@ export function buildFaces(m, opt = {}) {
     }
   } else if (m.kind === "mound") {
     // túmulo: muro de cuarzo (vertical) y encima la cúpula de hierba, casi plana arriba
-    const seg = 96, rings = 14;
+    const seg = m.seg || 96, rings = m.rings || 14;
     const ring = (r, z) => Array.from({ length: seg }, (_, k) => { const a = (k / seg) * 2 * Math.PI; return [r * Math.sin(a), r * Math.cos(a), z]; });
-    const b0 = ring(m.radius, 0), b1 = ring(m.radius, m.wall);
-    for (let k = 0; k < seg; k++) { const j = (k + 1) % seg; quad(out, b0[k], b0[j], b1[j], b1[k], m.wallColor, m.wallMat); }
+    // sin muro (`wall: 0`), un faldón de tierra (`skirt` m) baja bajo la base: en ladera no queda un hueco por el lado bajo
+    const b0 = ring(m.radius * (m.wall ? 1 : 1.25), m.wall ? 0 : -(m.skirt || 0)), b1 = ring(m.radius, m.wall);
+    if (m.wall || m.skirt) for (let k = 0; k < seg; k++) { const j = (k + 1) % seg; quad(out, b0[k], b0[j], b1[j], b1[k], m.wall ? m.wallColor : col, m.wall ? m.wallMat : m.mat); }
     const g0 = out.length;
     let prev = b1;
     for (let i = 1; i <= rings; i++) {

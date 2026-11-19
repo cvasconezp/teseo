@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.41.0 — 18 de noviembre de 2026
+
+- Cochasquí completo: las quince pirámides (A–P) en su sitio, con su planta
+  y el largo de sus rampas, y once montículos funerarios, según el plano de
+  J. Wentscher (1982, en Oberem y Wurster 1989), ajustado a la imagen
+  satelital (±15 m). La E lleva las medidas de la excavación de Oberem; el
+  conjunto va girado 27,6°, el eje medido de su rampa. El alto de las demás
+  es estimado, y cada una lo dice. Antes había ocho, colocadas a ojo.
+- El mirador del sitio se movió 40 m al oeste, a campo abierto entre las
+  rampas de la G y la K.
+
 ## 1.40.0 — 18 de noviembre de 2026
 
 - Asteroides que pasan cerca de la Tierra, en el cielo: la capa «Planetas

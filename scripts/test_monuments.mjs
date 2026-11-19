@@ -122,7 +122,22 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   ok(near(ih.u1, 1.8, 0.01) && near(offsetOf(site("machupicchu").lat, site("machupicchu").lon, byId("intihuatana").lat, byId("intihuatana").lon).d, 5, 0.5), "Machu Picchu: el Intihuatana, 1,8 m, a 5 m del punto de vista");
   // Cochasquí y Machu Picchu (aproximados)
   const cq = MONUMENTS.filter((m) => m.site === "cochasqui"), mp = MONUMENTS.filter((m) => m.site === "machupicchu");
-  ok(cq.length === 8 && cq.every((m) => /aproximada/.test(m.sub.es) && m.relief) && monumentsNear(site("cochasqui").lat, site("cochasqui").lon, 25).length === 8 && near(bbox(buildFaces(byId("cq-13"))).u1, 6, 1e-9), "Cochasquí: ocho pirámides con rampa sobre la ladera, marcadas como aproximadas");
+  { const pyr = cq.filter((m) => m.kind === "tola"), mounds = cq.filter((m) => m.kind === "mound"), L = (x) => byId("cq-" + x);
+    ok(pyr.length === 15 && pyr.map((m) => m.name.es.slice(-1)).join("") === "ABCDEFGHJKLMNOP" && mounds.length === 11 && cq.every((m) => m.relief), "Cochasquí: las quince pirámides (A–P, sin la I) y once montículos funerarios, sobre la ladera");
+    ok(pyr.filter((m) => m.ramp > 0).map((m) => m.name.es.slice(-1)).join("") === "BCEFGJKLM" && pyr.every((m) => m.rot === 27.6), "con rampa: B, C, E, F, G, J, K, L y M; todas giradas 27,6° (el eje medido de la rampa de la E)");
+    ok(L("e").ramp === 67 && near(L("e").d * 0.72, 49, 2.5) && near(L("e").w * 0.72, 30, 1) && L("g").w > L("m").w && L("m").ramp > 200 && L("g").height >= pyr.reduce((a, m) => Math.max(a, m.height), 0), "la E con las medidas de Oberem (plataforma de 51 × 28 m, rampa de 67 m); la G es la mayor y la M tiene una rampa de más de 200 m");
+    // en el plano, la E queda entre la D (al oeste) y la F; la G, al sur de la F; la K y la L, hacia el sureste; la M, al suroeste
+    const E = (x) => offsetOf(L("g").lat, L("g").lon, L(x).lat, L(x).lon);
+    ok(E("d").e < E("e").e && E("e").e < E("f").e && E("f").n > 80 && E("k").e > 100 && E("k").n < -60 && E("l").e > E("k").e && E("m").e < -150 && E("m").n < -100 && E("a").n > 200, "disposición del plano de Wentscher: D–E–F en la fila alta, G en el centro, K y L al sureste, M al suroeste, A arriba");
+    ok(cq.every((m) => /estimado|diámetro/.test(m.sub.es)) && monumentsNear(site("cochasqui").lat, site("cochasqui").lon, 25).length === 26, "cada una dice que su alto es estimado; desde el mirador se cargan las 26 piezas");
+    // el suelo: pocas consultas de altura (4 anillos de 8 puntos para las grandes y un punto para el resto)
+    ok(cq.filter((m) => m.ring == null).length === 4 && cq.filter((m) => m.ring == null).length * 8 + cq.filter((m) => m.ring != null).length + 5 <= 80, "las alturas del terreno caben en una sola consulta (menos de 80 puntos)");
+    const f = buildFaces(byId("cqm-a")), bb = bbox(f);
+    ok(near(bb.u1, 5, 1e-9) && bb.u0 <= -3.9 && f.length < 400, "los montículos: cúpula baja con faldón bajo la base (en ladera no queda hueco) y pocas caras");
+    // el mirador no cae dentro de ninguna pirámide ni sobre una rampa
+    const s0 = site("cochasqui");
+    ok(pyr.every((m) => { const o = offsetOf(s0.lat, s0.lon, m.lat, m.lon); return Math.hypot(o.e, o.n) > Math.hypot(m.w, m.d) / 2 + 25; }), "el mirador queda en campo abierto, a más de 25 m de cualquier pirámide"); }
+
   const mpi = placeMonuments(mp.filter((m) => m.id !== "intihuatana"), { lat: site("machupicchu").lat, lon: site("machupicchu").lon, ground: 2430 }, Object.fromEntries(mp.map((m) => [m.id, 2430])));
   ok(mp.length === 20 && mpi.every((it) => it.dz < -10) && mp.filter((m) => m.label !== false).length === 5 && mp.every((m) => m.id === "intihuatana" || /aproximad/.test(m.sub.es)), "Machu Picchu: templos y casas más abajo que la cima del Intihuatana, marcados como aproximados");
   // rótulos y relieve cercano
