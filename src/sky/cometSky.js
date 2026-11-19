@@ -3,7 +3,7 @@
 //
 // Órbita: elementos osculadores de JPL SBDB (public/comet-orbits.json; eclíptica J2000) y el problema de dos cuerpos.
 // Vale para DIBUJAR la órbita y para saber hacia dónde queda el Sol; la posición del día en el cielo sigue siendo la de
-// Horizons (/api/comets). Marco de salida: ecuatorial J2000 (x → AR 0 h, y → AR 6 h, z → polo norte), en UA.
+// Horizons (/api/comets); en otras fechas avanza por esta órbita desde esa posición (moveComets). Marco de salida: ecuatorial J2000 (x → AR 0 h, y → AR 6 h, z → polo norte), en UA.
 const R = Math.PI / 180, K = 0.01720209895;          // constante de Gauss (UA^1,5 / día)
 const EPS = 23.4392911 * R;                           // oblicuidad J2000
 
@@ -79,4 +79,56 @@ export function cometView(el, dir, delta, ms, { orbitPts = 240, rMax = 45 } = {}
   const orbit = [];
   for (let i = 0; i <= orbitPts; i++) { const nu = -nuMax + (2 * nuMax * i) / orbitPts; orbit.push(unit(sub(posAtNu(el, nu), earth))); }
   return { r: h.r, nu: h.nu, mag, tail: { ...t, end }, earth, orbit, closed: nuMax === Math.PI };
+}
+
+/**
+ * La Tierra respecto al Sol (UA, ecuatorial J2000) en el instante `ms`. Fórmula de baja precisión del Sol (Meeus,
+ * cap. 25): ~0,01°, de sobra para situar un cometa en el cielo.
+ */
+export function earthHelio(ms) {
+  const T = (jdOf(ms) - 2451545) / 36525, M = (357.52911 + 35999.05029 * T) * R, e = 0.016708634 - 0.000042037 * T;
+  const C = (1.914602 - 0.004817 * T) * Math.sin(M) + (0.019993 - 0.000101 * T) * Math.sin(2 * M) + 0.000289 * Math.sin(3 * M);
+  // longitud del Sol llevada del equinoccio de la fecha al de J2000 (precesión: 1,397° por siglo)
+  const lon = (280.46646 + 36000.76983 * T + C - 1.396971 * T) * R, nu = M + C * R, rs = (1.000001018 * (1 - e * e)) / (1 + e * Math.cos(nu));
+  const x = -rs * Math.cos(lon), y = -rs * Math.sin(lon);
+  return [x, y * Math.cos(EPS), y * Math.sin(EPS)];
+}
+
+/** Dónde está el cometa visto desde la Tierra en `ms` (dos cuerpos): { dir, delta, r, mag }. */
+export function cometAt(el, ms) {
+  const h = cometHelio(el, ms), geo = sub(h.p, earthHelio(ms)), delta = Math.hypot(geo[0], geo[1], geo[2]);
+  return { dir: unit(geo), delta, r: h.r, mag: cometMag(el, h.r, delta) };
+}
+
+// gira `v` con la rotación mínima que lleva `a` a `b` (unitarios)
+const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+function rotateLike(a, b, v) {
+  const k = cross3(a, b), s = Math.hypot(k[0], k[1], k[2]), c = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  if (s < 1e-12) return v;
+  const u = [k[0] / s, k[1] / s, k[2] / s], d = u[0] * v[0] + u[1] * v[1] + u[2] * v[2], w = cross3(u, v);
+  return [v[0] * c + w[0] * s + u[0] * d * (1 - c), v[1] * c + w[1] * s + u[1] * d * (1 - c), v[2] * c + w[2] * s + u[2] * d * (1 - c)];
+}
+
+const AU_KM = 149597870.7;
+/**
+ * Los cometas de /api/comets llevados a otra fecha: cada uno avanza por su órbita (dos cuerpos) desde la posición
+ * exacta de Horizons, de modo que en la fecha del dato coincide con ella y no hay salto. Devuelve la MISMA lista si
+ * la fecha es la del dato (±45 min) o faltan elementos. Lejos de hoy (años) es una aproximación: las órbitas cambian.
+ */
+export function moveComets(objects, orbits, ms, tolMs = 45 * 60000) {
+  if (!objects || !orbits || !Number.isFinite(ms)) return objects;
+  let changed = false;
+  const out = objects.map((c) => {
+    const el = orbits[c.name], ms0 = c.epoch ? Date.parse(c.epoch) : NaN;
+    if (!el || !c.dist_au || !Number.isFinite(ms0) || Math.abs(ms - ms0) <= tolMs) return c;
+    const k0 = cometAt(el, ms0), k1 = cometAt(el, ms), k2 = cometAt(el, ms + 3600000);
+    const dir = unit(rotateLike(k0.dir, unit([c.nx, c.ny, c.nz]), k1.dir)), f = c.dist_au / k0.delta, delta = k1.delta * f;
+    if (![dir[0], dir[1], dir[2], delta].every(Number.isFinite)) return c;
+    changed = true;
+    const ra = ((Math.atan2(dir[1], dir[0]) / R) % 360 + 360) % 360, dec = Math.asin(Math.max(-1, Math.min(1, dir[2]))) / R;
+    return { ...c, nx: dir[0], ny: dir[1], nz: dir[2], ra_deg: +ra.toFixed(4), dec_deg: +dec.toFixed(4), dist_au: +delta.toFixed(4), dist_km: Math.round(delta * AU_KM),
+      light_min: +((delta * AU_KM) / 299792.458 / 60).toFixed(1), approaching: k2.delta < k1.delta, sun_dist_au: +k1.r.toFixed(4), sun_dist_km: Math.round(k1.r * AU_KM),
+      epoch: new Date(ms).toISOString().slice(0, 16) + "Z", moved: true };
+  });
+  return changed ? out : objects;
 }

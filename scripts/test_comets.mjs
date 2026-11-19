@@ -1,5 +1,5 @@
 // Pruebas de los cometas (src/sky/cometSky.js): órbita de dos cuerpos, brillo, cola en sentido contrario al Sol.
-import { trueAnomaly, posAtNu, cometHelio, cometMag, tailModel, cometView, jdOf } from "../src/sky/cometSky.js";
+import { trueAnomaly, posAtNu, cometHelio, cometMag, tailModel, cometView, jdOf, earthHelio, cometAt, moveComets } from "../src/sky/cometSky.js";
 import fs from "node:fs";
 
 let pass = 0, fail = 0;
@@ -42,6 +42,25 @@ ok(tailModel(35, 25).len === 0 && tailModel(4.3, 18).len === 0 && tailModel(1, 5
 }
 const sky = read("../src/Constellations.jsx");
 ok(/createCometLayer\(\)/.test(sky) && /ref\.cometLayer\.showOrbit\(on && selObj && selObj\.layer === "comets"/.test(sky), "el cielo dibuja coma y cola, y la órbita del cometa abierto");
+
+console.log("Con la fecha");
+{ // datos de Horizons del 19-nov-2026 (los que da /api/comets)
+  const NOW = [{"name": "2P/Encke", "nx": 0.94916, "ny": -0.26172, "nz": 0.17494, "dist_au": 0.9278, "epoch": "2026-11-19T00:01Z", "ra_deg": 344.5845, "dec_deg": 10.0751}, {"name": "1P/Halley", "nx": -0.57324, "ny": 0.81814, "nz": 0.04518, "dist_au": 34.6757, "epoch": "2026-11-19T00:01Z", "ra_deg": 125.0174, "dec_deg": 2.5895}];
+  const t0 = Date.parse(NOW[0].epoch), day = 86400000, ang = (a, b) => { const x = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; return Math.atan2(norm(x), dot(a, b)) * 180 / Math.PI; };   // (acos pierde precisión con vectores redondeados)
+  const e = earthHelio(t0), es = earthHelio(Date.UTC(2026, 2, 20, 14, 46));
+  ok(near(norm(e), 0.9886, 0.002) && near(norm(earthHelio(Date.UTC(2026, 6, 5))), 1.0167, 0.001), "la Tierra: a 0,989 UA del Sol en noviembre y a 1,017 en julio (afelio)");
+  ok(Math.abs(es[1]) < 0.01 && Math.abs(es[2]) < 0.004 && es[0] < -0.99, "en el equinoccio de marzo el Sol está en AR 0 h, salvo la precesión desde 2000 (la Tierra, en el lado contrario)");
+  const k = cometAt(EL["2P/Encke"], t0), enc = NOW[0];
+  ok(ang(k.dir, [enc.nx, enc.ny, enc.nz]) < 0.15 && near(k.delta, enc.dist_au, 0.003), "Encke hoy, por dos cuerpos: a menos de 0,15° de la posición de Horizons");
+  ok(moveComets(NOW, EL, t0) === NOW && moveComets(NOW, EL, t0 + 20 * 60000) === NOW && moveComets(NOW, null, t0 + day) === NOW, "en la fecha del dato (±45 min) queda la posición de Horizons, sin tocar");
+  const m1 = moveComets(NOW, EL, t0 + 46 * 60000), m30 = moveComets(NOW, EL, t0 + 30 * day), b30 = moveComets(NOW, EL, t0 - 30 * day);
+  ok(m1 !== NOW && m1.every((c, i) => ang([c.nx, c.ny, c.nz], [NOW[i].nx, NOW[i].ny, NOW[i].nz]) < 0.05), "sin salto: justo después, cada cometa sigue donde lo daba Horizons");
+  const dE = ang([m30[0].nx, m30[0].ny, m30[0].nz], [enc.nx, enc.ny, enc.nz]), dH = ang([m30[1].nx, m30[1].ny, m30[1].nz], [NOW[1].nx, NOW[1].ny, NOW[1].nz]);
+  ok(dE > 3 && dE < 25 && dH < 1.5 && dH > 0.05, `en 30 días Encke (cercano) se mueve ${dE.toFixed(1)}° y Halley (a 35 UA) ${dH.toFixed(2)}°`);
+  ok(m30.every((c) => c.moved && near(Math.hypot(c.nx, c.ny, c.nz), 1, 1e-9) && c.dist_km > 0 && c.light_min > 0 && /Z$/.test(c.epoch) && c.ra_deg >= 0 && c.ra_deg < 360) && m30[0].epoch.slice(0, 10) === "2026-12-19", "el cometa movido lleva su ascensión recta, distancia, tiempo de luz y fecha nuevas");
+  ok(ang([b30[0].nx, b30[0].ny, b30[0].nz], [m30[0].nx, m30[0].ny, m30[0].nz]) > dE, "también hacia atrás en el tiempo");
+  ok(typeof m30[0].approaching === "boolean" && moveComets([{ name: "X/Desconocido", nx: 1, ny: 0, nz: 0, dist_au: 2, epoch: NOW[0].epoch }], EL, t0 + day)[0].moved === undefined, "un cometa sin elementos se queda donde estaba");
+}
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

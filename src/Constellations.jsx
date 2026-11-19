@@ -66,6 +66,8 @@ import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js"
 import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
 import { createSkyImagesLayer } from "./sky/skyImagesLayer.js";
 import { createCometLayer } from "./sky/cometLayer.js";
+import { moveComets } from "./sky/cometSky.js";
+import { createHipsLayer } from "./sky/hipsLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
@@ -91,6 +93,8 @@ const LAYERS = [
   { key: "pulsars",    file: "/pulsars.json",    es: "Púlsares",         en: "Pulsars",      color: 0xff5dc8, size: 6, lazy: true },
   { key: "blackholes", file: "/blackholes.json", es: "Agujeros negros",  en: "Black holes",  color: 0xff7a3c, size: 11 },
   { key: "deepfields", file: "/deepfields.json", es: "Campos profundos", en: "Deep fields",  color: 0xffe08a, size: 10 },
+  // el mapa fotográfico (src/sky/hipsLayer.js) no es un catálogo: no tiene fichero ni objetos, solo el interruptor
+  { key: "photo", virtual: true, es: "Mapa fotográfico", en: "Photographic map", color: 0xd8c7a0, size: 0 },
   { key: "galaxies",   file: "/galaxies.json",   es: "Galaxias",         en: "Galaxies",     color: 0x9db4ff, size: 5, lazy: true },
   { key: "meteors",    file: "/meteorshowers.json", es: "Lluvias de meteoros", en: "Meteor showers", color: 0xffd27a, size: 9 },
   { key: "comets",     api: true, endpoint: "/api/comets", es: "Cometas", en: "Comets", color: 0x8be0ff, size: 9 },
@@ -601,8 +605,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const labelsApiRef = useRef(null);     // setter de etiquetas (viven en <SkyLabels>)
   const perfApiRef = useRef(null);       // setter del medidor de rendimiento (vive en <PerfMeter>)
   const [ready, setReady] = useState(false);
-  const [datasets, setDatasets] = useState({}); // key -> {objects}
-  const [enabled, setEnabled] = useState({});   // key -> bool
+  const [datasetsRaw, setDatasets] = useState({}); // key -> {objects}
+  const [cometOrbits, setCometOrbits] = useState(null);   // public/comet-orbits.json (.comets)
+  const [enabled, setEnabled] = useState({ photo: true });   // key -> bool (el mapa fotográfico viene encendido)
   const [selObj, setSelObj] = useState(null);
   const [viewFrom, setViewFrom] = useState(null); // null = Tierra; {name,pos:[x,y,z]} = otra estrella
   const [outside, setOutside] = useState(false);  // vista opcional: la esfera celeste entera, desde fuera
@@ -658,6 +663,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // Sol, Luna y planetas para la escena (src/sky/frames.js): ephemeris() da la fecha y el centro de la
   // Tierra; aquí se pasan a J2000, el marco de las estrellas, y en «Mi cielo» se ven desde el observador
   // (paralaje: la Luna hasta ~1°). nx/ny/nz = J2000 (dibujo, toques, encuadre); eqDate = fecha (altura/azimut).
+  // los cometas se mueven con la fecha: desde la posición de Horizons (la de hoy) avanzan por su órbita (cometSky.js);
+  // se recalculan una vez por hora simulada
+  const cometHour = Math.round(new Date(whenStr).getTime() / 3600000);
+  const datasets = useMemo(() => {
+    const c = datasetsRaw.comets; if (!c || !c.objects || !cometOrbits || !Number.isFinite(cometHour)) return datasetsRaw;
+    const moved = moveComets(c.objects, cometOrbits, cometHour * 3600000);
+    return moved === c.objects ? datasetsRaw : { ...datasetsRaw, comets: { ...c, objects: moved } };
+  }, [datasetsRaw, cometOrbits, cometHour]);
   const bodiesEph = useMemo(() => withMags(ephemeris(new Date(whenStr))), [whenStr]);
   const topoKey = localMode && lat != null && lon != null ? `${lat}|${lon}|${elev || 0}` : "";
   const bodies = useMemo(() => skyBodies(bodiesEph, new Date(whenStr), topoKey ? { lat, lon, elev: elev || 0 } : null), [bodiesEph, topoKey]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -914,7 +927,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   useEffect(() => () => { pendingTimers.current.forEach(clearTimeout); }, []);
   useEffect(() => {
     loadSky();
-    LAYERS.filter(c => !c.api && !c.lazy).forEach(loadLayer);
+    LAYERS.filter(c => !c.api && !c.lazy && !c.virtual).forEach(loadLayer);
   }, [loadSky, loadLayer]);
   // Capas pesadas: bajo demanda. Fichero estático (lazy) o backend (api).
   useEffect(() => {
@@ -1182,6 +1195,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // fotos reales de galaxias, nebulosas y cúmulos en su sitio y a su tamaño, y el recuadro de los campos profundos
     const skyImages = createSkyImagesLayer({ onLoad: () => { const r0 = sceneRef.current; if (r0) r0._dirty = true; } });
     scene.add(skyImages.group);
+    // el mapa fotográfico de todo el cielo (DSS, en vivo por teselas): aparece al acercarse
+    const hips = createHipsLayer({ onLoad: () => { const r0 = sceneRef.current; if (r0) r0._dirty = true; } });
+    scene.add(hips.group);
     // cometas con coma, cola y órbita (src/sky/cometLayer.js)
     const cometLayer = createCometLayer();
     scene.add(cometLayer.group);
@@ -1523,7 +1539,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, milky, skyImages, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
+      atm, clouds, terrain, monuments, milky, skyImages, hips, hipsOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1601,7 +1617,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         milky.setIntensity(milkyWayVisibility(st));
         // a simple vista siguen el brillo del cielo, con una caída más suave que la Vía Láctea (sus núcleos son más
         // brillantes); `darkness`: de noche 1, con el Sol a menos de 6° bajo el horizonte 0
-        { const dk = st ? 1 - Math.min(1, Math.max(0, (st.sunAlt + 14) / 8)) : 1; skyImages.setIntensity(st ? Math.min(1, Math.max(Math.sqrt(milkyWayVisibility(st)) * 1.2, dk * 0.4)) : 1, dk); }
+        { const dk = st ? 1 - Math.min(1, Math.max(0, (st.sunAlt + 14) / 8)) : 1; skyImages.setIntensity(st ? Math.min(1, Math.max(Math.sqrt(milkyWayVisibility(st)) * 1.2, dk * 0.4)) : 1, dk); hips.setDarkness(dk); }
         { const up = st && r.localModeOn ? new THREE.Vector3(0, 1, 0).applyQuaternion(r.localQuat.clone().invert()) : null; milky.setExtinction(st ? st.k : 0, up ? [up.x, up.y, up.z] : null); }
         lines.material.opacity = st && starsHidden(st) ? 0.22 : r.lineBase;
         // Sol, Luna y planetas: el disco se sigue dibujando (con tamaño visible), más tenue si no se ve
@@ -1653,6 +1669,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       camera.quaternion.copy(lookQuat(lk.yaw, lk.pitch, lk.qF));
       applyFov();
       if (E2E) window.__teseoSky = {
+        hips: () => (r.hips ? { ...r.hips.stats, active: r.hips.active } : null),
         // foto 360° (pruebas): brillo medio de la franja baja de cada cara, ocultando objetos por nombre de clave
         panoFaces: (hide = []) => {
           const objs = { ground: r.ground, atm: r.atm && r.atm.mesh, clouds: r.clouds && r.clouds.mesh, terrain: r.terrain && r.terrain.group, points: r.points, lines: r.lines, horizon: r.horizon };
@@ -1919,7 +1936,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         // desde dentro (también apuntando) la cámara está en el centro: el detalle lo decide el campo de visión
         const inside = ar.on || ref.mode === "in", outside = !ar.on && ref.mode === "out";
         if (ref.milky) ref.milky.setOn(inside);        // solo desde dentro de la esfera del cielo
-        if (ref.skyImages) { ref.skyImages.setOn(inside); if (ref.skyImages.update(ref.camera, H)) ref._dirty = true; }
+        // el mapa fotográfico primero: donde ya se ve, los recortes de los cartografiados se retiran (no suman su luz)
+        if (ref.hips) { ref.hips.setOn(inside && ref.hipsOn); if (ref.hips.update(ref.camera, H)) ref._dirty = true; }
+        if (ref.skyImages) { ref.skyImages.setOn(inside); ref.skyImages.setUnder(ref.hips ? ref.hips.active : 0); if (ref.skyImages.update(ref.camera, H)) ref._dirty = true; }
         const camDist = inside ? 0 : ref.camera.position.length();
         const camPos = ref.camera.position;
         const out = [];
@@ -2368,6 +2387,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (ref.milky) ref.milky.mesh.quaternion.copy(q);
     if (ref.skyImages) ref.skyImages.group.quaternion.copy(q);
     if (ref.cometLayer) ref.cometLayer.group.quaternion.copy(q);
+    if (ref.hips) ref.hips.group.quaternion.copy(q);
     if (ref.guides) ref.guides.setLocalFrame(active ? q : null, qDate);
     if (ref.issLayer) ref.issLayer.setLocalFrame(active ? q : null);   // la ISS solo existe sobre un horizonte
     (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));
@@ -2830,7 +2850,6 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   openIssRef.current = openIss;
   useEffect(() => { if (selObj) setIssSheet(false); }, [selObj]);
   // cometas: coma y cola (si la capa está encendida) y la órbita del cometa abierto
-  const [cometOrbits, setCometOrbits] = useState(null);
   useEffect(() => {
     if (!enabled.comets || cometOrbits) return;
     let alive = true;
@@ -2844,6 +2863,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.cometLayer.showOrbit(on && selObj && selObj.layer === "comets" ? selObj.name : null);
     ref._dirty = true; if (ref.wake) ref.wake();
   }, [enabled.comets, datasets.comets, cometOrbits, selObj, viewFrom, ready]);
+  useEffect(() => { const ref = sceneRef.current; if (!ref) return; ref.hipsOn = !!enabled.photo; ref._dirty = true; if (ref.wake) ref.wake(); }, [enabled.photo, ready]);
   // centrar: en la ISS si está sobre el horizonte a esa hora; si no, en la culminación
   const centerIss = useCallback(() => {
     const ref = sceneRef.current; if (!ref || !issOn || ref.ar.on) return;

@@ -191,7 +191,7 @@ console.log("Integración");
   const src = read("../src/Constellations.jsx"), panels = read("../src/sky/panels.jsx");
   ok(/\{ key: "caldwell",\s+file: "\/caldwell\.json",[^}]*size: 8, lazy: true \}/.test(src) && /\{ key: "messier",\s+file: "\/deepsky\.json",[^}]*size: 8 \}/.test(src), "capa con interruptor, mismo tamaño de símbolo que Messier (8)");
   ok(/MAG_LAYERS = new Set\(\["messier", "caldwell", "galaxies"\]\)/.test(src), "símbolo por magnitud y ocultación con atmósfera, como Messier");
-  ok(/keys: \["messier", "caldwell", "galaxies"/.test(panels), "panel de capas: Caldwell en «Cielo profundo», junto a Messier");
+  ok(/keys: \["photo", "messier", "caldwell", "galaxies"/.test(panels), "panel de capas: Caldwell en «Cielo profundo», junto a Messier");
   ok(/obj_caldwell:"#[0-9a-f]{6}"/.test(src) && /if \(key === "caldwell"\) return !!ob\.cn/.test(src), "color de etiqueta y nombres notables");
   ok(/\["star", "messier", "caldwell",/.test(src), "métricas: tipo de objeto «caldwell»");
   const metrics = read("../backend/app/metrics.py");

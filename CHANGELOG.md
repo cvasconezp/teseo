@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.36.0 — 18 de noviembre de 2026
+
+- Mapa fotográfico de todo el cielo: al acercarse (menos de 24° de campo) el
+  firmamento se cubre con las placas reales del Digitized Sky Survey, con
+  más detalle cuanto más cerca, en cualquier punto del cielo y no solo en
+  los objetos con foto propia. Se carga en vivo por teselas (HiPS, vía
+  ESASky), como en Stellarium; no se guarda nada en el repositorio. Capa
+  nueva «Mapa fotográfico», encendida de entrada.
+- Los cometas se mueven con la fecha: parten de la posición de hoy (JPL
+  Horizons) y avanzan por su órbita, con su cola, su distancia y su órbita
+  recalculadas. A años de distancia es una aproximación (dos cuerpos).
+
 ## 1.35.1 — 18 de noviembre de 2026
 
 - Vía Láctea: sin el granulado que cubría todo el cielo (era el fondo del

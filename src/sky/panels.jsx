@@ -165,7 +165,7 @@ function PanelShell({ title, onClose, t, children, className = "", labelledBy })
 // ── Capas ────────────────────────────────────────────────────────────────
 const GROUPS = [
   { id: "near", keys: ["__cons", "__solar", "meteors", "comets", "probes"] },
-  { id: "deep", keys: ["messier", "caldwell", "galaxies", "deepfields", "blackholes", "pulsars", "exoplanets"] },
+  { id: "deep", keys: ["photo", "messier", "caldwell", "galaxies", "deepfields", "blackholes", "pulsars", "exoplanets"] },
 ];
 export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, layerError, onToggle, onRetry,
   showSolar, onToggleSolar, consOn = true, onToggleCons, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid, outside = false, onOutside , atmosphere, guides}) {
@@ -209,7 +209,7 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
     const on = !!enabled[key], ds = datasets[key];
     const loading = !!loadingLayer[key], err = !!layerError[key];
     const hex = "#" + cfg.color.toString(16).padStart(6, "0");
-    const usable = cfg.api || cfg.lazy || !!ds || err;
+    const usable = cfg.api || cfg.lazy || cfg.virtual || !!ds || err;
     const count = ds ? (ds.count ?? (ds.objects || []).length) : null;
     return (
       <div className={`sk-layer${err ? " has-error" : ""}`} key={key}>
