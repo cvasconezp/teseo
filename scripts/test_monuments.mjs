@@ -1,7 +1,7 @@
 // Pruebas de los monumentos (src/sky/monuments.js y monumentLayer.js): medidas, posición, ángulos tal como se
 // verían desde el sitio, silueta para ocultar lo que queda detrás e integración en el cielo.
 import { MONUMENTS, monumentsNear, buildFaces, toLocal, altAzOf, offsetOf, silhouette, withMonuments, groundRing, median, apexOf, footprintRadius, SH_STANDING, SH_LINTELS } from "../src/sky/monuments.js";
-import { placeMonuments, monumentLabels, faceUV, toneAt, groundHeight, reliefAt, reliefPoints, RELIEF_R, RELIEF_NA } from "../src/sky/monumentLayer.js";
+import { placeMonuments, onPlatform, monumentLabels, faceUV, toneAt, groundHeight, reliefAt, reliefPoints, RELIEF_R, RELIEF_NA } from "../src/sky/monumentLayer.js";
 import { tierEdges, stairSteps, detailFor } from "../src/sky/monuments.js";
 import { SITES } from "../src/sky/places.js";
 import { readFileSync } from "node:fs";
@@ -130,7 +130,7 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
     // en el plano, la E queda entre la D (al oeste) y la F; la G, al sur de la F; la K y la L, hacia el sureste; la M, al suroeste
     const E = (x) => offsetOf(L("g").lat, L("g").lon, L(x).lat, L(x).lon);
     ok(E("d").e < E("e").e && E("e").e < E("f").e && E("f").n > 80 && E("k").e > 100 && E("k").n < -60 && E("l").e > E("k").e && E("m").e < -150 && E("m").n < -100 && E("a").n > 200, "disposición del plano de Wentscher: D–E–F en la fila alta, G en el centro, K y L al sureste, M al suroeste, A arriba");
-    ok(cq.every((m) => /estimado|diámetro|lado bajo/.test(m.sub.es)) && monumentsNear(site("cochasqui").lat, site("cochasqui").lon, 25).length === 26, "cada una dice que su alto es estimado; desde el mirador se cargan las 26 piezas");
+    ok(cq.every((m) => /estimado|diámetro|lado bajo/.test(m.sub.es)) && monumentsNear(site("cochasqui").lat, site("cochasqui").lon, 25).length === 26, "cada una dice que su alto es estimado o medido; desde el lugar se cargan las 26 piezas (también la G, bajo los pies)");
     // el suelo: pocas consultas de altura (4 anillos de 8 puntos para las grandes y un punto para el resto)
     ok(cq.filter((m) => m.ring == null).length === 4 && cq.filter((m) => m.ring == null).length * 8 + cq.filter((m) => m.ring != null).length + 5 <= 80, "las alturas del terreno caben en una sola consulta (menos de 80 puntos)");
     const f = buildFaces(byId("cqm-a")), bb = bbox(f);
@@ -139,7 +139,7 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
     { const k = buildFaces(L("k")).length, j = buildFaces(L("j")).length, l = buildFaces(L("l")).length;
       ok(L("k").rampsN === 2 && j === l && k > j && (k - j) % 2 === 0, "la K tiene además sus dos rampas pequeñas hacia el norte (dos rampas iguales de más)"); }
     { // asiento: con el relieve cercano, cada pieza queda a la altura del suelo dibujado en su sitio (no en el aire)
-      const s1 = site("cochasqui"), near1 = monumentsNear(s1.lat, s1.lon, 25), bases = Object.fromEntries(near1.map((m) => [m.id, 3140]));
+      const s1 = { lat: 0.054507, lon: -78.306662 }, near1 = monumentsNear(s1.lat, s1.lon, 25), bases = Object.fromEntries(near1.map((m) => [m.id, 3140]));
       const grid = { reach: 900, h: Array.from({ length: RELIEF_R.length * RELIEF_NA }, (_, i) => { const a = ((i % RELIEF_NA) / RELIEF_NA) * 2 * Math.PI, r = RELIEF_R[Math.floor(i / RELIEF_NA)] * 900; return 0.18 * r * Math.cos(a - 0.5) - 1.7; }) };
       const flat = placeMonuments(near1, { lat: s1.lat, lon: s1.lon, ground: 3100 }, bases), seated = placeMonuments(near1, { lat: s1.lat, lon: s1.lon, ground: 3100 }, bases, grid);
       ok(flat.every((it) => near(it.dz, 40 - 1.7, 1e-9)) && seated.every((it) => near(it.dz, reliefAt(grid, it.o.e, it.o.n), 1e-9)) && cq.every((m) => m.seat) && !byId("chankillo-1").seat, "con el relieve cercano, cada pieza de Cochasquí se asienta sobre el mismo suelo que se dibuja (las de otros sitios, no)"); }
@@ -147,15 +147,15 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
       const lay = readFileSync(new URL("../src/sky/monumentLayer.js", import.meta.url), "utf8");
       const grid = { reach: 900, h: new Array(RELIEF_R.length * RELIEF_NA).fill(5) }, it = [{ m: { ...L("k") }, o: { e: 100, n: 100, d: 141 }, dz: 40 }];
       ok(near(groundHeight(100, 100, it, grid), groundHeight(100, 100, [], grid), 1e-9) && groundHeight(100, 100, [{ ...it[0], m: { ...L("k"), seat: false } }], grid) > 30 && /depthWrite: true, \.\.\.\(ground \? \{ polygonOffset: true/.test(lay), "una pieza asentada no levanta el suelo a su alrededor; el suelo escribe profundidad (tapa lo enterrado)"); }
-    const s0q = site("cochasqui");
-    { // de pie en la plataforma de la G: los ojos a 1,7 m sobre ella y todo lo demás, más abajo
-      const sg = site("cochasqui-g"), nearG = monumentsNear(sg.lat, sg.lon, 25), bases = Object.fromEntries(nearG.map((m) => [m.id, 3100]));
+    { // el lugar: de pie en el vértice oeste de la plataforma de la G; los ojos a 1,7 m sobre ella y todo lo demás, más abajo
+      const sg = site("cochasqui"), nearG = monumentsNear(sg.lat, sg.lon, 25), bases = Object.fromEntries(nearG.map((m) => [m.id, 3100]));
       const items = placeMonuments(nearG, { lat: sg.lat, lon: sg.lon, ground: 3100 }, bases), g = items.find((it) => it.m.id === "cq-g");
-      ok(sg && nearG.some((m) => m.id === "cq-g") && g && g.o.d < 5 && near(g.dz + L("g").height, -1.7, 1e-9) && near(items.up, L("g").height, 1e-9) && items.filter((it) => it.m.id !== "cq-g").every((it) => near(it.dz, -1.7 - L("g").height, 1e-9)), "lugar «sobre la pirámide G»: la plataforma queda 1,7 m bajo los ojos y las demás pirámides, 14 m más abajo");
-      ok(near(groundHeight(300, 0, items), -1.7 - L("g").height, 0.5) && !monumentLabels(items, "es").some((l) => /Pirámide G/.test(l.name || l.text || "")) && !placeMonuments(monumentsNear(s0q.lat, s0q.lon, 25), { lat: s0q.lat, lon: s0q.lon, ground: 3100 }, bases).up, "el suelo baja con ellas, la G no lleva etiqueta bajo los pies y desde el mirador de abajo nada cambia"); }
-    // el mirador no cae dentro de ninguna pirámide ni sobre una rampa
-    const s0 = site("cochasqui");
-    ok(pyr.every((m) => { const o = offsetOf(s0.lat, s0.lon, m.lat, m.lon); return Math.hypot(o.e, o.n) > Math.hypot(m.w, m.d) / 2 + 25; }), "el mirador queda en campo abierto, a más de 25 m de cualquier pirámide"); }
+      ok(!SITES.some((x) => x.id === "cochasqui-g") && g && onPlatform(g.m, g.o) && g.o.e > 35 && g.o.e < 50 && Math.abs(g.o.n) < 12 && near(Math.hypot(g.o.e, g.o.n), 44, 3), "un solo lugar «Cochasquí»: en el vértice oeste de la plataforma de la G (su centro queda 44 m al este), unos 5 m hacia dentro");
+      ok(near(g.dz + L("g").height, -1.7, 1e-9) && near(items.up, L("g").height, 1e-9) && items.filter((it) => it.m.id !== "cq-g").every((it) => near(it.dz, -1.7 - L("g").height, 1e-9)), "la plataforma queda 1,7 m bajo los ojos y las demás pirámides, 14 m más abajo");
+      ok(near(groundHeight(300, 0, items), -1.7 - L("g").height, 0.5) && !monumentLabels(items, "es").some((l) => /Pirámide G/.test(JSON.stringify(l))), "el suelo baja con ellas y la G no lleva etiqueta bajo los pies");
+      // fuera de la plataforma (el borde está a 5 m; 12 m más al oeste ya es ladera) no se está «subido»
+      ok(!onPlatform(g.m, { e: g.o.e + 12, n: g.o.n - 1.3 }) && onPlatform(g.m, { e: 0, n: 0 }) && !onPlatform(L("m"), { e: 0, n: 0 }), "solo cuenta como «subido» dentro del rectángulo de la plataforma, y solo en la G"); }
+  }
 
   const mpi = placeMonuments(mp.filter((m) => m.id !== "intihuatana"), { lat: site("machupicchu").lat, lon: site("machupicchu").lon, ground: 2430 }, Object.fromEntries(mp.map((m) => [m.id, 2430])));
   ok(mp.length === 20 && mpi.every((it) => it.dz < -10) && mp.filter((m) => m.label !== false).length === 5 && mp.every((m) => m.id === "intihuatana" || /aproximad/.test(m.sub.es)), "Machu Picchu: templos y casas más abajo que la cima del Intihuatana, marcados como aproximados");

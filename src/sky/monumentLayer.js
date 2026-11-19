@@ -34,6 +34,16 @@ export function toneAt(p) {
  * Lo que se dibuja para un lugar: [{ m, o, dz, faces }]. `bases`: { id: altura del suelo (m) bajo el
  * monumento }; `ground`: suelo del observador (m). Sin la altura de la base, el monumento no se dibuja.
  */
+/**
+ * ¿Está el observador sobre la plataforma de esta pirámide (`standOn`)? `o`: dónde queda la pirámide desde el lugar.
+ * La plataforma mide 0,72 × la planta (como la dibuja buildFaces) y va girada `rot`.
+ */
+export function onPlatform(m, o) {
+  if (!m.standOn || !o) return false;
+  const a = (m.rot || 0) * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a), e = -o.e, n = -o.n;
+  return Math.abs(e * c - n * sn) < m.w * 0.36 && Math.abs(e * sn + n * c) < m.d * 0.36;
+}
+
 export function placeMonuments(list, { lat, lon, ground }, bases, relief = null) {
   const out = [];
   for (const m of list || []) {
@@ -47,7 +57,7 @@ export function placeMonuments(list, { lat, lon, ground }, bases, relief = null)
   }
   // Subido a una plataforma (`standOn`): si el lugar cae dentro de la plataforma de una pirámide, los ojos van a 1,7 m
   // sobre ella, así que todo lo demás (y el suelo) baja lo que haga falta.
-  const st = out.find((it) => it.m.standOn && it.o.d < Math.min(it.m.w, it.m.d) * 0.36 - 2);
+  const st = out.find((it) => onPlatform(it.m, it.o));
   if (st) { const up = st.dz + st.m.height + EYE_M; if (up > 0.01) { for (const it of out) it.dz -= up; out.up = up; } }
   return out;
 }
@@ -59,7 +69,7 @@ export function placeMonuments(list, { lat, lon, ground }, bases, relief = null)
  */
 export function monumentLabels(items, lang = "es", sil = null, step = 0.2) {
   // (la pirámide sobre cuya plataforma se está de pie no lleva etiqueta: no tiene cima a la vista)
-  return (items || []).filter(({ m, o }) => m.label !== false && !(m.standOn && o.d < Math.min(m.w, m.d) * 0.36)).map(({ m, o, dz }) => {
+  return (items || []).filter(({ m, o }) => m.label !== false && !onPlatform(m, o)).map(({ m, o, dz }) => {
     const v = toLocal(apexOf(m), o, dz), q = altAzOf(v);
     let alt = q.alt;
     if (sil && m.solid) {
@@ -302,12 +312,22 @@ export function createMonumentLayer({ onReady = null } = {}) {
     {
       const near = items.reduce((a, b) => (a.o.d <= b.o.d ? a : b)), gmat = groundPatch(near.m).mat, tile = (MON_MATS[gmat] || MON_MATS.dirt).tile;
       // con relieve (crestas, laderas) la malla es más fina, para que el suelo llegue al pie de cada monumento
-      const fine = !!(grid && grid.reach === reach), NR = fine ? 168 : 64, NS = fine ? 288 : 144, r0 = 0.6, verts = (NR + 1) * NS + 1;
+      const fine = !!(grid && grid.reach === reach), NR = fine ? 168 : 64, NS = fine ? 288 : 144, r0 = 0.6;
+      // El suelo sigue más allá del último monumento como un faldón llano (8 anillos, hasta 12 veces el
+      // alcance) a la altura que tenía en su borde: desde un sitio alto (la plataforma de una pirámide) se mira hacia
+      // abajo, y sin él quedaba una franja oscura entre el suelo y las montañas lejanas.
+      const EX = 8, FAR = 12, verts = (NR + 1 + EX) * NS + 1;
       const pos = new Float32Array(verts * 3), uv = new Float32Array(verts * 2), col = new Float32Array(verts * 4), idx = [];
+      const rEnd = EX ? reach * FAR : reach;
       const put = (i, e, n, r) => {
-        const h = groundHeight(e, n, items, grid && grid.reach === reach ? grid : null) - (r * r * (1 - K_REFR)) / (2 * R_E);
-        pos.set([e * k, h * k, -n * k], i * 3); uv.set([e / tile, n / tile], i * 2);
-        const fade = 1 - Math.min(1, Math.max(0, (r - 0.7 * reach) / (0.3 * reach)));
+        // (en el faldón, la altura es la del borde de la malla en esa dirección)
+        const q = r > reach ? reach / r : 1;
+        const h = groundHeight(e * q, n * q, items, grid && grid.reach === reach ? grid : null) - (r * r * (1 - K_REFR)) / (2 * R_E);
+        // lo que caería más lejos que la esfera del cielo se acerca por su misma línea de visión (se ve igual, pero
+        // queda DELANTE de las líneas de las constelaciones y de las estrellas bajo el horizonte, que si no se verían encima)
+        let px = e * k, py = h * k, pz = -n * k; const pl = Math.hypot(px, py, pz); if (pl > MAX_R) { const q2 = MAX_R / pl; px *= q2; py *= q2; pz *= q2; }
+        pos.set([px, py, pz], i * 3); uv.set([e / tile, n / tile], i * 2);
+        const fade = 1 - Math.min(1, Math.max(0, (r - 0.9 * rEnd) / (0.1 * rEnd)));
         col.set([1, 1, 1, fade * fade * (3 - 2 * fade)], i * 4);
       };
       put(0, 0, 0, 0);
@@ -315,8 +335,12 @@ export function createMonumentLayer({ onReady = null } = {}) {
         const r = r0 * Math.pow(reach / r0, j / NR);
         for (let i = 0; i < NS; i++) { const a = (i / NS) * 2 * Math.PI; put(1 + j * NS + i, r * Math.sin(a), r * Math.cos(a), r); }
       }
+      for (let m = 1; m <= EX; m++) {
+        const r = reach * Math.pow(FAR, m / EX);
+        for (let i = 0; i < NS; i++) { const a = (i / NS) * 2 * Math.PI; put(1 + (NR + m) * NS + i, r * Math.sin(a), r * Math.cos(a), r); }
+      }
       for (let i = 0; i < NS; i++) idx.push(0, 1 + ((i + 1) % NS), 1 + i);
-      for (let j = 0; j < NR; j++) for (let i = 0; i < NS; i++) {
+      for (let j = 0; j < NR + EX; j++) for (let i = 0; i < NS; i++) {
         const a = 1 + j * NS + i, b = 1 + j * NS + ((i + 1) % NS), c = a + NS, d = b + NS;
         idx.push(a, d, c, a, b, d);
       }
@@ -325,6 +349,8 @@ export function createMonumentLayer({ onReady = null } = {}) {
       g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
       g.setAttribute("color", new THREE.BufferAttribute(col, 4));
       g.setIndex(idx); g.computeVertexNormals();
+      // el faldón es llano: su normal mira arriba (al acercarlo a la esfera del cielo su forma deja de serlo, y sin esto se sombrearía)
+      { const na = g.attributes.normal.array; for (let i = 1 + NR * NS; i < verts; i++) na.set([0, 1, 0], i * 3); g.attributes.normal.needsUpdate = true; }
       const mesh = new THREE.Mesh(g, material(gmat, { ground: true }));
       mesh.receiveShadow = true; mesh.renderOrder = 9.9; mesh.frustumCulled = false;
       meshes.push(mesh); group.add(mesh);

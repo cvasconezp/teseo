@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.46.0 — 19 de noviembre de 2026
+
+- Cochasquí, un solo lugar: el observador queda de pie en el vértice oeste
+  de la plataforma de la pirámide G, 14 m sobre la ladera (se retiran el
+  mirador de abajo y el lugar aparte «sobre la pirámide G»).
+- El suelo de todos los sitios sigue ahora hasta el horizonte: desde un
+  punto alto quedaba una franja oscura entre el suelo y las montañas
+  lejanas (se veía también en Machu Picchu).
+
 ## 1.45.1 — 19 de noviembre de 2026
 
 - Cochasquí: etiquetas de las pirámides más cortas (en el teléfono se
