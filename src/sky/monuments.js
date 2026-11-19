@@ -73,7 +73,7 @@ const paranal = VLT_UT.map(([id, nm, e, n], i) => ({
 // excavación de la E (escala 0,75 m por píxel, norte arriba; error estimado ±15 m). Nueve tienen rampa, hacia el
 // lado bajo: B, C, E, F, G, J, K, L y M. De Oberem: la plataforma de la E (51 × 27–30 m; 11 m de alto por el sur y
 // 3,5 por el norte), su rampa (67 m) y su eje, 27° 38′ al este del norte, que es el giro de todo el conjunto.
-// El ALTO de las demás es ESTIMADO (no está en el plano). La K tiene además dos rampas pequeñas al norte: no se dibujan.
+// El ALTO de las demás es ESTIMADO (no está en el plano). La K tiene además dos rampas pequeñas al norte (`rampsN`).
 // [este, norte] en metros desde (0,0558° N, 78,3080° O), ancho, fondo, alto y largo de la rampa.
 const CQ0 = [0.0558, -78.3080];
 const CQ = [["cq-a", "A", 100, 245, 21, 21, 3, 0], ["cq-b", "B", 174, 178, 58, 46, 8, 31], ["cq-c", "C", 290, 126, 40, 34, 6, 27], ["cq-d", "D", -105, 171, 75, 57, 8, 0], ["cq-e", "E", 12, 136, 42, 68, 8, 67],
@@ -87,14 +87,16 @@ const COCHASQUI = CQ.map(([id, L, e, n, w, d, h, ramp]) => ({
   ...cqAt(e, n), kind: "tola", w, d, height: h, ramp, rot: 27.6, foot: Math.hypot(w, d) * 0.78, far: 6000, relief: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
   // el suelo de las pequeñas se mide en su centro (un punto); el de las cuatro grandes, en un anillo a su alrededor
   ...(w >= 60 ? {} : { ring: 3 }),
+  ...(L === "K" ? { rampsN: 2 } : {}),
 }));
 // montículos funerarios redondos del mismo plano (los que se ven en el terreno): [este, norte], radio y alto (m).
 // El «a» mide unos 40 m de diámetro y 5 de alto (Oberem); el alto de los demás es estimado.
-const CQM = [["cqm-a", -352, -422, 20, 5, "a"], ["cqm-c", -312, -404, 12, 3], ["cqm-2", -385, -462, 21, 4], ["cqm-3", -314, -460, 15, 3], ["cqm-e", -308, -505, 14, 3], ["cqm-f", -358, -577, 11, 2.5],
-  ["cqm-g", -332, -609, 11, 2.5], ["cqm-m", 78, -557, 9, 2], ["cqm-x", -22, -678, 22, 3.5], ["cqm-t1", 48, -154, 11, 2.5], ["cqm-t2", 29, -268, 10, 2]];
+// Letras: las del plano (a, c, e, f, g, m, x) y, para b y d, las del croquis del parque, que los sitúa igual.
+const CQM = [["cqm-a", -352, -422, 20, 5, "a"], ["cqm-c", -312, -404, 12, 3, "c"], ["cqm-b", -385, -462, 21, 4, "b"], ["cqm-d", -314, -460, 15, 3, "d"], ["cqm-e", -308, -505, 14, 3, "e"], ["cqm-f", -358, -577, 11, 2.5, "f"],
+  ["cqm-g", -332, -609, 11, 2.5, "g"], ["cqm-m", 78, -557, 9, 2, "m"], ["cqm-x", -22, -678, 22, 3.5, "x"], ["cqm-t1", 48, -154, 11, 2.5], ["cqm-t2", 29, -268, 10, 2]];
 const COCHASQUI_MOUNDS = CQM.map(([id, e, n, radius, h, L]) => ({
-  id, site: "cochasqui", name: { es: L ? `Montículo funerario ${L}` : "Montículo funerario", en: L ? `Burial mound ${L}` : "Burial mound" }, label: !!L,
-  sub: { es: L ? "40 m de diámetro" : "alto estimado", en: L ? "40 m across" : "height estimated" },
+  id, site: "cochasqui", name: { es: L ? `Montículo funerario ${L}` : "Montículo funerario", en: L ? `Burial mound ${L}` : "Burial mound" }, label: L === "a",
+  sub: { es: L === "a" ? "40 m de diámetro" : "alto estimado", en: L === "a" ? "40 m across" : "height estimated" },
   ...cqAt(e, n), kind: "mound", radius, wall: 0, skirt: 4, seg: 28, rings: 5, height: h, ring: 3, far: 2500, relief: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
 }));
 // Machu Picchu, desde la cima del Intihuatana. APROXIMADO (posición ±10 m sobre la imagen satelital de Google
@@ -492,6 +494,13 @@ export function buildFaces(m, opt = {}) {
       const zf = -0.18 * (m.ramp + m.d * 0.15);
       quad(out, P(-hw1, y1, zf), P(hw1, y1, zf), P(hw0, y0, m.height), P(-hw0, y0, m.height), col, m.mat);
       for (const sg of [-1, 1]) quad(out, P(sg * (hw1 + 6), y1, zf - 4), P(sg * hw1, y1, zf), P(sg * hw0, y0, m.height), P(sg * (hw0 + 10), y0, -5), col, m.mat);
+    }
+    // rampas pequeñas del lado alto (la K de Cochasquí tiene dos): cortas, hasta el terreno de arriba
+    for (let k = 0; k < (m.rampsN || 0); k++) {
+      const x = m.w * 0.5 * ((k + 0.5) / m.rampsN * 2 - 1) * 0.6, hw = 3.5, y0 = m.d * 0.34, y1 = m.d * 0.5 + 12, P = (px, py, z) => { const q = rotP([px, py, z], m.rot); return [q[0], q[1], z]; };
+      const zt = Math.min(m.height, 0.18 * 12 + m.height * 0.35);
+      quad(out, P(x - hw, y0, m.height), P(x + hw, y0, m.height), P(x + hw, y1, zt), P(x - hw, y1, zt), col, m.mat);
+      for (const sg of [-1, 1]) quad(out, P(x + sg * hw, y0, m.height), P(x + sg * hw, y1, zt), P(x + sg * (hw + 5), y1, zt - 4), P(x + sg * (hw + 6), y0, 0), col, m.mat);
     }
     for (const f of out) f.smooth = false;
   } else if (m.kind === "inca") {

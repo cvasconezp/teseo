@@ -134,6 +134,9 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
     ok(cq.filter((m) => m.ring == null).length === 4 && cq.filter((m) => m.ring == null).length * 8 + cq.filter((m) => m.ring != null).length + 5 <= 80, "las alturas del terreno caben en una sola consulta (menos de 80 puntos)");
     const f = buildFaces(byId("cqm-a")), bb = bbox(f);
     ok(near(bb.u1, 5, 1e-9) && bb.u0 <= -3.9 && f.length < 400, "los montículos: cúpula baja con faldón bajo la base (en ladera no queda hueco) y pocas caras");
+    ok(mounds.filter((m) => /funerario [a-gmx]$/.test(m.name.es)).length === 9 && mounds.filter((m) => m.label).length === 1, "nueve montículos llevan su letra (a–g, m, x); solo el «a» muestra el nombre a la vista");
+    { const k = buildFaces(L("k")).length, j = buildFaces(L("j")).length, l = buildFaces(L("l")).length;
+      ok(L("k").rampsN === 2 && j === l && k > j && (k - j) % 2 === 0, "la K tiene además sus dos rampas pequeñas hacia el norte (dos rampas iguales de más)"); }
     // el mirador no cae dentro de ninguna pirámide ni sobre una rampa
     const s0 = site("cochasqui");
     ok(pyr.every((m) => { const o = offsetOf(s0.lat, s0.lon, m.lat, m.lon); return Math.hypot(o.e, o.n) > Math.hypot(m.w, m.d) / 2 + 25; }), "el mirador queda en campo abierto, a más de 25 m de cualquier pirámide"); }

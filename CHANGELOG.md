@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.41.1 — 18 de noviembre de 2026
+
+- Cochasquí: la pirámide K con sus dos rampas pequeñas hacia el norte, y
+  nueve montículos funerarios con su letra (a–g, m, x), según el plano y
+  el croquis del parque.
+
 ## 1.41.0 — 18 de noviembre de 2026
 
 - Cochasquí completo: las quince pirámides (A–P) en su sitio, con su planta
