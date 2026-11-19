@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.42.0 — 18 de noviembre de 2026
+
+- Mapa fotográfico, más nítido: el DSS llega ahora a su detalle nativo y,
+  con menos de 2,4° de campo, entra el Sloan Digital Sky Survey donde lo
+  cubre (algo más de un tercio del cielo, sobre todo el norte): cuatro
+  veces más nítido y en color real. En Andrómeda, Orión, M33 y las Pléyades,
+  donde el Sloan sale mal, se queda el DSS.
+- Sin saltos de brillo al acercar o alejar: el mapa aparece poco a poco
+  entre 30° y 11° de campo; al cambiar de nivel de detalle, el nuevo espera
+  a estar completo y se cruza con el anterior (antes se sumaban y el cielo
+  daba un destello); y bajo una imagen de agencia el mapa se atenúa.
+- De cerca, la imagen general de la Vía Láctea (poco detalle: se veía a
+  manchas grises) deja paso a las placas, que la traen estrella a estrella.
+- La franja de M31 de la imagen de agencia ya no se coloca en el cielo (se
+  veía como un parche); sigue en su ficha.
+
 ## 1.41.3 — 18 de noviembre de 2026
 
 - Cochasquí: las pirámides ya no quedan «volando». El suelo ahora tapa lo

@@ -67,7 +67,7 @@ import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
 import { createSkyImagesLayer } from "./sky/skyImagesLayer.js";
 import { createCometLayer } from "./sky/cometLayer.js";
 import { cometsAt, minorObjects, neoPassing } from "./sky/cometSky.js";
-import { createHipsLayer } from "./sky/hipsLayer.js";
+import { createHipsLayer, HIPS_FINE } from "./sky/hipsLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
@@ -1239,6 +1239,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // el mapa fotográfico de todo el cielo (DSS, en vivo por teselas): aparece al acercarse
     const hips = createHipsLayer({ onLoad: () => { const r0 = sceneRef.current; if (r0) r0._dirty = true; } });
     scene.add(hips.group);
+    // y, muy de cerca, el Sloan (más nítido) donde lo cubre
+    const hipsFine = createHipsLayer({ ...HIPS_FINE, radius: 895, bias: [0, 0, 0], needAll: true, renderOrder: -4.9, maxTiles: 70, onLoad: () => { const r0 = sceneRef.current; if (r0) r0._dirty = true; } });
+    scene.add(hipsFine.group);
     // cometas con coma, cola y órbita (src/sky/cometLayer.js)
     const cometLayer = createCometLayer();
     scene.add(cometLayer.group);
@@ -1580,7 +1583,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, milky, skyImages, hips, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
+      atm, clouds, terrain, monuments, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1658,7 +1661,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         milky.setIntensity(milkyWayVisibility(st));
         // a simple vista siguen el brillo del cielo, con una caída más suave que la Vía Láctea (sus núcleos son más
         // brillantes); `darkness`: de noche 1, con el Sol a menos de 6° bajo el horizonte 0
-        { const dk = st ? 1 - Math.min(1, Math.max(0, (st.sunAlt + 14) / 8)) : 1; skyImages.setIntensity(st ? Math.min(1, Math.max(Math.sqrt(milkyWayVisibility(st)) * 1.2, dk * 0.4)) : 1, dk); hips.setDarkness(dk); }
+        { const dk = st ? 1 - Math.min(1, Math.max(0, (st.sunAlt + 14) / 8)) : 1; skyImages.setIntensity(st ? Math.min(1, Math.max(Math.sqrt(milkyWayVisibility(st)) * 1.2, dk * 0.4)) : 1, dk); hips.setDarkness(dk); hipsFine.setDarkness(dk); }
         { const up = st && r.localModeOn ? new THREE.Vector3(0, 1, 0).applyQuaternion(r.localQuat.clone().invert()) : null; milky.setExtinction(st ? st.k : 0, up ? [up.x, up.y, up.z] : null); }
         lines.material.opacity = st && starsHidden(st) ? 0.22 : r.lineBase;
         // Sol, Luna y planetas: el disco se sigue dibujando (con tamaño visible), más tenue si no se ve
@@ -1711,7 +1714,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       camera.quaternion.copy(lookQuat(lk.yaw, lk.pitch, lk.qF));
       applyFov();
       if (E2E) window.__teseoSky = {
-        hips: () => (r.hips ? { ...r.hips.stats, active: r.hips.active } : null),
+        hips: () => (r.hips ? { ...r.hips.stats, active: r.hips.active, fine: r.hipsFine ? { ...r.hipsFine.stats, level: r.hipsFine.level } : null } : null),
         // estado de cada capa (pruebas): puntos a la vista por capa, mapa fotográfico, cometas dibujados
         layers: () => { const o = {}; for (const l of (r.layerObjs || [])) { o[l.key] = o[l.key] || { n: 0, visible: false }; o[l.key].n += l.points.userData.objs.length; o[l.key].visible = o[l.key].visible || l.points.visible; } return { pts: o, photo: !!r.hipsOn, img: r.skyImages ? r.skyImages.state : null, cometItems: r.cometLayer ? r.cometLayer.group.children.length : 0, fov: r.camera.fov }; },
         // foto 360° (pruebas): brillo medio de la franja baja de cada cara, ocultando objetos por nombre de clave
@@ -1982,7 +1985,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         if (ref.milky) ref.milky.setOn(inside);        // solo desde dentro de la esfera del cielo
         // el mapa fotográfico primero: donde ya se ve, los recortes de los cartografiados se retiran (no suman su luz)
         { const show = !!ref.ngcOn && ref.camera.fov < NGC_FOV; for (const o of (ref.layerObjs || [])) if (o.key === "ngc" && o.points.visible !== show) { o.points.visible = show; ref._dirty = true; } }
-        if (ref.hips) { ref.hips.setOn(inside && ref.hipsOn); if (ref.hips.update(ref.camera, H)) ref._dirty = true; }
+        if (ref.hipsFine) { ref.hipsFine.setOn(inside && ref.hipsOn); ref.hipsFine.setDim(ref.skyImages ? ref.skyImages.cover : 0); if (ref.hipsFine.update(ref.camera, H)) ref._dirty = true; }
+        if (ref.hips) { ref.hips.setOn(inside && ref.hipsOn); ref.hips.setDim(ref.skyImages ? ref.skyImages.cover : 0); ref.hips.setUnder(ref.hipsFine ? ref.hipsFine.level : 0); if (ref.hips.update(ref.camera, H)) ref._dirty = true; }
+        // de cerca, la imagen de la Vía Láctea (poco detalle) deja paso a las placas
+        if (ref.milky && ref.milky.setUnder(ref.hips ? ref.hips.active : 0)) ref._dirty = true;
         if (ref.skyImages) { ref.skyImages.setOn(inside); ref.skyImages.setUnder(ref.hips ? ref.hips.active : 0); if (ref.skyImages.update(ref.camera, H)) ref._dirty = true; }
         const camDist = inside ? 0 : ref.camera.position.length();
         const camPos = ref.camera.position;
@@ -2435,6 +2441,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (ref.skyImages) ref.skyImages.group.quaternion.copy(q);
     if (ref.cometLayer) ref.cometLayer.group.quaternion.copy(q);
     if (ref.hips) ref.hips.group.quaternion.copy(q);
+    if (ref.hipsFine) ref.hipsFine.group.quaternion.copy(q);
     if (ref.guides) ref.guides.setLocalFrame(active ? q : null, qDate);
     if (ref.issLayer) ref.issLayer.setLocalFrame(active ? q : null);   // la ISS solo existe sobre un horizonte
     (ref.layerObjs || []).forEach(o => o.points.quaternion.copy(q));

@@ -63,10 +63,13 @@ export function createMilkyWayLayer({ radius = 895, small = false, onLoad = null
   const mesh = new THREE.Mesh(geo, mat);
   mesh.renderOrder = -5; mesh.frustumCulled = false;
   let level = 1;
+  let under = 0;
   return {
     mesh,
     /** Intensidad 0–1 (ver milkyWayVisibility). */
-    setIntensity(v) { level = Math.min(1, Math.max(0, v)); mat.color.setScalar(level * GAIN); mesh.visible = level > 0.004 && mesh.userData.on !== false; },
+    setIntensity(v) { level = Math.min(1, Math.max(0, v)); mat.color.setScalar(level * GAIN * (1 - under)); mesh.visible = level * (1 - under) > 0.004 && mesh.userData.on !== false; },
+    /** Cuánto se ve el mapa fotográfico (0–1): de cerca, esta imagen de todo el cielo (5′ por píxel) se retira y quedan las placas, que traen la Vía Láctea estrella a estrella. */
+    setUnder(v) { const u = Math.min(1, Math.max(0, v || 0)); if (Math.abs(u - under) < 0.004) return false; under = u; mat.color.setScalar(level * GAIN * (1 - under)); mesh.visible = level * (1 - under) > 0.004 && mesh.userData.on !== false; return true; },
     /** Extinción: coeficiente k (0 = sin atmósfera) y cenit del lugar en el marco de la esfera ([x, y, z]) o null. */
     setExtinction(k, up) { ext.uK.value = up ? Math.max(0, k || 0) : 0; if (up) ext.uUp.value.set(up[0], up[1], up[2]).normalize(); },
     setOn(b) { mesh.userData.on = !!b; mesh.visible = !!b && level > 0.004; },

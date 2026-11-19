@@ -42,10 +42,13 @@ export const surveyKey = (id) => { const m = /^m(\d+)$/.exec(id); return m ? "me
 
 const CDN = { "esa-webb": "https://cdn.esawebb.org/archives/images/screen/", "esa-hubble": "https://cdn.esahubble.org/archives/images/screen/", eso: "https://cdn.eso.org/images/screen/" };
 
+// imágenes de agencia que NO se colocan en el cielo: cubren solo un trozo del objeto y sobre el mapa fotográfico se
+// verían como un parche (la de M31 es una franja de su disco); siguen en la ficha del objeto
+const AGENCY_SKIP = new Set(["messier:31"]);
 export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
   const group = new THREE.Group();
   const mats = [], frames = [], imgs = [];
-  let framesOn = true, photosOn = true;
+  let framesOn = true, photosOn = true, cover = 0;
   let level = 1, on = true, dark = 1, eff = 1, under = 0, shown = -1;
   const loader = new THREE.TextureLoader();
   const apply = () => { eff = Math.max(eff, level); shown = eff * (1 - under); for (const m of mats) m.color.setScalar(shown); group.visible = on && (level > 0.004 || dark > 0.004); };
@@ -99,7 +102,7 @@ export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = 
     const c = raDecToVec(o.ra, o.dec);
     agency.push({ o, mesh, m, c: new THREE.Vector3(c[0], c[1], c[2]), size: Math.max(o.w, o.h) / 60, state: 0, k: 0 });
   };
-  if (fetchImpl) fetchImpl("/agency-sky.json").then((r) => r.json()).then((d) => { for (const o of d.images || []) if (CDN[o.agency] && o.w < 600) addAgency(o); if (onLoad) onLoad(); }).catch(() => { /* sin imágenes de agencia */ });
+  if (fetchImpl) fetchImpl("/agency-sky.json").then((r) => r.json()).then((d) => { for (const o of d.images || []) if (CDN[o.agency] && o.w < 600 && !AGENCY_SKIP.has(o.key)) addAgency(o); if (onLoad) onLoad(); }).catch(() => { /* sin imágenes de agencia */ });
   /**
    * Cada cuadro: carga y muestra las imágenes de agencia que están en pantalla y ya se ven con tamaño suficiente
    * (más de ~90 px), y las hace aparecer poco a poco. Devuelve true si algo sigue cambiando.
@@ -117,7 +120,7 @@ export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = 
     inv.copy(group.quaternion).invert();
     camera.getWorldDirection(fwd).applyQuaternion(inv);
     const fov = camera.fov, aspect = camera.aspect || 1, diag = (fov / 2) * Math.hypot(1, aspect);
-    let busy = false;
+    let busy = false; cover = 0;
     for (const a of agency) {
       const sep = Math.acos(Math.min(1, Math.max(-1, fwd.dot(a.c)))) * 180 / Math.PI, px = (a.size / fov) * viewH;
       const want = sep < diag + a.size && px > 90;
@@ -128,6 +131,8 @@ export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = 
       const target = want && a.state === 2 ? Math.min(1, (px - 90) / 140) : 0;
       if (Math.abs(target - a.k) > 0.002) { a.k += (target - a.k) * 0.18; busy = true; } else a.k = target;
       a.mesh.visible = a.k > 0.004; a.m.color.setScalar(a.k * eff * 0.8);
+      // cuánto de la vista ocupa esta imagen, si está centrada (para atenuar el mapa fotográfico de debajo)
+      if (a.k > 0.004) cover = Math.max(cover, a.k * Math.min(1, a.size / fov) * Math.min(1, Math.max(0, 1.5 - sep / (a.size * 0.5 + 1e-6) * 0.5)));
       // el recorte de cartografiado del mismo objeto se retira mientras se ve la imagen de agencia (si no, sumarían su luz), salvo que esta sea solo un trozo pequeño (M31)
       const sv = surveyByKey.get(a.o.key);
       if (sv && a.size >= 0.3 * sv.size) sv.m.color.setScalar(eff * (1 - a.k) * (1 - under));
@@ -138,6 +143,8 @@ export function createSkyImagesLayer({ radius = 893, onLoad = null, fetchImpl = 
     group,
     update,
     get agencyCount() { return agency.length; },
+    /** Cuánto cubre la vista una imagen de agencia visible (0–1). */
+    get cover() { return photosOn ? cover : 0; },
     /** `v`: brillo a simple vista (0–1, según el cielo); `darkness`: 1 de noche, 0 de día (para el brillo «de telescopio»). */
     setIntensity(v, darkness = 1) { level = Math.min(1, Math.max(0, v)); dark = Math.min(1, Math.max(0, darkness)); eff = level; apply(); },
     setOn(b) { on = !!b; apply(); },
