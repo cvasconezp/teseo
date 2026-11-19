@@ -89,7 +89,7 @@ const cqAt = (e, n) => ({ lat: +(CQ0[0] + n / mPerLat).toFixed(6), lon: +(CQ0[1]
 const COCHASQUI = CQ.map(([id, L, e, n, w, d, h, ramp]) => ({
   id, site: "cochasqui", name: { es: `Pirámide ${L}`, en: `Pyramid ${L}` }, label: !!CQ_NOTE[L],
   sub: { es: `${CQ_NOTE[L] ? CQ_NOTE[L][0] + " · " : ""}${ramp ? "con rampa" : "sin rampa"}${CQ_MEASURED.has(L) ? "" : " · alto estimado"}`, en: `${CQ_NOTE[L] ? CQ_NOTE[L][1] + " · " : ""}${ramp ? "with ramp" : "no ramp"}${CQ_MEASURED.has(L) ? "" : " · height estimated"}` },
-  ...cqAt(e, n), kind: "tola", w, d, height: h, ramp, rot: CQ_ROT[L] || 27.6, ...(L === "G" ? { rampW: 1.7 } : {}), foot: Math.hypot(w, d) * 0.78, far: 6000, relief: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
+  ...cqAt(e, n), kind: "tola", w, d, height: h, ramp, rot: CQ_ROT[L] || 27.6, ...(L === "G" ? { rampW: 1.7 } : {}), foot: Math.hypot(w, d) * 0.78, far: 6000, relief: true, seat: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
   // el suelo de las pequeñas se mide en su centro (un punto); el de las cuatro grandes, en un anillo a su alrededor
   ...(w >= 60 ? {} : { ring: 3 }),
   ...(L === "K" ? { rampsN: 2 } : {}),
@@ -102,7 +102,7 @@ const CQM = [["cqm-a", -352, -422, 20, 5, "a"], ["cqm-c", -312, -404, 12, 3, "c"
 const COCHASQUI_MOUNDS = CQM.map(([id, e, n, radius, h, L]) => ({
   id, site: "cochasqui", name: { es: L ? `Montículo funerario ${L}` : "Montículo funerario", en: L ? `Burial mound ${L}` : "Burial mound" }, label: L === "a",
   sub: { es: L === "a" ? "40 m de diámetro" : "alto estimado", en: L === "a" ? "40 m across" : "height estimated" },
-  ...cqAt(e, n), kind: "mound", radius, wall: 0, skirt: 4, seg: 28, rings: 5, height: h, ring: 3, far: 2500, relief: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
+  ...cqAt(e, n), kind: "mound", radius, wall: 0, skirt: 8, seg: 28, rings: 5, height: h, ring: 3, far: 2500, relief: true, seat: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
 }));
 // Machu Picchu, desde la cima del Intihuatana. APROXIMADO (posición ±10 m sobre la imagen satelital de Google
 // Maps, 18-nov-2026; medidas redondeadas): el Templo de las Tres Ventanas y el Templo Principal en la Plaza
@@ -468,7 +468,7 @@ export function buildFaces(m, opt = {}) {
     const seg = m.seg || 96, rings = m.rings || 14;
     const ring = (r, z) => Array.from({ length: seg }, (_, k) => { const a = (k / seg) * 2 * Math.PI; return [r * Math.sin(a), r * Math.cos(a), z]; });
     // sin muro (`wall: 0`), un faldón de tierra (`skirt` m) baja bajo la base: en ladera no queda un hueco por el lado bajo
-    const b0 = ring(m.radius * (m.wall ? 1 : 1.25), m.wall ? 0 : -(m.skirt || 0)), b1 = ring(m.radius, m.wall);
+    const b0 = ring(m.radius * (m.wall ? 1 : 1 + (m.skirt || 0) * 0.06), m.wall ? 0 : -(m.skirt || 0)), b1 = ring(m.radius, m.wall);
     if (m.wall || m.skirt) for (let k = 0; k < seg; k++) { const j = (k + 1) % seg; quad(out, b0[k], b0[j], b1[j], b1[k], m.wall ? m.wallColor : col, m.wall ? m.wallMat : m.mat); }
     const g0 = out.length;
     let prev = b1;
@@ -493,19 +493,25 @@ export function buildFaces(m, opt = {}) {
     // pirámide trunca de tierra cubierta de hierba: taludes tendidos, plataforma y, si la tiene, la rampa al sur de
     // su planta (girada con ella)
     // (la ladera cae hacia el suroeste cerca de un 18 %: el pie baja bajo la base y la rampa desciende con el terreno)
-    frustum(out, { z0: -9, z1: m.height, w0: m.w * 1.0 + 15 * 0.7, d0: m.d * 1.0 + 15 * 0.7, w1: m.w * 0.72, d1: m.d * 0.72, rot: m.rot, col, mat: m.mat });
+    // El pie baja 16 m bajo la base con el mismo talud, y la rampa lleva faldones y un remate 12 m bajo su punta: en una ladera cuyo relieve real no coincide con el supuesto, nada queda en el aire ni enseña su cara
+    // de abajo; lo que sobra queda enterrado.
+    const DEEP = -16, k = (m.height - DEEP) / (m.height + 9), wb = m.w + 10.5, db = m.d + 10.5, wt = m.w * 0.72, dt = m.d * 0.72;
+    frustum(out, { z0: DEEP, z1: m.height, w0: wt + (wb - wt) * k, d0: dt + (db - dt) * k, w1: wt, d1: dt, rot: m.rot, col, mat: m.mat });
     if (m.ramp) {
       const hw0 = 7 * (m.rampW || 1), hw1 = 5 * (m.rampW || 1), y0 = -m.d * 0.35, y1 = -(m.d * 0.5 + m.ramp), P = (x, y, z) => { const q = rotP([x, y, z], m.rot); return [q[0], q[1], z]; };
-      const zf = -0.18 * (m.ramp + m.d * 0.15);
+      // la rampa baja con la ladera (18 %); sus faldones y el remate de la punta bajan 12 m más, abriéndose 0,8 m por metro
+      const zf = -0.18 * (m.ramp + m.d * 0.15), T = 0.8, zb = zf - 12, s1 = hw1 + 12 * T, s0 = hw0 + (m.height - DEEP) * T;
       quad(out, P(-hw1, y1, zf), P(hw1, y1, zf), P(hw0, y0, m.height), P(-hw0, y0, m.height), col, m.mat);
-      for (const sg of [-1, 1]) quad(out, P(sg * (hw1 + 6), y1, zf - 4), P(sg * hw1, y1, zf), P(sg * hw0, y0, m.height), P(sg * (hw0 + 10), y0, -5), col, m.mat);
+      for (const sg of [-1, 1]) quad(out, P(sg * s1, y1, zb), P(sg * hw1, y1, zf), P(sg * hw0, y0, m.height), P(sg * s0, y0, DEEP), col, m.mat);
+      quad(out, P(-s1, y1 - 18, zb), P(s1, y1 - 18, zb), P(hw1, y1, zf), P(-hw1, y1, zf), col, m.mat);
+      for (const sg of [-1, 1]) out.push({ v: [P(sg * hw1, y1, zf), P(sg * s1, y1, zb), P(sg * s1, y1 - 18, zb)], c: col, mat: m.mat });
     }
     // rampas pequeñas del lado alto (la K de Cochasquí tiene dos): cortas, hasta el terreno de arriba
     for (let k = 0; k < (m.rampsN || 0); k++) {
       const x = m.w * 0.5 * ((k + 0.5) / m.rampsN * 2 - 1) * 0.6, hw = 3.5, y0 = m.d * 0.34, y1 = m.d * 0.5 + 12, P = (px, py, z) => { const q = rotP([px, py, z], m.rot); return [q[0], q[1], z]; };
       const zt = Math.min(m.height, 0.18 * 12 + m.height * 0.35);
       quad(out, P(x - hw, y0, m.height), P(x + hw, y0, m.height), P(x + hw, y1, zt), P(x - hw, y1, zt), col, m.mat);
-      for (const sg of [-1, 1]) quad(out, P(x + sg * hw, y0, m.height), P(x + sg * hw, y1, zt), P(x + sg * (hw + 5), y1, zt - 4), P(x + sg * (hw + 6), y0, 0), col, m.mat);
+      for (const sg of [-1, 1]) quad(out, P(x + sg * hw, y0, m.height), P(x + sg * hw, y1, zt), P(x + sg * (hw + 20), y1, zt - 15), P(x + sg * (hw + 20), y0, m.height - 15), col, m.mat);
     }
     for (const f of out) f.smooth = false;
   } else if (m.kind === "inca") {

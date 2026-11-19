@@ -116,8 +116,13 @@ export function drift(v, dt) {
 }
 const ANCHOR_S = 6 * 3600;   // el desplazamiento se mide desde el último múltiplo de 6 h (precisión de la GPU)
 
-/** Opacidad de nube a partir de la cual algo se da por tapado (½ de la densidad en el borde de la nube). */
-export const OCC_HIDE = 0.45;
+/**
+ * Opacidad de nube a partir de la cual algo se da por tapado (sin nombre y sin poder elegirlo). Solo la nube espesa:
+ * a través de una nube fina o media el astro se sigue viendo (más débil), y lo que se ve debe poder nombrarse y
+ * tocarse. (Antes era 0,45 y, de noche, con nubes oscuras casi invisibles, desaparecían los nombres de astros que
+ * seguían a la vista.)
+ */
+export const OCC_HIDE = 0.8;
 
 /** Parámetros de cada capa para un instante: umbral, desplazamiento y dirección del viento. */
 export function layerParams(clouds, tSec) {

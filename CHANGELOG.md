@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.41.3 — 18 de noviembre de 2026
+
+- Cochasquí: las pirámides ya no quedan «volando». El suelo ahora tapa lo
+  que está enterrado (antes el pie hundido de cada pirámide se veía a través
+  de la ladera), cada pieza se asienta sobre el mismo relieve con el que se
+  dibuja el suelo, y la ladera sigue su forma bajo ellas: salen de la
+  pendiente, bajas por el lado alto y altas por el bajo, como son.
+- Nubes: con las nubes encendidas desaparecían los nombres (y no se podía
+  elegir) de astros que seguían a la vista tras una nube fina, sobre todo de
+  noche. Ahora solo la nube espesa los oculta.
+
 ## 1.41.2 — 18 de noviembre de 2026
 
 - Cochasquí: la pirámide G con sus medidas publicadas (plataforma de

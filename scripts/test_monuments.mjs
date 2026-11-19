@@ -138,6 +138,15 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
     ok(mounds.filter((m) => /funerario [a-gmx]$/.test(m.name.es)).length === 9 && mounds.filter((m) => m.label).length === 1, "nueve montículos llevan su letra (a–g, m, x); solo el «a» muestra el nombre a la vista");
     { const k = buildFaces(L("k")).length, j = buildFaces(L("j")).length, l = buildFaces(L("l")).length;
       ok(L("k").rampsN === 2 && j === l && k > j && (k - j) % 2 === 0, "la K tiene además sus dos rampas pequeñas hacia el norte (dos rampas iguales de más)"); }
+    { // asiento: con el relieve cercano, cada pieza queda a la altura del suelo dibujado en su sitio (no en el aire)
+      const s1 = site("cochasqui"), near1 = monumentsNear(s1.lat, s1.lon, 25), bases = Object.fromEntries(near1.map((m) => [m.id, 3140]));
+      const grid = { reach: 900, h: Array.from({ length: RELIEF_R.length * RELIEF_NA }, (_, i) => { const a = ((i % RELIEF_NA) / RELIEF_NA) * 2 * Math.PI, r = RELIEF_R[Math.floor(i / RELIEF_NA)] * 900; return 0.18 * r * Math.cos(a - 0.5) - 1.7; }) };
+      const flat = placeMonuments(near1, { lat: s1.lat, lon: s1.lon, ground: 3100 }, bases), seated = placeMonuments(near1, { lat: s1.lat, lon: s1.lon, ground: 3100 }, bases, grid);
+      ok(flat.every((it) => near(it.dz, 40 - 1.7, 1e-9)) && seated.every((it) => near(it.dz, reliefAt(grid, it.o.e, it.o.n), 1e-9)) && cq.every((m) => m.seat) && !byId("chankillo-1").seat, "con el relieve cercano, cada pieza de Cochasquí se asienta sobre el mismo suelo que se dibuja (las de otros sitios, no)"); }
+    { // la ladera no se aplana bajo las piezas asentadas, y el suelo tapa lo enterrado
+      const lay = readFileSync(new URL("../src/sky/monumentLayer.js", import.meta.url), "utf8");
+      const grid = { reach: 900, h: new Array(RELIEF_R.length * RELIEF_NA).fill(5) }, it = [{ m: { ...L("k") }, o: { e: 100, n: 100, d: 141 }, dz: 40 }];
+      ok(near(groundHeight(100, 100, it, grid), groundHeight(100, 100, [], grid), 1e-9) && groundHeight(100, 100, [{ ...it[0], m: { ...L("k"), seat: false } }], grid) > 30 && /depthWrite: true, \.\.\.\(ground \? \{ polygonOffset: true/.test(lay), "una pieza asentada no levanta el suelo a su alrededor; el suelo escribe profundidad (tapa lo enterrado)"); }
     // el mirador no cae dentro de ninguna pirámide ni sobre una rampa
     const s0 = site("cochasqui");
     ok(pyr.every((m) => { const o = offsetOf(s0.lat, s0.lon, m.lat, m.lon); return Math.hypot(o.e, o.n) > Math.hypot(m.w, m.d) / 2 + 25; }), "el mirador queda en campo abierto, a más de 25 m de cualquier pirámide"); }

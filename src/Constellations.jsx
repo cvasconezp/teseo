@@ -2638,7 +2638,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     return () => { alive = false; };
   }, [monOn, monKey, !!hzData, hzRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
   const monItems = useMemo(() => (monOn && hzData && monBase.status === "ok" && monBase.key === monKey
-    ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon]);
+    ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases, monBase.relief || null) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon]);
   // el horizonte con los monumentos macizos: lo que queda detrás de una pirámide tampoco se ve
   const monSil = useMemo(() => (hzData && monItems.length ? silhouette(monItems, hzData.step_deg || 0.2) : null), [hzData, monItems]);
   const hzEff = useMemo(() => (hzData && monSil ? withMonuments(hzData, monSil) : hzData), [hzData, monSil]);

@@ -34,13 +34,16 @@ export function toneAt(p) {
  * Lo que se dibuja para un lugar: [{ m, o, dz, faces }]. `bases`: { id: altura del suelo (m) bajo el
  * monumento }; `ground`: suelo del observador (m). Sin la altura de la base, el monumento no se dibuja.
  */
-export function placeMonuments(list, { lat, lon, ground }, bases) {
+export function placeMonuments(list, { lat, lon, ground }, bases, relief = null) {
   const out = [];
   for (const m of list || []) {
     const b = bases && bases[m.id];
     if (!Number.isFinite(b) || !Number.isFinite(ground)) continue;
     const o = offsetOf(lat, lon, m.lat, m.lon);
-    out.push({ m, o, dz: b - (ground + EYE_M) + (m.lift || 0) - (m.drop || 0), faces: buildFaces(m, { d: o.d }) });
+    // `seat`: en una ladera con muchas piezas (Cochasquí), cada una se asienta sobre el MISMO relieve con el que se
+    // dibuja el suelo (la rejilla cercana), no sobre su propia medida: así ninguna queda en el aire ni sobre un pedestal
+    const dz0 = relief && m.seat ? reliefAt(relief, o.e, o.n) : b - (ground + EYE_M);
+    out.push({ m, o, dz: dz0 + (m.lift || 0) - (m.drop || 0), faces: buildFaces(m, { d: o.d }) });
   }
   return out;
 }
@@ -161,6 +164,9 @@ export function groundHeight(e, n, items, grid = null) {
   if (grid) { const w0 = 1 / (e * e + n * n + 4); sw = 1 / (22 * 22) + w0; sh = reliefAt(grid, e, n) / (22 * 22) - EYE_M * w0; }
   else { sw = 1 / (e * e + n * n + 16); sh = -EYE_M * sw; }
   for (const it of items) {
+    // las piezas asentadas sobre el relieve (`seat`) no aplanan el suelo a su alrededor: la ladera sigue igual y la
+    // pieza sale de ella (enterrada por el lado alto, alta por el bajo, como las pirámides de Cochasquí)
+    if (grid && it.m.seat) continue;
     const d = Math.hypot(e - it.o.e, n - it.o.n), r = Math.max(d - 0.7 * footprintRadius(it.m), 1.5);
     // con relieve, cada monumento solo levanta el suelo a su alrededor (hasta 80 m de su borde, sobre todo en los primeros 25)
     const w = grid ? Math.max(0, 1 / (r * r) - 1 / (80 * 80)) * 4 : 1 / (r * r);
@@ -204,7 +210,9 @@ export function createMonumentLayer({ onReady = null } = {}) {
     const T = tex(mat), cfg = T.cfg || MON_MATS.dirt;
     const m = new THREE.MeshStandardMaterial({ map: T.map, normalMap: T.normalMap, aoMap: T.armMap, roughnessMap: T.armMap, roughness: 1, metalness: 0,
       vertexColors: true, side: ground ? THREE.FrontSide : THREE.DoubleSide, shadowSide: THREE.BackSide, transparent: true, opacity: 1,
-      depthTest: true, depthWrite: !ground, fog: false });
+      // el suelo también escribe profundidad: lo que queda enterrado (el pie de una pirámide en ladera) no se ve a
+      // través de él; un pequeño desplazamiento evita que parpadee con lo que se apoya justo encima
+      depthTest: true, depthWrite: true, ...(ground ? { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 } : {}), fog: false });
     m.color.setRGB(cfg.tint[0], cfg.tint[1], cfg.tint[2]);
     m.normalScale.set(cfg.normal, cfg.normal);
     m.aoMapIntensity = 1;

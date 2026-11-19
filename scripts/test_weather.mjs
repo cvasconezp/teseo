@@ -106,7 +106,7 @@ for (let i = 0; i < 600; i++) {
   const az = hash12(i, 1) * 6.283, alt = 0.25 + hash12(i, 2) * 1.2, d = [Math.cos(alt) * Math.sin(az), Math.sin(alt), -Math.cos(alt) * Math.cos(az)];
   if (occH(d) > OCC_HIDE) hid++; tot++;
 }
-ok(hid / tot > 0.3 && hid / tot < 0.7, `con 50 % de nubes bajas, tapa ${Math.round(hid / tot * 100)} % de las direcciones`);
+ok(hid / tot > 0.12 && hid / tot < 0.5, `con 50 % de nubes bajas, la parte espesa tapa ${Math.round(hid / tot * 100)} % de las direcciones`);
 
 console.log("Satélite (NASA GIBS)");
 const sat = (lon) => pickSource(lon).id;
