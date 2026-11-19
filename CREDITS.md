@@ -31,6 +31,7 @@ copia; nuestro render 3D es propio, con Three.js.)
 | Imágenes curadas de naves, cometas, Sol, Luna, planetas y cielo profundo (`src/sky/nasaImages.js`) | [NASA Image and Video Library](https://images.nasa.gov/) (API `images-api.nasa.gov`) | material de la NASA: en general sin copyright; crédito tal como lo da la NASA (ver abajo) |
 | Líneas de constelaciones | Stellarium "western/modern skyculture" + IAU | CC BY-SA (datos; atribución) |
 | Cúmulos/nebulosas/galaxias (Messier/NGC) | OpenNGC (M. Verga) | CC-BY-SA-4.0 |
+| Capa «NGC e IC» (`public/ngc.json`, `scripts/build_ngc.py`) | [OpenNGC](https://github.com/mattiaverga/OpenNGC) (M. Verga) | CC-BY-SA-4.0 |
 | Distancias Messier | SEDS / valores publicados | dominio público (hechos) |
 | Púlsares | ATNF Pulsar Catalogue (CSIRO) | citar Manchester et al. 2005 |
 | Posiciones de planetas, cometas, sondas y telescopios | NASA JPL Horizons (API) | dominio público (US gov); crédito "NASA/JPL-Caltech" |

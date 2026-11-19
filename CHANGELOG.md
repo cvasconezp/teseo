@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.38.0 — 18 de noviembre de 2026
+
+- Capa nueva «NGC e IC»: 960 nebulosas, cúmulos y galaxias de esos
+  catálogos que no estaban en Messier, Caldwell ni Galaxias (la Llama, la
+  de la Cabeza de Caballo, planetarias, globulares…). Sus símbolos y nombres
+  aparecen al acercarse a menos de 40° de campo, sobre el mapa fotográfico,
+  y cada uno tiene ficha. El buscador los encuentra por número («ngc 2024»,
+  «ic 434») aunque la capa esté apagada. Viene encendida. Fuente: OpenNGC.
+
 ## 1.37.0 — 18 de noviembre de 2026
 
 - Capa nueva «Planetas enanos y asteroides»: Plutón, Ceres, Eris, Haumea,

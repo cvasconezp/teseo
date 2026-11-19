@@ -90,6 +90,8 @@ const LAYERS = [
   { key: "messier",    file: "/deepsky.json",    es: "Messier",          en: "Messier",      color: 0x67e8c8, size: 8 },
   // Caldwell + Nubes de Magallanes (~10 KB con gzip): se carga al encender la capa o al empezar a buscar
   { key: "caldwell",   file: "/caldwell.json",   es: "Caldwell",         en: "Caldwell",     color: 0xb48cff, size: 8, lazy: true },
+  // NGC e IC (OpenNGC): lo que no está ya en Messier, Caldwell ni Galaxias; sus símbolos y nombres salen al acercarse
+  { key: "ngc",        file: "/ngc.json",        es: "NGC e IC",         en: "NGC & IC",     color: 0x7fd3c0, size: 5, lazy: true },
   { key: "pulsars",    file: "/pulsars.json",    es: "Púlsares",         en: "Pulsars",      color: 0xff5dc8, size: 6, lazy: true },
   { key: "blackholes", file: "/blackholes.json", es: "Agujeros negros",  en: "Black holes",  color: 0xff7a3c, size: 11 },
   { key: "deepfields", file: "/deepfields.json", es: "Campos profundos", en: "Deep fields",  color: 0xffe08a, size: 10 },
@@ -104,7 +106,7 @@ const LAYERS = [
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_deepfields:"#ffe08a", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_minor:"#e6b877", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
+const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_deepfields:"#ffe08a", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_minor:"#e6b877", obj_ngc:"#7fd3c0", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
 // Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
 // de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
 // en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
@@ -112,6 +114,7 @@ function isNotable(key, ob, when) {
   if (key === "messier") return !!ob.cn || (ob.mag != null && ob.mag <= 6);
   if (key === "caldwell") return !!ob.cn || (ob.mag != null && ob.mag <= 6);
   if (key === "galaxies") return !!ob.cat && ob.cat !== ob.name;
+  if (key === "ngc") return !!ob.cn && (ob.mag == null || ob.mag <= 9);
   if (key === "pulsars" || key === "exoplanets") return false;
   if (key === "meteors") return meteorActive(ob, when);
   return true;                        // agujeros negros, cometas y sondas: listas cortas y curadas
@@ -142,7 +145,8 @@ const CLOUDS_KEY = "teseo_clouds";      // interruptor "Nubes" (1/0; apagado por
 // estrella de la misma magnitud integrada. APROXIMACIÓN declarada en la interfaz (deepNote).
 const EXTENDED_PENALTY = { galaxy: 1.5, nebula: 1.5, snr: 1.5, open: 1.0, globular: 1.0, cluster: 1.0, planetary: 1.0, clneb: 1.0, dark: 1.5, other: 1.5 };
 const extPenalty = (key, ob) => key === "galaxies" ? 1.5 : (EXTENDED_PENALTY[ob.type] ?? 1.5);
-const MAG_LAYERS = new Set(["messier", "caldwell", "galaxies"]);   // símbolo según su magnitud y visibilidad con atmósfera
+const NGC_FOV = 40;   // la capa NGC/IC aparece con menos de 40° de campo: de lejos serían cientos de puntos sin nombre
+const MAG_LAYERS = new Set(["messier", "caldwell", "galaxies", "ngc"]);   // símbolo según su magnitud y visibilidad con atmósfera
 const loadBortleMap = () => { try { return JSON.parse(localStorage.getItem(BORTLE_KEY) || "{}") || {}; } catch { return {}; } };
 // Sol, Luna y planetas con su magnitud aparente (planetas: Mallama y Hilton 2018; Luna: Schaefer 1998, aprox.)
 // Lugar de "Mi cielo" al abrir: la última elección explícita (localStorage) o, si nunca se eligió, Quito
@@ -215,12 +219,13 @@ const CATEGORY_TERMS = [
   { key: "minor",      terms: ["asteroide", "asteroides", "asteroid", "asteroids", "planeta enano", "planetas enanos", "dwarf planet", "dwarf planets"] },
   { key: "meteors",    terms: ["meteoro", "meteoros", "lluvia de meteoros", "lluvias", "meteor", "meteor shower"] },
   { key: "caldwell",   terms: ["caldwell"] },
+  { key: "ngc",        terms: ["ngc", "catálogo ngc", "catalogo ngc", "new general catalogue"] },
   { key: "messier",    terms: ["messier", "nebulosa", "nebulosas", "cúmulo", "cumulo", "cúmulos", "nebula", "cluster"] },
   { key: "exoplanets", terms: ["exoplaneta", "exoplanetas", "exoplanet", "exoplanets"] },
   { key: "probes",     terms: ["sonda", "sondas", "telescopio", "telescopios", "telescopio espacial", "nave", "naves", "satélite", "satelite", "satélites", "satelites", "misión", "mision", "misiones", "probe", "probes", "spacecraft", "telescope", "telescopes", "satellite", "satellites", "mission", "missions", "voyager"] },
 ];
 function labelForObj(key, o, lang) {
-  if (key === "messier") return `${o.name}${o.cn ? " · " + o.cn : ""}`;
+  if (key === "messier" || key === "ngc") return `${o.name}${o.cn ? " · " + o.cn : ""}`;
   if (key === "galaxies") return o.name + (o.cat && o.cat !== o.name ? " · " + o.cat : "");
   if (key === "caldwell") { const cn = caldwellCommon(o, lang); return o.c == null ? (cn || o.name) : `${o.name}${cn ? " · " + cn : ""}`; }
   if (key === "meteors" || key === "minor") return lang === "en" ? (o.name_en || o.name) : o.name;
@@ -341,6 +346,7 @@ const TC = {
       probes: "Voyager, James Webb and other spacecraft, today.",
       messier: "Nebulae, clusters and galaxies visible with a small telescope.",
       galaxies: "Other galaxies, millions of light-years away.",
+      ngc: "Nebulae, clusters and galaxies of the NGC and IC catalogues. They appear as you zoom in.",
       blackholes: "Confirmed black holes, from Sgr A* to M87*.",
       deepfields: "Where Hubble and Webb stared for days and found thousands of galaxies.",
       pulsars: "Dead stars spinning up to hundreds of times a second.",
@@ -484,6 +490,7 @@ const TC = {
       probes: "Voyager, James Webb y otras naves, hoy.",
       messier: "Nebulosas, cúmulos y galaxias visibles con un telescopio pequeño.",
       galaxies: "Otras galaxias, a millones de años luz.",
+      ngc: "Nebulosas, cúmulos y galaxias de los catálogos NGC e IC. Aparecen al acercarte.",
       blackholes: "Agujeros negros confirmados, de Sgr A* a M87*.",
       deepfields: "Donde el Hubble y el Webb miraron durante días y hallaron miles de galaxias.",
       pulsars: "Estrellas muertas que giran hasta cientos de veces por segundo.",
@@ -612,7 +619,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [ready, setReady] = useState(false);
   const [datasetsRaw, setDatasets] = useState({}); // key -> {objects}
   const [cometOrbits, setCometOrbits] = useState(null);   // public/comet-orbits.json (.comets)
-  const [enabled, setEnabled] = useState({ photo: true });   // key -> bool (el mapa fotográfico viene encendido)
+  const [enabled, setEnabled] = useState({ photo: true, ngc: true });   // key -> bool (el mapa fotográfico y NGC/IC, que solo salen al acercarse, vienen encendidos)
   const [selObj, setSelObj] = useState(null);
   const [viewFrom, setViewFrom] = useState(null); // null = Tierra; {name,pos:[x,y,z]} = otra estrella
   const [outside, setOutside] = useState(false);  // vista opcional: la esfera celeste entera, desde fuera
@@ -866,7 +873,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     });
     // capas de objetos: Messier / agujeros negros / meteoros siempre están
     // cargadas; el resto solo si el usuario activó su capa.
-    for (const key of ["messier", "caldwell", "blackholes", "deepfields", "meteors", "galaxies", "pulsars", "comets", "minor", "probes", "exoplanets"]) {
+    for (const key of ["messier", "caldwell", "blackholes", "deepfields", "meteors", "galaxies", "ngc", "pulsars", "comets", "minor", "probes", "exoplanets"]) {
       const ds = datasets[key];
       if (!ds || !ds.objects) continue;
       const layerName = LAYERS.find(l => l.key === key)?.[lang] || key;
@@ -881,7 +888,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         continue;
       }
       for (const o of ds.objects) {
-        const hay = (o.name + " " + (o.cn || "") + " " + (o.cat || "") + " " + (o.name_en || "") + conExp(o.name, o.const)).toLowerCase();
+        const hay = (o.name + " " + (key === "ngc" ? o.name.replace(" ", "") + " " : "") + (o.cn || "") + " " + (o.cat || "") + " " + (o.name_en || "") + conExp(o.name, o.const)).toLowerCase();
         if (hay.includes(q)) r.push({ type: "layer", layer: key, obj: o, label: labelForObj(key, o, lang), kind: layerName });
       }
       if (r.length > 60) break;
@@ -951,6 +958,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       const cfg = LAYERS.find(l => l.key === "probes"); if (cfg) loadLayer(cfg);
     }
     // Caldwell (Omega Centauri, la Tarántula, las Nubes de Magallanes…): también se encuentra con la capa apagada
+    // NGC e IC: al escribir «ngc 55» o «ic 434»
+    if (/^(ngc|ic)\s*\d/i.test(query.trim()) && !datasets.ngc && !loadingLayer.ngc && !layerError.ngc) {
+      const cfg = LAYERS.find(l => l.key === "ngc"); if (cfg) loadLayer(cfg);
+    }
     // planetas enanos y asteroides (Plutón, Ceres, Vesta…): igual
     if (query.trim().length >= 2 && !datasets.minor && !loadingLayer.minor && !layerError.minor) {
       const cfg = LAYERS.find(l => l.key === "minor"); if (cfg) loadLayer(cfg);
@@ -1948,6 +1959,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         const inside = ar.on || ref.mode === "in", outside = !ar.on && ref.mode === "out";
         if (ref.milky) ref.milky.setOn(inside);        // solo desde dentro de la esfera del cielo
         // el mapa fotográfico primero: donde ya se ve, los recortes de los cartografiados se retiran (no suman su luz)
+        { const show = !!ref.ngcOn && ref.camera.fov < NGC_FOV; for (const o of (ref.layerObjs || [])) if (o.key === "ngc" && o.points.visible !== show) { o.points.visible = show; ref._dirty = true; } }
         if (ref.hips) { ref.hips.setOn(inside && ref.hipsOn); if (ref.hips.update(ref.camera, H)) ref._dirty = true; }
         if (ref.skyImages) { ref.skyImages.setOn(inside); ref.skyImages.setUnder(ref.hips ? ref.hips.active : 0); if (ref.skyImages.update(ref.camera, H)) ref._dirty = true; }
         const camDist = inside ? 0 : ref.camera.position.length();
@@ -2321,7 +2333,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   useEffect(() => {
     const ref = sceneRef.current;
     if (!ref || !ref.layerObjs) return;
-    ref.layerObjs.forEach(o => { o.points.visible = !!enabled[o.key]; });
+    // NGC/IC: además de estar encendida, solo se dibuja al acercarse (lo decide el bucle, con el campo de visión)
+    ref.ngcOn = !!enabled.ngc;
+    ref.layerObjs.forEach(o => { o.points.visible = !!enabled[o.key] && (o.key !== "ngc" || (ref.camera && ref.camera.fov < NGC_FOV)); });
   }, [enabled]);
   // encender/apagar líneas guía (sin recrear geometría)
   useEffect(() => {
@@ -2360,7 +2374,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (!selObj) return;
     const L = selObj.layer;
     const kind = L === "solar" ? (selObj.name === "Sol" ? "sun" : selObj.name === "Luna" ? "moon" : "planet") : L === "moon" ? "satellite" : L === "con" ? "constellation"
-      : ["star", "messier", "caldwell", "pulsars", "blackholes", "galaxies", "meteors", "comets", "minor", "probes", "exoplanets"].includes(L) ? L : "other";
+      : ["star", "messier", "caldwell", "pulsars", "blackholes", "galaxies", "ngc", "meteors", "comets", "minor", "probes", "exoplanets"].includes(L) ? L : "other";
     // id: solo nombres de catálogo cortos (planeta en inglés, M31, Sgr A*, Ori, estrella con nombre propio)
     const id = L === "solar" ? (BODIES[selObj.name] || {}).en : L === "moon" ? selObj.name : L === "con" ? selObj.ab : (L === "star" || L === "messier" || L === "caldwell" || L === "blackholes") ? selObj.name : undefined;
     track("sky_select", id ? { kind, id } : { kind });

@@ -178,6 +178,19 @@ export function describeObject(o, lang, t, meteorActive) {
     else if (o.dist_unc && o.dist_alt_ly > 0) say(null, t.cwUnc(fmtDist(o.dist_alt_ly, lang), t.cwAltSrc[o.dist_alt_src] || o.dist_alt_src));
     d.details.push([t.dSource, t.srcCaldwell(o.dist_ly > 0 ? cwSrcName(o.dist_src, lang) : "")]);
     d.distNote = o.dist_ly > 0 ? (t.cwDistNote[o.dist_note] || t.cwDistNote[o.dist_kind] || t.distPublished) : "";
+  } else if (L === "ngc") {
+    // catálogos NGC e IC (public/ngc.json, OpenNGC): posición, tipo, brillo y tamaño; sin distancia publicada aquí
+    const ty = MESSIER_TYPE[o.type] || MESSIER_TYPE.other, con = es ? o.const_es : o.const;
+    d.type = ty[lang] + (con ? ` · ${t.inConst(con)}` : "");
+    if (o.cn) d.name = `${o.name} · ${o.cn}`;
+    d.visual = o.type === "galaxy" ? "galaxy" : "deep";
+    d.details.push([t.dCatalog, o.name]);
+    if (o.mag != null) d.details.push([t.dMagnitude, `${num(o.mag, lang, 1)} · ${t.magHint}`]);
+    if (o.size > 0 && t.dSize && t.sizeVal) d.details.push([t.dSize, t.sizeVal(o.size, lang)]);
+    if (o.hubble) { const fam = hubbleFamily(o.hubble); d.details.push([t.dHubble, fam ? `${o.hubble} · ${t.hubble[fam]}` : o.hubble]); }
+    say(null, t.deepWhat[o.type] || t.deepWhat.other);
+    const reach = magReach(o.mag); if (reach) say(null, t.reach[reach], t.reachHint);
+    d.details.push([t.dSource, t.srcGalaxy]);
   } else if (L === "galaxies") {
     d.type = t.typeGalaxy + ((es ? o.const_es : o.const) ? ` · ${t.inConst(es ? o.const_es : o.const)}` : "");
     d.visual = "galaxy";

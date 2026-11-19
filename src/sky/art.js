@@ -29,7 +29,7 @@ export function artKind(obj) {
   if (L === "galaxies") return "galaxy";
   if (L === "exoplanets") return "exoplanet";
   if (L === "star") return "star";
-  if (L === "messier" || L === "caldwell") return obj.type === "galaxy" ? "galaxy" : obj.type === "globular" ? "globular" : obj.type === "open" || obj.type === "cluster" ? "open" : obj.type === "snr" ? "snr" : "nebula";
+  if (L === "messier" || L === "caldwell" || L === "ngc") return obj.type === "galaxy" ? "galaxy" : obj.type === "globular" ? "globular" : obj.type === "open" || obj.type === "cluster" ? "open" : obj.type === "snr" ? "snr" : "nebula";
   return "nebula";
 }
 
