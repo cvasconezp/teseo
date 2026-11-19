@@ -82,13 +82,15 @@ const CQ0 = [0.0558, -78.3080];
 const CQ = [["cq-a", "A", 100, 245, 21, 21, 3, 0], ["cq-b", "B", 174, 178, 58, 46, 8, 31], ["cq-c", "C", 290, 126, 40, 34, 6, 27], ["cq-d", "D", -105, 171, 75, 57, 8, 0], ["cq-e", "E", 12, 136, 42, 68, 8, 67],
   ["cq-f", "F", 94, 133, 48, 35, 6, 23], ["cq-g", "G", 111, 21, 106, 86, 14, 158], ["cq-h", "H", 214, 17, 42, 33, 5, 0], ["cq-j", "J", 184, -28, 45, 34, 6, 25], ["cq-k", "K", 247, -70, 64, 69, 10, 62],
   ["cq-l", "L", 326, -113, 59, 46, 8, 56], ["cq-m", "M", -99, -128, 93, 72, 12, 260], ["cq-n", "N", 335, -70, 30, 19, 3, 0], ["cq-o", "O", 376, -154, 19, 19, 2, 0], ["cq-p", "P", 346, 173, 21, 21, 3, 0]];
-const CQ_NOTE = { G: ["la mayor · 21 m de alto por el lado bajo", "the largest · 21 m tall on the downhill side"], E: ["excavada en 1964–65 · 11 m por el lado bajo", "excavated in 1964–65 · 11 m on the downhill side"], M: ["rampa de 260 m", "260 m ramp"] };
+const CQ_NOTE = { G: ["la mayor · 21 m por el lado bajo", "the largest · 21 m on the low side"], E: ["excavada · 11 m por el lado bajo", "excavated · 11 m on the low side"], M: ["rampa de 260 m", "260 m ramp"] };
 const CQ_MEASURED = new Set(["G", "E"]);   // con medidas publicadas; el resto, alto estimado
 const CQ_ROT = { G: 33 };                   // eje de su rampa (los demás, el de la E: 27° 38′)
 const cqAt = (e, n) => ({ lat: +(CQ0[0] + n / mPerLat).toFixed(6), lon: +(CQ0[1] + e / mPerLon(CQ0[0])).toFixed(6) });
 const COCHASQUI = CQ.map(([id, L, e, n, w, d, h, ramp]) => ({
   id, site: "cochasqui", name: { es: `Pirámide ${L}`, en: `Pyramid ${L}` }, label: !!CQ_NOTE[L],
-  sub: { es: `${CQ_NOTE[L] ? CQ_NOTE[L][0] + " · " : ""}${ramp ? "con rampa" : "sin rampa"}${CQ_MEASURED.has(L) ? "" : " · alto estimado"}`, en: `${CQ_NOTE[L] ? CQ_NOTE[L][1] + " · " : ""}${ramp ? "with ramp" : "no ramp"}${CQ_MEASURED.has(L) ? "" : " · height estimated"}` },
+  // etiqueta corta (en el teléfono se montaba sobre otras): la nota propia, o si tiene rampa; y si el alto es estimado
+  sub: { es: [CQ_NOTE[L] ? CQ_NOTE[L][0] : ramp ? "con rampa" : "sin rampa", CQ_MEASURED.has(L) ? "" : "alto estimado"].filter(Boolean).join(" · "),
+    en: [CQ_NOTE[L] ? CQ_NOTE[L][1] : ramp ? "with ramp" : "no ramp", CQ_MEASURED.has(L) ? "" : "height estimated"].filter(Boolean).join(" · ") },
   ...cqAt(e, n), kind: "tola", w, d, height: h, ramp, rot: CQ_ROT[L] || 27.6, ...(L === "G" ? { rampW: 1.7 } : {}), foot: Math.hypot(w, d) * 0.78, far: 6000, relief: true, seat: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
   // el suelo de las pequeñas se mide en su centro (un punto); el de las cuatro grandes, en un anillo a su alrededor
   ...(w >= 60 ? {} : { ring: 3 }),

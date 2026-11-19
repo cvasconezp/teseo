@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.45.1 — 19 de noviembre de 2026
+
+- Cochasquí: etiquetas de las pirámides más cortas (en el teléfono se
+  montaban sobre los nombres de las montañas).
+
 ## 1.45.0 — 19 de noviembre de 2026
 
 - Lugar nuevo «Cochasquí · sobre la pirámide G»: el observador de pie en la
