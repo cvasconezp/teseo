@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.44.1 — 19 de noviembre de 2026
+
+- Buscador: las constelaciones se encuentran también con acento («Orión»);
+  en la 1.44.0 el orden estaba corregido, pero la constelación no llegaba a
+  salir en la lista.
+
 ## 1.44.0 — 19 de noviembre de 2026
 
 Revisión completa del Cielo (catálogos, capas, posiciones y fichas).

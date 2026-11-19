@@ -883,7 +883,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       const exact = [MOON_INFO[key].es, MOON_INFO[key].en].some((n) => foldTxt(n) === foldTxt(q));
       r.push({ type: "moon", obj: mo, label: TC[lang].moonResult(moonName(key, lang), bodyName(mo.parent, lang)), kind: TC[lang].kindMoonOther, exact });
     }
-    for (const c of sky.constellations) if ((c.la + " " + c.en).toLowerCase().includes(q)) r.push({ type: "con", ab: c.ab, label: `${c.la} · ${c.en}`, kind: kinds.con });
+    for (const c of sky.constellations) if (foldTxt(c.la + " " + c.en + " " + (c.es || "")).includes(foldTxt(q))) r.push({ type: "con", ab: c.ab, label: `${c.la} · ${c.en}`, kind: kinds.con });
     // nombres en español de estrellas brillantes ("Sirio" → Sirius, "Estrella Polar" → Polaris)
     const esAlias = new Set(Object.entries(STAR_ES).filter(([es]) => es.includes(q)).map(([, en]) => en.toLowerCase()));
     sky.stars.forEach((st, si) => {
