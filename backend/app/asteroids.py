@@ -27,7 +27,9 @@ Notas de honestidad científica:
     tamaño real puede quedar fuera del intervalo si el albedo es atípico.
 """
 
+import json
 import math
+import re
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -124,6 +126,7 @@ def _parse(payload: dict) -> list:
             diameter_km = _float(col(row, "diameter"))
             out.append({
                 "name": _clean_name(col(row, "fullname"), col(row, "des")),
+                "des": str(col(row, "des") or "").strip(),
                 "date": when.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "dist_ld": round(dist_km / LD_KM, 3),
                 "dist_km": round(dist_km),
@@ -156,7 +159,57 @@ async def _fetch() -> list:
     status = getattr(resp, "status_code", 200)
     if status >= 400:
         raise RuntimeError(f"JPL CAD respondió HTTP {status}")
-    return _parse(resp.json())
+    objs = _parse(resp.json())
+    # Órbitas (para situar cada objeto en el cielo): UNA consulta más, a la base de cuerpos menores. Si falla, la
+    # lista se sirve igual, sin órbitas.
+    try:
+        await _attach_orbits(objs)
+    except Exception:
+        pass
+    return objs
+
+
+SBDB_QUERY_URL = "https://ssd-api.jpl.nasa.gov/sbdb_query.api"
+_DES_OK = re.compile(r"^[A-Za-z0-9 ]{1,16}$")
+_ORBIT_FIELDS = ("q", "e", "i", "om", "w", "tp", "epoch")
+
+
+def orbit_filter(designations) -> str:
+    """Filtro `sb-cdata` de la SBDB Query API para una lista de designaciones («2018 NE1», «433»): una expresión
+    regular por objeto (la API no admite espacios ni listas en EQ), unidas con OR."""
+    terms = ["pdes|RE|^" + d.replace(" ", ".") + "$" for d in designations if _DES_OK.match(d)]
+    return json.dumps({"OR": terms}) if terms else ""
+
+
+def parse_orbits(payload: dict) -> dict:
+    """Respuesta de sbdb_query.api -> { designación: {q, e, i, om, w, tp, epoch} } (elementos osculadores,
+    eclíptica J2000; q en UA, ángulos en grados, tp y epoch en días julianos TDB)."""
+    fields = (payload or {}).get("fields") or []
+    out = {}
+    for row in (payload or {}).get("data") or []:
+        r = dict(zip(fields, row))
+        el = {k: _float(r.get(k)) for k in _ORBIT_FIELDS}
+        if r.get("pdes") and all(v is not None for v in el.values()) and el["q"] > 0 and el["e"] >= 0:
+            out[str(r["pdes"]).strip()] = el
+    return out
+
+
+async def _attach_orbits(objs: list) -> None:
+    des = sorted({o["des"] for o in objs if o.get("des")})
+    flt = orbit_filter(des)
+    if not flt:
+        return
+    params = {"fields": "pdes," + ",".join(_ORBIT_FIELDS), "full-prec": "true", "sb-cdata": flt}
+    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=provider_headers()) as client:
+        async with nasa_horizons._get_lock():
+            resp = await client.get(SBDB_QUERY_URL, params=params)
+    if getattr(resp, "status_code", 200) >= 400:
+        return
+    orbits = parse_orbits(resp.json())
+    for o in objs:
+        el = orbits.get(o.get("des"))
+        if el:
+            o["el"] = el
 
 
 resource = Resource("asteroids", _fetch, ttl=_TTL, wait=22.0, retry_after=120.0)

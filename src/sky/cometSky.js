@@ -185,3 +185,22 @@ export function minorObjects(objects, ms) {
   }
   return out;
 }
+
+/**
+ * Los asteroides que pasan cerca de la Tierra (/api/asteroids, con su órbita `el`) alrededor de la fecha `ms`:
+ * solo los que tienen su máximo acercamiento a menos de `days` días, como objetos para minorObjects. `fixed` es la
+ * lista fija de la capa (para no repetir Apofis). Su posición es APROXIMADA: dos cuerpos y vista desde el centro de
+ * la Tierra; a pocas distancias lunares, el lugar del observador y la gravedad de la Tierra la mueven un grado o más.
+ */
+export function neoPassing(list, ms, fixed = [], days = 10) {
+  if (!Array.isArray(list) || !Number.isFinite(ms)) return [];
+  const nums = new Set((fixed || []).map((o) => String(o.num))), out = [], seen = new Set();
+  for (const a of list) {
+    const t = Date.parse(a.date);
+    if (!a.el || !Number.isFinite(t) || Math.abs(t - ms) > days * 86400000 || nums.has(String(a.des)) || seen.has(a.name)) continue;
+    seen.add(a.name);
+    out.push({ name: a.name, name_en: a.name, kind: "pass", el: a.el, H: a.h, G: 0.15, diam_km: a.diameter_m ? a.diameter_m / 1000 : null, diam_est: a.diameter_est_m || null,
+      pass: { date: a.date, dist_ld: a.dist_ld, dist_km: a.dist_km, v_rel_km_s: a.v_rel_km_s } });
+  }
+  return out;
+}

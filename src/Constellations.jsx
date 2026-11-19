@@ -66,7 +66,7 @@ import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js"
 import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
 import { createSkyImagesLayer } from "./sky/skyImagesLayer.js";
 import { createCometLayer } from "./sky/cometLayer.js";
-import { cometsAt, minorObjects } from "./sky/cometSky.js";
+import { cometsAt, minorObjects, neoPassing } from "./sky/cometSky.js";
 import { createHipsLayer } from "./sky/hipsLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
@@ -347,7 +347,7 @@ const TC = {
       solar: "Where they are right now, computed from their orbits.",
       meteors: "The point each shower seems to come from.",
       comets: "Famous comets (NASA Horizons) and the bright ones of the season. They move with the date.",
-      minor: "Pluto, Ceres, Vesta, Eris, Apophis and more, where they are on the chosen date. Source: JPL.",
+      minor: "Pluto, Ceres, Vesta, Eris, Apophis and more, plus the asteroids passing near Earth these days. Source: JPL.",
       probes: "Voyager, James Webb and other spacecraft, today.",
       messier: "Nebulae, clusters and galaxies visible with a small telescope.",
       galaxies: "Other galaxies, millions of light-years away.",
@@ -414,7 +414,7 @@ const TC = {
     closeSheet: "Close this card", sheetExpand: "Expand the card", sheetCollapse: "Shrink the card",
     typeSun: "Star · the centre of the solar system", typeMoon: "Earth's natural satellite", typePlanet: "Planet of the solar system",
     typeStar: "Star", typeGalaxy: "Galaxy", typeBlackHole: "Black hole ·", typePulsar: "Pulsar · a spinning neutron star",
-    typeMeteor: "Meteor shower", typeDark: "Dark nebula", typeSnr: "Supernova remnant", typeQuasar: "Quasar or active galactic nucleus", typeLens: "Gravitational lens", typeGcluster: "Galaxy cluster", typeDouble: "Double or multiple star", typeVariable: "Variable star", typeNova: "Recurrent nova", typeNearby: "Nearby star", extrasSrc: "Position: SIMBAD (CDS). Distance and figures: published values, rounded.", typeComet: "Comet", typeDwarf: "Dwarf planet", typeAsteroid: "Asteroid", typeNea: "Near-Earth asteroid", typeTno: "Trans-Neptunian object", fDiameter: "Diameter", fOrbit: "One orbit", yearsN: (n) => `${n} years`, cometExtra: "Comet of the season: its position is computed from its orbit (JPL), not from Horizons.", minorSrc: "JPL Small-Body Database (orbit); position computed by Teseo", typeProbe: "Spacecraft or space telescope", typeExoplanet: "Exoplanet",
+    typeMeteor: "Meteor shower", typeDark: "Dark nebula", typeSnr: "Supernova remnant", typeQuasar: "Quasar or active galactic nucleus", typeLens: "Gravitational lens", typeGcluster: "Galaxy cluster", typeDouble: "Double or multiple star", typeVariable: "Variable star", typeNova: "Recurrent nova", typeNearby: "Nearby star", extrasSrc: "Position: SIMBAD (CDS). Distance and figures: published values, rounded.", typeComet: "Comet", typeDwarf: "Dwarf planet", neoPass: (ld, when) => `It passes ${ld} lunar distances from Earth on ${when}.`, neoApprox: "Its position here is approximate: computed from Earth's centre with its orbit; this close it can be off by a degree or more.", fDiameterEst: "Diameter (estimated)", fSpeed: "Speed relative to Earth", typeAsteroid: "Asteroid", typeNea: "Near-Earth asteroid", typeTno: "Trans-Neptunian object", fDiameter: "Diameter", fOrbit: "One orbit", yearsN: (n) => `${n} years`, cometExtra: "Comet of the season: its position is computed from its orbit (JPL), not from Horizons.", minorSrc: "JPL Small-Body Database (orbit); position computed by Teseo", typeProbe: "Spacecraft or space telescope", typeExoplanet: "Exoplanet",
     inConst: (c) => `in ${c}`, orbits: (h) => `orbits ${h}`,
     fDistance: "Distance", fLightLeft: "Its light left", fLightTakes: "Its light takes", fVoyager: "Aboard Voyager 1 you'd take",
     ago: (s) => `${s} ago`, fLightHint: "you see it as it was then", au: "AU (Earth–Sun distances)",
@@ -493,7 +493,7 @@ const TC = {
       solar: "Dónde están ahora mismo, calculado con sus órbitas.",
       meteors: "El punto del que parece venir cada lluvia.",
       comets: "Los famosos (NASA Horizons) y los brillantes del momento. Se mueven con la fecha.",
-      minor: "Plutón, Ceres, Vesta, Eris, Apofis y más, donde están en la fecha elegida. Fuente: JPL.",
+      minor: "Plutón, Ceres, Vesta, Eris, Apofis y más, y los asteroides que pasan cerca de la Tierra estos días. Fuente: JPL.",
       probes: "Voyager, James Webb y otras naves, hoy.",
       messier: "Nebulosas, cúmulos y galaxias visibles con un telescopio pequeño.",
       galaxies: "Otras galaxias, a millones de años luz.",
@@ -560,7 +560,7 @@ const TC = {
     closeSheet: "Cerrar la ficha", sheetExpand: "Ampliar la ficha", sheetCollapse: "Reducir la ficha",
     typeSun: "Estrella · el centro del sistema solar", typeMoon: "Satélite natural de la Tierra", typePlanet: "Planeta del sistema solar",
     typeStar: "Estrella", typeGalaxy: "Galaxia", typeBlackHole: "Agujero negro", typePulsar: "Púlsar · una estrella de neutrones que gira",
-    typeMeteor: "Lluvia de meteoros", typeDark: "Nebulosa oscura", typeSnr: "Resto de supernova", typeQuasar: "Cuásar o núcleo galáctico activo", typeLens: "Lente gravitacional", typeGcluster: "Cúmulo de galaxias", typeDouble: "Estrella doble o múltiple", typeVariable: "Estrella variable", typeNova: "Nova recurrente", typeNearby: "Estrella vecina", extrasSrc: "Posición: SIMBAD (CDS). Distancia y cifras: valores publicados, redondeados.", typeComet: "Cometa", typeDwarf: "Planeta enano", typeAsteroid: "Asteroide", typeNea: "Asteroide cercano a la Tierra", typeTno: "Objeto transneptuniano", fDiameter: "Diámetro", fOrbit: "Una vuelta al Sol", yearsN: (n) => `${n} años`, cometExtra: "Cometa del momento: su posición se calcula con su órbita (JPL), no viene de Horizons.", minorSrc: "JPL Small-Body Database (órbita); posición calculada por Teseo", typeProbe: "Sonda o telescopio espacial", typeExoplanet: "Exoplaneta",
+    typeMeteor: "Lluvia de meteoros", typeDark: "Nebulosa oscura", typeSnr: "Resto de supernova", typeQuasar: "Cuásar o núcleo galáctico activo", typeLens: "Lente gravitacional", typeGcluster: "Cúmulo de galaxias", typeDouble: "Estrella doble o múltiple", typeVariable: "Estrella variable", typeNova: "Nova recurrente", typeNearby: "Estrella vecina", extrasSrc: "Posición: SIMBAD (CDS). Distancia y cifras: valores publicados, redondeados.", typeComet: "Cometa", typeDwarf: "Planeta enano", neoPass: (ld, when) => `Pasa a ${ld} distancias lunares de la Tierra el ${when}.`, neoApprox: "Su posición aquí es aproximada: se calcula desde el centro de la Tierra con su órbita; tan cerca puede desviarse un grado o más.", fDiameterEst: "Diámetro (estimado)", fSpeed: "Velocidad respecto a la Tierra", typeAsteroid: "Asteroide", typeNea: "Asteroide cercano a la Tierra", typeTno: "Objeto transneptuniano", fDiameter: "Diámetro", fOrbit: "Una vuelta al Sol", yearsN: (n) => `${n} años`, cometExtra: "Cometa del momento: su posición se calcula con su órbita (JPL), no viene de Horizons.", minorSrc: "JPL Small-Body Database (órbita); posición calculada por Teseo", typeProbe: "Sonda o telescopio espacial", typeExoplanet: "Exoplaneta",
     inConst: (c) => `en ${c}`, orbits: (h) => `orbita ${h}`,
     fDistance: "Distancia", fLightLeft: "Su luz salió hace", fLightTakes: "Su luz tarda", fVoyager: "En la Voyager 1 tardarías",
     ago: (s) => s, fLightHint: "lo ves como era entonces", au: "UA (distancias Tierra–Sol)",
@@ -628,6 +628,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [ready, setReady] = useState(false);
   const [datasetsRaw, setDatasets] = useState({}); // key -> {objects}
   const [cometOrbits, setCometOrbits] = useState(null);   // public/comet-orbits.json (.comets)
+  const [neoRaw, setNeoRaw] = useState(null);             // /api/asteroids: los que pasan cerca de la Tierra estos días, con su órbita
   const [enabled, setEnabled] = useState({ photo: true, ngc: true });   // key -> bool (el mapa fotográfico y NGC/IC, que solo salen al acercarse, vienen encendidos)
   const [selObj, setSelObj] = useState(null);
   const [viewFrom, setViewFrom] = useState(null); // null = Tierra; {name,pos:[x,y,z]} = otra estrella
@@ -691,9 +692,16 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     let out = datasetsRaw; if (!Number.isFinite(cometHour)) return out;
     const ms = cometHour * 3600000, c = datasetsRaw.comets, mn = datasetsRaw.minor;
     if (c && c.objects && cometOrbits) { const moved = cometsAt(c.objects, cometOrbits, ms); if (moved !== c.objects) out = { ...out, comets: { ...c, objects: moved, count: moved.length } }; }
-    if (mn && mn.objects) out = { ...out, minor: { ...mn, objects: minorObjects(mn.objects, ms) } };
+    // a los cuerpos fijos se suman los asteroides que pasan cerca de la Tierra alrededor de esa fecha (±10 días)
+    if (mn && mn.objects) { const objs = minorObjects([...mn.objects, ...neoPassing(neoRaw, ms, mn.objects)], ms); out = { ...out, minor: { ...mn, objects: objs, count: objs.length } }; }
     return out;
-  }, [datasetsRaw, cometOrbits, cometHour]);
+  }, [datasetsRaw, cometOrbits, cometHour, neoRaw]);
+  useEffect(() => {
+    if (!datasetsRaw.minor || neoRaw) return;
+    let alive = true;
+    fetchJson(`${API}/api/asteroids?days=60&dist_ld=20`, { timeout: TIMEOUT_MS }).then((d) => { if (alive) setNeoRaw((d && d.objects) || []); }).catch(() => { if (alive) setNeoRaw([]); });
+    return () => { alive = false; };
+  }, [datasetsRaw.minor, neoRaw]);
   const bodiesEph = useMemo(() => withMags(ephemeris(new Date(whenStr))), [whenStr]);
   const topoKey = localMode && lat != null && lon != null ? `${lat}|${lon}|${elev || 0}` : "";
   const bodies = useMemo(() => skyBodies(bodiesEph, new Date(whenStr), topoKey ? { lat, lon, elev: elev || 0 } : null), [bodiesEph, topoKey]);   // eslint-disable-line react-hooks/exhaustive-deps

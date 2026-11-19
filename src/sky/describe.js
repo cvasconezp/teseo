@@ -263,14 +263,20 @@ export function describeObject(o, lang, t, meteorActive) {
   } else if (L === "minor") {
     // planeta enano o asteroide: dónde está en esa fecha (dos cuerpos con elementos de JPL)
     d.name = (es ? o.name : o.name_en) || o.name;
-    d.type = { dwarf: t.typeDwarf, nea: t.typeNea, tno: t.typeTno }[o.kind] || t.typeAsteroid; d.visual = "photo";
+    d.type = { dwarf: t.typeDwarf, nea: t.typeNea, pass: t.typeNea, tno: t.typeTno }[o.kind] || t.typeAsteroid; d.visual = "photo";
     const km = o.dist_km != null ? o.dist_km : (o.dist_au != null ? o.dist_au * AU_KM : null);
     if (km != null) nearFacts(km, o.dist_au);
-    if (o.diam_km) d.facts.push({ label: t.fDiameter, value: `${num(o.diam_km, lang, o.diam_km < 10 ? 2 : 0)} km` });
+    if (o.diam_km) d.facts.push({ label: t.fDiameter, value: o.diam_km < 1 ? `${num(o.diam_km * 1000, lang, 0)} m` : `${num(o.diam_km, lang, o.diam_km < 10 ? 2 : 0)} km` });
+    else if (o.diam_est) d.facts.push({ label: t.fDiameterEst, value: `${num(o.diam_est[0], lang, 0)}–${num(o.diam_est[1], lang, 0)} m` });
     if (o.period_y) d.facts.push({ label: t.fOrbit, value: t.yearsN(num(o.period_y, lang, o.period_y >= 100 ? 0 : 1)) });
-    d.note = [(es ? o.note_es : o.note_en) || "", o.approaching ? t.approaching : t.receding].filter(Boolean).join(" ");
+    if (o.kind === "pass" && o.pass) {
+      // asteroide que pasa cerca de la Tierra (JPL CNEOS): cuándo, a qué distancia y a qué velocidad
+      if (o.pass.v_rel_km_s) d.facts.push({ label: t.fSpeed, value: `${num(o.pass.v_rel_km_s, lang, 1)} km/s` });
+      const when = new Date(o.pass.date).toLocaleString(es ? "es" : "en-US", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UT";
+      d.note = `${t.neoPass(num(o.pass.dist_ld, lang, 1), when)} ${t.neoApprox}`;
+    } else d.note = [(es ? o.note_es : o.note_en) || "", o.approaching ? t.approaching : t.receding].filter(Boolean).join(" ");
     if (o.mag != null) d.details.push([t.dMagnitude, `${num(o.mag, lang, 1)} · ${t.magHint}`]);
-    d.details.push([t.dSource, t.minorSrc]);
+    d.details.push([t.dSource, o.kind === "pass" ? "NASA/JPL CNEOS · SBDB" : t.minorSrc]);
   } else if (L === "comets" || L === "probes") {
     d.type = L === "comets" ? t.typeComet : t.typeProbe; d.visual = L === "comets" ? "comet" : "probe";
     const km = o.dist_km != null ? o.dist_km : (o.dist_au != null ? o.dist_au * AU_KM : null);

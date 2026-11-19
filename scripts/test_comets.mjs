@@ -1,5 +1,5 @@
 // Pruebas de los cometas (src/sky/cometSky.js): órbita de dos cuerpos, brillo, cola en sentido contrario al Sol.
-import { trueAnomaly, posAtNu, cometHelio, cometMag, tailModel, cometView, jdOf, earthHelio, cometAt, moveComets, cometsAt, cometObject, minorObjects, asteroidMag } from "../src/sky/cometSky.js";
+import { trueAnomaly, posAtNu, cometHelio, cometMag, tailModel, cometView, jdOf, earthHelio, cometAt, moveComets, cometsAt, cometObject, minorObjects, asteroidMag, neoPassing } from "../src/sky/cometSky.js";
 import fs from "node:fs";
 
 let pass = 0, fail = 0;
@@ -84,6 +84,22 @@ console.log("Cometas del momento, planetas enanos y asteroides");
   ok(near(asteroidMag(3.34, 0.12, 1, 1, 0), 3.34, 1e-9) && asteroidMag(3.34, 0.12, 2, 1, 0.3) > asteroidMag(3.34, 0.12, 2, 1, 0) && asteroidMag(null, 0.15, 1, 1, 0) === null, "la magnitud absoluta H es la de 1 UA sin fase; con fase, más débil");
   const later = Object.fromEntries(minorObjects(MB, t0 + 60 * 86400000).map((o) => [o.name, o]));
   ok(sepDeg(later.Vesta, by.Vesta.ra_deg, by.Vesta.dec_deg) > 3 && sepDeg(later["Plutón"], by["Plutón"].ra_deg, by["Plutón"].dec_deg) < 2 && typeof by.Apofis.approaching === "boolean", "con la fecha: Vesta se mueve varios grados en dos meses; Plutón, casi nada");
+}
+
+console.log("Asteroides que pasan cerca de la Tierra");
+{ // 2018 NE1: JPL CNEOS da su máximo acercamiento el 19-nov-2026 a las 2:15 UT, a 16,6 distancias lunares (0,04269 UA)
+  const el = { q: 0.830949299119775, e: 0.5716778647869499, i: 3.05759089183356, om: 289.8450411359509, w: 70.94553137320914, tp: 2461324.896931184995, epoch: 2461200.5 };
+  const api = [{ name: "2018 NE1", des: "2018 NE1", date: "2026-11-19T02:15:19Z", dist_ld: 16.612, dist_km: 6385660, v_rel_km_s: 13.28, h: 23.4, diameter_m: null, diameter_est_m: [55.5, 124.2], el },
+    { name: "sin órbita", des: "2026 XX", date: "2026-11-20T00:00:00Z", dist_ld: 3, h: 27 },
+    { name: "99942 Apophis (2004 MN4)", des: "99942", date: "2026-11-21T00:00:00Z", dist_ld: 10, h: 19, el }];
+  const t0 = Date.parse(api[0].date), fixed = [{ num: 99942 }];
+  const near0 = neoPassing(api, t0, fixed), far = neoPassing(api, t0 + 40 * 86400000, fixed);
+  ok(near0.length === 1 && near0[0].name === "2018 NE1" && near0[0].kind === "pass" && far.length === 0 && neoPassing(null, t0).length === 0, "solo los que tienen órbita y pasan a menos de 10 días de la fecha; sin repetir Apofis");
+  const o = minorObjects(near0, t0)[0];
+  ok(o && near(o.dist_au, 0.04269, 0.0015) && near(Math.hypot(o.nx, o.ny, o.nz), 1, 1e-9), `en su máximo acercamiento queda a ${o.dist_au} UA (JPL: 0,0427): la órbita de dos cuerpos coincide`);
+  const before = minorObjects(near0, t0 - 3 * 86400000)[0], after = minorObjects(near0, t0 + 3 * 86400000)[0];
+  ok(before.dist_au > o.dist_au && after.dist_au > o.dist_au && before.approaching && !after.approaching, "antes se acerca y después se aleja; el mínimo está en la fecha de JPL");
+  ok(o.pass.dist_ld === 16.612 && o.diam_est[0] === 55.5 && o.mag > 15, "lleva los datos del paso (distancia, velocidad) y el diámetro estimado; es débil (hace falta telescopio)");
 }
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);

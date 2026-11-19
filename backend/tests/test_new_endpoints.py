@@ -338,8 +338,9 @@ def test_asteroids_contract(monkeypatch):
             assert isinstance(o[k], (int, float))
         assert o["dist_km"] == pytest.approx(o["dist_au"] * 149_597_870.7, rel=1e-4)
         assert o["dist_ld"] == pytest.approx(o["dist_km"] / 384_400.0, abs=2e-3)
-        assert set(o) == {"name", "date", "dist_ld", "dist_km", "dist_au", "v_rel_km_s",
-                          "h", "diameter_m", "diameter_est_m"}
+        # `des` (designación) siempre; `el` (órbita, para situarlo en el cielo) solo si JPL la dio
+        assert set(o) - {"el"} == {"name", "des", "date", "dist_ld", "dist_km", "dist_au", "v_rel_km_s",
+                                   "h", "diameter_m", "diameter_est_m"}
     vp8, _, apophis = d["objects"]
     assert vp8["dist_km"] == pytest.approx(1_133_704, abs=2) and vp8["dist_ld"] == pytest.approx(2.949, abs=1e-3)
     assert vp8["v_rel_km_s"] == 6.17 and vp8["h"] == 27.315
@@ -348,7 +349,7 @@ def test_asteroids_contract(monkeypatch):
     assert apophis["diameter_m"] == 340.0                  # medido por JPL (km -> m)
     assert apophis["diameter_est_m"][0] < apophis["diameter_est_m"][1]
     # Una sola consulta con la ventana máxima; el filtrado es local
-    assert p.n == 1
+    assert p.n == 2   # acercamientos + órbitas
     url, params, _ = p.calls[0]
     assert url == "https://ssd-api.jpl.nasa.gov/cad.api"
     assert params == {"date-min": "now", "date-max": "+60", "dist-max": "20LD",
@@ -362,7 +363,7 @@ def test_asteroids_cache_and_local_filtering(monkeypatch):
     assert client.get("/api/asteroids?days=30&dist_ld=0.1").json()["count"] == 1   # solo Apophis
     one = client.get("/api/asteroids?days=60&dist_ld=20").json()["objects"][-1]
     assert one["h"] is None and one["diameter_est_m"] is None   # sin H no hay estimación
-    assert p.n == 1
+    assert p.n == 2   # un refresco = dos peticiones a JPL (acercamientos y órbitas); después, todo sale de la caché
 
 
 def test_asteroids_empty_result(monkeypatch):

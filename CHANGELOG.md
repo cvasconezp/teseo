@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.40.0 — 18 de noviembre de 2026
+
+- Asteroides que pasan cerca de la Tierra, en el cielo: la capa «Planetas
+  enanos y asteroides» muestra también los que tienen su máximo acercamiento
+  a menos de diez días de la fecha elegida (datos de NASA/JPL CNEOS, los
+  mismos de la pestaña «Ahora»), con ficha: cuándo pasan, a cuántas
+  distancias lunares, a qué velocidad y su tamaño estimado. Su posición es
+  aproximada (vista desde el centro de la Tierra, con su órbita): tan cerca
+  puede desviarse un grado o más, y la ficha lo dice.
+- Servidor: `/api/asteroids` añade a cada objeto su designación y su órbita.
+
 ## 1.39.0 — 18 de noviembre de 2026
 
 - Capa nueva «Nebulosas oscuras, supernovas y cuásares»: 25 objetos que no
