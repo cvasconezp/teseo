@@ -30,7 +30,7 @@ ok(/key: "ngc",\s+file: "\/ngc\.json"/.test(src) && /lazy: true/.test(src.split(
 ok(/const NGC_FOV = 40/.test(src) && /o\.key === "ngc" && o\.points\.visible !== show/.test(src), "sus símbolos solo se dibujan con menos de 40° de campo");
 ok(/MAG_LAYERS = new Set\(\["messier", "caldwell", "galaxies", "ngc"\]\)/.test(src) && /if \(key === "ngc"\) return !!ob\.cn && \(ob\.mag == null \|\| ob\.mag <= 9\)/.test(src), "brillo del símbolo por magnitud; nombre a la vista solo para los que tienen nombre propio y brillan");
 ok(/\^\(ngc\|ic\)\\s\*\\d/.test(src) && /key === "ngc" \? o\.name\.replace\(" ", ""\)/.test(src), "el buscador los encuentra con la capa apagada («ngc 2024», «ngc2024», «ic 434»)");
-ok(/"caldwell", "ngc", "galaxies"/.test(panels) && /L === "ngc"/.test(desc) && /srcGalaxy/.test(desc.split('L === "ngc"')[1].split("} else if")[0]), "fila en el panel de capas y ficha con tipo, magnitud, tamaño y fuente (OpenNGC)");
+ok(/"caldwell", "ngc", "oddities", "specialstars", "galaxies"/.test(panels) && /L === "ngc"/.test(desc) && /srcGalaxy/.test(desc.split('L === "ngc"')[1].split("} else if")[0]), "fila en el panel de capas y ficha con tipo, magnitud, tamaño y fuente (OpenNGC)");
 
 console.log("Cada capa enciende y apaga lo suyo");
 { const img = read("../src/sky/skyImagesLayer.js");

@@ -92,6 +92,9 @@ const LAYERS = [
   { key: "caldwell",   file: "/caldwell.json",   es: "Caldwell",         en: "Caldwell",     color: 0xb48cff, size: 8, lazy: true },
   // NGC e IC (OpenNGC): lo que no está ya en Messier, Caldwell ni Galaxias; sus símbolos y nombres salen al acercarse
   { key: "ngc",        file: "/ngc.json",        es: "NGC e IC",         en: "NGC & IC",     color: 0x7fd3c0, size: 5, lazy: true },
+  // dos listas cortas y escogidas (scripts/build_extras.py): rarezas del cielo profundo y estrellas dobles y variables
+  { key: "oddities",   file: "/oddities.json",   es: "Nebulosas oscuras, supernovas y cuásares", en: "Dark nebulae, supernovae & quasars", color: 0xff9e6b, size: 9, lazy: true },
+  { key: "specialstars", file: "/special-stars.json", es: "Estrellas dobles y variables", en: "Double & variable stars", color: 0xffe9a8, size: 9, lazy: true },
   { key: "pulsars",    file: "/pulsars.json",    es: "Púlsares",         en: "Pulsars",      color: 0xff5dc8, size: 6, lazy: true },
   { key: "blackholes", file: "/blackholes.json", es: "Agujeros negros",  en: "Black holes",  color: 0xff7a3c, size: 11 },
   { key: "deepfields", file: "/deepfields.json", es: "Campos profundos", en: "Deep fields",  color: 0xffe08a, size: 10 },
@@ -106,7 +109,7 @@ const LAYERS = [
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_deepfields:"#ffe08a", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_minor:"#e6b877", obj_ngc:"#7fd3c0", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
+const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_deepfields:"#ffe08a", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_minor:"#e6b877", obj_ngc:"#7fd3c0", obj_oddities:"#ff9e6b", obj_specialstars:"#ffe9a8", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
 // Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
 // de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
 // en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
@@ -219,6 +222,8 @@ const CATEGORY_TERMS = [
   { key: "minor",      terms: ["asteroide", "asteroides", "asteroid", "asteroids", "planeta enano", "planetas enanos", "dwarf planet", "dwarf planets"] },
   { key: "meteors",    terms: ["meteoro", "meteoros", "lluvia de meteoros", "lluvias", "meteor", "meteor shower"] },
   { key: "caldwell",   terms: ["caldwell"] },
+  { key: "oddities",   terms: ["nebulosa oscura", "nebulosas oscuras", "dark nebula", "supernova", "supernovas", "supernovae", "cuásar", "cuasar", "cuásares", "cuasares", "quasar", "quasars", "cúmulo de galaxias", "cumulo de galaxias", "galaxy cluster"] },
+  { key: "specialstars", terms: ["estrella doble", "estrellas dobles", "double star", "double stars", "estrella variable", "estrellas variables", "variable star", "variable stars", "cefeida", "cepheid"] },
   { key: "ngc",        terms: ["ngc", "catálogo ngc", "catalogo ngc", "new general catalogue"] },
   { key: "messier",    terms: ["messier", "nebulosa", "nebulosas", "cúmulo", "cumulo", "cúmulos", "nebula", "cluster"] },
   { key: "exoplanets", terms: ["exoplaneta", "exoplanetas", "exoplanet", "exoplanets"] },
@@ -228,7 +233,7 @@ function labelForObj(key, o, lang) {
   if (key === "messier" || key === "ngc") return `${o.name}${o.cn ? " · " + o.cn : ""}`;
   if (key === "galaxies") return o.name + (o.cat && o.cat !== o.name ? " · " + o.cat : "");
   if (key === "caldwell") { const cn = caldwellCommon(o, lang); return o.c == null ? (cn || o.name) : `${o.name}${cn ? " · " + cn : ""}`; }
-  if (key === "meteors" || key === "minor") return lang === "en" ? (o.name_en || o.name) : o.name;
+  if (key === "meteors" || key === "minor" || key === "oddities" || key === "specialstars") return lang === "en" ? (o.name_en || o.name) : o.name;
   return o.name;
 }
 // estrella del catálogo ([hip, nx, ny, nz, mag, color, dist_ly, nombre]) -> objeto seleccionable
@@ -347,6 +352,8 @@ const TC = {
       messier: "Nebulae, clusters and galaxies visible with a small telescope.",
       galaxies: "Other galaxies, millions of light-years away.",
       ngc: "Nebulae, clusters and galaxies of the NGC and IC catalogues. They appear as you zoom in.",
+      oddities: "The Horsehead, Cassiopeia A, Tycho's and Kepler's supernovae, quasars, lenses and galaxy clusters.",
+      specialstars: "Albireo, Mizar, Algol, Mira, Delta Cephei, Eta Carinae… and why each one is special.",
       blackholes: "Confirmed black holes, from Sgr A* to M87*.",
       deepfields: "Where Hubble and Webb stared for days and found thousands of galaxies.",
       pulsars: "Dead stars spinning up to hundreds of times a second.",
@@ -407,7 +414,7 @@ const TC = {
     closeSheet: "Close this card", sheetExpand: "Expand the card", sheetCollapse: "Shrink the card",
     typeSun: "Star · the centre of the solar system", typeMoon: "Earth's natural satellite", typePlanet: "Planet of the solar system",
     typeStar: "Star", typeGalaxy: "Galaxy", typeBlackHole: "Black hole ·", typePulsar: "Pulsar · a spinning neutron star",
-    typeMeteor: "Meteor shower", typeComet: "Comet", typeDwarf: "Dwarf planet", typeAsteroid: "Asteroid", typeNea: "Near-Earth asteroid", typeTno: "Trans-Neptunian object", fDiameter: "Diameter", fOrbit: "One orbit", yearsN: (n) => `${n} years`, cometExtra: "Comet of the season: its position is computed from its orbit (JPL), not from Horizons.", minorSrc: "JPL Small-Body Database (orbit); position computed by Teseo", typeProbe: "Spacecraft or space telescope", typeExoplanet: "Exoplanet",
+    typeMeteor: "Meteor shower", typeDark: "Dark nebula", typeSnr: "Supernova remnant", typeQuasar: "Quasar or active galactic nucleus", typeLens: "Gravitational lens", typeGcluster: "Galaxy cluster", typeDouble: "Double or multiple star", typeVariable: "Variable star", typeNova: "Recurrent nova", typeNearby: "Nearby star", extrasSrc: "Position: SIMBAD (CDS). Distance and figures: published values, rounded.", typeComet: "Comet", typeDwarf: "Dwarf planet", typeAsteroid: "Asteroid", typeNea: "Near-Earth asteroid", typeTno: "Trans-Neptunian object", fDiameter: "Diameter", fOrbit: "One orbit", yearsN: (n) => `${n} years`, cometExtra: "Comet of the season: its position is computed from its orbit (JPL), not from Horizons.", minorSrc: "JPL Small-Body Database (orbit); position computed by Teseo", typeProbe: "Spacecraft or space telescope", typeExoplanet: "Exoplanet",
     inConst: (c) => `in ${c}`, orbits: (h) => `orbits ${h}`,
     fDistance: "Distance", fLightLeft: "Its light left", fLightTakes: "Its light takes", fVoyager: "Aboard Voyager 1 you'd take",
     ago: (s) => `${s} ago`, fLightHint: "you see it as it was then", au: "AU (Earth–Sun distances)",
@@ -491,6 +498,8 @@ const TC = {
       messier: "Nebulosas, cúmulos y galaxias visibles con un telescopio pequeño.",
       galaxies: "Otras galaxias, a millones de años luz.",
       ngc: "Nebulosas, cúmulos y galaxias de los catálogos NGC e IC. Aparecen al acercarte.",
+      oddities: "La Cabeza de Caballo, Casiopea A, las supernovas de Tycho y Kepler, cuásares, lentes y cúmulos de galaxias.",
+      specialstars: "Albireo, Mizar, Algol, Mira, Delta Cephei, Eta Carinae… y por qué cada una es especial.",
       blackholes: "Agujeros negros confirmados, de Sgr A* a M87*.",
       deepfields: "Donde el Hubble y el Webb miraron durante días y hallaron miles de galaxias.",
       pulsars: "Estrellas muertas que giran hasta cientos de veces por segundo.",
@@ -551,7 +560,7 @@ const TC = {
     closeSheet: "Cerrar la ficha", sheetExpand: "Ampliar la ficha", sheetCollapse: "Reducir la ficha",
     typeSun: "Estrella · el centro del sistema solar", typeMoon: "Satélite natural de la Tierra", typePlanet: "Planeta del sistema solar",
     typeStar: "Estrella", typeGalaxy: "Galaxia", typeBlackHole: "Agujero negro", typePulsar: "Púlsar · una estrella de neutrones que gira",
-    typeMeteor: "Lluvia de meteoros", typeComet: "Cometa", typeDwarf: "Planeta enano", typeAsteroid: "Asteroide", typeNea: "Asteroide cercano a la Tierra", typeTno: "Objeto transneptuniano", fDiameter: "Diámetro", fOrbit: "Una vuelta al Sol", yearsN: (n) => `${n} años`, cometExtra: "Cometa del momento: su posición se calcula con su órbita (JPL), no viene de Horizons.", minorSrc: "JPL Small-Body Database (órbita); posición calculada por Teseo", typeProbe: "Sonda o telescopio espacial", typeExoplanet: "Exoplaneta",
+    typeMeteor: "Lluvia de meteoros", typeDark: "Nebulosa oscura", typeSnr: "Resto de supernova", typeQuasar: "Cuásar o núcleo galáctico activo", typeLens: "Lente gravitacional", typeGcluster: "Cúmulo de galaxias", typeDouble: "Estrella doble o múltiple", typeVariable: "Estrella variable", typeNova: "Nova recurrente", typeNearby: "Estrella vecina", extrasSrc: "Posición: SIMBAD (CDS). Distancia y cifras: valores publicados, redondeados.", typeComet: "Cometa", typeDwarf: "Planeta enano", typeAsteroid: "Asteroide", typeNea: "Asteroide cercano a la Tierra", typeTno: "Objeto transneptuniano", fDiameter: "Diámetro", fOrbit: "Una vuelta al Sol", yearsN: (n) => `${n} años`, cometExtra: "Cometa del momento: su posición se calcula con su órbita (JPL), no viene de Horizons.", minorSrc: "JPL Small-Body Database (órbita); posición calculada por Teseo", typeProbe: "Sonda o telescopio espacial", typeExoplanet: "Exoplaneta",
     inConst: (c) => `en ${c}`, orbits: (h) => `orbita ${h}`,
     fDistance: "Distancia", fLightLeft: "Su luz salió hace", fLightTakes: "Su luz tarda", fVoyager: "En la Voyager 1 tardarías",
     ago: (s) => s, fLightHint: "lo ves como era entonces", au: "UA (distancias Tierra–Sol)",
@@ -873,7 +882,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     });
     // capas de objetos: Messier / agujeros negros / meteoros siempre están
     // cargadas; el resto solo si el usuario activó su capa.
-    for (const key of ["messier", "caldwell", "blackholes", "deepfields", "meteors", "galaxies", "ngc", "pulsars", "comets", "minor", "probes", "exoplanets"]) {
+    for (const key of ["messier", "caldwell", "blackholes", "deepfields", "meteors", "galaxies", "ngc", "oddities", "specialstars", "pulsars", "comets", "minor", "probes", "exoplanets"]) {
       const ds = datasets[key];
       if (!ds || !ds.objects) continue;
       const layerName = LAYERS.find(l => l.key === key)?.[lang] || key;
@@ -962,6 +971,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (/^(ngc|ic)\s*\d/i.test(query.trim()) && !datasets.ngc && !loadingLayer.ngc && !layerError.ngc) {
       const cfg = LAYERS.find(l => l.key === "ngc"); if (cfg) loadLayer(cfg);
     }
+    // las dos listas escogidas (Cabeza de Caballo, Albireo, Algol…): pequeñas, se cargan al empezar a buscar
+    for (const k of ["oddities", "specialstars"]) if (query.trim().length >= 3 && !datasets[k] && !loadingLayer[k] && !layerError[k]) { const cfg = LAYERS.find(l => l.key === k); if (cfg) loadLayer(cfg); }
     // planetas enanos y asteroides (Plutón, Ceres, Vesta…): igual
     if (query.trim().length >= 2 && !datasets.minor && !loadingLayer.minor && !layerError.minor) {
       const cfg = LAYERS.find(l => l.key === "minor"); if (cfg) loadLayer(cfg);
@@ -2377,7 +2388,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (!selObj) return;
     const L = selObj.layer;
     const kind = L === "solar" ? (selObj.name === "Sol" ? "sun" : selObj.name === "Luna" ? "moon" : "planet") : L === "moon" ? "satellite" : L === "con" ? "constellation"
-      : ["star", "messier", "caldwell", "pulsars", "blackholes", "galaxies", "ngc", "meteors", "comets", "minor", "probes", "exoplanets"].includes(L) ? L : "other";
+      : ["star", "messier", "caldwell", "pulsars", "blackholes", "galaxies", "ngc", "oddities", "specialstars", "meteors", "comets", "minor", "probes", "exoplanets"].includes(L) ? L : "other";
     // id: solo nombres de catálogo cortos (planeta en inglés, M31, Sgr A*, Ori, estrella con nombre propio)
     const id = L === "solar" ? (BODIES[selObj.name] || {}).en : L === "moon" ? selObj.name : L === "con" ? selObj.ab : (L === "star" || L === "messier" || L === "caldwell" || L === "blackholes") ? selObj.name : undefined;
     track("sky_select", id ? { kind, id } : { kind });

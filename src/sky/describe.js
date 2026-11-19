@@ -249,6 +249,17 @@ export function describeObject(o, lang, t, meteorActive) {
     d.note = t.radiantNote;
     if (o.parent) { say(null, t.meteorParent(o.parent)); d.details.push([t.dParent, o.parent]); }
     d.details.push([t.dSource, t.srcMeteor]);
+  } else if (L === "oddities" || L === "specialstars") {
+    // listas escogidas (scripts/build_extras.py): posición de SIMBAD; distancia y nota, valores publicados
+    d.name = (es ? o.name : o.name_en) || o.name;
+    d.type = { dark: t.typeDark, snr: t.typeSnr, quasar: t.typeQuasar, lens: t.typeLens, gcluster: t.typeGcluster, double: t.typeDouble, variable: t.typeVariable, nova: t.typeNova, nearby: t.typeNearby }[o.kind] || "";
+    d.visual = L === "specialstars" ? "star" : o.kind === "gcluster" || o.kind === "lens" ? "galaxy" : "deep";
+    if (o.dist_ly > 0) lightFacts(o.dist_ly);
+    d.note = (es ? o.note_es : o.note_en) || "";
+    if (o.id && o.id !== d.name) d.details.push([t.dCatalog, o.id]);
+    if (o.mag != null) d.details.push([t.dMagnitude, `${num(o.mag, lang, 1)} · ${t.magHint}`]);
+    d.details.push([t.dSource, t.extrasSrc]);
+    d.distNote = o.dist_ly > 0 ? t.distPublished : "";
   } else if (L === "minor") {
     // planeta enano o asteroide: dónde está en esa fecha (dos cuerpos con elementos de JPL)
     d.name = (es ? o.name : o.name_en) || o.name;

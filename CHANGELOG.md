@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.39.0 — 18 de noviembre de 2026
+
+- Capa nueva «Nebulosas oscuras, supernovas y cuásares»: 25 objetos que no
+  caben en los catálogos clásicos, con su nota: la Cabeza de Caballo, la
+  Pipa, Casiopea A, las supernovas de Tycho, Kepler y 1987A, cuásares y
+  blázares, la Cruz de Einstein, y los cúmulos de Virgo, Coma, Perseo, Bala…
+- Capa nueva «Estrellas dobles y variables»: 27 estrellas y por qué cada una
+  es especial: Albireo, Mizar y Alcor, la doble doble, Algol, Mira, Delta
+  Cephei, Eta Carinae, T Coronae Borealis, la estrella de Barnard, Próxima…
+- Las dos se encuentran con el buscador aunque estén apagadas. Posiciones
+  de SIMBAD; distancias y cifras, valores publicados y redondeados.
+
 ## 1.38.1 — 18 de noviembre de 2026
 
 - Revisión de capas, interruptor por interruptor. Corregido: la capa NGC e

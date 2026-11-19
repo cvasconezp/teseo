@@ -22,6 +22,8 @@ export function artKind(obj) {
   const L = obj.layer;
   if (L === "probes") return craftKind(obj.name);
   if (L === "comets") return "comet";
+  if (L === "specialstars") return "star";
+  if (L === "oddities") return { snr: "snr", quasar: "blackhole", lens: "galaxy", gcluster: "galaxy" }[obj.kind] || "nebula";
   if (L === "minor") return obj.kind === "dwarf" || obj.kind === "tno" ? "dwarf" : "asteroid";
   if (L === "meteors") return "meteor";
   if (L === "pulsars") return "pulsar";

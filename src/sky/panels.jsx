@@ -165,7 +165,7 @@ function PanelShell({ title, onClose, t, children, className = "", labelledBy })
 // ── Capas ────────────────────────────────────────────────────────────────
 const GROUPS = [
   { id: "near", keys: ["__cons", "__solar", "minor", "meteors", "comets", "probes"] },
-  { id: "deep", keys: ["photo", "messier", "caldwell", "ngc", "galaxies", "deepfields", "blackholes", "pulsars", "exoplanets"] },
+  { id: "deep", keys: ["photo", "messier", "caldwell", "ngc", "oddities", "specialstars", "galaxies", "deepfields", "blackholes", "pulsars", "exoplanets"] },
 ];
 export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, layerError, onToggle, onRetry,
   showSolar, onToggleSolar, consOn = true, onToggleCons, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid, outside = false, onOutside , atmosphere, guides}) {
