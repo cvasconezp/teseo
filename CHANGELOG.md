@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.49.0 — 21 de noviembre de 2026
+
+- Ficha de las montañas del horizonte: al tocar el nombre de una cumbre se
+  abre su ficha (altura, distancia y rumbo, y un botón para situarse en su
+  cumbre). Si es un volcán del Holoceno, sus datos del Smithsonian (Global
+  Volcanism Program): tipo, última erupción, entorno tectónico, roca y un
+  enlace a su página. Nuevo `/api/volcanoes`; la base se lee en vivo y no se
+  guarda en el repositorio (uso educativo y no comercial).
+- Los volcanes con erupciones desde 1900 llevan el año bajo su nombre, en
+  naranja con un triángulo.
+- Mapa topográfico (OpenTopoMap) en el panel de Lugar: se elige un punto
+  tocándolo, y se puede ir a la cumbre más cercana.
+- El tiempo de ahora sobre el cielo: una pastilla con el estado y la
+  temperatura del lugar (Open-Meteo, corregida a su altitud); al tocarla se
+  abre el panel de nubes y clima.
+
 ## 1.48.2 — 20 de noviembre de 2026
 
 - De pie en una cumbre (elegida por su nombre, con el GPS en la cima o en

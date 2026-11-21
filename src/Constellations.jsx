@@ -79,6 +79,9 @@ import { GuidesControls, useGuides } from "./sky/GuidesControls.jsx";
 // la ISS en el Cielo: capa three.js, ficha, píldora y datos de /api/iss/passes
 import { IssLayer, ISS_COLORS, ISS_RATES, stepClock as stepIssClock } from "./sky/issLayer.js";
 import IssSheet from "./sky/IssSheet.jsx";
+import PeakSheet from "./sky/PeakSheet.jsx";
+import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp } from "./sky/nowWeather.js";
+import { fetchVolcanoes, matchVolcanoes, recentEruption, VT as VOLC_T } from "./sky/volcanoes.js";
 import IssPill, { nextRate } from "./sky/IssPill.jsx";
 import { ISS as ISS_TX } from "./sky/i18n-iss.js";
 import { fetchIssPass, hasTrack, hiddenReason, formatClock as issClockFmt, formatDayTime as issDayTime, DEFAULT_DAYS as ISS_DAYS } from "./sky/issPasses.js";
@@ -333,7 +336,7 @@ const TC = {
     loadingLayer: (n) => `Loading ${n}…`, failedLayer: (n) => `${n} could not be loaded`,
     depthAria: "Depth: from the flat view to real depth", wholeSky: "Whole sky",
     depthTitle: (n) => `${n} in real depth`,
-    myLocation: "Your location", changePlace: "Change place", leaveMySky: "Leave My sky",
+    myLocation: "Your location", changePlace: "Change place", leaveMySky: "Leave My sky", topoOpen: "Pick on a topographic map", topoPoint: "Map point", topoSummit: "Summit (map)",
     tourFactDist: (d) => `${d} from Earth`,
     // ── buscador ──
     searchAria: "Search the sky", searchPlaceholder: "Search: Saturn, Orion, a galaxy…", searchClear: "Clear search",
@@ -479,7 +482,7 @@ const TC = {
     loadingLayer: (n) => `Cargando ${n}…`, failedLayer: (n) => `No se pudo cargar ${n}`,
     depthAria: "Profundidad: de la vista plana a la profundidad real", wholeSky: "Todo el cielo",
     depthTitle: (n) => `${n} en profundidad real`,
-    myLocation: "Tu ubicación", changePlace: "Cambiar de lugar", leaveMySky: "Salir de Mi cielo",
+    myLocation: "Tu ubicación", changePlace: "Cambiar de lugar", leaveMySky: "Salir de Mi cielo", topoOpen: "Elegir en el mapa topográfico", topoPoint: "Punto del mapa", topoSummit: "Cumbre (mapa)",
     tourFactDist: (d) => `A ${d} de la Tierra`,
     // ── buscador ──
     searchAria: "Buscar en el cielo", searchPlaceholder: "Busca: Saturno, Orión, una galaxia…", searchClear: "Borrar la búsqueda",
@@ -748,6 +751,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // a la velocidad elegida mientras se reproduce y escribe whenStr una vez por minuto simulado.
   const [issSel, setIssSel] = useState(null);
   const [issSheet, setIssSheet] = useState(false);
+  const [peakSheet, setPeakSheet] = useState(null);   // la montaña del horizonte cuyo nombre se tocó (PeakSheet)
   const [issRate, setIssRate] = useState(ISS_RATE_DEF);
   const issClock = useRef({ t: Date.now(), live: true, playing: false, rate: ISS_RATE_DEF, lastMin: 0, hudSec: null, endMs: null, onMinute: null, onEnd: null });
   const issHudRef = useRef(null);        // setter de la píldora (vive en <IssPill>)
@@ -2129,7 +2133,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             const tall = p.cls === "andsun", w = Math.max(p.label.length * 7.4, 46) + 8, top = sy - (tall ? 82 : 46), bot = tall ? sy - 50 : sy - 2;
             if (top < 4 || !free(sx - w / 2, top, sx + w / 2, bot) || (!p.cls && !clear(sx - w / 2, top, sx + w / 2, bot))) continue;   // las de «Astronomía andina» pueden pasar junto al disco del Sol: son su referencia
             boxes.push(sx - w / 2, top, sx + w / 2, bot);
-            out.push({ key: "peak:" + p.az + ":" + p.name, name: p.label, cls: p.cls || "peak", sub: null, subText: p.subText != null ? p.subText : p.ele_m, x: sx, y: sy, dx: 0, flip: false });
+            out.push({ key: "peak:" + p.az + ":" + p.name, name: p.label, cls: p.cls || "peak", sub: null, subText: p.subText != null ? p.subText : p.ele_m, x: sx, y: sy, dx: 0, flip: false,
+              ...(p.volc ? { volc: true } : {}), ...(!p.cls && !p.monument ? { pk: { peak: p } } : {}) });
             np++;
           }
         }
@@ -2623,6 +2628,27 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     return () => { alive = false; };
   }, [peaksOn, hzData, hzKey, hzRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
   const peakList = peaksOn && hzData && pk.status === "ok" && pk.key === hzKey ? pk.data.peaks : null;
+  // volcanes del Smithsonian de la zona (para la ficha de cada volcán del horizonte; src/sky/volcanoes.js)
+  const [volc, setVolc] = useState({ key: null, list: null });
+  const volcKey = peaksOn && hzData && lat != null && lon != null ? `${Math.round(lat * 2)},${Math.round(lon * 2)}` : null;
+  useEffect(() => {
+    if (!volcKey) return;
+    let alive = true;
+    fetchVolcanoes(lat, lon, { api: API }).then((list) => { if (alive) setVolc({ key: volcKey, list }); }, () => { if (alive) setVolc({ key: volcKey, list: null }); });
+    return () => { alive = false; };
+  }, [volcKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const volcList = volc.key === volcKey ? volc.list : null;
+  // el tiempo de ahora en el lugar (pastilla «16 °C · Quito»; src/sky/nowWeather.js): cada 15 minutos
+  const [wxNow, setWxNow] = useState(null);
+  const wxNowKey = localActive && !viewFrom && lat != null && lon != null ? `${lat.toFixed(2)},${lon.toFixed(2)},${Number.isFinite(elev) ? Math.round(elev / 50) : "x"}` : null;
+  useEffect(() => {
+    if (!wxNowKey) { setWxNow(null); return undefined; }
+    let alive = true;
+    const ask = () => fetch(nowUrl(lat, lon, elev)).then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setWxNow(parseNow(j)); }).catch(() => {});
+    ask();
+    const id = setInterval(ask, 15 * 60 * 1000);
+    return () => { alive = false; clearInterval(id); };
+  }, [wxNowKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   // monumentos: los que hay a menos de 25 km del lugar, asentados sobre el suelo del modelo de relieve (la altura
   // del terreno alrededor de cada uno y bajo el observador, de /api/elevation)
   useEffect(() => { try { localStorage.setItem(MONUMENTS_KEY, monOn ? "1" : "0"); } catch { /* no-op */ } }, [monOn]);
@@ -2681,9 +2707,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [andean, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ref = sceneRef.current; if (!ref) return;
-    ref.peakLabels = peakList ? peaksToLabel(peakList, hzData, 40).map((p) => ({ ...p, label: peakName(p, lang) })) : null;
+    // las que son volcanes del Holoceno llevan su ficha; las que han entrado en erupción desde 1900, el año
+    const VTl = VOLC_T[lang] || VOLC_T.es, loc = lang === "es" ? "es" : "en-US";
+    ref.peakLabels = peakList ? matchVolcanoes(peaksToLabel(peakList, hzData, 40), volcList, lat, lon).map((p) => ({
+      ...p, label: peakName(p, lang), volcanoChecked: !!volcList,
+      ...(recentEruption(p.volcano) ? { subText: VTl.sub(`${Number(p.ele_m).toLocaleString(loc, { useGrouping: "always" })} m`, p.volcano.last_year), volc: true } : {}),
+    })) : null;
     ref._dirty = true;
-  }, [peakList, hzData, lang, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [peakList, hzData, lang, ready, volcList]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.terrain) return;
     ref.hzData = hzEff;
@@ -2923,7 +2954,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, []);
   const openIssRef = useRef(openIss);
   openIssRef.current = openIss;
-  useEffect(() => { if (selObj) setIssSheet(false); }, [selObj]);
+  useEffect(() => { if (selObj) { setIssSheet(false); setPeakSheet(null); } }, [selObj]);
+  useEffect(() => { if (issSheet) setPeakSheet(null); }, [issSheet]);
   // cometas: coma y cola (si la capa está encendida) y la órbita del cometa abierto
   useEffect(() => {
     if (!enabled.comets || cometOrbits) return;
@@ -3585,8 +3617,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [enabled]);
   const onStageKey = useCallback((e) => {
     if (e.key !== "Escape" || e.defaultPrevented) return;
-    if (share) setShare(false); else if (railOpen) setRailOpen(false); else if (pick) setPick(null); else if (panel) setPanel(null); else if (selObj) setSelObj(null); else if (issSheet) setIssSheet(false); else if (guide) setGuide(null); else if (toast) setToast(null); else if (full) setFull(false);
-  }, [panel, selObj, full, railOpen, guide, pick, toast, share, issSheet]);
+    if (share) setShare(false); else if (railOpen) setRailOpen(false); else if (pick) setPick(null); else if (panel) setPanel(null); else if (selObj) setSelObj(null); else if (issSheet) setIssSheet(false); else if (peakSheet) setPeakSheet(null); else if (guide) setGuide(null); else if (toast) setToast(null); else if (full) setFull(false);
+  }, [panel, selObj, full, railOpen, guide, pick, toast, share, issSheet, peakSheet]);
 
   // tocar para identificar un objeto: se proyecta en pantalla todo lo visible POR DELANTE de la cámara
   // (nunca lo que queda detrás del observador ni, desde fuera, la cara oculta de la esfera) y gana el
@@ -3654,6 +3686,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           if (lb.cls.startsWith("guide_")) continue;               // las marcas de las líneas guía no se tocan
           const cw = lb.cls === "con" ? (r.width >= 900 ? 12.5 : 11) : lb.cls === "solar" ? (r.width >= 900 ? 9 : 8) : (r.width >= 900 ? 7.8 : 6.9);
           const w = String(lb.name).length * cw + 14, dx = lb.dx || 8;
+          if (lb.pk && lb.pk.peak) {
+            // nombre de una montaña: centrado encima de su cumbre (el texto y su altura, a 2–46 px sobre el punto)
+            const dyp = py < lb.y - 50 ? lb.y - 50 - py : py > lb.y + 4 ? py - lb.y - 4 : 0;
+            if (Math.abs(px - lb.x) <= w / 2 + 6 && dyp <= (touch ? 8 : 2) && dyp < bestDy) { bestDy = dyp; lbHit = lb; }
+            continue;
+          }
           const x0 = lb.flip ? lb.x - dx - w : lb.x + dx - 4, x1 = x0 + w + 4;
           const dy = Math.abs(py - lb.y);
           if (px >= x0 - 4 && px <= x1 + 4 && dy <= (touch ? 16 : 11) && dy < bestDy) { bestDy = dy; lbHit = lb; }
@@ -3665,6 +3703,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         else if (lbHit.pk && lbHit.pk.si != null) o = starObj(stars[lbHit.pk.si], lbHit.pk.si);
         else if (lbHit.pk && lbHit.pk.layer === "solar") o = { ...lbHit.pk.ob, layer: "solar" };
         else if (lbHit.pk && lbHit.pk.iss) o = { layer: "iss" };
+        else if (lbHit.pk && lbHit.pk.peak) { setPick(null); setSelObj(null); setIssSheet(false); setPeakSheet(lbHit.pk.peak); track("sky_peak", { volcano: !!lbHit.pk.peak.volcano }); return; }
         else if (lbHit.pk && lbHit.pk.ob) o = { ...lbHit.pk.ob, layer: lbHit.pk.layer };
         if (o && o.layer === "iss") { openIssRef.current(); return; }
         if (o) { setPick(null); if (o.layer === "con") setSel(null); setSelObj(o); return; }
@@ -3702,14 +3741,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   useEffect(() => {
     const ref = sceneRef.current; if (!ref) return;
     let x = 0, yf = 0;
-    const sheet = !!selObj || issSheet;
+    const sheet = !!selObj || issSheet || !!peakSheet;
     if (isWide) { if (sheet) x += 208; if (panel) x -= 198; }
     else if (sheet) yf = 0.24;
     else if (panel) yf = 0.3;
     else if (tourActive) yf = 0.14;
     else if (sel && !localMode) yf = 0.12;      // tarjeta de profundidad sobre el dock
     ref.viewShift.x = x; ref.viewShift.yf = yf;
-  }, [selObj, panel, tourActive, isWide, ready, sel, localMode, issSheet]);
+  }, [selObj, panel, tourActive, isWide, ready, sel, localMode, issSheet, peakSheet]);
 
   // atajos del buscador vacío
   const quick = useMemo(() => {
@@ -3753,7 +3792,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const placeLabel = placeKind === "me" ? t.myLocation : placeKind === "custom" ? t.customPlace : placeDefault ? t.placeDefault(placeKind) : placeKind;
   const tourReady = !!(ready && datasets.messier && datasets.blackholes);
   const issSheetOn = !!(issSheet && issSel && issSel.pass && !selObj);
-  const covered = !isWide && (!!selObj || !!panel || !!pick || issSheetOn);
+  const covered = !isWide && (!!selObj || !!panel || !!pick || issSheetOn || !!peakSheet);
   useEffect(() => { if (welcomePlace && sky) setPanel("location"); }, [!!sky]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (welcomePlace && !placeDefault) { endWelcome(); setPanel(null); } }, [placeDefault]);   // eslint-disable-line react-hooks/exhaustive-deps
   const showDepth = !!(sky && selMeta && !localMode && !tourActive);
@@ -3920,7 +3959,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           <SearchBox t={t} query={query} setQuery={setQuery} results={results} onResult={onResult} quick={quick} compact={!isWide} />
           {dayWarn && <DayWarning lang={lang} planets={dayPlanets} onNightfall={goNightfall}
             onAtmOff={() => { setAtmOn(false); track("sky_setting", { setting: "atmosphere", state: "off" }); }} onDismiss={hideDayWarn} />}
-          {(viewFrom || outside || (isWide && localMode) || issSel) && (
+          {(viewFrom || outside || (isWide && localMode) || issSel || (wxNow && localMode && !viewFrom)) && (
             <div className="sk-chips">
               {issSel && (
                 <IssPill lang={lang} apiRef={issHudRef} pass={issSel.pass} loading={issSel.status === "loading"} playing={playing && issOn} rate={issRate}
@@ -3947,6 +3986,15 @@ export default function Constellations({ lang = "es", onMenu = null }) {
                   <button type="button" onClick={leaveMySky} aria-label={t.leaveMySky}><Icon name="close" size={15} /></button>
                 </div>
               )}
+              {wxNow && localMode && !viewFrom && (() => {
+                const k = wxKind(wxNow.code, wxNow.day), nm = (WX_NAMES[lang] || WX_NAMES.es)[k];
+                return (
+                  <button type="button" className="sk-chip sk-wx-pill" onClick={() => { setWxWanted(true); openPanel("layers"); }}
+                    aria-label={`${nm}, ${fmtTemp(wxNow.temp)}${isWide ? "" : ` · ${placeLabel}`}`} title={nm}>
+                    <Icon name={`wx_${k}`} size={18} /><span>{fmtTemp(wxNow.temp)}{!isWide && <> · {placeLabel}</>}</span>
+                  </button>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -4103,6 +4151,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
 
       {issSheetOn && (
         <IssSheet t={t} lang={lang} pass={issSel.pass} data={issSel.data} onClose={() => setIssSheet(false)} onCenter={centerIss} onRemove={() => removeIss()} />
+      )}
+      {peakSheet && !selObj && (
+        <PeakSheet t={t} lang={lang} peak={peakSheet} onClose={() => setPeakSheet(null)}
+          onGo={() => { const pk0 = peakSheet; setPeakSheet(null); pickPlace({ name: pk0.label || pk0.name, lat: pk0.lat, lon: pk0.lon, elev: null, peak: 400 }); }} />
       )}
 
       {pick && (

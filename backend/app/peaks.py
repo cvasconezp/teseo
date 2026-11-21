@@ -183,6 +183,7 @@ def visible_peaks(prof: dict, nodes: list, lang_keys=("es", "en")) -> list:
             **{f"name_{lg}": tags.get(f"name:{lg}") for lg in lang_keys if tags.get(f"name:{lg}")},
             "ele_m": int(round(ele)) if ele is not None else int(band["top_m"][best]),
             "az": round(best * step, 2), "alt": a, "dist_km": round(d, 1), "band": b,
+            "lat": round(float(el["lat"]), 4), "lon": round(float(el["lon"]), 4),
             "volcano": tags.get("natural") == "volcano",
             "lift": round(a - around, 2),
         })

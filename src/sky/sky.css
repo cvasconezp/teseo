@@ -750,3 +750,28 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 @media (min-width: 900px) { .sk-stage .sk-credit { top: auto; left: 14px; bottom: 10px; font-size: 11px; } .sk-stage .sk-credit small { font-size: 10px; } }
 .sk-stage.is-covered .sk-credit { opacity: 0.35; }
 .sk-stage .sk-ts-jumps button:last-child svg { order: 2; }
+
+/* ── mapa topográfico para elegir el lugar (TopoPicker.jsx, OpenTopoMap) ───────────────────────────────── */
+.sk-topo { --line-soft: rgba(255, 255, 255, 0.1); --violet: #a78bfa; --text: #eef0fa; --mute: rgba(238, 240, 250, 0.72);
+  position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; background: #0b0d1a; color: var(--text); font-family: var(--sans, system-ui, sans-serif); }
+.sk-topo header { display: flex; align-items: flex-start; gap: 12px; padding: max(12px, env(safe-area-inset-top)) 16px 10px; }
+.sk-topo header > div { flex: 1; min-width: 0; }
+.sk-topo h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.sk-topo header p { margin: 4px 0 0; font-size: 13px; line-height: 1.35; color: var(--mute); }
+.sk-topo .sk-icon-btn { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.06); color: var(--text); }
+.sk-topo-map { position: relative; flex: 1; overflow: hidden; background: #dfe5dc; touch-action: none; cursor: crosshair; user-select: none; }
+.sk-topo-map img { position: absolute; width: 256px; height: 256px; max-width: none; pointer-events: none; }
+.sk-topo-mark { position: absolute; transform: translate(-50%, -100%); color: #d0283a; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); pointer-events: none; }
+.sk-topo-mark svg { fill: rgba(255, 255, 255, 0.85); }
+.sk-topo-zoom { position: absolute; right: 12px; top: 12px; display: grid; gap: 6px; }
+.sk-topo-zoom button { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; border: 0; background: rgba(11, 13, 26, 0.85); color: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4); }
+.sk-topo-credit { position: absolute; right: 0; bottom: 0; padding: 2px 6px; font-size: 10.5px; background: rgba(255, 255, 255, 0.82); color: #222; border-top-left-radius: 6px; pointer-events: none; }
+.sk-topo footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 16px max(12px, env(safe-area-inset-bottom)); }
+.sk-topo footer > span { flex: 1 1 160px; font-size: 13px; color: var(--mute); font-variant-numeric: tabular-nums; }
+.sk-topo footer > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.sk-topo .sk-btn:disabled { opacity: 0.45; }
+
+/* el tiempo de ahora en el lugar (nowWeather.js): pastilla translúcida bajo el buscador */
+.sk-stage .sk-wx-pill { gap: 7px; padding: 0 14px 0 11px; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #f4f6ff; font-variant-numeric: tabular-nums; cursor: pointer; }
+.sk-stage .sk-wx-pill svg { color: #cfe0ff; }
+.sk-stage .sk-wx-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

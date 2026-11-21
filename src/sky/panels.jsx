@@ -1,7 +1,7 @@
 // Paneles de la vista Cielo: etiquetas, buscador, dock, capas, ubicación, tiempo,
 // tour y primeros pasos. Componentes de presentación: el estado vive en
 // Constellations.jsx y los textos llegan por `t` (diccionario TC).
-import { memo, useEffect, useRef, useState } from "react";
+import { lazy, memo, Suspense, useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { PlaceSearch, SiteChips } from "./PlaceSearch.jsx";
 import { fmtWhenLong } from "./format.js";
@@ -9,6 +9,8 @@ import { compassPoint8 } from "./deviceOrientation.js";
 import { bodyName } from "./bodies.js";
 import { useDialogFocus } from "./focus.js";
 import IssPassesCard from "./IssPassesCard.jsx";
+
+const TopoPicker = lazy(() => import("./TopoPicker.jsx"));   // el mapa topográfico solo se carga al abrirlo
 
 // ── Etiquetas proyectadas ────────────────────────────────────────────────
 // Tienen su propio estado: el bucle de render las actualiza ~12 veces/s sin
@@ -53,7 +55,7 @@ export const SkyLabels = memo(function SkyLabels({ apiRef, colors, unit, locale,
       ) : l.cls === "peak" || l.cls === "andsun" || l.cls === "andsite" ? (
         // nombre de una montaña (o de una marca de «Astronomía andina»): encima del punto, con un palito que baja
         // hasta el punto exacto de la silueta
-        <div key={l.key} aria-hidden="true" className={`sk-label sk-label-peak${l.cls !== "peak" ? ` sk-label-${l.cls}` : ""}`}
+        <div key={l.key} aria-hidden="true" className={`sk-label sk-label-peak${l.cls !== "peak" ? ` sk-label-${l.cls}` : ""}${l.volc ? " is-volc" : ""}`}
           style={{ transform: `translate(${Math.round(l.x)}px,${Math.round(l.y)}px)`, color: colors[l.cls] || colors.peak || "#fff" }}>
           <i />
           <em><b>{l.name}</b>{l.subText != null && <small>{typeof l.subText === "string" ? l.subText : `${Number(l.subText).toLocaleString(locale, { useGrouping: "always" })} m`}</small>}</em>
@@ -287,6 +289,7 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
 
 // ── Mi cielo (ubicación) ─────────────────────────────────────────────────
 export function LocationPanel({ t, lang = "es", localMode, lat, lon, placeName, geo, onUseMyLocation, places, onPlace, onManual, onExit, onClose, pointing, onTonight, welcome = false, onSkip }) {
+  const [topo, setTopo] = useState(false);   // mapa topográfico para elegir el punto (TopoPicker, carga aparte)
   const [mLat, setMLat] = useState(lat != null ? String(lat) : "");
   const [mLon, setMLon] = useState(lon != null ? String(lon) : "");
   const [bad, setBad] = useState(false);
@@ -329,6 +332,13 @@ export function LocationPanel({ t, lang = "es", localMode, lat, lon, placeName, 
         </div>
       )}
       <PlaceSearch lang={lang} onPlace={onPlace} />
+      <button type="button" className="sk-btn wide sk-topo-open" onClick={() => setTopo(true)}><Icon name="map" size={19} />{t.topoOpen}</button>
+      {topo && (
+        <Suspense fallback={null}>
+          <TopoPicker lang={lang} lat={lat != null ? lat : -0.2} lon={lon != null ? lon : -78.5} onClose={() => setTopo(false)}
+            onPick={(m) => { setTopo(false); onPlace(m.summit ? { name: t.topoSummit, lat: m.lat, lon: m.lon, elev: null, peak: 400 } : { name: t.topoPoint, lat: m.lat, lon: m.lon, elev: null, exact: true }); }} />
+        </Suspense>
+      )}
       <SiteChips lang={lang} placeName={placeName} localMode={localMode} onPlace={onPlace} />
       {welcome && onSkip && <button type="button" className="sk-btn ghost wide" onClick={onSkip}>{t.welcomeSkip}</button>}
       {!welcome && <form className="sk-group" onSubmit={submit} noValidate>

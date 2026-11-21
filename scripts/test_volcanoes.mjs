@@ -1,0 +1,64 @@
+// Pruebas: volcanes del Smithsonian junto a las cumbres (src/sky/volcanoes.js), el tiempo de ahora
+// (src/sky/nowWeather.js) y la proyección del mapa topográfico (src/sky/topo.js).
+import { readFileSync } from "node:fs";
+import { matchVolcanoes, volcanoFacts, recentEruption, destPoint, kmBetween, fetchVolcanoes, VT } from "../src/sky/volcanoes.js";
+import { nowUrl, parseNow, wxKind, fmtTemp } from "../src/sky/nowWeather.js";
+import { toPx, toLL, TOPO_TILE } from "../src/sky/topo.js";
+
+let pass = 0, fail = 0;
+const ok = (c, m) => { if (c) pass++; else { fail++; console.log("  FALLA:", m); } };
+
+console.log("Volcanes junto a las cumbres");
+const volcs = [
+  { id: 352010, name: "Cayambe", lat: 0.029, lon: -77.986, elev_m: 5790, type: "Compound", last_year: 1786, tectonic: "Subduction zone / Continental crust (> 25 km)", rock: "Andesite / Basaltic Andesite", country: "Ecuador", region: "Northern Andean Volcanic Arc", url: "https://volcano.si.edu/volcano.cfm?vn=352010" },
+  { id: 352020, name: "Guagua Pichincha", lat: -0.171, lon: -78.598, elev_m: 4784, type: "Stratovolcano", last_year: 2002, country: "Ecuador" },
+  { id: 352050, name: "Cotopaxi", lat: -0.677, lon: -78.436, elev_m: 5911, type: "Stratovolcano", last_year: 2026, country: "Ecuador" },
+];
+const peaks = [
+  { name: "Cayambe", lat: 0.0252, lon: -77.989, az: 96.2, dist_km: 17.6, ele_m: 5790 },
+  { name: "San Bartolo", lat: 0.1058, lon: -78.3041, az: 291.8, dist_km: 19, ele_m: 4021 },
+  { name: "Volcán Pichincha", lat: -0.1657, lon: -78.6043, az: 246, dist_km: 56, ele_m: 4794 },
+  { name: "Rucu Pichincha", lat: -0.1627, lon: -78.5667, az: 244, dist_km: 52, ele_m: 4696 },
+  { name: "Cotopaxi", az: 202.0, dist_km: 86.5, ele_m: 5897 },              // de la caché vieja: sin lat/lon
+];
+const m = matchVolcanoes(peaks, volcs, 0.041, -78.146);
+ok(m[0].volcano && m[0].volcano.id === 352010, "Cayambe: su volcán (a 0,5 km)");
+ok(!m[1].volcano, "San Bartolo no es un volcán del Smithsonian");
+ok(m[2].volcano && m[2].volcano.id === 352020 && !m[3].volcano, "Guagua Pichincha va a la cumbre más cercana (una sola)");
+ok(m[4].volcano && m[4].volcano.id === 352050, "sin coordenadas, se calculan con el rumbo y la distancia");
+ok(peaks[0].volcano === undefined, "no cambia la lista original");
+ok(matchVolcanoes(peaks, null).every((p) => !p.volcano), "sin volcanes, las cumbres tal cual");
+const [la, lo] = destPoint(0, 0, 90, 111.195);
+ok(Math.abs(la) < 1e-6 && Math.abs(lo - 1) < 1e-3 && Math.abs(kmBetween(0, 0, 0, 1) - 111.195) < 0.01, "destino y distancia en la esfera");
+ok(recentEruption(volcs[1]) && !recentEruption(volcs[0]) && !recentEruption(null), "erupción desde 1900");
+const f = volcanoFacts(volcs[0], "es", 2026);
+const fx = Object.fromEntries(f.map((x) => [x.label, x.value]));
+ok(fx.Tipo === "Volcán compuesto" && fx["Última erupción"] === "1786" && fx.Entorno === "Zona de subducción, corteza continental" && fx["Roca principal"] === "andesita / andesita basáltica", "datos traducidos");
+ok(volcanoFacts(volcs[2], "es", 2026).find((x) => x.label === "Última erupción").value.includes("en curso"), "erupción de este año: en curso o muy reciente");
+ok(volcanoFacts({ last_year: -5550 }, "es").find((x) => x.label === "Última erupción").value === "hacia el 5.550 a. C.", "años antes de Cristo");
+ok(volcanoFacts({ last_year: null }, "en").find((x) => x.label === "Last eruption").value === "No known date", "sin fecha");
+ok(VT.es.sub("4.784 m", 2002) === "4.784 m · erupción 2002", "texto bajo el nombre");
+{
+  let url = "";
+  const l = await fetchVolcanoes(0.041, -78.146, { api: "https://x", fetchImpl: async (u) => { url = u; return { ok: true, json: async () => ({ volcanoes: volcs }) }; } });
+  ok(l.length === 3 && url === "https://x/api/volcanoes?lat=0.0&lon=-78.0&r_km=260", "una consulta por celda de 0,5°");
+  const cj = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
+  ok(/pk: \{ peak: p \}/.test(cj) && /setPeakSheet\(lbHit\.pk\.peak\)/.test(cj), "tocar el nombre de una montaña abre su ficha");
+}
+
+console.log("El tiempo de ahora");
+const u = new URL(nowUrl(0.04312, -78.14563, 2911.4));
+ok(u.searchParams.get("latitude") === "0.04" && u.searchParams.get("elevation") === "2911" && u.searchParams.get("current") === "temperature_2m,weather_code,is_day", "lugar a 1 km y temperatura corregida a la altitud");
+ok(!new URL(nowUrl(0, 0, null)).searchParams.get("elevation"), "sin altitud, la del modelo de Open-Meteo");
+ok(parseNow({ current: { temperature_2m: 15.6, weather_code: 61, is_day: 1 } }).temp === 15.6 && parseNow({}) === null, "lee la respuesta");
+ok(wxKind(0, true) === "sun" && wxKind(0, false) === "moon" && wxKind(3) === "cloud" && wxKind(63) === "rain" && wxKind(95) === "storm" && wxKind(73) === "snow" && wxKind(45) === "fog", "códigos WMO → icono");
+ok(fmtTemp(15.6) === "16 °C" && fmtTemp(-2.6) === "−3 °C" && fmtTemp(-0.2) === "0 °C", "temperatura redondeada (con signo menos tipográfico)");
+
+console.log("Mapa topográfico");
+const [px, py] = toPx(-0.2, -78.5, 11), [la2, lo2] = toLL(px, py, 11);
+ok(Math.abs(la2 + 0.2) < 1e-9 && Math.abs(lo2 + 78.5) < 1e-9, "Mercator ida y vuelta");
+ok(Math.abs(toPx(0, 0, 0)[0] - 128) < 1e-9 && Math.abs(toPx(0, 0, 0)[1] - 128) < 1e-9, "el centro del mundo en el zoom 0");
+ok(/^https:\/\/[abc]\.tile\.opentopomap\.org\/12\/1\/2\.png$/.test(TOPO_TILE(12, 1, 2)), "teselas de OpenTopoMap");
+
+console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
+if (fail) process.exit(1);
