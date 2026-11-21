@@ -185,3 +185,27 @@ def test_cumbre_se_amplia_si_cae_en_el_borde(tiles):
     lon = PEAK_LON - math.degrees(700.0 / R)          # a 700 m de la cumbre, buscando en 300 m: se amplía
     d = client.get(f"/api/summit?lat={LAT0}&lon={lon}&r=300").json()
     assert d["found"] and abs(d["lon"] - PEAK_LON) < 0.0003 and d["radius_m"] == 750, d
+
+
+# ── colores del satélite (app/landcolor.py) ──────────────────────────────────────────────────────────────
+def test_colores_del_satelite(tiles, monkeypatch):
+    import base64
+    import io
+    import httpx as _httpx
+    from PIL import Image
+    from app import landcolor as lc
+    buf = io.BytesIO(); Image.new("RGB", (256, 256), (90, 120, 60)).save(buf, "JPEG"); jpg = buf.getvalue()
+    monkeypatch.setattr(lc, "_transport", _httpx.MockTransport(lambda req: _httpx.Response(200, content=jpg)))
+    lc._tiles.clear(); lc._results.clear()
+    d = client.get(f"/api/horizon/colors?lat={LAT0}&lon={LON0}").json()
+    assert d["coverage"] == 1.0 and d["step_deg"] == 0.4 and len(d["bands"]) == len(hz.BANDS_KM) and "EOX" in d["credit"]
+    top = base64.b64decode(d["bands"][3]["top"])
+    assert len(top) == 900 * 3 and abs(top[0] - 90) < 6 and abs(top[1] - 120) < 6 and abs(top[2] - 60) < 6
+
+
+def test_colores_sin_teselas(tiles, monkeypatch):
+    import httpx as _httpx
+    from app import landcolor as lc
+    monkeypatch.setattr(lc, "_transport", _httpx.MockTransport(lambda req: _httpx.Response(503)))
+    lc._tiles.clear(); lc._results.clear()
+    assert client.get(f"/api/horizon/colors?lat={LAT0}&lon={LON0}").status_code == 502

@@ -28,6 +28,9 @@ from app.cache import provider_headers
 
 WFS = ("https://webservices.volcano.si.edu/geoserver/GVP-VOTW/wfs?service=WFS&version=2.0.0&request=GetFeature"
        "&typeName=GVP-VOTW:Smithsonian_VOTW_Holocene_Volcanoes&outputFormat=application/json")
+WFS_ERUPTIONS = ("https://webservices.volcano.si.edu/geoserver/GVP-VOTW/wfs?service=WFS&version=2.0.0&request=GetFeature"
+                 "&typeName=GVP-VOTW:Smithsonian_VOTW_Holocene_Eruptions&outputFormat=application/json"
+                 "&propertyName=Volcano_Number,ExplosivityIndexMax,StartDateYear,EndDateYear,Activity_Type")
 SOURCE = "Global Volcanism Program, Smithsonian Institution (Volcanoes of the World), https://volcano.si.edu/"
 TTL_S = 24 * 3600
 RETRY_S = 15 * 60          # si falló la descarga, no se reintenta antes
@@ -81,6 +84,22 @@ def parse(geojson: dict) -> list:
     return out
 
 
+def last_eruptions(geojson: dict, year_now: int) -> dict:
+    """Erupciones → por volcán, la última confirmada: { vei, start, end, erupting } (erupting: sigue este año)."""
+    best = {}
+    for f in (geojson or {}).get("features") or []:
+        p = (f or {}).get("properties") or {}
+        num, y = p.get("Volcano_Number"), _num(p.get("StartDateYear"))
+        if num is None or y is None or (p.get("Activity_Type") or "").lower().startswith("discredited"):
+            continue
+        cur = best.get(num)
+        if cur is None or y > cur["start"]:
+            vei, end = _num(p.get("ExplosivityIndexMax")), _num(p.get("EndDateYear"))
+            best[num] = {"vei": int(vei) if vei is not None else None, "start": int(y),
+                         "end": int(end) if end is not None else None, "erupting": end is not None and end >= year_now}
+    return best
+
+
 def dist_km(la1, lo1, la2, lo2) -> float:
     p1, p2 = math.radians(la1), math.radians(la2)
     dp, dl = p2 - p1, math.radians(lo2 - lo1)
@@ -111,10 +130,20 @@ async def load() -> list:
             raise RuntimeError(_cache["error"] or "sin respuesta")
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=_transport, headers=provider_headers()) as client:
-                r = await client.get(WFS)
-                if r.status_code != 200:
-                    raise RuntimeError(f"HTTP {r.status_code}")
+                r, re_ = await asyncio.gather(client.get(WFS), client.get(WFS_ERUPTIONS), return_exceptions=True)
+                if isinstance(r, Exception) or r.status_code != 200:
+                    raise RuntimeError(str(r) if isinstance(r, Exception) else f"HTTP {r.status_code}")
                 volcs = parse(r.json())
+                # la última erupción de cada uno (VEI y si sigue): si esta capa falla, los volcanes van sin ella
+                try:
+                    if not isinstance(re_, Exception) and re_.status_code == 200:
+                        last = last_eruptions(re_.json(), time.gmtime().tm_year)
+                        for v in volcs:
+                            e = last.get(v["id"])
+                            if e:
+                                v.update(last_vei=e["vei"], last_start=e["start"], last_end=e["end"], erupting=e["erupting"])
+                except Exception:                                # noqa: BLE001
+                    pass
             if not volcs:
                 raise RuntimeError("respuesta sin volcanes")
             _cache.update(at=time.time(), list=volcs, error=None)

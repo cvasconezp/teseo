@@ -67,7 +67,7 @@ export function matchVolcanoes(peaks, volcs, obsLat, obsLon) {
 }
 
 /** ¿Erupción en los últimos ~125 años (desde 1900)? Para marcar el nombre en el horizonte. */
-export const recentEruption = (v) => !!(v && Number.isFinite(v.last_year) && v.last_year >= 1900);
+export const recentEruption = (v) => !!(v && ((Number.isFinite(v.last_year) && v.last_year >= 1900) || v.erupting));
 
 const TYPES = {
   es: { stratovolcano: "Estratovolcán", "stratovolcano(es)": "Estratovolcanes", compound: "Volcán compuesto", caldera: "Caldera", "caldera(s)": "Calderas",
@@ -99,6 +99,12 @@ export const VT = {
     src: "Datos del volcán: Global Volcanism Program, Smithsonian Institution (Volcanoes of the World). Altura de la cumbre: OpenStreetMap / Wikidata.",
     noVolc: "No figura como volcán del Holoceno en la base del Smithsonian (o lo es de hace más de 12 000 años).",
     goSummit: "Situarme en su cumbre",
+    vei: "Explosividad (VEI)", veiVal: (v, y) => `${v} de 8${y != null ? ` · erupción de ${y < 0 ? `${-y} a. C.` : y}` : ""}`,
+    erupting: (y) => `El Smithsonian la da en erupción en ${y}. La columna que se dibuja sobre ella es ilustrativa: para alertas oficiales, el Instituto Geofísico.`,
+    simulate: "Simular su última erupción",
+    simChip: (n, vei, km) => `Simulación ilustrativa · ${n} · VEI ${vei} · columna ≈ ${km} km`,
+    simStop: "Parar",
+    simNote: "Solo la altura (por el VEI) y la dirección del viento salen de datos; la forma es genérica. No es una predicción.",
   },
   en: {
     volcano: "Volcano", mountain: "Summit", from: (d, dir) => `${d} km away, to the ${dir}`, alt: "Height",
@@ -110,6 +116,12 @@ export const VT = {
     src: "Volcano data: Global Volcanism Program, Smithsonian Institution (Volcanoes of the World). Summit height: OpenStreetMap / Wikidata.",
     noVolc: "Not listed as a Holocene volcano in the Smithsonian database (or older than 12,000 years).",
     goSummit: "Put me on its summit",
+    vei: "Explosivity (VEI)", veiVal: (v, y) => `${v} of 8${y != null ? ` · eruption of ${y < 0 ? `${-y} BCE` : y}` : ""}`,
+    erupting: (y) => `The Smithsonian lists it as erupting in ${y}. The plume drawn over it is illustrative: for official alerts, check your geophysical institute.`,
+    simulate: "Simulate its last eruption",
+    simChip: (n, vei, km) => `Illustrative simulation · ${n} · VEI ${vei} · column ≈ ${km} km`,
+    simStop: "Stop",
+    simNote: "Only the height (from the VEI) and the wind direction come from data; the shape is generic. Not a prediction.",
   },
 };
 
@@ -124,6 +136,7 @@ export function volcanoFacts(v, lang = "es", nowYear = new Date().getFullYear())
     const low = v.tectonic.toLowerCase(), hit = (TECT[lang] || TECT.es).find(([k]) => low.includes(k));
     out.push({ label: T.tect, value: hit ? hit[1] + (low.includes("continental") ? (lang === "es" ? ", corteza continental" : ", continental crust") : low.includes("oceanic") ? (lang === "es" ? ", corteza oceánica" : ", oceanic crust") : "") : v.tectonic });
   }
+  if (Number.isFinite(v.last_vei)) out.push({ label: T.vei, value: T.veiVal(v.last_vei, v.last_start) });
   if (v.rock) out.push({ label: T.rock, value: lang === "es" ? tr(ROCKS.es, v.rock) : v.rock });
   const where = [v.country, v.region && v.region !== v.country ? v.region : null].filter(Boolean).join(" · ");
   if (where) out.push({ label: T.where, value: where });

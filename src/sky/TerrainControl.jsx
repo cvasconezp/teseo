@@ -19,6 +19,11 @@ const n0 = (v, lang) => Math.round(v).toLocaleString(lang === "es" ? "es" : "en-
 export const TX_HZ = {
   es: {
     layer: "Montañas",
+    sat: "Colores del satélite",
+    satDesc: "Las laderas con su color real (pajonal, bosque, desierto, roca), con textura y la luz del momento.",
+    satLoading: "Leyendo los colores del satélite…",
+    satError: "No se pudieron leer los colores del satélite: el relieve va con sus colores de siempre.",
+    satSource: "Colores: Sentinel-2 cloudless – https://s2maps.eu, de EOX IT Services GmbH (contiene datos modificados de Copernicus Sentinel de 2016 y 2017), CC BY 4.0.",
     desc: "El horizonte real de tu lugar, calculado con el relieve: estrellas, Sol y planetas salen y se esconden tras las montañas de verdad.",
     needPlace: "Necesita un lugar en Mi cielo.",
     loading: "Calculando tu horizonte…",
@@ -44,6 +49,11 @@ export const TX_HZ = {
   },
   en: {
     layer: "Mountains",
+    sat: "Satellite colours",
+    satDesc: "Slopes in their real colour (grassland, forest, desert, rock), with texture and the light of the moment.",
+    satLoading: "Reading the satellite colours…",
+    satError: "Could not read the satellite colours: the relief keeps its usual colours.",
+    satSource: "Colours: Sentinel-2 cloudless – https://s2maps.eu by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016 & 2017), CC BY 4.0.",
     desc: "Your place's real horizon, computed from the terrain: stars, the Sun and planets rise and set behind the actual mountains.",
     needPlace: "Needs a place in My sky.",
     loading: "Computing your horizon…",
@@ -75,7 +85,7 @@ const bandFrom = (data, km, lang) => {
   return i > 0 ? Number(bs[i - 1]).toLocaleString(lang === "es" ? "es" : "en-US") : "0";
 };
 
-export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry, peaksOn = false, onTogglePeaks, peaks, monOn = true, onToggleMon, monNear = [], monStatus = null, andOn = false, onToggleAnd, andean = null }) {
+export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry, satOn = true, onToggleSat, sat = null, peaksOn = false, onTogglePeaks, peaks, monOn = true, onToggleMon, monNear = [], monStatus = null, andOn = false, onToggleAnd, andean = null }) {
   const ta = TX_AND[lang] || TX_AND.es;
   const tx = TX_HZ[lang] || TX_HZ.es;
   const data = hz && hz.status === "ok" ? hz.data : null;
@@ -105,6 +115,17 @@ export function TerrainControl({ lang = "es", available = true, on, onToggle, hz
             </>
           )}
           <p className="sk-atm-fine">{tx.source}</p>
+          {onToggleSat && (
+            <div className="sk-layer sk-hz-peaks">
+              <button type="button" role="switch" aria-checked={!!satOn} className="sk-layer-main" onClick={onToggleSat}>
+                <span className="sk-layer-txt"><b>{tx.sat}</b><small>{tx.satDesc}</small></span>
+                <i className="sk-switch" />
+              </button>
+            </div>
+          )}
+          {satOn && sat === "loading" && <p className="sk-atm-fine" role="status">{tx.satLoading}</p>}
+          {satOn && sat === "error" && <p className="sk-atm-fine" role="status">{tx.satError}</p>}
+          {satOn && sat === "ok" && <p className="sk-atm-fine">{tx.satSource}</p>}
           {onTogglePeaks && (
             <div className="sk-layer sk-hz-peaks">
               <button type="button" role="switch" aria-checked={!!peaksOn} className="sk-layer-main" onClick={onTogglePeaks}>

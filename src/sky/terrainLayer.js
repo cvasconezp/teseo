@@ -20,6 +20,43 @@ const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
 const BASE = -0.4;            // grados: base de cada franja, un poco bajo 0° para no dejar rendija con el suelo
 
+/**
+ * Textura generada para las laderas (con «Colores del satélite»): ruido fractal en la dirección de cada píxel,
+ * estirado en vertical (quebradas y canales que bajan) más un grano fino, que oscurece o aclara el color del
+ * vértice hasta ±(amplitud). Su escala angular depende de la distancia de la banda (un rasgo de ~250 m se ve
+ * mayor cerca que lejos) y la amplitud baja con la distancia (la bruma la borra). Sin datos de nadie.
+ */
+export function texturize(mat, k, nb, maxKm, on = true) {
+  const dKm = Math.max(0.8, maxKm * 0.7);
+  const freq = Math.min(420, Math.max(14, dKm / 0.25));        // ciclos por radián
+  const amp = 0.21 * (1 - 0.75 * (nb > 1 ? k / (nb - 1) : 0));
+  const tex = { value: on ? 1 : 0 };
+  mat.userData.tex = tex;
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uTex = tex; sh.uniforms.uFreq = { value: freq }; sh.uniforms.uAmp = { value: amp };
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vTdir;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvTdir = normalize(position);");
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>
+varying vec3 vTdir;
+uniform float uTex, uFreq, uAmp;
+float th(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float tn(vec3 x) {
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(th(i), th(i + vec3(1,0,0)), f.x), mix(th(i + vec3(0,1,0)), th(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(th(i + vec3(0,0,1)), th(i + vec3(1,0,1)), f.x), mix(th(i + vec3(0,1,1)), th(i + vec3(1,1,1)), f.x), f.y), f.z);
+}`).replace("#include <color_fragment>", `#include <color_fragment>
+if (uTex > 0.5) {
+  vec3 q = vTdir * uFreq;
+  float gully = tn(vec3(q.x, q.y * 0.6, q.z)) * 0.6 + tn(vec3(q.x * 2.1, q.y * 1.1, q.z * 2.1)) * 0.4;
+  float grain = tn(q * 4.3) * 0.55 + tn(q * 9.7) * 0.45;
+  float t = (gully - 0.5) * 1.3 + (grain - 0.5) * 0.7;
+  diffuseColor.rgb *= clamp(1.0 + uAmp * t, 0.55, 1.45);
+}`);
+  };
+  mat.customProgramCacheKey = () => `teseo-terrain-tex`;
+  return mat;
+}
+
 /** Altura angular (grados) a la que queda un punto de altura `hM` a `dKm` km para un observador a `h0M` m. */
 export function angleOf(hM, dKm, h0M) {
   const d = Math.max(1, dKm * 1000), drop = (d * d * (1 - K_REFR)) / (2 * R_E);
@@ -89,6 +126,7 @@ export function createTerrainLayer({ radius = 880 } = {}) {
   const P = (az, alt) => [radius * Math.cos(alt * RAD) * Math.sin(az * RAD), radius * Math.sin(alt * RAD), -radius * Math.cos(alt * RAD) * Math.cos(az * RAD)];
 
   let floorOn = false, snowyFloor = false;
+  let land = null, landOn = true;     // colores del satélite (fetchLandColors) y si se usan
   function build(hz, latDeg, floor = false) {
     clear();
     data = hz; lat = latDeg || 0; floorOn = !!floor;
@@ -159,7 +197,9 @@ export function createTerrainLayer({ radius = 880 } = {}) {
       g.setIndex(idx);
       // transparente (aunque opaca) para entrar en la misma pasada que estrellas, líneas y nubes, que three dibuja
       // después de los objetos opacos: así el orden lo decide renderOrder y las montañas quedan encima
-      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 1, depthTest: false, depthWrite: false, fog: false }));
+      const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 1, depthTest: false, depthWrite: false, fog: false });
+      texturize(mat, k, nb, hz.bands[k].max_km, landOn);
+      const m = new THREE.Mesh(g, mat);
       m.renderOrder = 2.7 + (nb - 1 - k) * 0.01;      // después de las nubes (2,5); las cercanas, al final
       m.frustumCulled = false;
       m.userData.band = k;
@@ -240,6 +280,12 @@ export function createTerrainLayer({ radius = 880 } = {}) {
     const mix3 = (a, c, f) => [a[0] + (c[0] - a[0]) * f, a[1] + (c[1] - a[1]) * f, a[2] + (c[2] - a[2]) * f];
     const cuts = {};
     let floorMesh = null;
+    // color de satélite de una columna (j: 0,2°) de la banda k, ya con la luz del día y la perspectiva aérea
+    const landAt = (k, j) => {
+      const lb = land && landOn && land.bands[k]; if (!lb) return null;
+      const m = lb.top.length / 3, q = Math.min(m - 1, Math.floor((j * m) / n)) * 3;
+      return pal.col(k, [lb.top[q], lb.top[q + 1], lb.top[q + 2]], [lb.bottom[q], lb.bottom[q + 1], lb.bottom[q + 2]]);
+    };
     for (const m of meshes) if (!m.userData.line && !m.userData.haze && !m.userData.floor) cuts[m.userData.band] = cutOf(m.userData.band);
     for (const m of meshes) {
       const k = m.userData.band, b = data.bands[k], c = pal.bands[k], cut = cuts[k];
@@ -283,8 +329,10 @@ export function createTerrainLayer({ radius = 880 } = {}) {
         const snow = light(scale(pal.snow, 0.86 + 0.14 * shade), lt, gt, true);
         col.set(lin(snow), (i * 4) * 3);
         col.set(lin(scale(snow, 0.94)), (i * 4 + 1) * 3);
-        col.set(lin(mix3(light(scale(c.top, shade), lt, gt, false), light(scale(cn.top, shadeOf(bn, j, ln)), ln, glowOf(sunAlt, ln), false), f)), (i * 4 + 2) * 3);
-        col.set(lin(light(c.bottom, lb, glowOf(sunAlt, lb) * 0.5, false)), (i * 4 + 3) * 3);
+        // con los colores del satélite, los de esta columna (y los de la banda de atrás para los cortes)
+        const cc = landAt(k, j) || c, ccn = f > 0 ? landAt(nk, j) || cn : cn;
+        col.set(lin(mix3(light(scale(cc.top, shade), lt, gt, false), light(scale(ccn.top, shadeOf(bn, j, ln)), ln, glowOf(sunAlt, ln), false), f)), (i * 4 + 2) * 3);
+        col.set(lin(light(cc.bottom, lb, glowOf(sunAlt, lb) * 0.5, false)), (i * 4 + 3) * 3);
       }
       m.geometry.attributes.color.needsUpdate = true;
     }
@@ -308,6 +356,8 @@ export function createTerrainLayer({ radius = 880 } = {}) {
      * cumbre (suelo opaco bajo las montañas). */
     set(hz, latDeg, st, floor = false) { build(hz, latDeg, floor); paint(st); group.visible = !!hz && meshes.length > 0 && enabledFlag; },
     get floor() { return floorOn; },
+    /** Colores del satélite (decodeLandColors) para el horizonte actual, o null; on: si se usan (y la textura). */
+    setLand(lc, on = true) { land = lc || null; landOn = !!on; for (const m of meshes) if (m.material.userData.tex) m.material.userData.tex.value = landOn ? 1 : 0; },
     paint,
     setEnabled(b) { enabledFlag = !!b; group.visible = enabledFlag && meshes.length > 0; },
     get data() { return data; },

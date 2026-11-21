@@ -8,24 +8,27 @@ import { VT, volcanoFacts, recentEruption } from "./volcanoes.js";
 
 const nf = (lang, v, d = 0) => Number(v).toLocaleString(lang === "es" ? "es" : "en-US", { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: "always" });
 
-export default function PeakSheet({ t, lang = "es", peak, onClose, onGo }) {
+export default function PeakSheet({ t, lang = "es", peak, onClose, onGo, onSimulate }) {
   const T = VT[lang] || VT.es, v = peak.volcano;
   const dist = Number.isFinite(peak.dist_km) ? nf(lang, peak.dist_km, peak.dist_km < 10 ? 1 : 0) : null;
   const facts = volcanoFacts(v, lang);
   const height = peak.ele_m != null ? peak.ele_m : v && v.elev_m;
   return (
-    <SheetShell t={t} title={peak.label || peak.name} subtitle={v ? T.volcano : T.mountain} badge={dist ? T.from(dist, compassLabel(peak.az, lang)) : null}
+    <SheetShell t={t} lang={lang} title={peak.label || peak.name} subtitle={v ? T.volcano : T.mountain} badge={dist ? T.from(dist, compassLabel(peak.az, lang)) : null}
       resetKey={`${peak.name}:${peak.az}`} onClose={onClose} className="is-peak">
       <dl className="sk-facts is-two">
         {height != null && <div><dt>{T.alt}</dt><dd>{nf(lang, height)} m</dd></div>}
         {facts.map((f) => <div key={f.label}><dt>{f.label}</dt><dd>{f.value}</dd></div>)}
       </dl>
-      {v && recentEruption(v) && <p className="sk-note peak-sheet-hot" role="note">{T.recent}</p>}
+      {v && v.erupting && <p className="sk-note peak-sheet-hot" role="note">{T.erupting(new Date().getFullYear())}</p>}
+      {v && !v.erupting && recentEruption(v) && <p className="sk-note peak-sheet-hot" role="note">{T.recent}</p>}
       {!v && peak.volcanoChecked && <p className="sk-note">{T.noVolc}</p>}
       <div className="sk-actions">
+        {v && onSimulate && <button type="button" className="sk-btn" onClick={onSimulate}><Icon name="mountain" size={17} />{T.simulate}</button>}
         {onGo && Number.isFinite(peak.lat) && <button type="button" className="sk-btn" onClick={onGo}><Icon name="pin" size={17} />{T.goSummit}</button>}
         {v && v.url && <a className="sk-btn" href={v.url} target="_blank" rel="noopener noreferrer"><Icon name="link" size={17} />{T.more}</a>}
       </div>
+      {v && onSimulate && <p className="peak-sheet-src">{T.simNote}</p>}
       <p className="peak-sheet-src">{T.src}</p>
     </SheetShell>
   );

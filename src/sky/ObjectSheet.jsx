@@ -17,6 +17,8 @@ import { visibilityOf } from "./objVisibility.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import { citizenFor, CITIZEN_VERIFIED } from "./citizen.js";
 import { useDialogFocus } from "./focus.js";
+import { canSpeak, speakText, sheetText, LISTEN_T } from "./speak.js";
+import { track } from "../ui/track.js";
 import SunToday from "../sun/SunToday.jsx";
 import MoonsView from "./MoonsView.jsx";
 import { hasMoons, moonBody } from "./moons.js";
@@ -283,7 +285,28 @@ export function Citizen({ obj, t, lang, local }) {
 // ── armazón de la ficha (hoja inferior deslizable en móvil, panel lateral en escritorio) ──
 // Es un diálogo no modal: el cielo sigue usable detrás. Al abrirse lleva el foco a su
 // título (los lectores de pantalla lo anuncian) y al cerrarse lo devuelve a donde estaba.
-export function SheetShell({ t, title, subtitle, badge, resetKey, onClose, children, className = "" }) {
+/** «Escuchar»: lee la ficha en voz alta (src/sky/speak.js); vuelve a «Escuchar» al terminar, al cambiar de ficha o al cerrarla. */
+function ListenButton({ boxRef, lang = "es", resetKey }) {
+  const [on, setOn] = useState(false);
+  const stopRef = useRef(null);
+  useEffect(() => () => { if (stopRef.current) stopRef.current(); }, []);
+  useEffect(() => { if (stopRef.current) { stopRef.current(); stopRef.current = null; } setOn(false); }, [resetKey]);
+  if (!canSpeak()) return null;
+  const L = LISTEN_T[lang] || LISTEN_T.es;
+  const toggle = () => {
+    if (on) { if (stopRef.current) stopRef.current(); stopRef.current = null; setOn(false); return; }
+    setOn(true);
+    stopRef.current = speakText(sheetText(boxRef.current), lang, () => { stopRef.current = null; setOn(false); });
+    track("sky_listen", { state: "on" });
+  };
+  return (
+    <button type="button" className={`sk-iconbtn sk-listen${on ? " is-on" : ""}`} onClick={toggle} aria-pressed={on} aria-label={on ? L.stopAria : L.listenAria} title={on ? L.stop : L.listen}>
+      <Icon name={on ? "pause" : "speaker"} size={18} />
+    </button>
+  );
+}
+
+export function SheetShell({ t, title, subtitle, badge, resetKey, onClose, children, className = "", lang = "es" }) {
   const [mode, setMode] = useState("peek");           // móvil: "peek" (media altura) | "full"
   const [dragY, setDragY] = useState(0);
   const startRef = useRef(null);
@@ -315,6 +338,7 @@ export function SheetShell({ t, title, subtitle, badge, resetKey, onClose, child
           <h2 id="sk-sheet-title" tabIndex={-1}>{title}</h2>
           <p className="sk-type">{subtitle}{badge && <em>{badge}</em>}</p>
         </div>
+        <ListenButton boxRef={boxRef} lang={lang} resetKey={resetKey} />
         <button type="button" className="sk-iconbtn" onClick={onClose} aria-label={t.closeSheet}><Icon name="close" size={18} /></button>
       </header>
       <div className="sk-sheet-body" ref={bodyRef}>{children}</div>
@@ -332,7 +356,7 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, credit, met
   const extract = wiki && wiki.extract && wikiFits ? (wiki.extract.length > 340 ? wiki.extract.slice(0, 340).replace(/\s+\S*$/, "") + "…" : wiki.extract) : "";
 
   return (
-    <SheetShell t={t} title={info.name} subtitle={info.type} badge={info.badge} resetKey={`${obj.layer}|${obj.name}|${obj.note || ""}`} onClose={onClose}>
+    <SheetShell t={t} lang={lang} title={info.name} subtitle={info.type} badge={info.badge} resetKey={`${obj.layer}|${obj.name}|${obj.note || ""}`} onClose={onClose}>
         <Visual obj={obj} info={info} t={t} lang={lang} wiki={wiki} wikiState={wikiState} credit={credit} />
         {info.facts.length > 0 && (
           <dl className="sk-facts">

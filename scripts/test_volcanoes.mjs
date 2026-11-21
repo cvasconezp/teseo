@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { matchVolcanoes, volcanoFacts, recentEruption, destPoint, kmBetween, fetchVolcanoes, VT } from "../src/sky/volcanoes.js";
 import { nowUrl, parseNow, wxKind, fmtTemp } from "../src/sky/nowWeather.js";
 import { toPx, toLL, TOPO_TILE } from "../src/sky/topo.js";
+import { veiColumnKm, ventPos, particle } from "../src/sky/plumeLayer.js";
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log("  FALLA:", m); } };
@@ -59,6 +60,22 @@ const [px, py] = toPx(-0.2, -78.5, 11), [la2, lo2] = toLL(px, py, 11);
 ok(Math.abs(la2 + 0.2) < 1e-9 && Math.abs(lo2 + 78.5) < 1e-9, "Mercator ida y vuelta");
 ok(Math.abs(toPx(0, 0, 0)[0] - 128) < 1e-9 && Math.abs(toPx(0, 0, 0)[1] - 128) < 1e-9, "el centro del mundo en el zoom 0");
 ok(/^https:\/\/[abc]\.tile\.opentopomap\.org\/12\/1\/2\.png$/.test(TOPO_TILE(12, 1, 2)), "teselas de OpenTopoMap");
+
+console.log("Erupciones ilustrativas");
+ok(veiColumnKm(2) === 3 && veiColumnKm(4) === 17 && veiColumnKm(null) === 3 && veiColumnKm(12) === 45, "altura de la columna según el VEI (Newhall y Self)");
+const vp = ventPos(90, 0, 10);
+ok(Math.abs(vp[0] - 10) < 1e-9 && Math.abs(vp[1]) < 1e-9 && Math.abs(vp[2]) < 1e-9, "cráter al este, en el horizonte");
+const young = particle(0.05, [0.5, 0.5, 0.25, 0], 3, [0, 0]), old = particle(0.9, [0.5, 0.5, 0.25, 0], 3, [0, 0]);
+ok(young.u < old.u && old.u <= 3 && old.u > 2 && young.r < old.r, "sube hasta ~¾–1 de la altura y se abre con la edad");
+const windy = particle(0.9, [0.5, 0.5, 0, 0], 3, [2, 0]), calm = particle(0.9, [0.5, 0.5, 0, 0], 3, [0, 0]);
+ok(windy.e > calm.e + 1, "el viento arrastra la ceniza");
+const fv = volcanoFacts({ last_vei: 2, last_start: 2022 }, "es");
+ok(fv.find((x) => x.label === "Explosividad (VEI)").value === "2 de 8 · erupción de 2022", "VEI de la última erupción en la ficha");
+ok(recentEruption({ erupting: true }), "en erupción este año cuenta como reciente");
+{
+  const ps = readFileSync(new URL("../src/sky/PeakSheet.jsx", import.meta.url), "utf8");
+  ok(/onSimulate/.test(ps) && /T\.simNote/.test(ps), "botón de simular con su aviso de que es ilustrativa");
+}
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 if (fail) process.exit(1);

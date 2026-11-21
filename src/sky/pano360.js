@@ -235,13 +235,14 @@ export function drawNadirStamp(ctx, { W, H, lines, small = [], f = 1 }) {
 // ── créditos de los datos ─────────────────────────────────────────────────────
 /**
  * Créditos de lo que aparece en la foto (licencias de CREDITS.md): estrellas y constelaciones siempre; relieve,
- * nombres de montañas, nubes y planetas solo si están. `f`: { terrain, peaks, clouds, planets }.
+ * nombres de montañas, nubes y planetas solo si están. `f`: { terrain, landsat, peaks, clouds, planets }.
  */
 export function panoCredits(f = {}, lang = "es") {
   const es = lang !== "en";
   const out = [es ? "Estrellas: HYG v4.1 (CC BY-SA 4.0) · Constelaciones: Stellarium (CC BY-SA)" : "Stars: HYG v4.1 (CC BY-SA 4.0) · Constellations: Stellarium (CC BY-SA)"];
   const more = [];
   if (f.terrain) more.push(es ? "Relieve: AWS Terrain Tiles (SRTM/NASA, GMTED2010/USGS)" : "Terrain: AWS Terrain Tiles (SRTM/NASA, GMTED2010/USGS)");
+  if (f.landsat) more.push(es ? "Colores: Sentinel-2 cloudless – s2maps.eu, EOX (datos Copernicus 2016–2017, CC BY 4.0)" : "Colours: Sentinel-2 cloudless – s2maps.eu, EOX (Copernicus data 2016–2017, CC BY 4.0)");
   if (f.peaks) more.push(es ? "Montañas: Wikidata, © colaboradores de OpenStreetMap (ODbL)" : "Peaks: Wikidata, © OpenStreetMap contributors (ODbL)");
   if (f.clouds) more.push(es ? "Nubes: Open-Meteo.com (CC BY 4.0)" : "Clouds: Open-Meteo.com (CC BY 4.0)");
   if (f.planets) more.push(es ? "Planetas: Solar System Scope (CC BY 4.0)" : "Planets: Solar System Scope (CC BY 4.0)");
@@ -255,6 +256,7 @@ export function panoCredits(f = {}, lang = "es") {
 export function shortCredits(f = {}, lang = "es") {
   const parts = ["HYG", "Stellarium"];
   if (f.terrain) parts.push("AWS Terrain Tiles");
+  if (f.landsat) parts.push("Sentinel-2 cloudless (EOX)");
   if (f.peaks) parts.push("© OpenStreetMap", "Wikidata");
   if (f.clouds) parts.push("Open-Meteo");
   if (f.planets) parts.push("Solar System Scope");

@@ -34,7 +34,7 @@ export default function ConstellationSheet({ con, data, lang, t, wiki, local, wh
   const extract = wiki && wiki.extract ? (wiki.extract.length > 300 ? wiki.extract.slice(0, 300).replace(/\s+\S*$/, "") + "…" : wiki.extract) : "";
   const dist = (s) => (s.dist != null ? fmtDist(s.dist, lang) : t.conNoDist);
   return (
-    <SheetShell t={t} title={con.la} subtitle={`${t.conType} · ${other}${lang === "es" && es && con.en !== es ? ` (${con.en})` : ""}`} resetKey={con.ab} onClose={onClose} className="is-con">
+    <SheetShell t={t} lang={lang} title={con.la} subtitle={`${t.conType} · ${other}${lang === "es" && es && con.en !== es ? ` (${con.en})` : ""}`} resetKey={con.ab} onClose={onClose} className="is-con">
       <section className="sk-con-stars">
         <h3>{t.conStarsTitle}</h3>
         <p>{t.conStarsLead(data.stars.length)}</p>

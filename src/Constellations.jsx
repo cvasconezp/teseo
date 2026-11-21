@@ -59,7 +59,7 @@ import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/cloudsLayer.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
 import { andeanLabels, TX_AND } from "./sky/andean.js";
-import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit } from "./sky/horizon.js";
+import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit, fetchLandColors } from "./sky/horizon.js";
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints } from "./sky/monumentLayer.js";
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
@@ -82,6 +82,7 @@ import IssSheet from "./sky/IssSheet.jsx";
 import PeakSheet from "./sky/PeakSheet.jsx";
 import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp } from "./sky/nowWeather.js";
 import { fetchVolcanoes, matchVolcanoes, recentEruption, VT as VOLC_T } from "./sky/volcanoes.js";
+import { createPlumeLayer, veiColumnKm } from "./sky/plumeLayer.js";
 import IssPill, { nextRate } from "./sky/IssPill.jsx";
 import { ISS as ISS_TX } from "./sky/i18n-iss.js";
 import { fetchIssPass, hasTrack, hiddenReason, formatClock as issClockFmt, formatDayTime as issDayTime, DEFAULT_DAYS as ISS_DAYS } from "./sky/issPasses.js";
@@ -144,6 +145,7 @@ const TERRAIN_KEY = "teseo_terrain";    // interruptor "Montañas" (relieve real
 const DAYWARN_KEY = "teseo_daywarn_off";
 const CONS_KEY = "teseo_cons";          // "Constelaciones" (líneas y nombres; encendido por defecto)
 const ANDEAN_KEY = "teseo_andean";     // "Astronomía andina": Sol en solsticios/equinoccios + sitios quitu-caranquis (apagado)
+const SAT_KEY = "teseo_landsat";      // "Colores del satélite" en las montañas (encendido por defecto)
 const PEAKS_KEY = "teseo_peaks";        // "Nombres de las montañas" (OpenStreetMap; apagado por defecto)
 const MONUMENTS_KEY = "teseo_monuments"; // "Monumentos" (pirámides, Stonehenge…; encendido por defecto)
 const CLOUDS_KEY = "teseo_clouds";      // interruptor "Nubes" (1/0; apagado por defecto: un cielo cubierto no deja ver nada)
@@ -667,6 +669,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [terrainOn, setTerrainOn] = useState(() => { try { return localStorage.getItem(TERRAIN_KEY) !== "0"; } catch { return true; } });
   const [hz, setHz] = useState({ status: "idle", data: null, key: null });   // horizonte real (/api/horizon)
   const [hzRetry, setHzRetry] = useState(0);
+  const [satOn, setSatOn] = useState(() => { try { return localStorage.getItem(SAT_KEY) !== "0"; } catch { return true; } });
+  const [land, setLand] = useState({ key: null, status: null, data: null });
   const [peaksOn, setPeaksOn] = useState(() => { try { return localStorage.getItem(PEAKS_KEY) === "1"; } catch { return false; } });
   const [andOn, setAndOn] = useState(() => { try { return localStorage.getItem(ANDEAN_KEY) === "1"; } catch { return false; } });
   const [consOn, setConsOn] = useState(() => { try { return localStorage.getItem(CONS_KEY) !== "0"; } catch { return true; } });
@@ -751,7 +755,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // a la velocidad elegida mientras se reproduce y escribe whenStr una vez por minuto simulado.
   const [issSel, setIssSel] = useState(null);
   const [issSheet, setIssSheet] = useState(false);
-  const [peakSheet, setPeakSheet] = useState(null);   // la montaña del horizonte cuyo nombre se tocó (PeakSheet)
+  const [peakSheet, setPeakSheet] = useState(null);
+  const [plumeSim, setPlumeSim] = useState(null);     // la simulación de erupción en curso: la cumbre (de peakLabels)   // la montaña del horizonte cuyo nombre se tocó (PeakSheet)
   const [issRate, setIssRate] = useState(ISS_RATE_DEF);
   const issClock = useRef({ t: Date.now(), live: true, playing: false, rate: ISS_RATE_DEF, lastMin: 0, hudSec: null, endMs: null, onMinute: null, onEnd: null });
   const issHudRef = useRef(null);        // setter de la píldora (vive en <IssPill>)
@@ -1332,6 +1337,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // monumentos (src/sky/monumentLayer.js): en 3D en el mismo marco, delante de las montañas
     const monuments = createMonumentLayer({ onReady: () => { const r = sceneRef.current; if (r) r._dirty = true; } });
     horizon.add(monuments.group);
+    // columnas de ceniza ilustrativas sobre los volcanes (src/sky/plumeLayer.js)
+    const plume = createPlumeLayer();
+    horizon.add(plume.group);
     horizon.visible = false; scene.add(horizon);
     // líneas guía (src/sky/guidesLayer.js): eclíptica, ecuador, Vía Láctea, cuadrículas… Todas apagadas al
     // empezar; se dibujan antes que estrellas y figuras (renderOrder −1) y el suelo las atenúa bajo el horizonte
@@ -1596,7 +1604,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
+      atm, clouds, terrain, monuments, plume, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1938,7 +1946,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       // (con tolerancia: el amortiguado de OrbitControls sigue moviendo la cámara millonésimas durante segundos;
       // se compara con el último cuadro DIBUJADO, así que una deriva lenta acaba dibujándose igual)
       const far = (a, b, e) => !(Math.abs(a - b) <= e);
-      const moved = rebuild || ar.on || issMoved || !!ref.look.fly || tStart < wakeUntil || far(cp.x, lastCam.px, 0.01) || far(cp.y, lastCam.py, 0.01) || far(cp.z, lastCam.pz, 0.01)
+      // columnas de ceniza: se mueven solas (mientras haya alguna, se dibuja cada cuadro)
+      const plumeOn = !!(ref.plume && ref.plume.group.parent && ref.plume.group.parent.visible && ref.plume.update(tStart, (ref.renderer.domElement.clientHeight || 600) / (ref.camera.fov * Math.PI / 180)));
+      const moved = rebuild || ar.on || issMoved || plumeOn || !!ref.look.fly || tStart < wakeUntil || far(cp.x, lastCam.px, 0.01) || far(cp.y, lastCam.py, 0.01) || far(cp.z, lastCam.pz, 0.01)
         || far(cq.x, lastCam.qx, 1e-6) || far(cq.y, lastCam.qy, 1e-6) || far(cq.z, lastCam.qz, 1e-6) || far(cq.w, lastCam.qw, 1e-6) || ref.camera.fov !== lastCam.fov || far(vs.cx, lastCam.vx, 0.25) || far(vs.cy, lastCam.vy, 0.25) || us !== lastCam.us;
       const draw = moved || (++idleN % IDLE_EVERY === 0);
       if (moved) idleN = 0;
@@ -2628,6 +2638,18 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     return () => { alive = false; };
   }, [peaksOn, hzData, hzKey, hzRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
   const peakList = peaksOn && hzData && pk.status === "ok" && pk.key === hzKey ? pk.data.peaks : null;
+  // colores reales de las laderas (Sentinel-2 cloudless 2016; backend/app/landcolor.py)
+  useEffect(() => { try { localStorage.setItem(SAT_KEY, satOn ? "1" : "0"); } catch { /* no-op */ } }, [satOn]);
+  useEffect(() => {
+    if (!satOn || !hzData || !hzKey) return undefined;
+    let alive = true;
+    setLand((s) => (s.key === hzKey && s.status === "ok" ? s : { key: hzKey, status: "loading", data: null }));
+    fetchLandColors(lat, lon, { api: API, fine: placeFine }).then(
+      (data) => { if (alive) setLand({ key: hzKey, status: "ok", data }); },
+      () => { if (alive) setLand({ key: hzKey, status: "error", data: null }); });
+    return () => { alive = false; };
+  }, [satOn, hzData, hzKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const landData = satOn && land.key === hzKey && land.status === "ok" ? land.data : null;
   // volcanes del Smithsonian de la zona (para la ficha de cada volcán del horizonte; src/sky/volcanoes.js)
   const [volc, setVolc] = useState({ key: null, list: null });
   const volcKey = peaksOn && hzData && lat != null && lon != null ? `${Math.round(lat * 2)},${Math.round(lon * 2)}` : null;
@@ -2728,8 +2750,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [hzData, hzEff, ready, placeSummit]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {      // el color de las montañas sigue la luz del cielo (sin atmósfera: siluetas de noche)
     const ref = sceneRef.current; if (!ref || !ref.terrain || !hzData) return;
-    try { ref.terrain.paint(atmState); } catch { /* no-op */ }
-  }, [hzData, atmState, ready, placeSummit]);
+    try { ref.terrain.setLand(landData, satOn); ref.terrain.paint(atmState); } catch { /* no-op */ }
+  }, [hzData, atmState, ready, placeSummit, landData, satOn]);
 
   // nubes: pronóstico de Open-Meteo para el lugar (solo si se piden o se abre su panel) y capa del cielo
   useEffect(() => { try { localStorage.setItem(CLOUDS_KEY, cloudsOn ? "1" : "0"); } catch { /* no-op */ } }, [cloudsOn]);
@@ -2747,6 +2769,22 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // tu altura sobre el suelo del pronóstico (km): el horizonte real la da exacta; si no, la altitud del lugar
   const obsM = hzData ? (hzData.ground_m || 0) + (hzData.eye_m || 1.7) : (Number.isFinite(elev) ? elev : null);
   const cloudLiftKm = useMemo(() => cloudLift(obsM, wxData ? wxData.elevation : null), [obsM, wxData]);
+  // columnas de ceniza (ilustrativas): la simulación pedida desde la ficha de un volcán y, suaves, las de los que el
+  // Smithsonian da en erupción este año y se ven en el horizonte; el viento, del pronóstico (capa media)
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref || !ref.plume) return;
+    const on = localActive && !viewFrom && !!hzData;
+    const vp = (p) => ({ az: p.az, alt: p.alt, dist_km: p.dist_km, vei: p.volcano ? p.volcano.last_vei : 2 });
+    ref.plume.simulate(on && plumeSim ? vp(plumeSim) : null);
+    const amb = on && peakList && volcList ? (ref.peakLabels || []).filter((p) => p.volcano && p.volcano.erupting && (!plumeSim || p.name !== plumeSim.name)).map(vp) : [];
+    ref.plume.ambient(amb);
+    let windMs = null;
+    try { if (wxData) { const c = cloudsAt(wxData, new Date(whenStr)); windMs = c && c.wind && c.wind.mid; } } catch { /* sin viento */ }
+    const day = atmState ? Math.min(1, Math.max(0, (atmState.sunAlt + 8) / 14)) : 0;
+    ref.plume.setLook({ windMs, day, horizon: atmState && atmState.colors ? atmState.colors.horizon : null });
+    ref._dirty = true;
+  }, [plumeSim, peakList, volcList, hzData, localActive, viewFrom, wxData, whenStr, atmState, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setPlumeSim(null); }, [lat, lon]);
 
   // atmósfera: estrellas, planetas y cielo profundo según lo que deja ver el cielo (después de colocar
   // el marco local y los cuerpos, que son los efectos anteriores). Si algo falla, el cielo queda sin atmósfera.
@@ -3170,12 +3208,13 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // fuentes de lo que se ve en la vista (relieve, nombres de montañas, nubes)
     const es = lang === "es", vc = [];
     if (view && hzData) vc.push(es ? "relieve AWS Terrain Tiles (SRTM)" : "terrain AWS Terrain Tiles (SRTM)");
+    if (view && hzData && landData) vc.push(es ? "colores Sentinel-2 cloudless (EOX, CC BY 4.0)" : "colours Sentinel-2 cloudless (EOX, CC BY 4.0)");
     if (view && peakList && peakList.length) vc.push(es ? "nombres de montañas Wikidata y © OpenStreetMap" : "mountain names Wikidata and © OpenStreetMap");
     if (view && cloudsOn && wxData) vc.push(es ? "nubes Open-Meteo" : "clouds Open-Meteo");
     const out = buildPostcard({ ...base, center, view, viewCredit: vc.join(" · ") });
     if (E2E) out.then((r) => { window.__teseoPostcard = r && r.report; }).catch(() => {});
     return out;
-  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars, hzData, peakList, cloudsOn, wxData, placeTz]);
+  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars, hzData, peakList, cloudsOn, wxData, placeTz, landData]);
   const openShare = useCallback(() => { setShareState(null); setShare(true); }, []);
   // «atrás» del teléfono (src/ui/backGuard.js): cierra lo que esté abierto, de lo más encima a lo más abajo
   const backRef = useRef({});
@@ -3243,14 +3282,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const when = new Date(whenStr), tzo = placeTz ? { timeZone: placeTz } : {};
     const place = placeKind === "me" ? (lang === "es" ? "Mi ubicación" : "My location") : placeKind === "custom" ? `${lat.toFixed(2)}°, ${lon.toFixed(2)}°` : placeKind;
     const stamp = when.toLocaleString(lang === "es" ? "es-EC" : "en-US", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...tzo });
-    const credits = panoCredits({ terrain: !!(ref.hzData && ref.terrain.group.visible), peaks: !!(ref.peakLabels && ref.peakLabels.length), clouds: !!ref.clouds.visible, planets: !!ref.showSolar, andean: !!(ref.andLabels && ref.andLabels.some((p) => p.cls === "andsite")) }, lang);
+    const credits = panoCredits({ terrain: !!(ref.hzData && ref.terrain.group.visible), landsat: !!(ref.hzData && ref.terrain.group.visible && landData), peaks: !!(ref.peakLabels && ref.peakLabels.length), clouds: !!ref.clouds.visible, planets: !!ref.showSolar, andean: !!(ref.andLabels && ref.andLabels.some((p) => p.cls === "andsite")) }, lang);
     drawNadirStamp(g, { W, H, f: (W / 4096) * 1.7, lines: ["Teseo · teseo.yachaydeep.com", place, stamp], small: credits });
     const blob0 = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.9));
     if (!blob0) throw new Error("sin JPEG");
     const bytes = withGPano(new Uint8Array(await blob0.arrayBuffer()), { W, H, heading, title: `${lang === "es" ? "Cielo de" : "Sky from"} ${place} · ${stamp}`, credits });
     const p = tzParts(when, placeTz);
     return { blob: new Blob([bytes], { type: "image/jpeg" }), type: "image/jpeg", width: W, height: H, fileName: panoFileName(place, p) };
-  }, [whenStr, placeTz, placeKind, lat, lon, lang, panoLabels]);
+  }, [whenStr, placeTz, placeKind, lat, lon, lang, panoLabels, landData]);
 
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) { setGeo("unsupported"); return; }
@@ -3861,6 +3900,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     <TerrainControl lang={lang} available={localActive && !viewFrom} on={terrainOn}
       onToggle={() => { const nv = !terrainOn; setTerrainOn(nv); track("sky_setting", { setting: "horizon", state: nv ? "on" : "off" }); }}
       hz={hzKey ? (hz.key === hzKey ? hz : { status: "loading" }) : null} onRetry={() => setHzRetry((n) => n + 1)}
+      satOn={satOn} sat={satOn && hzKey ? (land.key === hzKey ? land.status : "loading") : null}
+      onToggleSat={() => { const nv = !satOn; setSatOn(nv); track("sky_setting", { setting: "landsat", state: nv ? "on" : "off" }); }}
       peaksOn={peaksOn} peaks={peaksOn && hzData ? (pk.key === hzKey ? pk : { status: "loading" }) : null}
       monOn={monOn} onToggleMon={() => { const nv = !monOn; setMonOn(nv); track("sky_setting", { setting: "monuments", state: nv ? "on" : "off" }); }}
       monNear={monNear} monStatus={monKey ? (monBase.key === monKey ? monBase.status : "loading") : null}
@@ -3930,7 +3971,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       {sky && (
         <p className="sk-credit" aria-hidden="true">
           <b>Teseo</b> · teseo.yachaydeep.com
-          <small>{shortCredits({ terrain: !!(inMySky && hzData), peaks: !!(peakList && peakList.length), clouds: !!(inMySky && cloudsOn && wxData), planets: showSolar, andean: !!(inMySky && andean && andean.sites.length) }, lang)}</small>
+          <small>{shortCredits({ terrain: !!(inMySky && hzData), landsat: !!(inMySky && hzData && landData), peaks: !!(peakList && peakList.length), clouds: !!(inMySky && cloudsOn && wxData), planets: showSolar, andean: !!(inMySky && andean && andean.sites.length) }, lang)}</small>
         </p>
       )}
       {PERF_ON && <PerfMeter t={t} lang={lang} apiRef={perfApiRef} />}
@@ -3959,7 +4000,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           <SearchBox t={t} query={query} setQuery={setQuery} results={results} onResult={onResult} quick={quick} compact={!isWide} />
           {dayWarn && <DayWarning lang={lang} planets={dayPlanets} onNightfall={goNightfall}
             onAtmOff={() => { setAtmOn(false); track("sky_setting", { setting: "atmosphere", state: "off" }); }} onDismiss={hideDayWarn} />}
-          {(viewFrom || outside || (isWide && localMode) || issSel || (wxNow && localMode && !viewFrom)) && (
+          {(viewFrom || outside || (isWide && localMode) || issSel || plumeSim || (wxNow && localMode && !viewFrom)) && (
             <div className="sk-chips">
               {issSel && (
                 <IssPill lang={lang} apiRef={issHudRef} pass={issSel.pass} loading={issSel.status === "loading"} playing={playing && issOn} rate={issRate}
@@ -3986,6 +4027,15 @@ export default function Constellations({ lang = "es", onMenu = null }) {
                   <button type="button" onClick={leaveMySky} aria-label={t.leaveMySky}><Icon name="close" size={15} /></button>
                 </div>
               )}
+              {plumeSim && (() => {
+                const VTl = VOLC_T[lang] || VOLC_T.es, vei = plumeSim.volcano && Number.isFinite(plumeSim.volcano.last_vei) ? plumeSim.volcano.last_vei : 2;
+                return (
+                  <div className="sk-chip tone-violet sk-sim-chip">
+                    <span>{VTl.simChip(plumeSim.label || plumeSim.name, vei, String(veiColumnKm(vei)).replace(".", lang === "es" ? "," : "."))}</span>
+                    <button type="button" onClick={() => setPlumeSim(null)}>{VTl.simStop}</button>
+                  </div>
+                );
+              })()}
               {wxNow && localMode && !viewFrom && (() => {
                 const k = wxKind(wxNow.code, wxNow.day), nm = (WX_NAMES[lang] || WX_NAMES.es)[k];
                 return (
@@ -4154,7 +4204,18 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       )}
       {peakSheet && !selObj && (
         <PeakSheet t={t} lang={lang} peak={peakSheet} onClose={() => setPeakSheet(null)}
-          onGo={() => { const pk0 = peakSheet; setPeakSheet(null); pickPlace({ name: pk0.label || pk0.name, lat: pk0.lat, lon: pk0.lon, elev: null, peak: 400 }); }} />
+          onGo={() => { const pk0 = peakSheet; setPeakSheet(null); pickPlace({ name: pk0.label || pk0.name, lat: pk0.lat, lon: pk0.lon, elev: null, peak: 400 }); }}
+          onSimulate={() => {
+            const pk0 = peakSheet, ref = sceneRef.current; setPeakSheet(null); setPlumeSim(pk0);
+            track("sky_eruption_sim", { vei: pk0.volcano ? pk0.volcano.last_vei : null });
+            // encuadrar el volcán con su columna: el ángulo de la columna sobre la cumbre, y algo de margen
+            if (ref && ref.lookAt) {
+              const H = veiColumnKm(pk0.volcano ? pk0.volcano.last_vei : 2), up = Math.atan2(H * 0.8, Math.max(1, pk0.dist_km)) * 180 / Math.PI;
+              const v = altAzToLocal(pk0.alt + up * 0.45, pk0.az);
+              ref.lookAt(new THREE.Vector3(v[0], v[1], v[2]), Math.max(18, Math.min(110, up * 2.6)));
+              if (ref.wake) ref.wake();
+            }
+          }} />
       )}
 
       {pick && (

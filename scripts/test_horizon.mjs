@@ -169,5 +169,27 @@ console.log("Cumbre más cercana (/api/summit)");
   ok(/placeSummit \|\| topAll/.test(cj3) && /summit: true/.test(cj3), "solo en las cumbres (elegidas, GPS en la cima o todo el horizonte por debajo)");
 }
 
+console.log("Colores del satélite y textura");
+{
+  const hm = await import("../src/sky/horizon.js");
+  const row = Buffer.from(new Uint8Array([255, 0, 0, 0, 0, 255, 255, 0, 0, 0, 0, 255])).toString("base64");
+  const d = hm.decodeLandColors({ step_deg: 0.4, credit: "EOX", bands: [{ top: row, bottom: row }] });
+  ok(d && d.bands[0].top.length === 12 && d.credit === "EOX", "decodifica los colores (RGB por columna)");
+  const sm = hm.smoothLand(new Float32Array([1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1]), 1, 0);
+  ok(Math.abs(sm[0] - 1 / 3) < 1e-6 && Math.abs(sm[2] - 2 / 3) < 1e-6, "media móvil circular a lo largo del acimut (sin rayas)");
+  ok(hm.decodeLandColors({}) === null, "sin bandas, nada");
+  const day = { sunAlt: 40, colors: { horizon: [0.6, 0.7, 0.9] } };
+  const pal = hm.terrainPalette(day, 6);
+  const green = pal.col(0, [0.2, 0.5, 0.1]), desert = pal.col(0, [0.7, 0.55, 0.35]);
+  ok(green.top[1] > green.top[0] && desert.top[0] > desert.top[2], "el color del satélite cambia el de la ladera (verde, desierto)");
+  const far = pal.col(5, [0.2, 0.5, 0.1]);
+  ok(Math.abs(far.top[2] - 0.9) < Math.abs(green.top[2] - 0.9), "las bandas lejanas se acercan al color del horizonte (bruma)");
+  const night = hm.terrainPalette({ sunAlt: -30, colors: { horizon: [0.05, 0.05, 0.08] } }, 6);
+  const ng = night.col(0, [0.2, 0.5, 0.1]), nd = night.col(0, [0.7, 0.55, 0.35]);
+  ok(Math.abs(ng.top[0] - nd.top[0]) < 1e-6, "de noche el color del satélite no se nota (siluetas)");
+  const tl4 = readFileSync(new URL("../src/sky/terrainLayer.js", import.meta.url), "utf8");
+  ok(/export function texturize/.test(tl4) && /onBeforeCompile/.test(tl4) && /landAt\(k, j\)/.test(tl4), "textura generada y color por columna en las franjas");
+}
+
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

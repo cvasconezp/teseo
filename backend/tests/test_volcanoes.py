@@ -37,11 +37,26 @@ def test_cercanos_ordenados():
     assert [x["name"] for x in v] == ["Cayambe", "Cotopaxi"] and 15 < v[0]["dist_km"] < 20
 
 
+ERUP = {"features": [
+    {"properties": {"Volcano_Number": 352050, "ExplosivityIndexMax": 2, "StartDateYear": 2022, "EndDateYear": 2023, "Activity_Type": "Confirmed Eruption"}},
+    {"properties": {"Volcano_Number": 352050, "ExplosivityIndexMax": 4, "StartDateYear": 1877, "EndDateYear": 1880, "Activity_Type": "Confirmed Eruption"}},
+    {"properties": {"Volcano_Number": 352050, "ExplosivityIndexMax": 9, "StartDateYear": 2024, "Activity_Type": "Discredited Eruption"}},
+    {"properties": {"Volcano_Number": 352010, "ExplosivityIndexMax": 2, "StartDateYear": 1785, "EndDateYear": 2026, "Activity_Type": "Confirmed Eruption"}},
+]}
+
+
+def test_ultimas_erupciones():
+    e = vo.last_eruptions(ERUP, 2026)
+    assert e[352050] == {"vei": 2, "start": 2022, "end": 2023, "erupting": False}
+    assert e[352010]["erupting"] is True
+
+
 def test_punto(monkeypatch):
     vo._cache.update(at=0.0, list=None, failed_at=0.0, error=None)
-    monkeypatch.setattr(vo, "_transport", httpx.MockTransport(lambda req: httpx.Response(200, json=FEAT)))
+    monkeypatch.setattr(vo, "_transport", httpx.MockTransport(lambda req: httpx.Response(200, json=ERUP if "Eruptions" in str(req.url) else FEAT)))
     d = client.get("/api/volcanoes?lat=0.04&lon=-78.15").json()
     assert [x["name"] for x in d["volcanoes"]] == ["Cayambe", "Cotopaxi"] and "Smithsonian" in d["source"]
+    assert d["volcanoes"][1]["last_vei"] == 2 and d["volcanoes"][1]["last_start"] == 2022
 
 
 def test_falla_sin_copia(monkeypatch):

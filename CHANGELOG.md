@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.50.0 — 21 de noviembre de 2026
+
+- Textura del paisaje: las laderas toman su color real de un mosaico de
+  satélite sin nubes (Sentinel-2 cloudless 2016, EOX, CC BY 4.0), con la luz
+  del momento, la bruma de la distancia y una textura generada de quebradas
+  y grano. Interruptor «Colores del satélite» en Montañas (encendido por
+  defecto). Nuevo `/api/horizon/colors`.
+- «Escuchar»: un botón con un altavoz en todas las fichas (estrellas,
+  planetas, constelaciones, volcanes, la ISS) lee la ficha en voz alta con la
+  voz del teléfono o del navegador.
+- Erupciones ilustrativas: en la ficha de un volcán, «Simular su última
+  erupción» dibuja una columna de ceniza animada con la altura típica de su
+  VEI (Smithsonian) y el viento del pronóstico, con un aviso de que es
+  ilustrativa. Los volcanes que el Smithsonian da en erupción este año
+  llevan una pluma suave. La ficha muestra el VEI de la última erupción.
+
 ## 1.49.0 — 21 de noviembre de 2026
 
 - Ficha de las montañas del horizonte: al tocar el nombre de una cumbre se

@@ -22,6 +22,7 @@ Endpoints:
   GET  /api/sun/today                 → «El Sol hoy»: manchas (SILSO), regiones, fulguraciones, Kp, ciclo (NOAA SWPC), imagen SDO
   GET  /api/missions/mars             → ventana a Marte + naves con destino Marte
   GET  /api/horizon?lat&lon[&fine]     → horizonte real del lugar: silueta del relieve (AWS Terrain Tiles)
+  GET  /api/horizon/colors?lat&lon     → color real de las laderas del horizonte (Sentinel-2 cloudless 2016)
   GET  /api/summit?lat&lon&r[&strict]  → la cumbre más cercana (para situarse en lo alto de una montaña)
   GET  /api/volcanoes?lat&lon[&r_km]   → volcanes del Holoceno cercanos (Smithsonian, Global Volcanism Program)
   GET  /api/peaks?lat&lon              → nombres de las cumbres que forman esa silueta (Wikidata, OpenStreetMap)
@@ -68,9 +69,10 @@ from app import img_proxy
 from app import horizon
 from app import peaks
 from app import volcanoes
+from app import landcolor
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.49.0"
+VERSION = "1.50.0"
 _STARTED = time.time()
 
 app = FastAPI(
@@ -365,6 +367,7 @@ async def _metrics_flusher():
 
 app.include_router(sun.router)  # «El Sol hoy»: /api/sun/today (app/sun.py)
 app.include_router(push.router)  # «Recordarme»: /api/push/* y su bucle de envío (arranque/parada en app/push.py)
+app.include_router(landcolor.router)  # color real de las laderas: /api/horizon/colors (app/landcolor.py, Sentinel-2 cloudless)
 app.include_router(horizon.router)  # horizonte real: /api/horizon (app/horizon.py, relieve de AWS Terrain Tiles)
 app.include_router(peaks.router)    # nombres de las montañas del horizonte: /api/peaks (app/peaks.py, OpenStreetMap)
 app.include_router(volcanoes.router)  # volcanes del Holoceno: /api/volcanoes (app/volcanoes.py, Smithsonian GVP)

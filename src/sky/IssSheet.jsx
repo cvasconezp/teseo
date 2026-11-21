@@ -25,7 +25,7 @@ export default function IssSheet({ t, lang = "es", pass, data, onClose, onCenter
     </div>
   );
   return (
-    <SheetShell t={t} title={x.issSheetTitle} subtitle={x.issSheetType} badge={pass ? `${formatDay(Date.parse(pass.start.t), o)}` : null}
+    <SheetShell t={t} lang={lang} title={x.issSheetTitle} subtitle={x.issSheetType} badge={pass ? `${formatDay(Date.parse(pass.start.t), o)}` : null}
       resetKey={pass ? pass.start.t : "iss"} onClose={onClose} className="is-iss">
       {why && <p className="sk-note iss-sheet-warn" role="note"><Icon name={why === "sun_up" ? "sun" : "moon"} size={17} />{x.issHiddenWhy[why]}</p>}
       <dl className="sk-facts is-two">

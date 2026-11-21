@@ -772,6 +772,12 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-topo .sk-btn:disabled { opacity: 0.45; }
 
 /* el tiempo de ahora en el lugar (nowWeather.js): pastilla translúcida bajo el buscador */
-.sk-stage .sk-wx-pill { gap: 7px; padding: 0 14px 0 11px; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #f4f6ff; font-variant-numeric: tabular-nums; cursor: pointer; }
+.sk-stage .sk-wx-pill { gap: 7px; padding: 0 14px 0 11px; border: 1px solid rgba(255, 255, 255, 0.24); background: rgba(12, 16, 34, 0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #f4f6ff; font-variant-numeric: tabular-nums; cursor: pointer; }
 .sk-stage .sk-wx-pill svg { color: #cfe0ff; }
 .sk-stage .sk-wx-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* «Escuchar» en las fichas (speak.js) */
+.sk-stage .sk-iconbtn.sk-listen.is-on { color: #c4b5fd; background: rgba(167, 139, 250, 0.16); }
+
+/* simulación de erupción (plumeLayer.js): aviso con «Parar» */
+.sk-stage .sk-sim-chip span { white-space: normal; line-height: 1.25; padding: 4px 0; }

@@ -122,7 +122,66 @@ export function terrainPalette(st, nBands = 4) {
     const top = mix(n, dTop, day), bottom = mix(mix(n, [0, 0, 0], 0.25), dBot, day);
     out.push({ top, bottom });
   }
-  return { bands: out, snow: mix([0.09, 0.1, 0.13], [0.9, 0.92, 0.95], day), day };
+  // con los colores del satélite (landColors): el mismo cálculo con el color real de cada columna en vez de `land`.
+  // RGB del satélite (0–1, sRGB) → albedo en la escala de `land` (el mosaico es más claro y saturado)
+  const col = (k, satTop, satBot) => {
+    const f = nBands > 1 ? k / (nBands - 1) : 0;
+    const n = mix(nightBase, nightFar, Math.pow(f, 0.8) * 0.95);
+    const alb = (c) => { const g = (c[0] + c[1] + c[2]) / 3; return [0.46 * (g + (c[0] - g) * 1.15), 0.46 * (g + (c[1] - g) * 1.15), 0.46 * (g + (c[2] - g) * 1.15)]; };
+    const lt = alb(satTop), lb = alb(satBot || satTop);
+    const dTop = mix(lt, horizon, 0.04 + 0.72 * Math.pow(f, 0.85));
+    const dBot = mix(mix(lb, [0, 0, 0], 0.12), horizon, 0.03 + 0.66 * Math.pow(f, 0.85));
+    return { top: mix(n, dTop, day), bottom: mix(mix(n, [0, 0, 0], 0.25), dBot, day) };
+  };
+  return { bands: out, snow: mix([0.09, 0.1, 0.13], [0.9, 0.92, 0.95], day), day, col };
+}
+
+/** Respuesta de /api/horizon/colors → { step, bands: [{ top: Float32Array(n·3), bottom }] } (RGB 0–1). */
+export function decodeLandColors(body) {
+  if (!body || !Array.isArray(body.bands) || !body.bands.length) return null;
+  const dec = (b64) => {
+    const bin = typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
+    const out = new Float32Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) / 255;
+    return out;
+  };
+  return { step: body.step_deg || 0.4, credit: body.credit || null, bands: body.bands.map((b) => ({ top: smoothLand(dec(b.top)), bottom: smoothLand(dec(b.bottom)) })) };
+}
+
+/**
+ * Suaviza una fila de colores (RGB seguidos) a lo largo del acimut: media móvil circular de ±`w` columnas y un
+ * `pull` hacia la media de la fila. Cada columna mira un punto distinto del mapa y, sin suavizar, el relieve
+ * quedaría con rayas verticales de colores.
+ */
+export function smoothLand(arr, w = 5, pull = 0.3) {
+  const m = arr.length / 3, out = new Float32Array(arr.length), mean = [0, 0, 0];
+  for (let i = 0; i < m; i++) for (let c = 0; c < 3; c++) mean[c] += arr[i * 3 + c] / m;
+  for (let i = 0; i < m; i++) {
+    for (let c = 0; c < 3; c++) {
+      let sum = 0;
+      for (let q = -w; q <= w; q++) sum += arr[(((i + q) % m) + m) % m * 3 + c];
+      out[i * 3 + c] = (sum / (2 * w + 1)) * (1 - pull) + mean[c] * pull;
+    }
+  }
+  return out;
+}
+const landMem = new Map();
+/** Colores reales de las laderas del horizonte (Sentinel-2 cloudless 2016; backend/app/landcolor.py). */
+export function fetchLandColors(lat, lon, { api = "", fine = false, fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
+  const key = cellKey(lat, lon, fine);
+  if (landMem.has(key)) return landMem.get(key);
+  if (!fetchImpl) return Promise.reject(new Error("sin red"));
+  const [la, lo] = key.replace(/^f:/, "").split(",");
+  const p = fetchImpl(`${api}/api/horizon/colors?lat=${la}&lon=${lo}${fine ? "&fine=1" : ""}`).then(async (r) => {
+    let body = null;
+    try { body = await r.json(); } catch { /* no JSON */ }
+    const d = r.ok ? decodeLandColors(body) : null;
+    if (!d) throw new Error((body && body.detail) || `HTTP ${r.status}`);
+    return d;
+  });
+  landMem.set(key, p);
+  p.catch(() => landMem.delete(key));
+  return p;
 }
 
 // ── red ─────────────────────────────────────────────────────────────────────────────────────────────────
