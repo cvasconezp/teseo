@@ -55,6 +55,28 @@ export function eruptingInView(volcs, hz, lat, lon, angleOf, maxKm = 150) {
   return out;
 }
 
+/**
+ * Volcanes del Smithsonian cuya cumbre forma la silueta que se ve (a menos de 0,4° del filo dibujado en su rumbo):
+ * para nombrarlos aunque el mapa de cumbres no los traiga o los haya descartado (el Cotopaxi desde el Cayambe).
+ */
+export function volcanoesOnSkyline(volcs, hz, lat, lon, angleOf, maxKm = 150) {
+  if (!Array.isArray(volcs) || !hz || !Array.isArray(hz.alt)) return [];
+  const h0 = (hz.ground_m || 0) + (hz.eye_m || 1.7), step = hz.step_deg || 0.2, n = hz.alt.length, out = [];
+  for (const v of volcs) {
+    if (!Number.isFinite(v.elev_m) || v.elev_m < 500) continue;
+    const d = kmBetween(lat, lon, v.lat, v.lon);
+    if (d < 3 || d > maxKm) continue;
+    const az = bearingDeg(lat, lon, v.lat, v.lon), alt = angleOf(v.elev_m, d, h0);
+    // el punto más alto del filo en ±(1,5 km vistos desde aquí): el punto del catálogo puede estar en el cráter
+    const w = Math.max(2, Math.ceil((Math.atan2(1.5, d) * 180 / Math.PI) / step)), c = Math.round(az / step);
+    let bi = -1, ba = -99;
+    for (let q = -w; q <= w; q++) { const i = (((c + q) % n) + n) % n; if (hz.alt[i] > ba) { ba = hz.alt[i]; bi = i; } }
+    if (Math.abs(ba - alt) > 0.4) continue;                      // tapado, o el filo es de otra montaña
+    out.push({ id: v.id, name: v.name, az: bi * step, alt: ba, dist_km: +d.toFixed(1), ele_m: v.elev_m, lat: v.lat, lon: v.lon, volcano: v });
+  }
+  return out;
+}
+
 /** Punto a `d` km en el rumbo `az` (grados desde el norte) desde (lat, lon). */
 export function destPoint(lat, lon, az, d) {
   const r = Math.PI / 180, δ = d / R, θ = az * r, φ1 = lat * r, λ1 = lon * r;

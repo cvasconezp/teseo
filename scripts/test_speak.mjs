@@ -1,6 +1,6 @@
 // Pruebas: «Escuchar» (src/sky/speak.js): voz, trozos, texto de la ficha y lectura con una síntesis falsa.
 import { readFileSync } from "node:fs";
-import { pickVoice, chunks, sheetText, speakText, canSpeak } from "../src/sky/speak.js";
+import { pickVoice, chunks, sheetText, speakText, canSpeak, narrate } from "../src/sky/speak.js";
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log("  FALLA:", m); } };
@@ -32,6 +32,10 @@ stop();
 ok(true, "se puede parar");
 const os = readFileSync(new URL("../src/sky/ObjectSheet.jsx", import.meta.url), "utf8");
 ok(/<ListenButton boxRef=\{boxRef\}/.test(os), "el botón va en todas las fichas (SheetShell)");
+
+const nt = narrate("Altura: 5.790 m. Roca principal: andesita / andesita basáltica. Distancia ≈ 18 km · hacia el E. Temperatura: −5 °C. Última erupción: hacia el 5.550 a. C. Velocidad: 7,66 km/s.", "es");
+ok(!/[\/·≈°−]/.test(nt) && /Altura, 5\.790 metros\./.test(nt) && /andesita o andesita basáltica/.test(nt) && /unos 18 kilómetros, hacia el E/.test(nt) && /menos 5 grados Celsius/.test(nt) && /antes de Cristo/.test(nt) && /7,66 kilómetros por segundo/.test(nt), "narración: sin signos, unidades en palabras → " + nt);
+ok(narrate("Open at 10:30", "en") === "Open at 10:30", "las horas no se tocan");
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 if (fail) process.exit(1);

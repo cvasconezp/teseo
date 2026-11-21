@@ -153,6 +153,12 @@ def visible_peaks(prof: dict, nodes: list, lang_keys=("es", "en")) -> list:
             continue
         tol = max(0.5, 0.08 * d)                                          # km: margen entre el modelo y el mapa
         w = max(2, int(math.ceil(max(0.4, math.degrees(math.atan2(0.35, d))) / step)))
+        # un volcán es un macizo: su punto del mapa suele estar en el cráter o la laguna (Mojanda, Cuicocha), no en
+        # el filo que se ve. Se busca el filo en todo el macizo (≈ 4 km alrededor)
+        is_volc = tags.get("natural") == "volcano" or name.lower().startswith("volc")
+        if is_volc and d > 6.0:
+            tol = max(tol, 4.0)
+            w = max(w, int(math.ceil(math.degrees(math.atan2(3.5, d)) / step)))
         c = int(round(az / step))
         # la banda de su distancia (y la vecina si la cumbre cae junto al límite entre dos bandas)
         best = None
@@ -185,11 +191,12 @@ def visible_peaks(prof: dict, nodes: list, lang_keys=("es", "en")) -> list:
             "ele_m": int(round(ele)) if ele is not None else int(band["top_m"][best]),
             "az": round(best * step, 2), "alt": a, "dist_km": round(d, 1), "band": b,
             "lat": round(float(el["lat"]), 4), "lon": round(float(el["lon"]), 4),
-            "volcano": tags.get("natural") == "volcano",
+            "volcano": bool(is_volc),
             "lift": round(a - around, 2),
         })
     # de dos cumbres casi en el mismo rumbo (< 1°: dos nombres para la misma mole), la que más destaca
-    out.sort(key=lambda p: (-p["lift"], -p["ele_m"]))
+    # los volcanes primero entre iguales (son los que se buscan con la vista): +0,6° de ventaja
+    out.sort(key=lambda p: (-(p["lift"] + (0.6 if p["volcano"] else 0.0)), -p["ele_m"]))
     kept = []
     for p in out:
         if any(abs(((p["az"] - q["az"] + 180) % 360) - 180) < 1.0 or _norm(p["name"]) == _norm(q["name"]) for q in kept):

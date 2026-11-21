@@ -158,7 +158,7 @@ export function decodeLandColors(body) {
  * `pull` hacia la media de la fila. Cada columna mira un punto distinto del mapa y, sin suavizar, el relieve
  * quedaría con rayas verticales de colores.
  */
-export function smoothLand(arr, w = 7, pull = 0.35) {
+export function smoothLand(arr, w = 14, pull = 0.5) {
   const m = arr.length / 3, out = new Float32Array(arr.length), mean = [0, 0, 0];
   for (let i = 0; i < m; i++) for (let c = 0; c < 3; c++) mean[c] += arr[i * 3 + c] / m;
   for (let i = 0; i < m; i++) {

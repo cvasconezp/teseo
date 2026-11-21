@@ -1,7 +1,7 @@
 // Pruebas: volcanes del Smithsonian junto a las cumbres (src/sky/volcanoes.js), el tiempo de ahora
 // (src/sky/nowWeather.js) y la proyección del mapa topográfico (src/sky/topo.js).
 import { readFileSync } from "node:fs";
-import { matchVolcanoes, volcanoFacts, recentEruption, destPoint, kmBetween, fetchVolcanoes, VT, eruptingInView, bearingDeg } from "../src/sky/volcanoes.js";
+import { matchVolcanoes, volcanoFacts, recentEruption, destPoint, kmBetween, fetchVolcanoes, VT, eruptingInView, bearingDeg, volcanoesOnSkyline } from "../src/sky/volcanoes.js";
 import { angleOf } from "../src/sky/terrainLayer.js";
 import { nowUrl, parseNow, wxKind, fmtTemp } from "../src/sky/nowWeather.js";
 import { toPx, toLL, TOPO_TILE } from "../src/sky/topo.js";
@@ -90,6 +90,17 @@ console.log("Volcanes en erupción a la vista");
   ok(Math.abs(bearingDeg(0, 0, 1, 0)) < 1e-9 && Math.abs(bearingDeg(0, 0, 0, 1) - 90) < 1e-9, "rumbo norte y este");
   const ps2 = readFileSync(new URL("../src/sky/PeakSheet.jsx", import.meta.url), "utf8");
   ok(/v && !v\.erupting && onSimulate/.test(ps2) && /T\.gasNote/.test(ps2), "simular solo si no está en erupción; si lo está, la pluma");
+}
+
+{
+  // un volcán de 5.900 m a 80 km visto desde 5.790 m: su cumbre forma el filo en su rumbo
+  const az = bearingDeg(0.025, -77.989, -0.677, -78.436), d = kmBetween(0.025, -77.989, -0.677, -78.436);
+  const alt = angleOf(5911, d, 5790 + 1.7), hzS = { step_deg: 0.2, ground_m: 5790, eye_m: 1.7, alt: new Array(1800).fill(-3) };
+  hzS.alt[Math.round(az / 0.2)] = alt + 0.1;
+  const on = volcanoesOnSkyline([{ id: 352050, name: "Cotopaxi", lat: -0.677, lon: -78.436, elev_m: 5911 }], hzS, 0.025, -77.989, angleOf);
+  ok(on.length === 1 && on[0].name === "Cotopaxi" && Math.abs(on[0].alt - (alt + 0.1)) < 1e-9, "un volcán del Smithsonian que forma la silueta se nombra aunque el mapa no lo traiga");
+  hzS.alt.fill(2);
+  ok(volcanoesOnSkyline([{ id: 352050, name: "Cotopaxi", lat: -0.677, lon: -78.436, elev_m: 5911 }], hzS, 0.025, -77.989, angleOf).length === 0, "si el filo es de otra montaña, no");
 }
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);

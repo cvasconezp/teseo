@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.51.0 — 21 de noviembre de 2026
+
+- Nombres de volcanes: los que están en erupción y se ven llevan siempre su
+  nombre (el Sangay desde el Chimborazo); los volcanes del Smithsonian que
+  forman la silueta se nombran aunque el mapa de cumbres no los traiga (el
+  Cotopaxi desde el Cayambe); en el servidor, un volcán cuyo punto del mapa
+  está en el cráter o la laguna se busca en todo su macizo (Mojanda, Cusín).
+- El tiempo de ahora: en el teléfono va arriba, entre el buscador y «…», solo
+  con icono y temperatura (ya no tapa los créditos). La temperatura se corrige
+  con la altitud del modelo de terreno, no con la del GPS del navegador.
+- Paisaje: los colores del satélite se suavizan mucho más a lo largo del
+  horizonte (sin franjas verticales).
+- Modelo 3D de planetas y lunas: con el dedo se gira también en vertical.
+- «Escuchar»: lectura narrada (sin deletrear signos, unidades en palabras),
+  preferencia por las voces naturales del aparato y un punto más despacio.
+
 ## 1.50.3 — 21 de noviembre de 2026
 
 - Nombres de las cumbres desde una cumbre: se calculan sobre el mismo

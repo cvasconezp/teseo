@@ -9,7 +9,8 @@ export function pickVoice(voices, lang = "es") {
   const pref = lang === "en" ? ["en-US", "en-GB", "en"] : ["es-419", "es-EC", "es-CO", "es-MX", "es-US", "es-ES", "es"];
   for (const p of pref) {
     const hit = list.filter((v) => (v.lang || "").replace("_", "-").toLowerCase().startsWith(p.toLowerCase()));
-    if (hit.length) return hit.find((v) => /natural|neural|premium|enhanced|google/i.test(v.name)) || hit.find((v) => v.localService) || hit[0];
+    // las más naturales primero: neuronales o mejoradas (Siri, «Natural» de Edge, «Enhanced/Premium» de Apple, Google)
+    if (hit.length) return hit.find((v) => /natural|neural|premium|enhanced|mejorada|siri/i.test(v.name)) || hit.find((v) => /google|paulina|m[oó]nica|samantha|karen|daniel/i.test(v.name)) || hit.find((v) => v.localService) || hit[0];
   }
   return null;
 }
@@ -50,6 +51,37 @@ export function sheetText(el) {
   return parts.join(" ").slice(0, 4000);
 }
 
+/**
+ * Texto para ser oído, no leído: sin signos que la voz deletrea («/», «·», «≈», «°», «×»…), con las unidades y
+ * abreviaturas dichas en palabras y los datos «etiqueta: valor» como frases cortas.
+ */
+export function narrate(text, lang = "es") {
+  const es = lang !== "en";
+  let t = " " + String(text) + " ";
+  const R = (re, to) => { t = t.replace(re, to); };
+  R(/https?:\/\/\S+/g, " ");
+  R(/\(([^()]{0,40})\)/g, (m, a) => (/^[\s\d.,%+−-]*$/.test(a) ? " " : `, ${a}, `));
+  R(/\s*[·•|]\s*/g, ", "); R(/\s*[—–]\s*/g, ", ");
+  R(/(\d)\s*[–-]\s*(\d)/g, es ? "$1 a $2" : "$1 to $2");
+  R(/≈|~/g, es ? " unos " : " about "); R(/±/g, es ? " más o menos " : " plus or minus ");
+  R(/(\d)\s*×\s*(\d)/g, es ? "$1 por $2" : "$1 by $2"); R(/×/g, es ? " veces " : " times ");
+  R(/−(\d)/g, es ? " menos $1" : " minus $1");
+  R(/(\d)\s*°C\b/g, es ? "$1 grados Celsius" : "$1 degrees Celsius"); R(/(\d)\s*K\b/g, es ? "$1 kelvin" : "$1 kelvin");
+  R(/(\d)\s*°/g, es ? "$1 grados" : "$1 degrees"); R(/(\d)\s*[′']/g, es ? "$1 minutos de arco" : "$1 arcminutes"); R(/(\d)\s*[″"]/g, es ? "$1 segundos de arco" : "$1 arcseconds");
+  R(/(\d)\s*%/g, es ? "$1 por ciento" : "$1 percent");
+  const U = es
+    ? [["km/s", "kilómetros por segundo"], ["km/h", "kilómetros por hora"], ["m/s", "metros por segundo"], ["km²", "kilómetros cuadrados"], ["km", "kilómetros"], ["UA", "unidades astronómicas"], ["al", "años luz"], ["a\\. ?l\\.", "años luz"], ["pc", "pársecs"], ["kg", "kilogramos"], ["min", "minutos"], ["h", "horas"], ["s", "segundos"], ["m", "metros"], ["mag", "de magnitud"]]
+    : [["km/s", "kilometres per second"], ["km/h", "kilometres per hour"], ["m/s", "metres per second"], ["km", "kilometres"], ["AU", "astronomical units"], ["ly", "light-years"], ["pc", "parsecs"], ["kg", "kilograms"], ["min", "minutes"], ["h", "hours"], ["s", "seconds"], ["m", "metres"]];
+  for (const [u, w] of U) R(new RegExp(`(\\d)\\s?${u.replace("/", "\\/")}(?=[\\s.,;:)]|$)`, "g"), `$1 ${w}`);
+  if (es) { R(/\ba\. ?C\./g, "antes de Cristo"); R(/\bd\. ?C\./g, "después de Cristo"); R(/\bVEI\b/g, "índice de explosividad"); R(/\bN\.?º\b/g, "número"); R(/\bp\. ?ej\./g, "por ejemplo"); R(/\baprox\./g, "aproximadamente"); }
+  else { R(/\bBCE\b/g, "before the common era"); R(/\bVEI\b/g, "explosivity index"); }
+  R(/\s*\/\s*/g, es ? " o " : " or ");
+  R(/\s*=\s*/g, es ? " igual a " : " equals "); R(/\+/g, es ? " más " : " plus "); R(/[<>*_#^→←↑↓▲▼]/g, " ");
+  R(/\s+:\s*/g, ": "); R(/([^\d\s]):\s+/g, "$1, ");                       // «Altura: 5.790 m» → «Altura, 5.790 metros»
+  R(/\s+([.,;])/g, "$1"); R(/,\s*,/g, ","); R(/,\s*\./g, "."); R(/\.\s*,/g, "."); R(/\s{2,}/g, " ");
+  return t.trim();
+}
+
 let session = 0;
 /** Lee `text` en `lang`. Devuelve una función para pararlo; `onEnd` se llama al terminar o al pararlo. */
 export function speakText(text, lang = "es", onEnd) {
@@ -57,7 +89,7 @@ export function speakText(text, lang = "es", onEnd) {
   const synth = window.speechSynthesis, my = ++session;
   synth.cancel();
   const voice = pickVoice(synth.getVoices(), lang);
-  const parts = chunks(text);
+  const parts = chunks(narrate(text, lang));
   let i = 0, done = false;
   const finish = () => { if (done) return; done = true; if (onEnd) onEnd(); };
   const next = () => {
@@ -65,7 +97,7 @@ export function speakText(text, lang = "es", onEnd) {
     const u = new window.SpeechSynthesisUtterance(parts[i++]);
     u.lang = voice ? voice.lang : (lang === "en" ? "en-US" : "es-419");
     if (voice) u.voice = voice;
-    u.rate = 1; u.pitch = 1;
+    u.rate = 0.96; u.pitch = 1;                        // un punto más despacio: suena menos a máquina
     u.onend = next; u.onerror = finish;
     synth.speak(u);
   };

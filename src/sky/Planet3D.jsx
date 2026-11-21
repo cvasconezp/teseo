@@ -42,7 +42,7 @@ export default function Planet3D({ bodyKey, phase, ariaLabel, onStatus }) {
     renderer.setClearColor(0x000000, 0);
     const canvas = renderer.domElement;
     canvas.style.display = "block"; canvas.style.width = "100%"; canvas.style.height = "100%";
-    canvas.style.touchAction = "pan-y";               // el gesto vertical sigue desplazando la ficha
+    canvas.style.touchAction = "none";                // con el dedo se gira en los dos sentidos (la ficha se desplaza tocando fuera del modelo)
     canvas.style.cursor = "grab";
     host.appendChild(canvas);
 
@@ -152,7 +152,7 @@ export default function Planet3D({ bodyKey, phase, ariaLabel, onStatus }) {
     const move = (e) => {
       if (!dragging) return;
       globe.rotation.y += (e.clientX - lastX) * 0.011;
-      if (e.pointerType !== "touch") drag.rotation.x = Math.max(-1.1, Math.min(1.1, drag.rotation.x + (e.clientY - lastY) * 0.007));
+      drag.rotation.x = Math.max(-1.45, Math.min(1.45, drag.rotation.x + (e.clientY - lastY) * 0.007));
       lastX = e.clientX; lastY = e.clientY; invalidate();
     };
     const up = () => { dragging = false; canvas.style.cursor = "grab"; idleUntil = performance.now() + 1800; };

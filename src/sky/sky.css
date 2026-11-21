@@ -781,3 +781,8 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 
 /* simulación de erupción (plumeLayer.js): aviso con «Parar» */
 .sk-stage .sk-sim-chip span { white-space: normal; line-height: 1.25; padding: 4px 0; }
+
+/* teléfono: el tiempo de ahora, flotando arriba entre el buscador y el botón «…» */
+.sk-stage .sk-wx-float { position: absolute; top: 12px; right: 66px; z-index: 29; height: 46px; display: flex; align-items: center; }
+.sk-stage .sk-wx-float .sk-wx-pill { min-height: 38px; }
+.sk-stage .sk-top:focus-within ~ .sk-wx-float, .sk-stage.is-covered .sk-wx-float, .sk-stage.has-panel .sk-wx-float, .sk-stage.is-immersive .sk-wx-float { display: none; }

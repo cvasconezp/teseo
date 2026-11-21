@@ -81,7 +81,7 @@ import { IssLayer, ISS_COLORS, ISS_RATES, stepClock as stepIssClock } from "./sk
 import IssSheet from "./sky/IssSheet.jsx";
 import PeakSheet from "./sky/PeakSheet.jsx";
 import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp } from "./sky/nowWeather.js";
-import { fetchVolcanoes, matchVolcanoes, recentEruption, eruptingInView, VT as VOLC_T } from "./sky/volcanoes.js";
+import { fetchVolcanoes, matchVolcanoes, recentEruption, eruptingInView, volcanoesOnSkyline, VT as VOLC_T } from "./sky/volcanoes.js";
 import { angleOf as terrainAngleOf } from "./sky/terrainLayer.js";
 import { createPlumeLayer, veiColumnKm } from "./sky/plumeLayer.js";
 import IssPill, { nextRate } from "./sky/IssPill.jsx";
@@ -2142,7 +2142,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             // las marcas del Sol («Astronomía andina») van un piso más arriba, con un palito más largo: así un sitio
             // que está justo en esa dirección (Cochasquí, Pambamarca…) cabe debajo con su propio nombre
             const tall = p.cls === "andsun", w = Math.max(p.label.length * 7.4, 46) + 8, top = sy - (tall ? 82 : 46), bot = tall ? sy - 50 : sy - 2;
-            if (top < 4 || !free(sx - w / 2, top, sx + w / 2, bot) || (!p.cls && !clear(sx - w / 2, top, sx + w / 2, bot))) continue;   // las de «Astronomía andina» pueden pasar junto al disco del Sol: son su referencia
+            if (top < 4 || !free(sx - w / 2, top, sx + w / 2, bot) || (!p.cls && !(p.volcano && p.volcano.erupting) && !clear(sx - w / 2, top, sx + w / 2, bot))) continue;   // (un volcán en erupción se nombra aunque roce otro rótulo)   // las de «Astronomía andina» pueden pasar junto al disco del Sol: son su referencia
             boxes.push(sx - w / 2, top, sx + w / 2, bot);
             out.push({ key: "peak:" + p.az + ":" + p.name, name: p.label, cls: p.cls || "peak", sub: null, subText: p.subText != null ? p.subText : p.ele_m, x: sx, y: sy, dx: 0, flip: false,
               ...(p.volc ? { volc: true } : {}), ...(!p.cls && !p.monument ? { pk: { peak: p } } : {}) });
@@ -2662,11 +2662,15 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const volcList = volc.key === volcKey ? volc.list : null;
   // el tiempo de ahora en el lugar (pastilla «16 °C · Quito»; src/sky/nowWeather.js): cada 15 minutos
   const [wxNow, setWxNow] = useState(null);
-  const wxNowKey = localActive && !viewFrom && lat != null && lon != null ? `${lat.toFixed(2)},${lon.toFixed(2)},${Number.isFinite(elev) ? Math.round(elev / 50) : "x"}` : null;
+  // la altitud para corregir la temperatura: la del modelo de terreno en tu punto (fiable); sin ella, la del lugar
+  // solo si es creíble; si no, ninguna (Open-Meteo usa entonces su propio modelo de terreno de 90 m). La altitud del
+  // GPS del navegador no se usa: a veces llega mal y cada 150 m de error son 1 °C
+  const wxElev = hzData && Number.isFinite(hzData.ground_m) ? hzData.ground_m : (elevPreset && Number.isFinite(elev) ? elev : null);
+  const wxNowKey = localActive && !viewFrom && lat != null && lon != null ? `${lat.toFixed(2)},${lon.toFixed(2)},${wxElev != null ? Math.round(wxElev / 50) : "x"}` : null;
   useEffect(() => {
     if (!wxNowKey) { setWxNow(null); return undefined; }
     let alive = true;
-    const ask = () => fetch(nowUrl(lat, lon, elev)).then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setWxNow(parseNow(j)); }).catch(() => {});
+    const ask = () => fetch(nowUrl(lat, lon, wxElev)).then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setWxNow(parseNow(j)); }).catch(() => {});
     ask();
     const id = setInterval(ask, 15 * 60 * 1000);
     return () => { alive = false; clearInterval(id); };
@@ -2731,12 +2735,38 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const ref = sceneRef.current; if (!ref) return;
     // las que son volcanes del Holoceno llevan su ficha; las que han entrado en erupción desde 1900, el año
     const VTl = VOLC_T[lang] || VOLC_T.es, loc = lang === "es" ? "es" : "en-US";
-    ref.peakLabels = peakList ? matchVolcanoes(peaksToLabel(peakList, hzData, 40), volcList, lat, lon).map((p) => ({
+    const fmtM = (m) => `${Number(m).toLocaleString(loc, { useGrouping: "always" })} m`;
+    const list = peakList ? matchVolcanoes(peaksToLabel(peakList, hzData, 40), volcList, lat, lon).map((p) => ({
       ...p, label: peakName(p, lang), volcanoChecked: !!volcList,
-      ...(recentEruption(p.volcano) ? { subText: VTl.sub(`${Number(p.ele_m).toLocaleString(loc, { useGrouping: "always" })} m`, p.volcano.last_year), volc: true } : {}),
-    })) : null;
+      ...(recentEruption(p.volcano) ? { subText: VTl.sub(fmtM(p.ele_m), p.volcano.last_year), volc: true } : {}),
+    })) : [];
+    // los volcanes en erupción que se ven llevan siempre su nombre (y van primero), aunque los nombres de las
+    // montañas estén apagados o su cumbre no figure entre ellas (el Sangay desde el Chimborazo)
+    const hot = volcList && hzData ? eruptingInView(volcList, hzData, lat, lon, terrainAngleOf) : [];
+    const extra = [];
+    for (const e of hot) {
+      const v = volcList.find((x) => x.id === e.id), k = list.findIndex((p) => p.volcano && p.volcano.id === e.id);
+      if (k >= 0) { extra.push(list[k]); list.splice(k, 1); continue; }
+      extra.push({ name: v.name, label: v.name, hot: true, az: e.az, alt: e.alt, dist_km: +e.dist_km.toFixed(1), ele_m: v.elev_m,
+        lat: v.lat, lon: v.lon, volcano: v, volcanoChecked: true, volc: true, subText: VTl.sub(fmtM(v.elev_m), v.last_year) });
+    }
+    // y, con los nombres encendidos, los volcanes del Smithsonian que forman la silueta y el mapa de cumbres no trajo
+    // (o descartó): el Cotopaxi visto desde el Cayambe. Van delante: son los que se buscan con la vista
+    const more = [];
+    if (peaksOn && volcList && hzData) {
+      const fd = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/^(volcan|cerro|nevado)\s+/, "");
+      const all = [...extra, ...list];
+      for (const sv of volcanoesOnSkyline(volcList, hzData, lat, lon, terrainAngleOf)) {
+        const dAz = (p) => Math.abs((((p.az - sv.az) % 360) + 540) % 360 - 180);
+        if (all.some((p) => (p.volcano && p.volcano.id === sv.id) || fd(p.label) === fd(sv.name) || fd(p.name) === fd(sv.name) || (dAz(p) < 0.5 && Math.abs(p.dist_km - sv.dist_km) < 6))) continue;
+        more.push({ ...sv, label: lang === "es" ? `Volcán ${sv.name}` : sv.name, volcanoChecked: true,
+          ...(recentEruption(sv.volcano) ? { subText: VTl.sub(fmtM(sv.ele_m), sv.volcano.last_year), volc: true } : {}) });
+      }
+      more.sort((a, b) => b.alt - a.alt);
+    }
+    ref.peakLabels = (peakList || extra.length || more.length) ? [...extra, ...more.slice(0, 8), ...list] : null;
     ref._dirty = true;
-  }, [peakList, hzData, lang, ready, volcList]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [peakList, hzData, lang, ready, volcList, lat, lon, peaksOn]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.terrain) return;
     ref.hzData = hzEff;
@@ -3908,6 +3938,15 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       onTogglePeaks={() => { const nv = !peaksOn; setPeaksOn(nv); track("sky_setting", { setting: "peaks", state: nv ? "on" : "off" }); }}
       andOn={andOn} andean={andean} onToggleAnd={() => { const nv = !andOn; setAndOn(nv); track("sky_setting", { setting: "andean", state: nv ? "on" : "off" }); }} />
   );
+  const wxPill = wxNow && localMode && !viewFrom ? (() => {
+    const k = wxKind(wxNow.code, wxNow.day), nm = (WX_NAMES[lang] || WX_NAMES.es)[k];
+    return (
+      <button type="button" className="sk-chip sk-wx-pill" onClick={() => { setWxWanted(true); openPanel("layers"); }}
+        aria-label={`${nm}, ${fmtTemp(wxNow.temp)} · ${placeLabel}`} title={`${nm} · ${placeLabel}`}>
+        <Icon name={`wx_${k}`} size={18} /><span>{fmtTemp(wxNow.temp)}</span>
+      </button>
+    );
+  })() : null;
   const wxPanel = (
     <WeatherPanel lang={lang} available={localActive && !viewFrom} atmOn={atmOn}
       on={cloudsOn} onToggle={() => { const nv = !cloudsOn; setCloudsOn(nv); track("sky_setting", { setting: "clouds", state: nv ? "on" : "off" }); }}
@@ -4000,7 +4039,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           <SearchBox t={t} query={query} setQuery={setQuery} results={results} onResult={onResult} quick={quick} compact={!isWide} />
           {dayWarn && <DayWarning lang={lang} planets={dayPlanets} onNightfall={goNightfall}
             onAtmOff={() => { setAtmOn(false); track("sky_setting", { setting: "atmosphere", state: "off" }); }} onDismiss={hideDayWarn} />}
-          {(viewFrom || outside || (isWide && localMode) || issSel || plumeSim || (wxNow && localMode && !viewFrom)) && (
+          {(viewFrom || outside || (isWide && localMode) || issSel || plumeSim || (isWide && wxPill)) && (
             <div className="sk-chips">
               {issSel && (
                 <IssPill lang={lang} apiRef={issHudRef} pass={issSel.pass} loading={issSel.status === "loading"} playing={playing && issOn} rate={issRate}
@@ -4036,20 +4075,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
                   </div>
                 );
               })()}
-              {wxNow && localMode && !viewFrom && (() => {
-                const k = wxKind(wxNow.code, wxNow.day), nm = (WX_NAMES[lang] || WX_NAMES.es)[k];
-                return (
-                  <button type="button" className="sk-chip sk-wx-pill" onClick={() => { setWxWanted(true); openPanel("layers"); }}
-                    aria-label={`${nm}, ${fmtTemp(wxNow.temp)}${isWide ? "" : ` · ${placeLabel}`}`} title={nm}>
-                    <Icon name={`wx_${k}`} size={18} /><span>{fmtTemp(wxNow.temp)}{!isWide && <> · {placeLabel}</>}</span>
-                  </button>
-                );
-              })()}
+              {isWide && wxPill}
             </div>
           )}
         </div>
       )}
 
+      {/* en el teléfono, el tiempo de ahora va arriba, entre el buscador y el botón «…» (solo icono y temperatura) */}
+      {sky && !isWide && wxPill && <div className="sk-wx-float">{wxPill}</div>}
       {sky && (
         <div ref={railRef} className={`sk-rail${railOpen ? " is-open" : ""}`}>
           <button type="button" className="sk-rail-toggle" onClick={() => setRailOpen(o => !o)} aria-expanded={railOpen} aria-label={railOpen ? t.moreClose : t.more} title={t.more}><Icon name={railOpen ? "close" : "dots"} size={21} /></button>
