@@ -35,6 +35,7 @@ uniform vec3 uGround;
 uniform vec3 uSunDir;
 uniform float uAlpha;
 uniform float uGlow;
+uniform float uDip;
 varying vec3 vWorld;
 void main() {
   vec3 d = normalize(vWorld - cameraPosition);
@@ -53,7 +54,8 @@ void main() {
   float halo = exp((c - 1.0) * 7.0) * 0.28 + exp((c - 1.0) * 80.0) * 0.45;
   col = mix(col, uSunGlow, clamp(halo * uGlow, 0.0, 0.85));
   // bajo el horizonte: suelo oscuro con un borde suave (el anillo y el disco del suelo de la app van encima)
-  float g = smoothstep(0.0, -0.06, h);
+  // (desde una cumbre el cielo sigue por debajo de 0° hasta las montañas: uDip, seno del ángulo más bajo)
+  float g = smoothstep(uDip, uDip - 0.06, h);
   col = mix(col, uGround, g);
   gl_FragColor = vec4(min(col, vec3(1.0)), uAlpha);
 }`;
@@ -64,6 +66,7 @@ export function createAtmosphereLayer({ radius = 4000, segments = 48 } = {}) {
     uHorizon: { value: new THREE.Color(0, 0, 0) },
     uSunGlow: { value: new THREE.Color(0, 0, 0) },
     uGround: { value: new THREE.Color(0, 0, 0) },
+    uDip: { value: 0 },
     uSunDir: { value: new THREE.Vector3(0, -1, 0) },
     uAlpha: { value: 0 },
     uGlow: { value: 0 },
@@ -83,6 +86,8 @@ export function createAtmosphereLayer({ radius = 4000, segments = 48 } = {}) {
   const setC = (u, rgb) => u.value.setRGB(rgb[0], rgb[1], rgb[2]);
   return {
     mesh, uniforms,
+    /** Hasta dónde baja el cielo (grados ≤ 0): desde una cumbre, hasta el filo más bajo del horizonte real. */
+    setDip(deg) { uniforms.uDip.value = Math.sin((Math.min(0, deg || 0) * Math.PI) / 180); },
     update(state, sunDirWorld) {
       if (!state) { alpha = 0; mesh.visible = false; return; }
       const c = state.colors;

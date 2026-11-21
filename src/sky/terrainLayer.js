@@ -138,7 +138,7 @@ export function createTerrainLayer({ radius = 880 } = {}) {
     let lowest = 0;
     for (const b of hz.bands) for (const v of b.alt) if (v < lowest) lowest = v;
     const base = Math.min(BASE, lowest - 0.4), above = base < BASE;
-    if (above) {
+    if (false && above) {   // (ya no hace falta: el cielo baja hasta las montañas, ver setDip en atmosphereLayer.js)
       // bruma lejana: entre 0° y los filos más lejanos (más allá de 150 km no hay modelo) se ve aire, no suelo
       const pos = new Float32Array((n + 1) * 2 * 3), idx = [];
       for (let i = 0; i <= n; i++) {

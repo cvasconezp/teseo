@@ -5,7 +5,7 @@ import { matchVolcanoes, volcanoFacts, recentEruption, destPoint, kmBetween, fet
 import { angleOf } from "../src/sky/terrainLayer.js";
 import { nowUrl, parseNow, wxKind, fmtTemp } from "../src/sky/nowWeather.js";
 import { toPx, toLL, TOPO_TILE } from "../src/sky/topo.js";
-import { veiColumnKm, ventPos, particle } from "../src/sky/plumeLayer.js";
+import { veiColumnKm, ventPos, plumeParams, centerHeight } from "../src/sky/plumeLayer.js";
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log("  FALLA:", m); } };
@@ -66,10 +66,15 @@ console.log("Erupciones ilustrativas");
 ok(veiColumnKm(2) === 3 && veiColumnKm(4) === 17 && veiColumnKm(null) === 3 && veiColumnKm(12) === 45, "altura de la columna según el VEI (Newhall y Self)");
 const vp = ventPos(90, 0, 10);
 ok(Math.abs(vp[0] - 10) < 1e-9 && Math.abs(vp[1]) < 1e-9 && Math.abs(vp[2]) < 1e-9, "cráter al este, en el horizonte");
-const young = particle(0.05, [0.5, 0.5, 0.25, 0], 3, [0, 0]), old = particle(0.9, [0.5, 0.5, 0.25, 0], 3, [0, 0]);
-ok(young.u < old.u && old.u <= 3 && old.u > 2 && young.r < old.r, "sube hasta ~¾–1 de la altura y se abre con la edad");
-const windy = particle(0.9, [0.5, 0.5, 0, 0], 3, [2, 0]), calm = particle(0.9, [0.5, 0.5, 0, 0], 3, [0, 0]);
-ok(windy.e > calm.e + 1, "el viento arrastra la ceniza");
+const weak = plumeParams(2, "sim", 6), big = plumeParams(4, "sim", 6), gas = plumeParams(2, "gas", 6);
+ok(weak.strong === 0 && big.strong === 1 && weak.H === 3 && big.H === 17 && big.Lb / big.H < weak.Lb / weak.H, "erupción pequeña: pluma tendida; grande: columna casi vertical con paraguas");
+ok(gas.H <= 2.2 && gas.ash < weak.ash, "en erupción ahora: pluma baja y clara (sobre todo gases)");
+ok(plumeParams(2, "sim", 12).Lb > weak.Lb, "con más viento se tumba antes de subir (pluma más tendida)");
+ok(centerHeight(0, weak) === 0 && centerHeight(100, weak) > 2.99 && centerHeight(weak.Lb, weak) > 1.8 && centerHeight(weak.Lb, weak) < 2, "la línea central sube y se allana a la altura de la columna");
+{
+  const pl = readFileSync(new URL("../src/sky/plumeLayer.js", import.meta.url), "utf8");
+  ok(/float dens\(/.test(pl) && /uSun/.test(pl) && /fbm\(/.test(pl), "humo volumétrico con ruido y luz del Sol");
+}
 const fv = volcanoFacts({ last_vei: 2, last_start: 2022 }, "es");
 ok(fv.find((x) => x.label === "Explosividad (VEI)").value === "2 de 8 · erupción de 2022", "VEI de la última erupción en la ficha");
 ok(recentEruption({ erupting: true }), "en erupción este año cuenta como reciente");

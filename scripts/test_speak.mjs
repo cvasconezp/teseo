@@ -34,8 +34,9 @@ const os = readFileSync(new URL("../src/sky/ObjectSheet.jsx", import.meta.url), 
 ok(/<ListenButton boxRef=\{boxRef\}/.test(os), "el botón va en todas las fichas (SheetShell)");
 
 const nt = narrate("Altura: 5.790 m. Roca principal: andesita / andesita basáltica. Distancia ≈ 18 km · hacia el E. Temperatura: −5 °C. Última erupción: hacia el 5.550 a. C. Velocidad: 7,66 km/s.", "es");
-ok(!/[\/·≈°−]/.test(nt) && /Altura, 5\.790 metros\./.test(nt) && /andesita o andesita basáltica/.test(nt) && /unos 18 kilómetros, hacia el E/.test(nt) && /menos 5 grados Celsius/.test(nt) && /antes de Cristo/.test(nt) && /7,66 kilómetros por segundo/.test(nt), "narración: sin signos, unidades en palabras → " + nt);
+ok(!/[\/·≈°−]/.test(nt) && /Altura: 5790 metros\./.test(nt) && /andesita o andesita basáltica/.test(nt) && /unos 18 kilómetros, hacia el este/.test(nt) && /menos 5 grados Celsius/.test(nt) && /antes de Cristo/.test(nt) && /7,66 kilómetros por segundo/.test(nt), "narración: sin signos, unidades en palabras → " + nt);
 ok(narrate("Open at 10:30", "en") === "Open at 10:30", "las horas no se tocan");
+ok(narrate("a 148 km, hacia el S", "es") === "a 148 kilómetros, hacia el sur" && narrate("3,5 km y 1.234.567 m", "es") === "3,5 kilómetros y 1234567 metros", "rumbos en palabras y miles sin punto");
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 if (fail) process.exit(1);

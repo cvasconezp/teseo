@@ -83,7 +83,7 @@ import PeakSheet from "./sky/PeakSheet.jsx";
 import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp } from "./sky/nowWeather.js";
 import { fetchVolcanoes, matchVolcanoes, recentEruption, eruptingInView, volcanoesOnSkyline, VT as VOLC_T } from "./sky/volcanoes.js";
 import { angleOf as terrainAngleOf } from "./sky/terrainLayer.js";
-import { createPlumeLayer, veiColumnKm } from "./sky/plumeLayer.js";
+import { createPlumeLayer, veiColumnKm, plumeParams } from "./sky/plumeLayer.js";
 import IssPill, { nextRate } from "./sky/IssPill.jsx";
 import { ISS as ISS_TX } from "./sky/i18n-iss.js";
 import { fetchIssPass, hasTrack, hiddenReason, formatClock as issClockFmt, formatDayTime as issDayTime, DEFAULT_DAYS as ISS_DAYS } from "./sky/issPasses.js";
@@ -1604,7 +1604,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, plume, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat,
+      atm, clouds, terrain, monuments, plume, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat, groundMesh: ground, horizonLine,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1948,7 +1948,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       // se compara con el último cuadro DIBUJADO, así que una deriva lenta acaba dibujándose igual)
       const far = (a, b, e) => !(Math.abs(a - b) <= e);
       // columnas de ceniza: se mueven solas (mientras haya alguna, se dibuja cada cuadro)
-      const plumeOn = !!(ref.plume && ref.plume.group.parent && ref.plume.group.parent.visible && ref.plume.update(tStart, (ref.renderer.domElement.clientHeight || 600) / (ref.camera.fov * Math.PI / 180)));
+      const plumeOn = !!(ref.plume && ref.plume.group.parent && ref.plume.group.parent.visible && ref.plume.update(tStart));
       const moved = rebuild || ar.on || issMoved || plumeOn || !!ref.look.fly || tStart < wakeUntil || far(cp.x, lastCam.px, 0.01) || far(cp.y, lastCam.py, 0.01) || far(cp.z, lastCam.pz, 0.01)
         || far(cq.x, lastCam.qx, 1e-6) || far(cq.y, lastCam.qy, 1e-6) || far(cq.z, lastCam.qz, 1e-6) || far(cq.w, lastCam.qw, 1e-6) || ref.camera.fov !== lastCam.fov || far(vs.cx, lastCam.vx, 0.25) || far(vs.cy, lastCam.vy, 0.25) || us !== lastCam.us;
       const draw = moved || (++idleN % IDLE_EVERY === 0);
@@ -2775,6 +2775,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     let topAll = false;
     if (hzData && hzData.alt) { topAll = true; for (const v of hzData.alt) if (v >= 0) { topAll = false; break; } }
     const floor = !!hzData && (placeSummit || topAll);
+    // desde un alto, el cielo (y el suelo translúcido) bajan hasta el filo más bajo del horizonte real: sin una
+    // franja de otro color entre 0° y las montañas
+    let low = 0;
+    if (hzEff && hzEff.alt) for (const v of hzEff.alt) if (v < low) low = v;
+    const dip = low < 0 ? low - 0.3 : 0;
+    if (ref.atm && ref.atm.setDip) ref.atm.setDip(dip);
+    if (ref.groundMesh) ref.groundMesh.position.y = -1.5 + 905 * Math.tan((dip * Math.PI) / 180);
+    if (ref.horizonLine) ref.horizonLine.material.opacity = dip < 0 ? 0.25 : 0.85;   // la línea de 0° queda como referencia tenue
     if (ref.terrain.data !== hzData || ref.terrain.floor !== floor) ref.terrain.set(hzData, lat, null, floor);
     ref.terrain.setEnabled(!!hzData);
   }, [hzData, hzEff, ready, placeSummit]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -2812,7 +2820,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     let windMs = null;
     try { if (wxData) { const c = cloudsAt(wxData, new Date(whenStr)); windMs = c && c.wind && c.wind.mid; } } catch { /* sin viento */ }
     const day = atmState ? Math.min(1, Math.max(0, (atmState.sunAlt + 8) / 14)) : 0;
-    ref.plume.setLook({ windMs, day, horizon: atmState && atmState.colors ? atmState.colors.horizon : null });
+    // arrebol: con el Sol entre −4° y 8°, la luz que llega a la pluma es rojiza
+    const sa = atmState ? atmState.sunAlt : -90, glow = sa > -6 && sa < 10 ? 1 - Math.abs(sa - 1) / 9 : 0;
+    ref.plume.setLook({ windMs, day, glow: Math.max(0, glow), sunDir: atmState && atmState.sunDir ? atmState.sunDir : null, horizon: atmState && atmState.colors ? atmState.colors.horizon : null });
     ref._dirty = true;
   }, [plumeSim, peakList, volcList, hzData, localActive, viewFrom, wxData, whenStr, atmState, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setPlumeSim(null); }, [lat, lon]);
@@ -4243,9 +4253,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             track("sky_eruption_sim", { vei: pk0.volcano ? pk0.volcano.last_vei : null });
             // encuadrar el volcán con su columna: el ángulo de la columna sobre la cumbre, y algo de margen
             if (ref && ref.lookAt) {
-              const H = veiColumnKm(pk0.volcano ? pk0.volcano.last_vei : 2), up = Math.atan2(H * 0.8, Math.max(1, pk0.dist_km)) * 180 / Math.PI;
+              const PP = plumeParams(pk0.volcano ? pk0.volcano.last_vei : 2, "sim"), D = Math.max(1, pk0.dist_km);
+              const up = Math.atan2(PP.H, D) * 180 / Math.PI, wide = Math.atan2(PP.len * 0.6, D) * 180 / Math.PI;
               const v = altAzToLocal(pk0.alt + up * 0.45, pk0.az);
-              ref.lookAt(new THREE.Vector3(v[0], v[1], v[2]), Math.max(18, Math.min(110, up * 2.6)));
+              ref.lookAt(new THREE.Vector3(v[0], v[1], v[2]), Math.max(16, Math.min(110, Math.max(up * 2.4, wide * 2.2))));
               if (ref.wake) ref.wake();
             }
           }} />

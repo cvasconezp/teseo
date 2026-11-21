@@ -36,8 +36,9 @@ export function sheetText(el) {
   const parts = [];
   const push = (s) => { const v = String(s || "").replace(/\s+/g, " ").trim(); if (v) parts.push(/[.!?…:]$/.test(v) ? v : v + "."); };
   push(el.querySelector("h2") && el.querySelector("h2").textContent);
+  // el tipo y su distintivo («Volcán» + «a 148 km, hacia el S») son dos cosas: van separados
   const type = el.querySelector(".sk-type");
-  if (type) push(type.textContent);
+  if (type) { const badge = type.querySelector && type.querySelector("em"); if (badge) { push(type.textContent.replace(badge.textContent, "")); push(badge.textContent); } else push(type.textContent); }
   const body = el.querySelector(".sk-sheet-body");
   if (body) {
     for (const n of body.querySelectorAll("h3, p, dl > div, figcaption, li")) {
@@ -60,6 +61,12 @@ export function narrate(text, lang = "es") {
   let t = " " + String(text) + " ";
   const R = (re, to) => { t = t.replace(re, to); };
   R(/https?:\/\/\S+/g, " ");
+  // rumbos abreviados: «hacia el S» → «hacia el sur»
+  const DIRS = es ? { N: "norte", S: "sur", E: "este", O: "oeste", NE: "noreste", NO: "noroeste", SE: "sureste", SO: "suroeste" }
+    : { N: "north", S: "south", E: "east", W: "west", NE: "north-east", NW: "north-west", SE: "south-east", SW: "south-west" };
+  R(es ? /\b(hacia el|al|del|por el|desde el|rumbo)\s+(NE|NO|SE|SO|N|S|E|O)\b/g : /\b(to the|from the|in the|due)\s+(NE|NW|SE|SW|N|S|E|W)\b/g, (m, a, b) => `${a} ${DIRS[b]}`);
+  // miles con punto (o coma en inglés): «5.286» → «5286», para que no diga «cinco punto doscientos…»
+  R(es ? /\b(\d{1,3})\.(\d{3})(?:\.(\d{3}))?\b(?![.,]?\d)/g : /\b(\d{1,3}),(\d{3})(?:,(\d{3}))?\b(?![.,]?\d)/g, (m, a, b, c) => a + b + (c || ""));
   R(/\(([^()]{0,40})\)/g, (m, a) => (/^[\s\d.,%+−-]*$/.test(a) ? " " : `, ${a}, `));
   R(/\s*[·•|]\s*/g, ", "); R(/\s*[—–]\s*/g, ", ");
   R(/(\d)\s*[–-]\s*(\d)/g, es ? "$1 a $2" : "$1 to $2");
@@ -77,7 +84,7 @@ export function narrate(text, lang = "es") {
   else { R(/\bBCE\b/g, "before the common era"); R(/\bVEI\b/g, "explosivity index"); }
   R(/\s*\/\s*/g, es ? " o " : " or ");
   R(/\s*=\s*/g, es ? " igual a " : " equals "); R(/\+/g, es ? " más " : " plus "); R(/[<>*_#^→←↑↓▲▼]/g, " ");
-  R(/\s+:\s*/g, ": "); R(/([^\d\s]):\s+/g, "$1, ");                       // «Altura: 5.790 m» → «Altura, 5.790 metros»
+  R(/\s+:\s*/g, ": ");                                                      // los dos puntos se quedan: la voz hace ahí la pausa
   R(/\s+([.,;])/g, "$1"); R(/,\s*,/g, ","); R(/,\s*\./g, "."); R(/\.\s*,/g, "."); R(/\s{2,}/g, " ");
   return t.trim();
 }

@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.52.0 — 2026-11-21
+
+- **Erupciones con volumen**: el humo de los volcanes (los que están en erupción y las simulaciones) ya no es una mancha plana: es una pluma con cuerpo, que sube, se tumba con el viento, se abulta como coliflor, recibe la luz del Sol y hace sombra sobre sí misma; de noche el cráter resplandece. Sin viento del pronóstico se dibuja de lado, como se ve en las cámaras. Sigue siendo una ilustración, no un pronóstico de ceniza.
+- **Desde una cumbre, el cielo llega hasta las montañas**: se quita la franja de otro color que quedaba entre el horizonte matemático (0°) y las crestas que se ven por debajo. La línea de 0° queda como referencia tenue.
+- **Lectura en voz alta**: dice «hacia el sur» en vez de «al S», lee las alturas como un número («5286 metros») y hace la pausa después de cada dato.
+
 ## 1.51.0 — 21 de noviembre de 2026
 
 - Nombres de volcanes: los que están en erupción y se ven llevan siempre su
