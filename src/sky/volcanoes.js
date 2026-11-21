@@ -29,6 +29,32 @@ export function kmBetween(la1, lo1, la2, lo2) {
   const a = Math.sin(dp / 2) ** 2 + Math.cos(la1 * r) * Math.cos(la2 * r) * Math.sin(dl / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }
+/** Rumbo (grados desde el norte hacia el este) de (la1, lo1) a (la2, lo2). */
+export function bearingDeg(la1, lo1, la2, lo2) {
+  const r = Math.PI / 180, y = Math.sin((lo2 - lo1) * r) * Math.cos(la2 * r);
+  const x = Math.cos(la1 * r) * Math.sin(la2 * r) - Math.sin(la1 * r) * Math.cos(la2 * r) * Math.cos((lo2 - lo1) * r);
+  return ((Math.atan2(y, x) / r) + 360) % 360;
+}
+
+/**
+ * Volcanes en erupción que se ven desde el lugar: rumbo, ángulo de su cumbre y distancia, si la cumbre asoma sobre
+ * el horizonte real (hz de /api/horizon). angleOf(hM, dKm, h0M) da el ángulo con la curvatura (terrainLayer.js).
+ */
+export function eruptingInView(volcs, hz, lat, lon, angleOf, maxKm = 150) {
+  if (!Array.isArray(volcs) || !hz || !Array.isArray(hz.alt)) return [];
+  const h0 = (hz.ground_m || 0) + (hz.eye_m || 1.7), step = hz.step_deg || 0.2, n = hz.alt.length, out = [];
+  for (const v of volcs) {
+    if (!v.erupting || !Number.isFinite(v.elev_m)) continue;
+    const d = kmBetween(lat, lon, v.lat, v.lon);
+    if (d < 0.5 || d > maxKm) continue;
+    const az = bearingDeg(lat, lon, v.lat, v.lon), alt = angleOf(v.elev_m, d, h0);
+    const i = ((Math.round(az / step) % n) + n) % n;
+    if (alt < hz.alt[i] - 0.3) continue;                        // tapado por montañas más cercanas
+    out.push({ az, alt: Math.max(alt, hz.alt[i]), dist_km: d, vei: v.last_vei, name: v.name, id: v.id });
+  }
+  return out;
+}
+
 /** Punto a `d` km en el rumbo `az` (grados desde el norte) desde (lat, lon). */
 export function destPoint(lat, lon, az, d) {
   const r = Math.PI / 180, δ = d / R, θ = az * r, φ1 = lat * r, λ1 = lon * r;
@@ -102,6 +128,7 @@ export const VT = {
     vei: "Explosividad (VEI)", veiVal: (v, y) => `${v} de 8${y != null ? ` · erupción de ${y < 0 ? `${-y} a. C.` : y}` : ""}`,
     erupting: (y) => `El Smithsonian la da en erupción en ${y}. La columna que se dibuja sobre ella es ilustrativa: para alertas oficiales, el Instituto Geofísico.`,
     simulate: "Simular su última erupción",
+    gasNote: "Sobre él se dibuja una pluma de gases y ceniza (ilustrativa: la forma es genérica).",
     simChip: (n, vei, km) => `Simulación ilustrativa · ${n} · VEI ${vei} · columna ≈ ${km} km`,
     simStop: "Parar",
     simNote: "Solo la altura (por el VEI) y la dirección del viento salen de datos; la forma es genérica. No es una predicción.",
@@ -119,6 +146,7 @@ export const VT = {
     vei: "Explosivity (VEI)", veiVal: (v, y) => `${v} of 8${y != null ? ` · eruption of ${y < 0 ? `${-y} BCE` : y}` : ""}`,
     erupting: (y) => `The Smithsonian lists it as erupting in ${y}. The plume drawn over it is illustrative: for official alerts, check your geophysical institute.`,
     simulate: "Simulate its last eruption",
+    gasNote: "A plume of gas and ash is drawn over it (illustrative: the shape is generic).",
     simChip: (n, vei, km) => `Illustrative simulation · ${n} · VEI ${vei} · column ≈ ${km} km`,
     simStop: "Stop",
     simNote: "Only the height (from the VEI) and the wind direction come from data; the shape is generic. Not a prediction.",

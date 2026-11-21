@@ -1,7 +1,8 @@
 // Pruebas: volcanes del Smithsonian junto a las cumbres (src/sky/volcanoes.js), el tiempo de ahora
 // (src/sky/nowWeather.js) y la proyección del mapa topográfico (src/sky/topo.js).
 import { readFileSync } from "node:fs";
-import { matchVolcanoes, volcanoFacts, recentEruption, destPoint, kmBetween, fetchVolcanoes, VT } from "../src/sky/volcanoes.js";
+import { matchVolcanoes, volcanoFacts, recentEruption, destPoint, kmBetween, fetchVolcanoes, VT, eruptingInView, bearingDeg } from "../src/sky/volcanoes.js";
+import { angleOf } from "../src/sky/terrainLayer.js";
 import { nowUrl, parseNow, wxKind, fmtTemp } from "../src/sky/nowWeather.js";
 import { toPx, toLL, TOPO_TILE } from "../src/sky/topo.js";
 import { veiColumnKm, ventPos, particle } from "../src/sky/plumeLayer.js";
@@ -75,6 +76,20 @@ ok(recentEruption({ erupting: true }), "en erupción este año cuenta como recie
 {
   const ps = readFileSync(new URL("../src/sky/PeakSheet.jsx", import.meta.url), "utf8");
   ok(/onSimulate/.test(ps) && /T\.simNote/.test(ps), "botón de simular con su aviso de que es ilustrativa");
+}
+
+console.log("Volcanes en erupción a la vista");
+{
+  const hzFlat = { step_deg: 0.2, ground_m: 2800, eye_m: 1.7, alt: new Array(1800).fill(0.5) };
+  const vs = [{ id: 1, name: "Sangay", lat: -2.005, lon: -78.341, elev_m: 5286, erupting: true, last_vei: 2 },
+    { id: 2, name: "Cotopaxi", lat: -0.677, lon: -78.436, elev_m: 5911, erupting: false }];
+  const iv = eruptingInView(vs, hzFlat, -1.67, -78.65, angleOf);
+  ok(iv.length === 1 && iv[0].name === "Sangay" && Math.abs(iv[0].az - bearingDeg(-1.67, -78.65, -2.005, -78.341)) < 1e-9, "solo los que están en erupción, con su rumbo");
+  const hzWall = { ...hzFlat, alt: new Array(1800).fill(8) };
+  ok(eruptingInView(vs, hzWall, -1.67, -78.65, angleOf).length === 0, "tapados por montañas más cercanas, no");
+  ok(Math.abs(bearingDeg(0, 0, 1, 0)) < 1e-9 && Math.abs(bearingDeg(0, 0, 0, 1) - 90) < 1e-9, "rumbo norte y este");
+  const ps2 = readFileSync(new URL("../src/sky/PeakSheet.jsx", import.meta.url), "utf8");
+  ok(/v && !v\.erupting && onSimulate/.test(ps2) && /T\.gasNote/.test(ps2), "simular solo si no está en erupción; si lo está, la pluma");
 }
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);

@@ -85,7 +85,7 @@ const bandFrom = (data, km, lang) => {
   return i > 0 ? Number(bs[i - 1]).toLocaleString(lang === "es" ? "es" : "en-US") : "0";
 };
 
-export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry, satOn = true, onToggleSat, sat = null, peaksOn = false, onTogglePeaks, peaks, monOn = true, onToggleMon, monNear = [], monStatus = null, andOn = false, onToggleAnd, andean = null }) {
+export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry, sat = null, peaksOn = false, onTogglePeaks, peaks, monOn = true, onToggleMon, monNear = [], monStatus = null, andOn = false, onToggleAnd, andean = null }) {
   const ta = TX_AND[lang] || TX_AND.es;
   const tx = TX_HZ[lang] || TX_HZ.es;
   const data = hz && hz.status === "ok" ? hz.data : null;
@@ -115,17 +115,9 @@ export function TerrainControl({ lang = "es", available = true, on, onToggle, hz
             </>
           )}
           <p className="sk-atm-fine">{tx.source}</p>
-          {onToggleSat && (
-            <div className="sk-layer sk-hz-peaks">
-              <button type="button" role="switch" aria-checked={!!satOn} className="sk-layer-main" onClick={onToggleSat}>
-                <span className="sk-layer-txt"><b>{tx.sat}</b><small>{tx.satDesc}</small></span>
-                <i className="sk-switch" />
-              </button>
-            </div>
-          )}
-          {satOn && sat === "loading" && <p className="sk-atm-fine" role="status">{tx.satLoading}</p>}
-          {satOn && sat === "error" && <p className="sk-atm-fine" role="status">{tx.satError}</p>}
-          {satOn && sat === "ok" && <p className="sk-atm-fine">{tx.satSource}</p>}
+          {sat === "loading" && <p className="sk-atm-fine" role="status">{tx.satLoading}</p>}
+          {sat === "error" && <p className="sk-atm-fine" role="status">{tx.satError}</p>}
+          {sat === "ok" && <p className="sk-atm-fine">{tx.satSource}</p>}
           {onTogglePeaks && (
             <div className="sk-layer sk-hz-peaks">
               <button type="button" role="switch" aria-checked={!!peaksOn} className="sk-layer-main" onClick={onTogglePeaks}>

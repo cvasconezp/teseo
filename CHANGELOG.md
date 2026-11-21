@@ -1,5 +1,18 @@
 # Cambios
 
+## 1.50.2 — 21 de noviembre de 2026
+
+- Sin franjas blanquecinas en el paisaje: el mosaico de satélite de 2016
+  conserva nubes (sobre todo hacia la Amazonía) e invernaderos blancos; esos
+  píxeles ya no cuentan como color del suelo y el color no pasa de un suelo
+  claro.
+- Los colores del satélite van siempre con «Montañas», sin interruptor
+  propio.
+- Los volcanes en erupción (Reventador, Sangay) muestran su pluma de gases y
+  ceniza siempre que se ven, aunque los nombres de las montañas estén
+  apagados. «Simular su última erupción» queda solo para los que no están en
+  erupción.
+
 ## 1.50.1 — 21 de noviembre de 2026
 
 - Volcanes en erupción: se reconocen las erupciones que el Smithsonian da

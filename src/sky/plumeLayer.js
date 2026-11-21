@@ -3,7 +3,8 @@
 //   · simulate(v): la última erupción de un volcán, en bucle de ~26 s (≈ 20 min de erupción comprimidos): la
 //     columna sube hasta la altura típica de su índice de explosividad (VEI) y la ceniza se abre en paraguas a
 //     unos ¾ de esa altura, arrastrada por el viento del pronóstico.
-//   · ambient(list): una pluma baja y suave sobre los volcanes que el Smithsonian da en erupción este año.
+//   · ambient(list): una pluma de gases y ceniza, más baja y clara, sobre los volcanes que el Smithsonian da en
+//     erupción (continuada o este año) y que se ven desde el lugar, con o sin los nombres de las montañas.
 // No es una predicción ni una alerta: la forma es genérica; solo la altura (por el VEI) y la dirección del
 // viento salen de datos. Partículas como puntos con un sombreado redondo y suave.
 import * as THREE from "three";
@@ -112,7 +113,9 @@ export function createPlumeLayer() {
       look.day = day;
       const base = [0.36 + 0.24 * day, 0.34 + 0.22 * day, 0.33 + 0.2 * day];
       const c = horizon ? [base[0] * 0.75 + horizon[0] * 0.25 * day, base[1] * 0.75 + horizon[1] * 0.25 * day, base[2] * 0.75 + horizon[2] * 0.25 * day] : base;
-      for (const p of [sim, amb]) p.material.uniforms.uAsh.value.setRGB(c[0], c[1], c[2]);
+      sim.material.uniforms.uAsh.value.setRGB(c[0], c[1], c[2]);
+      // la pluma de los que están en erupción: sobre todo gases y vapor, más clara que la ceniza
+      amb.material.uniforms.uAsh.value.setRGB(Math.min(1, c[0] * 1.25 + 0.06 * day), Math.min(1, c[1] * 1.25 + 0.06 * day), Math.min(1, c[2] * 1.25 + 0.07 * day));
     },
     get active() { return !!simV || ambList.length > 0; },
     get simulating() { return simV; },
@@ -127,7 +130,7 @@ export function createPlumeLayer() {
       }
       if (ambList.length) {
         const per = Math.floor(N_AMB / ambList.length);
-        ambList.forEach((v, j) => fill(amb, sAmb, j * per, per, v, Math.min(4, veiColumnKm(v.vei) * 0.5), 40, ((now / 40000) + j * 0.37) % 1, false, 0.55));
+        ambList.forEach((v, j) => fill(amb, sAmb, j * per, per, v, Math.max(1.5, Math.min(4, veiColumnKm(v.vei) * 0.6)), 40, ((now / 40000) + j * 0.37) % 1, false, 0.7));
         amb.geometry.setDrawRange(0, per * ambList.length);
         for (const k of ["position", "aSize", "aAlpha", "aHot"]) amb.geometry.attributes[k].needsUpdate = true;
       }

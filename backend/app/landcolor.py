@@ -111,14 +111,38 @@ def tiles_needed(pl) -> set:
     return need
 
 
+def is_cloudy(px) -> bool:
+    """Píxel blanco o gris claro: nubes que quedaron en el mosaico (sobre todo en la vertiente amazónica, casi
+    siempre nublada), invernaderos o nieve. No sirve como color del suelo (la nieve la pone el modelo)."""
+    mx, mn = int(max(px)), int(min(px))
+    return (mx + mn) / 2 > 150 and mx - mn < 45
+
+
+def fill_gaps(cols: np.ndarray, ok: np.ndarray) -> np.ndarray:
+    """Las columnas sin color válido toman el de la válida más cercana en acimut (circular); sin ninguna, neutro."""
+    if ok.all():
+        return cols
+    out = cols.copy()
+    idx = np.flatnonzero(ok)
+    if not len(idx):
+        out[:] = (95, 100, 80)
+        return out
+    n = len(cols)
+    for i in np.flatnonzero(~ok):
+        d = np.minimum(np.abs(idx - i), n - np.abs(idx - i))
+        out[i] = cols[idx[int(np.argmin(d))]]
+    return out
+
+
 def sample(pl, tiles: dict) -> list:
-    """Color medio (RGB 0–255) de cada punto; sin tesela, gris neutro."""
+    """Color medio (RGB 0–255) de cada punto, sin los píxeles de nubes (is_cloudy); los huecos, del vecino."""
     bands = []
     for z, pts in pl:
         pair = []
         for la, lo, r in pts:
             x, y = world_px(la, lo, z)
             cols = np.zeros((len(la), 3), dtype=np.uint8)
+            ok = np.zeros(len(la), dtype=bool)
             for i in range(len(la)):
                 ri = int(r[i]); acc = np.zeros(3); cnt = 0
                 for yy in range(int(y[i]) - ri, int(y[i]) + ri + 1, max(1, ri // 2)):
@@ -126,9 +150,13 @@ def sample(pl, tiles: dict) -> list:
                         t = tiles.get((z, (xx // TS) % (2 ** z), min(2 ** z - 1, max(0, yy // TS))))
                         if t is None:
                             continue
-                        acc += t[yy % TS, xx % TS]; cnt += 1
-                cols[i] = np.clip(acc / cnt, 0, 255) if cnt else (110, 110, 100)
-            pair.append(cols)
+                        px = t[yy % TS, xx % TS]
+                        if is_cloudy(px):
+                            continue
+                        acc += px; cnt += 1
+                if cnt:
+                    cols[i] = np.clip(acc / cnt, 0, 255); ok[i] = True
+            pair.append(fill_gaps(cols, ok))
         bands.append(pair)
     return bands
 

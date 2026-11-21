@@ -127,7 +127,8 @@ export function terrainPalette(st, nBands = 4) {
   const col = (k, satTop, satBot) => {
     const f = nBands > 1 ? k / (nBands - 1) : 0;
     const n = mix(nightBase, nightFar, Math.pow(f, 0.8) * 0.95);
-    const alb = (c) => { const g = (c[0] + c[1] + c[2]) / 3; return [0.46 * (g + (c[0] - g) * 1.15), 0.46 * (g + (c[1] - g) * 1.15), 0.46 * (g + (c[2] - g) * 1.15)]; };
+    // (y sin pasar de un suelo claro: nubes o invernaderos que se colaran no deben dejar franjas blanquecinas)
+    const alb = (c) => { const g = (c[0] + c[1] + c[2]) / 3, k = 0.46 * Math.min(1, 0.5 / Math.max(0.01, g)); return [k * (g + (c[0] - g) * 1.15), k * (g + (c[1] - g) * 1.15), k * (g + (c[2] - g) * 1.15)]; };
     const lt = alb(satTop), lb = alb(satBot || satTop);
     const dTop = mix(lt, horizon, 0.04 + 0.72 * Math.pow(f, 0.85));
     const dBot = mix(mix(lb, [0, 0, 0], 0.12), horizon, 0.03 + 0.66 * Math.pow(f, 0.85));

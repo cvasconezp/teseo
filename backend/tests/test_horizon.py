@@ -209,3 +209,13 @@ def test_colores_sin_teselas(tiles, monkeypatch):
     monkeypatch.setattr(lc, "_transport", _httpx.MockTransport(lambda req: _httpx.Response(503)))
     lc._tiles.clear(); lc._results.clear()
     assert client.get(f"/api/horizon/colors?lat={LAT0}&lon={LON0}").status_code == 502
+
+
+def test_colores_sin_nubes():
+    import numpy as np
+    from app import landcolor as lc
+    assert lc.is_cloudy((230, 232, 235)) and lc.is_cloudy((175, 170, 168)) and not lc.is_cloudy((90, 120, 60)) and not lc.is_cloudy((200, 150, 90))
+    cols = np.array([[10, 20, 30], [0, 0, 0], [0, 0, 0], [40, 50, 60]], dtype=np.uint8)
+    out = lc.fill_gaps(cols, np.array([True, False, False, True]))
+    assert out[1].tolist() == [10, 20, 30] and out[2].tolist() == [40, 50, 60]
+    assert lc.fill_gaps(cols, np.zeros(4, dtype=bool))[0].tolist() == [95, 100, 80]
