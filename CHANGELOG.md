@@ -1,5 +1,18 @@
 # Cambios
 
+## 1.50.3 — 21 de noviembre de 2026
+
+- Nombres de las cumbres desde una cumbre: se calculan sobre el mismo
+  horizonte fino que se dibuja (`/api/peaks?fine=1`). Antes, desde la cumbre
+  del Cotopaxi o del Rucu Pichincha, el ángulo de cada cumbre no coincidía con
+  la silueta y el cielo descartaba nombres como los de los Ilinizas.
+- Menos franjas claras en el paisaje: además de las nubes, se descartan sus
+  bordes grises y sus sombras del mosaico de satélite; el satélite pesa menos
+  en las bandas lejanas (allí manda la bruma); los cortes entre bandas mezclan
+  menos color; el color se suaviza más a lo largo del horizonte.
+- Más verde y pardo cerca: menos bruma en las bandas cercanas y algo más de
+  saturación en el color del satélite.
+
 ## 1.50.2 — 21 de noviembre de 2026
 
 - Sin franjas blanquecinas en el paisaje: el mosaico de satélite de 2016

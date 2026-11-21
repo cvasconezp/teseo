@@ -128,10 +128,14 @@ export function terrainPalette(st, nBands = 4) {
     const f = nBands > 1 ? k / (nBands - 1) : 0;
     const n = mix(nightBase, nightFar, Math.pow(f, 0.8) * 0.95);
     // (y sin pasar de un suelo claro: nubes o invernaderos que se colaran no deben dejar franjas blanquecinas)
-    const alb = (c) => { const g = (c[0] + c[1] + c[2]) / 3, k = 0.46 * Math.min(1, 0.5 / Math.max(0.01, g)); return [k * (g + (c[0] - g) * 1.15), k * (g + (c[1] - g) * 1.15), k * (g + (c[2] - g) * 1.15)]; };
-    const lt = alb(satTop), lb = alb(satBot || satTop);
-    const dTop = mix(lt, horizon, 0.04 + 0.72 * Math.pow(f, 0.85));
-    const dBot = mix(mix(lb, [0, 0, 0], 0.12), horizon, 0.03 + 0.66 * Math.pow(f, 0.85));
+    const alb = (c) => { const g = (c[0] + c[1] + c[2]) / 3, k = 0.55 * Math.min(1, 0.5 / Math.max(0.01, g)); return [k * (g + (c[0] - g) * 1.35), k * (g + (c[1] - g) * 1.35), k * (g + (c[2] - g) * 1.35)]; };
+    // cuanto más lejos, menos pesa el satélite (allí manda la bruma y el mosaico tiene restos de nubes): cerca,
+    // el color real; en las bandas lejanas, sobre todo el color medio del monte
+    const w = 1 - 0.7 * Math.min(1, Math.max(0, (f - 0.35) / 0.65));
+    const lt = mix(land, alb(satTop), w), lb = mix(land, alb(satBot || satTop), w);
+    // bruma: poca en las bandas cercanas (para que se vea el verde o el pardo del suelo), mucha en las lejanas
+    const dTop = mix(lt, horizon, 0.03 + 0.66 * Math.pow(f, 1.3));
+    const dBot = mix(mix(lb, [0, 0, 0], 0.1), horizon, 0.02 + 0.6 * Math.pow(f, 1.3));
     return { top: mix(n, dTop, day), bottom: mix(mix(n, [0, 0, 0], 0.25), dBot, day) };
   };
   return { bands: out, snow: mix([0.09, 0.1, 0.13], [0.9, 0.92, 0.95], day), day, col };
@@ -154,7 +158,7 @@ export function decodeLandColors(body) {
  * `pull` hacia la media de la fila. Cada columna mira un punto distinto del mapa y, sin suavizar, el relieve
  * quedaría con rayas verticales de colores.
  */
-export function smoothLand(arr, w = 5, pull = 0.3) {
+export function smoothLand(arr, w = 7, pull = 0.35) {
   const m = arr.length / 3, out = new Float32Array(arr.length), mean = [0, 0, 0];
   for (let i = 0; i < m; i++) for (let c = 0; c < 3; c++) mean[c] += arr[i * 3 + c] / m;
   for (let i = 0; i < m; i++) {
@@ -235,14 +239,14 @@ const readPeaks = () => { try { const v = JSON.parse(localStorage.getItem(PEAKS_
 const writePeaks = (list) => { try { localStorage.setItem(PEAKS_STORE, JSON.stringify(list.slice(0, PEAKS_MAX))); } catch { /* lleno o privado */ } };
 
 /** Cumbres con nombre del horizonte del lugar: promesa de { peaks: [...], source }, en caché por celda. */
-export function fetchPeaks(lat, lon, { api = "", fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
-  const key = cellKey(lat, lon);
+export function fetchPeaks(lat, lon, { api = "", fine = false, fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
+  const key = cellKey(lat, lon, fine);
   if (peaksMem.has(key)) return peaksMem.get(key);
   const saved = readPeaks().find((e) => e.key === key);
   if (saved && saved.data && Array.isArray(saved.data.peaks)) { const p = Promise.resolve(saved.data); peaksMem.set(key, p); return p; }
   if (!fetchImpl) return Promise.reject(new Error("sin red"));
-  const [la, lo] = key.split(",");
-  const p = fetchImpl(`${api}/api/peaks?lat=${la}&lon=${lo}`).then(async (r) => {
+  const [la, lo] = key.replace(/^f:/, "").split(",");
+  const p = fetchImpl(`${api}/api/peaks?lat=${la}&lon=${lo}${fine ? "&fine=1" : ""}`).then(async (r) => {
     let body = null;
     try { body = await r.json(); } catch { /* no JSON */ }
     if (!r.ok || !body || !Array.isArray(body.peaks)) throw new Error((body && body.detail) || `HTTP ${r.status}`);

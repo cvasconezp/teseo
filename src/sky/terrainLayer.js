@@ -18,6 +18,7 @@ import { terrainPalette, snowLine } from "./horizon.js";
 
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
+const CUT_MIX = 0.5;   // cuánto toma una columna el color de la banda de atrás en los cortes (más, y salen rayas)
 const BASE = -0.4;            // grados: base de cada franja, un poco bajo 0° para no dejar rendija con el suelo
 
 /**
@@ -325,7 +326,7 @@ export function createTerrainLayer({ radius = 880 } = {}) {
         // Sol bajo, el pie puede quedar en la sombra del valle mientras el filo sigue al sol
         const lt = litAt(b, j, true), ln = litAt(bn, j, true), lb = litAt(b, j, false);
         const gt = glowOf(sunAlt, lt);
-        const shade = shadeOf(b, j, lt), f = cut[j];
+        const shade = shadeOf(b, j, lt), f = cut[j] * CUT_MIX;
         const snow = light(scale(pal.snow, 0.86 + 0.14 * shade), lt, gt, true);
         col.set(lin(snow), (i * 4) * 3);
         col.set(lin(scale(snow, 0.94)), (i * 4 + 1) * 3);

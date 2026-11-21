@@ -112,10 +112,13 @@ def tiles_needed(pl) -> set:
 
 
 def is_cloudy(px) -> bool:
-    """Píxel blanco o gris claro: nubes que quedaron en el mosaico (sobre todo en la vertiente amazónica, casi
-    siempre nublada), invernaderos o nieve. No sirve como color del suelo (la nieve la pone el modelo)."""
+    """Píxel blanco o gris claro (nubes que quedaron en el mosaico, sobre todo en la vertiente amazónica, casi
+    siempre nublada; sus bordes; invernaderos; nieve) o casi negro (sombra de una nube). No sirve como color del
+    suelo (la nieve la pone el modelo)."""
     mx, mn = int(max(px)), int(min(px))
-    return (mx + mn) / 2 > 150 and mx - mn < 45
+    L = (mx + mn) / 2
+    # blancos y grises claros (nubes, sus bordes, invernaderos) y casi negros (sombras de nubes)
+    return (L > 150 and mx - mn < 45) or (L > 122 and mx - mn < 30) or L < 22
 
 
 def fill_gaps(cols: np.ndarray, ok: np.ndarray) -> np.ndarray:

@@ -63,6 +63,7 @@ stats = {"computed": 0, "last_error": None, "last_ms": None, "last_endpoint": No
 
 
 def reset_cache() -> None:
+    _nodes.clear()
     _results.clear()
     stats.update(computed=0, last_error=None, last_ms=None, last_endpoint=None, last_sources=None)
 
@@ -341,14 +342,26 @@ async def fetch_osm(client: httpx.AsyncClient, lat: float, lon: float, min_far: 
     raise RuntimeError("; ".join(errors) or "sin respuesta")
 
 
-async def get_peaks(lat: float, lon: float) -> dict:
-    key = hz.cell_of(lat, lon)
+_nodes: "OrderedDict[tuple, list]" = OrderedDict()   # cumbres candidatas por celda de 0,002° (sirven a la celda fina)
+
+
+async def get_peaks(lat: float, lon: float, fine: bool = False) -> dict:
+    # con fine, sobre el mismo horizonte fino que dibuja el cielo (cumbres y GPS): si no, el ángulo de cada cumbre
+    # no coincide con la silueta dibujada y el navegador la descarta (los Ilinizas desde la cumbre del Cotopaxi)
+    key = hz.cell_of(lat, lon, fine) + (("f",) if fine else ())
     if key in _results:
         _results.move_to_end(key)
         return _results[key]
     t0 = time.time()
-    prof = await hz.get_horizon(lat, lon)
-    nodes = await fetch_nodes(prof["lat"], prof["lon"], prof["ground_m"])
+    prof = await hz.get_horizon(lat, lon, fine)
+    nkey = hz.cell_of(lat, lon)
+    if nkey in _nodes:
+        nodes = _nodes[nkey]; _nodes.move_to_end(nkey)
+    else:
+        nodes = await fetch_nodes(prof["lat"], prof["lon"], prof["ground_m"])
+        _nodes[nkey] = nodes
+        while len(_nodes) > RESULT_CACHE_MAX:
+            _nodes.popitem(last=False)
     res = {"lat": prof["lat"], "lon": prof["lon"], "peaks": visible_peaks(prof, nodes), "candidates": len(nodes),
            "source": SOURCE, "computed": iso_utc(time.time())}
     _results[key] = res
@@ -361,11 +374,12 @@ async def get_peaks(lat: float, lon: float) -> dict:
 @router.get("/peaks")
 async def peaks(response: Response,
                 lat: float = Query(..., ge=-85.0, le=85.0),
-                lon: float = Query(..., ge=-180.0, le=180.0)):
+                lon: float = Query(..., ge=-180.0, le=180.0),
+                fine: bool = Query(False, description="sobre el horizonte de celda fina (como /api/horizon?fine=1)")):
     """Nombres (OpenStreetMap) de las cumbres que forman la silueta del horizonte real del lugar, con el punto
     exacto de la silueta donde va cada uno (acimut y ángulo, como /api/horizon)."""
     try:
-        data = await get_peaks(lat, lon)
+        data = await get_peaks(lat, lon, fine)
     except Exception as e:
         stats["last_error"] = str(e)
         raise HTTPException(status_code=502, detail=f"No se pudieron leer los nombres de las montañas (OpenStreetMap): {e}")

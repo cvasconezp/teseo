@@ -1737,6 +1737,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       camera.quaternion.copy(lookQuat(lk.yaw, lk.pitch, lk.qF));
       applyFov();
       if (E2E) window.__teseoSky = {
+        tex: (on) => { for (const m of r.terrain.group.children) if (m.material && m.material.userData && m.material.userData.tex) m.material.userData.tex.value = on ? 1 : 0; r.wake(); },
         hips: () => (r.hips ? { ...r.hips.stats, active: r.hips.active, fine: r.hipsFine ? { ...r.hipsFine.stats, level: r.hipsFine.level } : null } : null),
         // estado de cada capa (pruebas): puntos a la vista por capa, mapa fotográfico, cometas dibujados
         layers: () => { const o = {}; for (const l of (r.layerObjs || [])) { o[l.key] = o[l.key] || { n: 0, visible: false }; o[l.key].n += l.points.userData.objs.length; o[l.key].visible = o[l.key].visible || l.points.visible; } return { pts: o, photo: !!r.hipsOn, img: r.skyImages ? r.skyImages.state : null, cometItems: r.cometLayer ? r.cometLayer.group.children.length : 0, fov: r.camera.fov }; },
@@ -2632,7 +2633,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (!peaksOn || !hzData || !hzKey) return;
     let alive = true;
     setPk((s) => (s.key === hzKey && s.status === "ok" ? s : { status: "loading", data: null, key: hzKey }));
-    fetchPeaks(lat, lon, { api: API }).then(
+    fetchPeaks(lat, lon, { api: API, fine: placeFine }).then(
       (data) => { if (alive) setPk({ status: "ok", data, key: hzKey }); },
       (e) => { if (alive) setPk({ status: "error", data: null, key: hzKey, error: String(e && e.message || e) }); });
     return () => { alive = false; };

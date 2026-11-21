@@ -191,5 +191,12 @@ console.log("Colores del satélite y textura");
   ok(/export function texturize/.test(tl4) && /onBeforeCompile/.test(tl4) && /landAt\(k, j\)/.test(tl4), "textura generada y color por columna en las franjas");
 }
 
+{
+  let u2 = "";
+  const hm2 = await import("../src/sky/horizon.js");
+  await hm2.fetchPeaks(-0.68043, -78.43785, { api: "https://x", fine: true, fetchImpl: async (u) => { u2 = u; return { ok: true, json: async () => ({ peaks: [] }) }; } });
+  ok(/\/api\/peaks\?lat=-0\.6804&lon=-78\.4378&fine=1$/.test(u2), "en una cumbre, los nombres sobre el mismo horizonte fino que se dibuja");
+}
+
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);
