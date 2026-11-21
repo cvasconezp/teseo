@@ -138,7 +138,8 @@ const kmBetween = (a, b) => {
   return Math.hypot(dx, dy);
 };
 /** Une las dos listas: una montaña de GeoNames con su pico de OSM a menos de 6 km (mismo nombre) se cambia por
- * este, que está en la cima; los demás picos de OSM van después. Como mucho `max`. */
+ * este, que está en la cima; si ninguna se cambió, el pico más alto de OSM va segundo; los demás, al final.
+ * Como mucho `max`. */
 export function mergePeaks(geo, osm, max = 10) {
   const used = new Set();
   const out = geo.map((g) => {
@@ -148,7 +149,11 @@ export function mergePeaks(geo, osm, max = 10) {
     used.add(i);
     return { ...osm[i], region: osm[i].region || g.region, country: osm[i].country || g.country };
   });
-  osm.forEach((o, k) => { if (!used.has(k)) out.push(o); });
+  // la cumbre más alta que queda va en segundo lugar (tras el primer resultado de GeoNames, a menudo un pueblo
+  // homónimo): si no, con ocho pueblos llamados «Fuji», el monte Fuji quedaba fuera de la lista
+  const rest = osm.filter((o, k) => !used.has(k));
+  if (rest.length && !out.some((r) => r.osm)) out.splice(Math.min(1, out.length), 0, rest.shift());
+  out.push(...rest);
   return out.slice(0, max);
 }
 

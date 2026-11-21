@@ -123,8 +123,9 @@ export function createTerrainLayer({ radius = 880 } = {}) {
         pos.set(P(az, top), (i * 4) * 3);
         pos.set(P(az, snow), (i * 4 + 1) * 3);
         pos.set(P(az, snow), (i * 4 + 2) * 3);
-        // desde una cumbre, la banda más cercana sigue hasta abajo: es el suelo que pisas (ladera o nieve)
-        pos.set(P(az, above && k === 0 ? -89.5 : base), (i * 4 + 3) * 3);
+        // todas las franjas acaban un poco bajo el filo más bajo: más abajo sigue el suelo translúcido de siempre,
+        // a través del cual se ven las estrellas del otro lado de la Tierra (la v1.47.0 lo tapaba entero)
+        pos.set(P(az, base), (i * 4 + 3) * 3);
         line.set(P(az, top + 0.005), i * 3);
         if (i < n) {
           const a = i * 4, c = a + 4;

@@ -157,5 +157,10 @@ console.log("Cumbre más cercana (/api/summit)");
   ok(/strict: true/.test(cj) && /cellKey\(lat, lon, placeFine\)/.test(cj), "el GPS busca la cima en modo estricto y el horizonte usa la celda fina");
 }
 
+{
+  const tl2 = readFileSync(new URL("../src/sky/terrainLayer.js", import.meta.url), "utf8");
+  ok(!/-89\.5/.test(tl2), "las montañas no tapan el suelo entero: bajo ellas se siguen viendo las estrellas del otro lado");
+}
+
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

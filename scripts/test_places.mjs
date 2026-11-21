@@ -66,6 +66,9 @@ ok((await searchPlaces("Cayambe", "es", { fetchImpl: f3 })).length === 1, "si Op
   const list = [{ name: "Mount Everest", lat: 41.62, lon: -87.19, peak: 300 }, { name: "Mount Everest", lat: 27.988, lon: 86.925, peak: 300 }];
   const rk = await rankPeaks(list, { fetchImpl: async () => ({ ok: true, json: async () => ({ heights: [219, 8752] }) }) });
   ok(rk[0].lon === 86.925 && rk[0].elevModel === 8752 && placeLine({ ...rk[0], region: "Koshi", country: "Nepal", kind: "peak" }, "es") === "Cumbre · Koshi, Nepal · ≈ 8.752 m", "entre homónimas, primero la más alta, con su altura aproximada");
+  const towns = Array.from({ length: 9 }, (_, i) => ({ name: "Fuji", lat: 35 + i * 0.1, lon: 138, cc: "JP" }));
+  const mf = mergePeaks(towns, [{ name: "Mount Fuji", lat: 35.36, lon: 138.73, peak: 300, osm: true, kind: "volcano" }]);
+  ok(mf.length === 10 && mf[1].name === "Mount Fuji", "con muchos pueblos homónimos, el monte va segundo y no se cae de la lista");
   const same = await rankPeaks(list, { fetchImpl: async () => { throw new Error("x"); } });
   ok(same === list, "sin servidor, el orden de Photon");
 }

@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.48.1 — 20 de noviembre de 2026
+
+- Vuelve el suelo translúcido bajo el horizonte: la v1.47.0 alargaba la
+  franja de montañas más cercana hasta abajo en cualquier lugar con algún
+  filo bajo 0° (casi todos en los Andes), y tapaba las estrellas del otro
+  lado de la Tierra con un suelo verde opaco.
+- Buscador: la cumbre más alta va en segundo lugar cuando hay muchos
+  pueblos homónimos (el monte Fuji quedaba fuera de la lista).
+
 ## 1.48.0 — 20 de noviembre de 2026
 
 - Mar de nubes: desde una cumbre, las capas de nubes que quedan por debajo
