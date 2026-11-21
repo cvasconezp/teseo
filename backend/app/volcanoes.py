@@ -30,7 +30,7 @@ WFS = ("https://webservices.volcano.si.edu/geoserver/GVP-VOTW/wfs?service=WFS&ve
        "&typeName=GVP-VOTW:Smithsonian_VOTW_Holocene_Volcanoes&outputFormat=application/json")
 WFS_ERUPTIONS = ("https://webservices.volcano.si.edu/geoserver/GVP-VOTW/wfs?service=WFS&version=2.0.0&request=GetFeature"
                  "&typeName=GVP-VOTW:Smithsonian_VOTW_Holocene_Eruptions&outputFormat=application/json"
-                 "&propertyName=Volcano_Number,ExplosivityIndexMax,StartDateYear,EndDateYear,Activity_Type")
+                 "&propertyName=Volcano_Number,ExplosivityIndexMax,StartDateYear,EndDateYear,EndDateYearModifier,Activity_Type")
 SOURCE = "Global Volcanism Program, Smithsonian Institution (Volcanoes of the World), https://volcano.si.edu/"
 TTL_S = 24 * 3600
 RETRY_S = 15 * 60          # si falló la descarga, no se reintenta antes
@@ -85,7 +85,8 @@ def parse(geojson: dict) -> list:
 
 
 def last_eruptions(geojson: dict, year_now: int) -> dict:
-    """Erupciones → por volcán, la última confirmada: { vei, start, end, erupting } (erupting: sigue este año)."""
+    """Erupciones → por volcán, la última confirmada: { vei, start, end, erupting }. erupting: el Smithsonian la da por
+    continuada (fin con el modificador «>», como el Reventador desde 2008 o el Sangay desde 2019) o acabó este año."""
     best = {}
     for f in (geojson or {}).get("features") or []:
         p = (f or {}).get("properties") or {}
@@ -96,7 +97,8 @@ def last_eruptions(geojson: dict, year_now: int) -> dict:
         if cur is None or y > cur["start"]:
             vei, end = _num(p.get("ExplosivityIndexMax")), _num(p.get("EndDateYear"))
             best[num] = {"vei": int(vei) if vei is not None else None, "start": int(y),
-                         "end": int(end) if end is not None else None, "erupting": end is not None and end >= year_now}
+                         "end": int(end) if end is not None else None,
+                         "erupting": (p.get("EndDateYearModifier") or "").strip() == ">" or (end is not None and end >= year_now)}
     return best
 
 

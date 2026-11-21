@@ -42,6 +42,7 @@ ERUP = {"features": [
     {"properties": {"Volcano_Number": 352050, "ExplosivityIndexMax": 4, "StartDateYear": 1877, "EndDateYear": 1880, "Activity_Type": "Confirmed Eruption"}},
     {"properties": {"Volcano_Number": 352050, "ExplosivityIndexMax": 9, "StartDateYear": 2024, "Activity_Type": "Discredited Eruption"}},
     {"properties": {"Volcano_Number": 352010, "ExplosivityIndexMax": 2, "StartDateYear": 1785, "EndDateYear": 2026, "Activity_Type": "Confirmed Eruption"}},
+    {"properties": {"Volcano_Number": 352090, "ExplosivityIndexMax": 2, "StartDateYear": 2019, "EndDateYear": 2025, "EndDateYearModifier": ">", "Activity_Type": "Confirmed Eruption"}},
 ]}
 
 
@@ -49,6 +50,7 @@ def test_ultimas_erupciones():
     e = vo.last_eruptions(ERUP, 2026)
     assert e[352050] == {"vei": 2, "start": 2022, "end": 2023, "erupting": False}
     assert e[352010]["erupting"] is True
+    assert e[352090]["erupting"] is True          # continuada («>»), aunque el último dato sea del año pasado
 
 
 def test_punto(monkeypatch):

@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.50.1 — 21 de noviembre de 2026
+
+- Volcanes en erupción: se reconocen las erupciones que el Smithsonian da
+  por continuadas (fin marcado con «>»), además de las que acaban este año.
+  En Ecuador, el Reventador (desde 2008) y el Sangay (desde 2019).
+
 ## 1.50.0 — 21 de noviembre de 2026
 
 - Textura del paisaje: las laderas toman su color real de un mosaico de
