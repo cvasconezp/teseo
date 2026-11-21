@@ -27,6 +27,10 @@ export function forecastUrl(lat, lon) {
     latitude: String(round1(lat)), longitude: String(round1(lon)),
     hourly: HOURLY.join(","), past_days: String(PAST_DAYS), forecast_days: String(FORECAST_DAYS),
     timezone: "GMT", timeformat: "unixtime", wind_speed_unit: "ms",
+    // sin «downscaling»: la altura que devuelve es la media de la celda del modelo, el suelo desde el que se miden
+    // las capas de nubes (con ella, desde una cumbre las bajas quedan por debajo; ver cloudLift en cloudsLayer.js).
+    // Solo cambia la temperatura, que aquí no se usa.
+    elevation: "nan",
   });
   return `${OPEN_METEO}?${q}`;
 }

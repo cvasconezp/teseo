@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { SITES, TP, searchPlaces, searchSites, placeLine, siteUrl } from "./places.js";
 
+const API = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) || "";
+
 export function PlaceSearch({ lang = "es", onPlace }) {
   const tp = TP[lang] || TP.es;
   const [q, setQ] = useState("");
@@ -17,7 +19,7 @@ export function PlaceSearch({ lang = "es", onPlace }) {
       if (ab.current) ab.current.abort();
       const ctl = typeof AbortController !== "undefined" ? new AbortController() : null; ab.current = ctl;
       setSt((s) => ({ status: "loading", list: s.list }));
-      searchPlaces(q, lang, { signal: ctl && ctl.signal }).then(
+      searchPlaces(q, lang, { signal: ctl && ctl.signal, api: API }).then(
         (list) => setSt({ status: "ok", list }),
         (e) => { if (!(e && e.name === "AbortError")) setSt({ status: "error", list: [] }); });
     }, 350);

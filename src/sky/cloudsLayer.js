@@ -22,6 +22,7 @@ import { GLSL_NOISE, LAYER_STYLE, threshold, fbm } from "./cloudNoise.js";
 import { LAYERS, LAYER_KM } from "./weather.js";
 
 const f1 = (v) => (Number.isInteger(v) ? `${v}.0` : String(v));
+const NB = 6;                 // bandas del horizonte (backend/app/horizon.py, BANDS_KM)
 const THICK = { low: 0.85, mid: 0.55, high: 0.1 };   // cuánto se oscurece la base de una nube gruesa
 
 const VERT = `
@@ -34,9 +35,13 @@ void main() {
 
 function layerGlsl(l, k) {
   const s = LAYER_STYLE[l];
+  // uH: altura de la capa respecto a ti (km): por encima, se ve mirando arriba; por debajo (desde una cumbre),
+  // mirando abajo, y ahí la tapan las montañas que asoman sobre ella (terrainFront)
   return `
-  if (uOn[${k}] > 0.5) {
-    float dist = min(${f1(LAYER_KM[l])} / d.y, 240.0);
+  if (uOn[${k}] > 0.5 && uH[${k}] * uSide > 0.0 && uH[${k}] * d.y > 0.0 && abs(d.y) > 0.004
+      && (uH[${k}] > 0.0 || terrainFront(d, uH[${k}] / d.y, uObs + uH[${k}] * 1000.0) < 0.5)) {
+    float dist = min(uH[${k}] / d.y, 240.0);
+    float horizonFade = smoothstep(0.004, 0.06, abs(d.y));
     vec2 pe = vec2(d.x, -d.z) * dist - uOff[${k}];
     vec2 w = uDir[${k}];
     vec2 q = vec2(dot(pe, w) / ${f1(s.scaleKm * s.stretch)}, (-pe.x * w.y + pe.y * w.x) / ${f1(s.scaleKm)});
@@ -44,7 +49,7 @@ function layerGlsl(l, k) {
     float t = clamp((n - (uTh[${k}] - ${f1(s.edge / 2)})) / ${f1(s.edge * 2)}, 0.0, 1.0);
     t = t * t * (3.0 - 2.0 * t);
     float a = t * ${f1(s.maxAlpha)} * horizonFade;
-    vec3 col = mix(lit, uShade, pow(t, 1.5) * ${f1(THICK[l])});
+    vec3 col = mix(lit, uShade, pow(t, 1.5) * (uH[${k}] > 0.0 ? ${f1(THICK[l])} : 0.12));   // desde arriba, la cima de la nube, al sol
     col += uSunGlow * rim * (1.0 - t);
     col = mix(col, uHorizon, (1.0 - exp(-dist / 90.0)) * uHaze);
     acc.rgb += (1.0 - acc.a) * a * col;
@@ -54,6 +59,11 @@ function layerGlsl(l, k) {
 
 const FRAG = `
 uniform float uOn[3];
+uniform float uH[3];
+uniform float uSide;
+uniform float uObs;
+uniform float uTerrOn;
+uniform sampler2D uTerr;
 uniform float uTh[3];
 uniform vec2 uOff[3];
 uniform vec2 uDir[3];
@@ -67,10 +77,21 @@ uniform float uRim;
 uniform float uHaze;
 varying vec3 vWorld;
 ${GLSL_NOISE}
+// ¿hay montaña delante de la nube en esta dirección? La franja que se ve es la más cercana cuyo filo queda por
+// encima del píxel (las bandas del horizonte, de cerca a lejos: R = ángulo del filo, G = altura m, B = distancia km)
+float terrainFront(vec3 d, float distKm, float cloudM) {
+  if (uTerrOn < 0.5) return 0.0;
+  float alt = degrees(asin(clamp(d.y, -1.0, 1.0)));
+  float az = mod(degrees(atan(d.x, -d.z)) + 360.0, 360.0);
+  for (int k = 0; k < ${NB}; k++) {
+    vec4 b = texture2D(uTerr, vec2(az / 360.0, (float(k) + 0.5) / ${f1(NB)}));
+    if (b.x >= alt) return (b.y > cloudM && b.z < distKm) ? 1.0 : 0.0;
+  }
+  return 0.0;
+}
 void main() {
   vec3 d = normalize(vWorld - cameraPosition);
-  if (d.y <= 0.004) discard;
-  float horizonFade = smoothstep(0.004, 0.06, d.y);
+  if (abs(d.y) <= 0.004) discard;
   float rim = pow(max(dot(d, normalize(uSun)), 0.0), 10.0) * uRim;
   // lado del Sol: en el crepúsculo las nubes hacia el Sol se encienden y las del lado opuesto quedan grises
   vec2 sh = uSun.xz;
@@ -124,12 +145,26 @@ const ANCHOR_S = 6 * 3600;   // el desplazamiento se mide desde el último múlt
  */
 export const OCC_HIDE = 0.8;
 
-/** Parámetros de cada capa para un instante: umbral, desplazamiento y dirección del viento. */
-export function layerParams(clouds, tSec) {
+/**
+ * Cuánto más alto que el suelo del pronóstico estás (km, ≥ 0): las capas de nubes se miden desde el suelo del
+ * modelo (Open-Meteo da su altura en el punto pedido), así que desde una cumbre quedan más cerca o por debajo.
+ * obsM: tu altura (m); refM: la del suelo del pronóstico. En una ciudad más baja que ese suelo no cambia nada.
+ */
+export function cloudLift(obsM, refM) {
+  return Number.isFinite(obsM) && Number.isFinite(refM) ? Math.max(0, obsM - refM) / 1000 : 0;
+}
+/** Altura de una capa respecto a ti (km): positiva encima, negativa debajo (nunca a menos de 120 m: no se entra en ella). */
+export function layerHeight(l, lift = 0) {
+  const h = LAYER_KM[l] - lift;
+  return Math.abs(h) < 0.12 ? (h < 0 ? -0.12 : 0.12) : h;
+}
+
+/** Parámetros de cada capa para un instante: umbral, desplazamiento, dirección del viento y altura (km). */
+export function layerParams(clouds, tSec, lift = 0) {
   const dt = tSec - Math.floor(tSec / ANCHOR_S) * ANCHOR_S;
   return LAYERS.map((l) => {
     const c = clouds ? clouds[l] || 0 : 0, dr = drift((clouds && clouds.wind && clouds.wind[l]) || [0, 0], dt);
-    return { layer: l, on: c > 0.003, th: threshold(l, c), off: dr.off, dir: dr.dir };
+    return { layer: l, on: c > 0.003, th: threshold(l, c), off: dr.off, dir: dr.dir, h: layerHeight(l, lift) };
   });
 }
 
@@ -137,16 +172,16 @@ export function layerParams(clouds, tSec) {
  * Cuánto tapan las nubes una dirección del cielo local (opacidad 0–1), con la MISMA cuenta que el sombreador:
  * para decidir qué estrellas, planetas y objetos llevan nombre y entran en «se ven ahora». d = [x, y, z], Y = cenit.
  */
-export function makeOccluder(clouds, tSec) {
+export function makeOccluder(clouds, tSec, lift = 0) {
   if (!clouds) return null;
-  const P = layerParams(clouds, tSec).filter((p) => p.on);
+  const P = layerParams(clouds, tSec, lift).filter((p) => p.on && p.h > 0);   // las de abajo no tapan el cielo
   if (!P.length) return null;
   return (d) => {
     if (!(d[1] > 0.004)) return 0;
     const fade = Math.min(1, Math.max(0, (d[1] - 0.004) / 0.056)), hf = fade * fade * (3 - 2 * fade);
     let a = 0;
     for (const p of P) {
-      const st = LAYER_STYLE[p.layer], dist = Math.min(LAYER_KM[p.layer] / d[1], 240);
+      const st = LAYER_STYLE[p.layer], dist = Math.min(p.h / d[1], 240);
       const ex = d[0] * dist - p.off[0], ny = -d[2] * dist - p.off[1], w = p.dir;
       const n = fbm((ex * w[0] + ny * w[1]) / (st.scaleKm * st.stretch), (-ex * w[1] + ny * w[0]) / st.scaleKm, st.octaves);
       let t = Math.min(1, Math.max(0, (n - (p.th - st.edge / 2)) / (st.edge * 2)));
@@ -159,25 +194,39 @@ export function makeOccluder(clouds, tSec) {
 }
 
 export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
+  const terrData = new Float32Array(1800 * NB * 4);
+  const terrTex = new THREE.DataTexture(terrData, 1800, NB, THREE.RGBAFormat, THREE.FloatType);
+  terrTex.minFilter = THREE.NearestFilter; terrTex.magFilter = THREE.NearestFilter;
+  terrTex.wrapS = THREE.RepeatWrapping; terrTex.needsUpdate = true;
   const uniforms = {
     uOn: { value: [0, 0, 0] }, uTh: { value: [9, 9, 9] },
+    uH: { value: LAYERS.map((l) => LAYER_KM[l]) }, uObs: { value: 0 }, uTerrOn: { value: 0 }, uTerr: { value: terrTex },
     uOff: { value: [new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2()] },
     uDir: { value: [new THREE.Vector2(1, 0), new THREE.Vector2(1, 0), new THREE.Vector2(1, 0)] },
     uLit: { value: new THREE.Color(1, 1, 1) }, uLitAnti: { value: new THREE.Color(1, 1, 1) }, uShade: { value: new THREE.Color(0.5, 0.5, 0.5) },
     uSunGlow: { value: new THREE.Color(1, 0.6, 0.3) }, uHorizon: { value: new THREE.Color(1, 1, 1) },
     uSun: { value: new THREE.Vector3(0, 1, 0) }, uRim: { value: 0 }, uHaze: { value: 0 },
   };
-  const material = new THREE.ShaderMaterial({
-    uniforms, vertexShader: VERT, fragmentShader: FRAG,
+  const mat = (side) => new THREE.ShaderMaterial({
+    uniforms: { ...uniforms, uSide: { value: side } }, vertexShader: VERT, fragmentShader: FRAG,
     side: THREE.BackSide, transparent: true, depthWrite: false, depthTest: false, fog: false,
   });
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, segments, Math.round(segments / 2)), material);
+  const material = mat(1), matBelow = mat(-1);
+  const geo = new THREE.SphereGeometry(radius, segments, Math.round(segments / 2));
+  const mesh = new THREE.Mesh(geo, material);
   mesh.name = "clouds";
   mesh.renderOrder = 2.5;          // después de estrellas, planetas y lunas; antes de la línea del horizonte
   mesh.frustumCulled = false;
   mesh.matrixAutoUpdate = false;
   mesh.visible = false;
-  let enabled = false, any = false, last = null;
+  // las capas que quedan por debajo (desde una cumbre): después de las montañas, que las tapan donde asoman
+  const below = new THREE.Mesh(geo, matBelow);
+  below.name = "clouds-below";
+  below.renderOrder = 2.8;
+  below.frustumCulled = false;
+  below.visible = false;
+  mesh.add(below);
+  let enabled = false, any = false, last = null, lift = 0;
   const setC = (u, c) => u.value.setRGB(Math.min(1, c[0]), Math.min(1, c[1]), Math.min(1, c[2]));
 
   return {
@@ -186,9 +235,12 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
     update(clouds, st, tSec) {
       last = clouds || null;
       any = false;
+      let anyBelow = false;
       if (clouds && st) {
-        layerParams(clouds, tSec).forEach((p, k) => {
+        layerParams(clouds, tSec, lift).forEach((p, k) => {
           uniforms.uOn.value[k] = p.on ? 1 : 0;
+          uniforms.uH.value[k] = p.h;
+          if (p.on && p.h < 0) anyBelow = true;
           uniforms.uTh.value[k] = p.th;
           uniforms.uOff.value[k].set(p.off[0], p.off[1]);
           uniforms.uDir.value[k].set(p.dir[0], p.dir[1]);
@@ -199,7 +251,32 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
         uniforms.uSun.value.set(st.sunDir[0], st.sunDir[1], st.sunDir[2]);
         uniforms.uRim.value = L.rim; uniforms.uHaze.value = L.haze;
       }
+      below.visible = anyBelow;
       mesh.visible = enabled && any;
+    },
+    /**
+     * Desde dónde se miran: tu altura sobre el suelo del pronóstico (cloudLift) y las bandas del horizonte real
+     * (hz de /api/horizon, o null) para que las montañas que asoman tapen las nubes de abajo. Llamar antes de update.
+     */
+    setView(liftKm, hz) {
+      lift = Number.isFinite(liftKm) ? liftKm : 0;
+      const ok = !!(hz && hz.bands && hz.bands.length && hz.alt && hz.alt.length);
+      uniforms.uTerrOn.value = ok ? 1 : 0;
+      uniforms.uObs.value = ok ? (hz.ground_m || 0) + (hz.eye_m || 1.7) : 0;
+      if (ok) {
+        const n = hz.alt.length;
+        for (let k = 0; k < NB; k++) {
+          const b = hz.bands[Math.min(k, hz.bands.length - 1)];
+          for (let i = 0; i < 1800; i++) {
+            const j = Math.floor((i / 1800) * n) % n, o = (k * 1800 + i) * 4;
+            terrData[o] = k < hz.bands.length ? b.alt[j] : -90;
+            terrData[o + 1] = b.top_m ? b.top_m[j] : 0;
+            terrData[o + 2] = b.dist_km ? b.dist_km[j] : 0;
+            terrData[o + 3] = 1;
+          }
+        }
+        terrTex.needsUpdate = true;
+      }
     },
     follow(camera) {
       if (!mesh.visible) return;
@@ -209,6 +286,6 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
     setEnabled(b) { enabled = !!b; mesh.visible = enabled && any; },
     get visible() { return mesh.visible; },
     get clouds() { return last; },
-    dispose() { mesh.geometry.dispose(); material.dispose(); if (mesh.parent) mesh.parent.remove(mesh); },
+    dispose() { geo.dispose(); material.dispose(); matBelow.dispose(); terrTex.dispose(); if (mesh.parent) mesh.parent.remove(mesh); },
   };
 }

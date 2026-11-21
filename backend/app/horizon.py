@@ -320,13 +320,20 @@ async def summit(response: Response,
     Sirve para ponerse de pie en lo alto de una montaña o un volcán buscado por su nombre (cuyas coordenadas
     suelen ser aproximadas) o para corregir la posición del GPS en una cima. No se guarda ni se registra."""
     try:
-        big = max(600.0, 3.0 * r) if strict else r
         sem = asyncio.Semaphore(CONCURRENCY)
-        keys = tiles_for(lat, lon, SUMMIT_Z, big + 60.0)
+        rr = r
         async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=_transport, headers=provider_headers()) as client:
-            arrs = await asyncio.gather(*[_fetch_tile(client, SUMMIT_Z, x, y, sem) for (x, y) in keys])
-        mos = Mosaic(SUMMIT_Z, dict(zip(keys, arrs)))
-        data = await run_in_threadpool(find_summit, mos, lat, lon, r, strict)
+            for _ in range(3):
+                big = max(600.0, 3.0 * rr) if strict else rr
+                keys = tiles_for(lat, lon, SUMMIT_Z, big + 60.0)
+                arrs = await asyncio.gather(*[_fetch_tile(client, SUMMIT_Z, x, y, sem) for (x, y) in keys])
+                mos = Mosaic(SUMMIT_Z, dict(zip(keys, arrs)))
+                data = await run_in_threadpool(find_summit, mos, lat, lon, rr, strict)
+                # lo más alto cayó en el borde del círculo: es una ladera, no la cima (el punto del mapa estaba en el
+                # centro de un cráter, como en el Fuji o el Popocatépetl): se busca en un círculo mayor
+                if strict or data["dist_m"] < rr - 2 * SUMMIT_STEP_M or rr >= SUMMIT_MAX_R:
+                    break
+                rr = min(SUMMIT_MAX_R, rr * 2.5)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"No se pudo leer el relieve ({SOURCE.split(' (')[0]}): {e}")
     data["source"] = SOURCE

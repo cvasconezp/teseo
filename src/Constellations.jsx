@@ -56,7 +56,7 @@ import { skyBodies, altAzJ2000 } from "./sky/frames.js";
 import { skyState, visibility, starsHidden, countVisibleNow, moonMagV, phaseAngleFromIllum, altAzToDir } from "./sky/atmosphere.js";
 import { createAtmosphereLayer } from "./sky/atmosphereLayer.js";
 import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
-import { createCloudsLayer, makeOccluder, OCC_HIDE } from "./sky/cloudsLayer.js";
+import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/cloudsLayer.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
 import { andeanLabels, TX_AND } from "./sky/andean.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit } from "./sky/horizon.js";
@@ -2707,6 +2707,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     return () => { alive = false; };
   }, [wxKey, cloudsOn, wxWanted, wxRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
   const wxData = wx.status === "ok" && wx.key === wxKey ? wx.data : null;
+  // tu altura sobre el suelo del pronóstico (km): el horizonte real la da exacta; si no, la altitud del lugar
+  const obsM = hzData ? (hzData.ground_m || 0) + (hzData.eye_m || 1.7) : (Number.isFinite(elev) ? elev : null);
+  const cloudLiftKm = useMemo(() => cloudLift(obsM, wxData ? wxData.elevation : null), [obsM, wxData]);
 
   // atmósfera: estrellas, planetas y cielo profundo según lo que deja ver el cielo (después de colocar
   // el marco local y los cuerpos, que son los efectos anteriores). Si algo falla, el cielo queda sin atmósfera.
@@ -2716,23 +2719,25 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (!atmState && !hzData && !ref.atmOn && !ref._atmTouched) return;          // sin atmósfera ni montañas y nada que deshacer
     ref.hzData = hzEff;
     ref._atmTouched = true;
-    try { const d = new Date(whenStr); ref.cloudOcc = cloudsOn && atmState && wxData ? makeOccluder(cloudsAt(wxData, d), d.getTime() / 1000) : null; }
+    try { const d = new Date(whenStr); ref.cloudOcc = cloudsOn && atmState && wxData ? makeOccluder(cloudsAt(wxData, d), d.getTime() / 1000, cloudLiftKm) : null; }
     catch { ref.cloudOcc = null; }
     let c;
     try { c = ref.applyAtm(atmState); } catch (e) { try { c = ref.applyAtm(null); } catch { /* no-op */ } }
     if (c) setAtmInfo((p) => (p.stars === c.stars && p.deep === c.deep && p.deepTot === c.deepTot ? p : { stars: c.stars, deep: c.deep, deepTot: c.deepTot }));
-  }, [atmState, ready, datasets, enabled, bodies, showSolar, localActive, viewFrom, cloudsOn, wxData, hzData, hzEff]);
+  }, [atmState, ready, datasets, enabled, bodies, showSolar, localActive, viewFrom, cloudsOn, wxData, hzData, hzEff, cloudLiftKm]);
 
-  // nubes: la capa del cielo (el pronóstico se lee más arriba)
+  // nubes: la capa del cielo (el pronóstico se lee más arriba). Desde una cumbre, las capas se acercan o quedan
+  // por debajo (cloudLift) y las montañas que asoman las tapan (las bandas del horizonte real)
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.clouds) return;
     const show = !!(cloudsOn && atmState && wxData);
     try {
       const d = new Date(whenStr);
+      ref.clouds.setView(cloudLiftKm, hzData);
       ref.clouds.update(show ? cloudsAt(wxData, d) : null, atmState, d.getTime() / 1000);
     } catch { ref.clouds.update(null, null, 0); }   // nunca debe romper la vista
     ref.clouds.setEnabled(show);
-  }, [cloudsOn, atmState, wxData, whenStr, ready]);
+  }, [cloudsOn, atmState, wxData, whenStr, ready, cloudLiftKm, hzData]);
 
   // animar el tiempo (play)
   // (con una pasada de la ISS en el cielo, el tiempo lo lleva su reloj, al segundo y a ×1/×10/×60: ver el bucle)

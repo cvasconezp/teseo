@@ -1,5 +1,5 @@
 // Pruebas del buscador de lugares (src/sky/places.js) y de la lista de sitios astronómicos y arqueológicos.
-import { SITES, fold, searchSites, geocodeUrl, parseGeocode, placeLine, searchPlaces, photonUrl, parsePhoton, mergePeaks, PEAK_CODES, OSM_PEAK_R } from "../src/sky/places.js";
+import { SITES, fold, searchSites, geocodeUrl, parseGeocode, placeLine, searchPlaces, photonUrl, parsePhoton, mergePeaks, PEAK_CODES, OSM_PEAK_R, countryName, rankPeaks } from "../src/sky/places.js";
 import { readFileSync } from "node:fs";
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log("  ok   ", m); } else { fail++; console.log("  FALLA", m); } };
@@ -35,8 +35,9 @@ try { await searchPlaces("zzz", "es", { fetchImpl: async () => ({ ok: false, sta
 ok(err === "limit", "si el servicio falla, el error trae su motivo");
 
 console.log("Cumbres y volcanes (Photon, OpenStreetMap)");
-const pu = new URL(photonUrl("Cayambe", "es"));
-ok(pu.hostname === "photon.komoot.io" && pu.searchParams.getAll("osm_tag").join() === "natural:peak,natural:volcano" && !pu.searchParams.get("lang"), "solo cumbres y volcanes (Photon no admite lang=es)");
+const pu = new URL(photonUrl("Cayambe"));
+ok(pu.hostname === "photon.komoot.io" && pu.searchParams.getAll("osm_tag").join() === "natural:peak,natural:volcano" && pu.searchParams.get("lang") === "en", "solo cumbres y volcanes, con nombres en inglés (Photon no tiene español)");
+ok(countryName("JP", "es") === "Japón" && countryName("TZ", "en") === "Tanzania" && countryName(null, "es", "X") === "X", "el país, en el idioma de la app");
 const ph = { features: [
   { properties: { name: "Cayambe", osm_value: "volcano", state: "Pichincha", country: "Ecuador", countrycode: "EC" }, geometry: { coordinates: [-77.9889555, 0.0251586] } },
   { properties: { name: "Catamba", osm_value: "peak", country: "Angola" }, geometry: { coordinates: [14.65, -13.42] } },
@@ -58,6 +59,16 @@ const f2 = async (url) => { n2++; if (String(url).includes("photon")) throw new 
 ok((await searchPlaces("Madrid2", "es", { fetchImpl: f2 })).length === 2 && n2 === 2, "si Photon falla, la búsqueda sigue");
 const f3 = async (url) => (String(url).includes("photon") ? { ok: true, status: 200, json: async () => ph } : { ok: false, status: 500, json: async () => ({}) });
 ok((await searchPlaces("Cayambe", "es", { fetchImpl: f3 })).length === 1, "si Open-Meteo falla, quedan las cumbres");
+
+{
+  const uh = parsePhoton({ features: [{ properties: { name: "Uhuru Peak", osm_value: "peak", state: "Kilimanjaro", countrycode: "TZ", country: "Tanzania" }, geometry: { coordinates: [37.354, -3.0764] } }] }, "Kilimanjaro", "es");
+  ok(uh.length === 1 && uh[0].country === "Tanzania", "una cumbre cuya región se llama como lo buscado (el Uhuru, en Kilimanjaro)");
+  const list = [{ name: "Mount Everest", lat: 41.62, lon: -87.19, peak: 300 }, { name: "Mount Everest", lat: 27.988, lon: 86.925, peak: 300 }];
+  const rk = await rankPeaks(list, { fetchImpl: async () => ({ ok: true, json: async () => ({ heights: [219, 8752] }) }) });
+  ok(rk[0].lon === 86.925 && rk[0].elevModel === 8752 && placeLine({ ...rk[0], region: "Koshi", country: "Nepal", kind: "peak" }, "es") === "Cumbre · Koshi, Nepal · ≈ 8.752 m", "entre homónimas, primero la más alta, con su altura aproximada");
+  const same = await rankPeaks(list, { fetchImpl: async () => { throw new Error("x"); } });
+  ok(same === list, "sin servidor, el orden de Photon");
+}
 
 console.log("Integración");
 const panels = readFileSync(new URL("../src/sky/panels.jsx", import.meta.url), "utf8");

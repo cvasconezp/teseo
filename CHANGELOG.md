@@ -1,5 +1,20 @@
 # Cambios
 
+## 1.48.0 — 20 de noviembre de 2026
+
+- Mar de nubes: desde una cumbre, las capas de nubes que quedan por debajo
+  se ven mirando hacia abajo, iluminadas desde arriba, y las montañas que
+  asoman sobre ellas las tapan. Las capas se miden desde el suelo medio de
+  la celda del modelo de Open-Meteo (ahora se pide `elevation=nan`), y un
+  mar de nubes por debajo ya no tapa las estrellas.
+- Montañas de todo el mundo en el buscador: los nombres de las cumbres de
+  OpenStreetMap llegan en inglés (el Everest ya no sale como «珠穆朗玛峰»),
+  el país se traduce al idioma de la app y, entre homónimas, va primero la
+  más alta según el modelo de terreno (el Everest de Nepal antes que la
+  loma de Indiana), con su altura aproximada.
+- Cumbres con cráter (Fuji, Popocatépetl): si lo más alto cae en el borde
+  del círculo de búsqueda, se amplía hasta encontrar la cima.
+
 ## 1.47.0 — 20 de noviembre de 2026
 
 - De pie en la cumbre: al buscar una montaña o un volcán, Teseo te pone en

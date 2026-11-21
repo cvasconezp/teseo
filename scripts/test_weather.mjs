@@ -2,7 +2,7 @@
 // src/sky/cloudsLayer.js (luz de las nubes) y src/sky/satellite.js (imagen de satélite y proyección).
 import { forecastUrl, parseForecast, cloudsAt, coverClass, nextChange, bestNightHour, hourlySeries, fetchForecast } from "../src/sky/weather.js";
 import { fbm, threshold, density, layerCoord, LAYER_STYLE, hash12 } from "../src/sky/cloudNoise.js";
-import { cloudLight, drift, makeOccluder, OCC_HIDE } from "../src/sky/cloudsLayer.js";
+import { cloudLight, drift, makeOccluder, OCC_HIDE, cloudLift, layerHeight, layerParams } from "../src/sky/cloudsLayer.js";
 import { pickSource, wmsUrl, latestTime, orthoInverse, orthoForward, regionBox, domainsUrl, timeUrl, SOURCES, timeCandidates, dataFraction } from "../src/sky/satellite.js";
 import { readFileSync } from "node:fs";
 
@@ -12,6 +12,7 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
 console.log("Pronóstico (Open-Meteo)");
 const u = new URL(forecastUrl(0.04312, -78.14563));
+ok(u.searchParams.get("elevation") === "nan", "pide la altura media de la celda del modelo (el suelo de las capas de nubes)");
 ok(u.origin + u.pathname === "https://api.open-meteo.com/v1/forecast", "consulta a Open-Meteo");
 ok(u.searchParams.get("latitude") === "0" && u.searchParams.get("longitude") === "-78.1", "el lugar va redondeado a 0,1°");
 ok(/cloud_cover_low/.test(u.searchParams.get("hourly")) && /wind_direction_250hPa/.test(u.searchParams.get("hourly")), "pide nubes por capas y viento en altura");
@@ -150,6 +151,19 @@ ok(/createCloudsLayer\(\)/.test(sky) && /clouds\.follow\(/.test(sky), "el cielo 
 ok(/teseo_clouds/.test(sky), "el interruptor de nubes se recuerda");
 const credits = readFileSync(new URL("../CREDITS.md", import.meta.url), "utf8");
 ok(/Open-Meteo/.test(credits) && /GIBS/.test(credits), "créditos de Open-Meteo y NASA GIBS");
+
+console.log("Nubes desde una cumbre");
+ok(cloudLift(5788, 3600) === 2.188 && cloudLift(2850, 3500) === 0 && cloudLift(null, 3000) === 0, "cuánto subes sobre el suelo del pronóstico (nunca baja de 0)");
+ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("mid", 2.2) > 0 && Math.abs(layerHeight("low", 1.5)) === 0.12, "desde la cumbre las bajas quedan debajo y las medias encima (nunca dentro)");
+{
+  const allLow = { low: 1, mid: 0, high: 0, wind: { low: [5, 0], mid: [0, 0], high: [0, 0] } };
+  ok(makeOccluder(allLow, 1e9, 2.5) === null && makeOccluder(allLow, 1e9, 0) !== null, "un mar de nubes por debajo no tapa las estrellas");
+  ok(layerParams(allLow, 1e9, 2.5)[0].h < 0, "la capa baja va por debajo");
+  const cl = readFileSync(new URL("../src/sky/cloudsLayer.js", import.meta.url), "utf8");
+  ok(/float terrainFront\(/.test(cl) && /below\.renderOrder = 2\.8/.test(cl) && /uSide/.test(cl), "las de abajo se dibujan tras las montañas, que las tapan donde asoman");
+  const cj = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
+  ok(/ref\.clouds\.setView\(cloudLiftKm, hzData\)/.test(cj) && /cloudLiftKm\) : null/.test(cj), "la vista y las estrellas tapadas usan la misma altura de las capas");
+}
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

@@ -179,3 +179,9 @@ def test_gps_en_la_llanura_no_se_mueve(tiles):
 
 def test_cumbre_parametros():
     assert client.get("/api/summit?lat=0&lon=0&r=5000").status_code == 422
+
+
+def test_cumbre_se_amplia_si_cae_en_el_borde(tiles):
+    lon = PEAK_LON - math.degrees(700.0 / R)          # a 700 m de la cumbre, buscando en 300 m: se amplía
+    d = client.get(f"/api/summit?lat={LAT0}&lon={lon}&r=300").json()
+    assert d["found"] and abs(d["lon"] - PEAK_LON) < 0.0003 and d["radius_m"] == 750, d

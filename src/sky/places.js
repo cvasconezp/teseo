@@ -85,27 +85,52 @@ export function parseGeocode(json) {
   return out;
 }
 
-/** URL de Photon solo para cumbres y volcanes (Photon no tiene español: los nombres van como en OSM). */
-export function photonUrl(q, lang = "es") {
-  const p = new URLSearchParams({ q: String(q).trim(), limit: "8" });
-  if (lang === "en") p.set("lang", "en");
+/** URL de Photon solo para cumbres y volcanes. Siempre en inglés (Photon no tiene español): así el Everest no
+ * sale como «珠穆朗玛峰» ni el Fuji como «富士山»; el país se traduce aparte con su código (countryName). */
+export function photonUrl(q) {
+  const p = new URLSearchParams({ q: String(q).trim(), limit: "8", lang: "en" });
   return `${PHOTON}?${p}&osm_tag=natural:peak&osm_tag=natural:volcano`;
 }
 
-/** Respuesta de Photon → cumbres cuyo nombre contiene lo buscado (Photon es difuso: «Cayambe» trae «Catamba»). */
-export function parsePhoton(json, q) {
+/** Nombre del país en el idioma de la app a partir de su código ISO («JP» → «Japón»), o `fallback`. */
+export function countryName(cc, lang = "es", fallback = null) {
+  try {
+    if (cc && typeof Intl !== "undefined" && Intl.DisplayNames) return new Intl.DisplayNames([lang === "en" ? "en" : "es"], { type: "region" }).of(String(cc).toUpperCase()) || fallback;
+  } catch { /* código raro */ }
+  return fallback;
+}
+
+/** Respuesta de Photon → cumbres cuyo nombre (o su región: el Uhuru, en la región de Kilimanjaro) contiene lo
+ * buscado. Photon es difuso: «Cayambe» trae «Catamba», que se descarta. */
+export function parsePhoton(json, q, lang = "es") {
   const f = fold(q), out = [], seen = new Set();
   for (const ft of (json && json.features) || []) {
     const pr = ft && ft.properties, c = ft && ft.geometry && ft.geometry.coordinates;
     if (!pr || !pr.name || !Array.isArray(c) || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) continue;
-    if (!fold(pr.name).includes(f)) continue;
+    if (!fold(pr.name).includes(f) && !fold(pr.state).includes(f)) continue;
     const key = `${fold(pr.name)}|${c[1].toFixed(2)}|${c[0].toFixed(2)}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ name: pr.name, lat: +c[1].toFixed(5), lon: +c[0].toFixed(5), elev: null, region: pr.state || null, country: pr.country || null,
+    out.push({ name: pr.name, lat: +c[1].toFixed(5), lon: +c[0].toFixed(5), elev: null, region: pr.state || null, country: countryName(pr.countrycode, lang, pr.country || null),
       cc: pr.countrycode || null, peak: OSM_PEAK_R, kind: pr.osm_value === "volcano" ? "volcano" : "peak", osm: true });
   }
   return out;
+}
+
+/**
+ * Ordena las cumbres de OSM de la más alta a la más baja con el modelo de terreno (/api/elevation): entre las
+ * homónimas, primero la famosa (el Everest de Nepal, no la loma de Indiana). Les pone `elevModel` (m). Si el
+ * servidor no responde en `timeoutMs`, las deja como venían.
+ */
+export async function rankPeaks(peaks, { api = "", fetchImpl = (typeof fetch !== "undefined" ? fetch : null), signal, timeoutMs = 3000 } = {}) {
+  if (!peaks.length || !fetchImpl) return peaks;
+  const pts = peaks.map((p) => `${p.lat.toFixed(4)},${p.lon.toFixed(4)}`).join(";");
+  const ask = fetchImpl(`${api}/api/elevation?pts=${encodeURIComponent(pts)}`, signal ? { signal } : undefined)
+    .then(async (r) => (r.ok ? (await r.json()).heights : null)).catch(() => null);
+  const h = await Promise.race([ask, new Promise((ok) => setTimeout(() => ok(null), timeoutMs))]);
+  if (!Array.isArray(h) || h.length !== peaks.length) return peaks;
+  return peaks.map((p, i) => ({ ...p, elevModel: Number.isFinite(h[i]) ? Math.round(h[i]) : null }))
+    .sort((a, b) => (b.elevModel ?? -1e9) - (a.elevModel ?? -1e9));
 }
 
 const kmBetween = (a, b) => {
@@ -130,14 +155,15 @@ export function mergePeaks(geo, osm, max = 10) {
 /** Una línea para mostrar un resultado: «Comunidad de Madrid, España · 665 m» o «Volcán · Pichincha, Ecuador». */
 export function placeLine(p, lang = "es") {
   const parts = [p.region, p.country].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
-  const el = p.elev != null && !p.peak ? `${p.elev.toLocaleString(lang === "es" ? "es" : "en-US", { useGrouping: "always" })} m` : null;
+  const fmt = (v) => v.toLocaleString(lang === "es" ? "es" : "en-US", { useGrouping: "always" });
+  const el = p.elev != null && !p.peak ? `${fmt(p.elev)} m` : p.elevModel != null ? `≈ ${fmt(p.elevModel)} m` : null;
   const kind = p.kind ? (TP[lang] || TP.es)[p.kind] : null;
   return [kind, parts.join(", "), el].filter(Boolean).join(" · ");
 }
 
 const cache = new Map();
 /** Busca lugares del mundo (≥ 2 letras). Rechaza con Error si el servicio falla. */
-export function searchPlaces(q, lang = "es", { fetchImpl = (typeof fetch !== "undefined" ? fetch : null), signal } = {}) {
+export function searchPlaces(q, lang = "es", { fetchImpl = (typeof fetch !== "undefined" ? fetch : null), signal, api = "" } = {}) {
   const key = `${lang}|${fold(q)}`;
   if (fold(q).length < 2) return Promise.resolve([]);
   if (cache.has(key)) return cache.get(key);
@@ -150,7 +176,8 @@ export function searchPlaces(q, lang = "es", { fetchImpl = (typeof fetch !== "un
     return parseGeocode(body);
   });
   // las cumbres de OSM son un extra: si Photon falla, se busca igual
-  const osm = fetchImpl(photonUrl(q, lang), opt).then(async (r) => (r.ok ? parsePhoton(await r.json(), q) : []))
+  const osm = fetchImpl(photonUrl(q), opt).then(async (r) => (r.ok ? parsePhoton(await r.json(), q, lang) : []))
+    .then((list) => rankPeaks(list, { api, fetchImpl, signal }))
     .catch((e) => { if (e && e.name === "AbortError") throw e; return []; });
   const p = Promise.allSettled([geo, osm]).then(([g, o]) => {
     const peaks = o.status === "fulfilled" ? o.value : [];
