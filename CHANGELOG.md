@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.48.2 — 20 de noviembre de 2026
+
+- De pie en una cumbre (elegida por su nombre, con el GPS en la cima o en
+  un alto con todo el horizonte por debajo), bajo las montañas hay suelo
+  opaco: nieve en las cumbres nevadas, tierra en las demás, del mismo
+  color que la ladera. En cualquier otro lugar sigue el suelo translúcido.
+- La ladera que pisas tapa siempre el mar de nubes de abajo (quedaban
+  cuñas de nube sobre el suelo, con bordes rectos).
+
 ## 1.48.1 — 20 de noviembre de 2026
 
 - Vuelve el suelo translúcido bajo el horizonte: la v1.47.0 alargaba la

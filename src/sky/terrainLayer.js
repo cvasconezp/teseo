@@ -88,9 +88,10 @@ export function createTerrainLayer({ radius = 880 } = {}) {
   };
   const P = (az, alt) => [radius * Math.cos(alt * RAD) * Math.sin(az * RAD), radius * Math.sin(alt * RAD), -radius * Math.cos(alt * RAD) * Math.cos(az * RAD)];
 
-  function build(hz, latDeg) {
+  let floorOn = false, snowyFloor = false;
+  function build(hz, latDeg, floor = false) {
     clear();
-    data = hz; lat = latDeg || 0;
+    data = hz; lat = latDeg || 0; floorOn = !!floor;
     if (!hz || !hz.bands || !hz.bands.length) return;
     const n = hz.alt.length, step = hz.step_deg || 360 / n, nb = hz.bands.length;
     const h0 = (hz.ground_m || 0) + (hz.eye_m || 1.7), snowH = snowLine(lat);
@@ -113,13 +114,32 @@ export function createTerrainLayer({ radius = 880 } = {}) {
       m.renderOrder = 2.69; m.frustumCulled = false; m.userData.band = nb - 1; m.userData.haze = true;
       meshes.push(m); group.add(m);
     }
+    if (floorOn) {
+      // de pie en una cumbre: bajo las franjas, el suelo que pisas (nieve por encima de la línea de nieves, tierra
+      // por debajo), opaco: ahí no se ven las estrellas del otro lado de la Tierra
+      snowyFloor = (hz.ground_m || 0) >= snowH;
+      const pos = new Float32Array((n + 2) * 3), idx = [];
+      for (let i = 0; i <= n; i++) {
+        pos.set(P(i * step, base + 0.3), i * 3);
+        if (i < n) idx.push(i, n + 1, i + 1);
+      }
+      pos.set(P(0, -90), (n + 1) * 3);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      g.setAttribute("color", new THREE.BufferAttribute(new Float32Array((n + 2) * 3), 3));
+      g.setIndex(idx);
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 1, depthTest: false, depthWrite: false, fog: false }));
+      m.renderOrder = 2.695; m.frustumCulled = false; m.userData.band = 0; m.userData.floor = true;
+      meshes.push(m); group.add(m);
+    }
     for (let k = nb - 1; k >= 0; k--) {                 // de la más lejana a la más cercana
       const b = hz.bands[k], sa = snowAngles(b, h0, snowH, step);
       const pos = new Float32Array((n + 1) * 4 * 3), col = new Float32Array((n + 1) * 4 * 3), idx = [];
       const line = new Float32Array((n + 1) * 3);
       for (let i = 0; i <= n; i++) {
         const j = i % n, az = j * step, top = Math.max(base + 0.05, b.alt[j]);
-        const snow = sa[j] == null ? top : Math.max(base + 0.05, Math.min(top, sa[j]));
+        // en una cumbre nevada, la ladera que pisas es nieve hasta abajo (empalma con el suelo de nieve)
+        const snow = k === 0 && floorOn && snowyFloor ? base + 0.05 : sa[j] == null ? top : Math.max(base + 0.05, Math.min(top, sa[j]));
         pos.set(P(az, top), (i * 4) * 3);
         pos.set(P(az, snow), (i * 4 + 1) * 3);
         pos.set(P(az, snow), (i * 4 + 2) * 3);
@@ -219,9 +239,11 @@ export function createTerrainLayer({ radius = 880 } = {}) {
     };
     const mix3 = (a, c, f) => [a[0] + (c[0] - a[0]) * f, a[1] + (c[1] - a[1]) * f, a[2] + (c[2] - a[2]) * f];
     const cuts = {};
-    for (const m of meshes) if (!m.userData.line && !m.userData.haze) cuts[m.userData.band] = cutOf(m.userData.band);
+    let floorMesh = null;
+    for (const m of meshes) if (!m.userData.line && !m.userData.haze && !m.userData.floor) cuts[m.userData.band] = cutOf(m.userData.band);
     for (const m of meshes) {
       const k = m.userData.band, b = data.bands[k], c = pal.bands[k], cut = cuts[k];
+      if (m.userData.floor) { floorMesh = m; continue; }   // se pinta al final, con el pie de la banda más cercana
       if (m.userData.haze) {
         // arriba, el color del horizonte del cielo (empalma con el domo); abajo, el de la banda más lejana
         const hc = st && st.colors && st.colors.horizon ? st.colors.horizon : c.top;
@@ -266,12 +288,26 @@ export function createTerrainLayer({ radius = 880 } = {}) {
       }
       m.geometry.attributes.color.needsUpdate = true;
     }
+    // el suelo de la cumbre: el color medio del pie de la banda más cercana (nieve o tierra), para que empalme
+    if (floorMesh) {
+      const b0 = meshes.find((x) => x.userData.band === 0 && !x.userData.line && !x.userData.floor && !x.userData.haze);
+      const fc = [0, 0, 0];
+      if (b0) {
+        const a = b0.geometry.attributes.color.array, v = snowyFloor ? 1 : 3;
+        for (let i = 0; i < n; i++) for (let q = 0; q < 3; q++) fc[q] += a[(i * 4 + v) * 3 + q] / n;
+      }
+      const fa = floorMesh.geometry.attributes.color.array;
+      for (let i = 0; i <= n + 1; i++) fa.set(fc, i * 3);
+      floorMesh.geometry.attributes.color.needsUpdate = true;
+    }
   }
 
   return {
     group,
-    /** hz: respuesta de /api/horizon (o null para quitarlo); latDeg: para la línea de nieves. */
-    set(hz, latDeg, st) { build(hz, latDeg); paint(st); group.visible = !!hz && meshes.length > 0 && enabledFlag; },
+    /** hz: respuesta de /api/horizon (o null para quitarlo); latDeg: para la línea de nieves; floor: de pie en una
+     * cumbre (suelo opaco bajo las montañas). */
+    set(hz, latDeg, st, floor = false) { build(hz, latDeg, floor); paint(st); group.visible = !!hz && meshes.length > 0 && enabledFlag; },
+    get floor() { return floorOn; },
     paint,
     setEnabled(b) { enabledFlag = !!b; group.visible = enabledFlag && meshes.length > 0; },
     get data() { return data; },

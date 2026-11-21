@@ -170,7 +170,7 @@ function initialPlace() {
   if (saved && Number.isFinite(saved.lat) && Number.isFinite(saved.lon)) {
     const pr = PLACES.find((x) => x.name === saved.kind);
     return { local: !linkWins, lat: saved.lat, lon: saved.lon, kind: saved.kind || "custom", elev: Number.isFinite(saved.elev) ? saved.elev : (pr ? pr.elev : null),
-      preset: saved.elevSrc === "terrain" ? "terrain" : !!pr, isDefault: false, fine: !!saved.fine };
+      preset: saved.elevSrc === "terrain" ? "terrain" : !!pr, isDefault: false, fine: !!saved.fine, summit: !!saved.summit };
   }
   return { local: !linkWins, lat: quito.lat, lon: quito.lon, kind: quito.name, elev: quito.elev, preset: true, isDefault: true };
 }
@@ -644,6 +644,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [elevPreset, setElevPreset] = useState(place0.preset);   // true: altitud de un atajo; "terrain": del modelo de terreno (cumbres)
   // posición exacta (celda de ≈ 22 m en vez de 220 m) para el horizonte: cumbres y GPS (ver backend/app/horizon.py)
   const [placeFine, setPlaceFine] = useState(!!place0.fine);
+  const [placeSummit, setPlaceSummit] = useState(!!place0.summit);   // de pie en una cumbre (/api/summit): suelo opaco
   const placeSeq = useRef(0);   // la última elección de lugar gana (la búsqueda de la cumbre es asíncrona)
   const [placeDefault, setPlaceDefault] = useState(place0.isDefault);   // Quito puesto por Teseo, no elegido
   // primera visita sin lugar elegido: lo primero que se pide es la ubicación (antes que los primeros pasos)
@@ -2686,13 +2687,18 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.terrain) return;
     ref.hzData = hzEff;
-    if (ref.terrain.data !== hzData) ref.terrain.set(hzData, lat, null);
+    // de pie en una cumbre (elegida por su nombre o con el GPS en la cima) o en un alto con todo el horizonte por
+    // debajo: bajo las montañas, suelo o nieve opacos en vez del suelo translúcido
+    let topAll = false;
+    if (hzData && hzData.alt) { topAll = true; for (const v of hzData.alt) if (v >= 0) { topAll = false; break; } }
+    const floor = !!hzData && (placeSummit || topAll);
+    if (ref.terrain.data !== hzData || ref.terrain.floor !== floor) ref.terrain.set(hzData, lat, null, floor);
     ref.terrain.setEnabled(!!hzData);
-  }, [hzData, hzEff, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hzData, hzEff, ready, placeSummit]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {      // el color de las montañas sigue la luz del cielo (sin atmósfera: siluetas de noche)
     const ref = sceneRef.current; if (!ref || !ref.terrain || !hzData) return;
     try { ref.terrain.paint(atmState); } catch { /* no-op */ }
-  }, [hzData, atmState, ready]);
+  }, [hzData, atmState, ready, placeSummit]);
 
   // nubes: pronóstico de Open-Meteo para el lugar (solo si se piden o se abre su panel) y capa del cielo
   useEffect(() => { try { localStorage.setItem(CLOUDS_KEY, cloudsOn ? "1" : "0"); } catch { /* no-op */ } }, [cloudsOn]);
@@ -3231,8 +3237,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         let src = false;
         if (sm && sm.found) { la = sm.lat; lo = sm.lon; }
         if (al == null && sm) { al = sm.ground_m; src = "terrain"; }
-        setLat(la); setLon(lo); setElev(al); setElevPreset(src); setPlaceFine(true); setPlaceDefault(false);
-        savePlace({ kind: "me", lat: la, lon: lo, elev: al, fine: true, ...(src ? { elevSrc: src } : {}) });
+        const top = !!(sm && sm.found);
+        setLat(la); setLon(lo); setElev(al); setElevPreset(src); setPlaceFine(true); setPlaceSummit(top); setPlaceDefault(false);
+        savePlace({ kind: "me", lat: la, lon: lo, elev: al, fine: true, ...(src ? { elevSrc: src } : {}), ...(top ? { summit: true } : {}) });
         track("sky_location", { kind: "gps" });
         setPlaceKind("me"); setLocalMode(true); setGeo("ok"); setSel(null);
         if (!isWideRef.current) setPanel(null);
@@ -3244,22 +3251,22 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, []);
   const pickPlace = useCallback(async (p0) => {
     const seq = ++placeSeq.current;
-    let p = p0, fine = !!p0.exact, src = p0.elev != null;
+    let p = p0, fine = !!p0.exact, src = p0.elev != null, top = false;
     if (p0.peak > 0) {
       // una montaña o un volcán: de pie en su cumbre (las coordenadas del buscador suelen ser aproximadas)
       const sm = await fetchSummit(p0.lat, p0.lon, { r: p0.peak, api: API });
       if (seq !== placeSeq.current) return;
-      if (sm && sm.found) { p = { ...p0, lat: sm.lat, lon: sm.lon, elev: sm.ground_m }; fine = true; src = "terrain"; }
+      if (sm && sm.found) { p = { ...p0, lat: sm.lat, lon: sm.lon, elev: sm.ground_m }; fine = true; src = "terrain"; top = true; }
     }
-    setLat(p.lat); setLon(p.lon); setElev(p.elev ?? null); setElevPreset(src); setPlaceFine(fine); setPlaceDefault(false);
-    savePlace({ kind: p.name, lat: p.lat, lon: p.lon, elev: p.elev ?? null, ...(fine ? { fine: true } : {}), ...(src === "terrain" ? { elevSrc: "terrain" } : {}) });
+    setLat(p.lat); setLon(p.lon); setElev(p.elev ?? null); setElevPreset(src); setPlaceFine(fine); setPlaceSummit(top); setPlaceDefault(false);
+    savePlace({ kind: p.name, lat: p.lat, lon: p.lon, elev: p.elev ?? null, ...(fine ? { fine: true } : {}), ...(src === "terrain" ? { elevSrc: "terrain" } : {}), ...(top ? { summit: true } : {}) });
     track("sky_location", { kind: "manual" });   // los atajos de ciudad cuentan como "manual"
     setPlaceKind(p.name); setLocalMode(true); setGeo("idle"); setSel(null);
     if (!isWideRef.current) setPanel(null);
   }, []);
   const setManualPlace = useCallback((a, o) => {
     ++placeSeq.current;
-    setLat(+a.toFixed(4)); setLon(+o.toFixed(4)); setElev(null); setElevPreset(false); setPlaceFine(false); setPlaceDefault(false);
+    setLat(+a.toFixed(4)); setLon(+o.toFixed(4)); setElev(null); setElevPreset(false); setPlaceFine(false); setPlaceSummit(false); setPlaceDefault(false);
     savePlace({ kind: "custom", lat: +a.toFixed(4), lon: +o.toFixed(4), elev: null });
     track("sky_location", { kind: "manual" });
     setPlaceKind("custom"); setLocalMode(true); setGeo("idle"); setSel(null);

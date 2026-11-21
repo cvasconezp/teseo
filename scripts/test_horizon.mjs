@@ -162,5 +162,12 @@ console.log("Cumbre más cercana (/api/summit)");
   ok(!/-89\.5/.test(tl2), "las montañas no tapan el suelo entero: bajo ellas se siguen viendo las estrellas del otro lado");
 }
 
+{
+  const tl3 = readFileSync(new URL("../src/sky/terrainLayer.js", import.meta.url), "utf8");
+  const cj3 = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
+  ok(/userData\.floor = true/.test(tl3) && /snowyFloor = \(hz\.ground_m \|\| 0\) >= snowH/.test(tl3), "en una cumbre, suelo opaco bajo las montañas: nieve sobre la línea de nieves, tierra debajo");
+  ok(/placeSummit \|\| topAll/.test(cj3) && /summit: true/.test(cj3), "solo en las cumbres (elegidas, GPS en la cima o todo el horizonte por debajo)");
+}
+
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

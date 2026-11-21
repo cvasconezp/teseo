@@ -85,7 +85,9 @@ float terrainFront(vec3 d, float distKm, float cloudM) {
   float az = mod(degrees(atan(d.x, -d.z)) + 360.0, 360.0);
   for (int k = 0; k < ${NB}; k++) {
     vec4 b = texture2D(uTerr, vec2(az / 360.0, (float(k) + 0.5) / ${f1(NB)}));
-    if (b.x >= alt) return (b.y > cloudM && b.z < distKm) ? 1.0 : 0.0;
+    // la ladera que pisas (la banda más cercana, a menos de 1,5 km, y el suelo bajo ella) va siempre delante: estás
+    // por encima de la nube, y lo que tienes a tus pies también
+    if (b.x >= alt) return (k == 0 || (b.y > cloudM && b.z < distKm)) ? 1.0 : 0.0;
   }
   return 0.0;
 }
