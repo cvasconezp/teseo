@@ -11,6 +11,8 @@
 // bandas lejanas se aclaran por la
 // perspectiva aérea, y cada filo lleva una línea fina que lo separa de la banda de atrás. Opacas: tapan
 // estrellas, planetas, la ISS y las nubes que quedan detrás. Bajo 0° sigue el suelo sombreado de siempre.
+// Desde una cumbre los filos quedan bajo el horizonte (ángulos negativos): las franjas bajan entonces hasta el
+// filo más bajo, y el paisaje se ve desde arriba.
 import * as THREE from "three";
 import { terrainPalette, snowLine } from "./horizon.js";
 
@@ -92,17 +94,37 @@ export function createTerrainLayer({ radius = 880 } = {}) {
     if (!hz || !hz.bands || !hz.bands.length) return;
     const n = hz.alt.length, step = hz.step_deg || 360 / n, nb = hz.bands.length;
     const h0 = (hz.ground_m || 0) + (hz.eye_m || 1.7), snowH = snowLine(lat);
+    // la base de las franjas: un poco bajo 0° o, desde una cumbre (filos bajo el horizonte), bajo el filo más bajo
+    let lowest = 0;
+    for (const b of hz.bands) for (const v of b.alt) if (v < lowest) lowest = v;
+    const base = Math.min(BASE, lowest - 0.4), above = base < BASE;
+    if (above) {
+      // bruma lejana: entre 0° y los filos más lejanos (más allá de 150 km no hay modelo) se ve aire, no suelo
+      const pos = new Float32Array((n + 1) * 2 * 3), idx = [];
+      for (let i = 0; i <= n; i++) {
+        pos.set(P(i * step, 0.02), i * 6); pos.set(P(i * step, base), i * 6 + 3);
+        if (i < n) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      g.setAttribute("color", new THREE.BufferAttribute(new Float32Array((n + 1) * 2 * 3), 3));
+      g.setIndex(idx);
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 1, depthTest: false, depthWrite: false, fog: false }));
+      m.renderOrder = 2.69; m.frustumCulled = false; m.userData.band = nb - 1; m.userData.haze = true;
+      meshes.push(m); group.add(m);
+    }
     for (let k = nb - 1; k >= 0; k--) {                 // de la más lejana a la más cercana
       const b = hz.bands[k], sa = snowAngles(b, h0, snowH, step);
       const pos = new Float32Array((n + 1) * 4 * 3), col = new Float32Array((n + 1) * 4 * 3), idx = [];
       const line = new Float32Array((n + 1) * 3);
       for (let i = 0; i <= n; i++) {
-        const j = i % n, az = j * step, top = Math.max(0, b.alt[j]);
-        const snow = sa[j] == null ? top : Math.max(0, Math.min(top, sa[j]));
+        const j = i % n, az = j * step, top = Math.max(base + 0.05, b.alt[j]);
+        const snow = sa[j] == null ? top : Math.max(base + 0.05, Math.min(top, sa[j]));
         pos.set(P(az, top), (i * 4) * 3);
         pos.set(P(az, snow), (i * 4 + 1) * 3);
         pos.set(P(az, snow), (i * 4 + 2) * 3);
-        pos.set(P(az, BASE), (i * 4 + 3) * 3);
+        // desde una cumbre, la banda más cercana sigue hasta abajo: es el suelo que pisas (ladera o nieve)
+        pos.set(P(az, above && k === 0 ? -89.5 : base), (i * 4 + 3) * 3);
         line.set(P(az, top + 0.005), i * 3);
         if (i < n) {
           const a = i * 4, c = a + 4;
@@ -196,9 +218,17 @@ export function createTerrainLayer({ radius = 880 } = {}) {
     };
     const mix3 = (a, c, f) => [a[0] + (c[0] - a[0]) * f, a[1] + (c[1] - a[1]) * f, a[2] + (c[2] - a[2]) * f];
     const cuts = {};
-    for (const m of meshes) if (!m.userData.line) cuts[m.userData.band] = cutOf(m.userData.band);
+    for (const m of meshes) if (!m.userData.line && !m.userData.haze) cuts[m.userData.band] = cutOf(m.userData.band);
     for (const m of meshes) {
       const k = m.userData.band, b = data.bands[k], c = pal.bands[k], cut = cuts[k];
+      if (m.userData.haze) {
+        // arriba, el color del horizonte del cielo (empalma con el domo); abajo, el de la banda más lejana
+        const hc = st && st.colors && st.colors.horizon ? st.colors.horizon : c.top;
+        const hcol = m.geometry.attributes.color.array, top = lin(hc), bot = lin(mix3(hc, c.top, 0.6));
+        for (let i = 0; i <= n; i++) { hcol.set(top, i * 6); hcol.set(bot, i * 6 + 3); }
+        m.geometry.attributes.color.needsUpdate = true;
+        continue;
+      }
       const nk = Math.min(nb - 1, k + 1), bn = data.bands[nk], cn = pal.bands[nk];
       if (m.userData.line) {
         // de noche, un filo algo más claro que la banda; de día, algo más oscuro (como en un grabado); sobre un

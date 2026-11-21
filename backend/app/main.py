@@ -21,7 +21,8 @@ Endpoints:
   GET  /api/iss/passes                → pasadas de la ISS sobre un lugar (CelesTrak + SGP4)
   GET  /api/sun/today                 → «El Sol hoy»: manchas (SILSO), regiones, fulguraciones, Kp, ciclo (NOAA SWPC), imagen SDO
   GET  /api/missions/mars             → ventana a Marte + naves con destino Marte
-  GET  /api/horizon?lat&lon            → horizonte real del lugar: silueta del relieve (AWS Terrain Tiles)
+  GET  /api/horizon?lat&lon[&fine]     → horizonte real del lugar: silueta del relieve (AWS Terrain Tiles)
+  GET  /api/summit?lat&lon&r[&strict]  → la cumbre más cercana (para situarse en lo alto de una montaña)
   GET  /api/peaks?lat&lon              → nombres de las cumbres que forman esa silueta (Wikidata, OpenStreetMap)
   GET  /api/elevation?pts=lat,lon;…    → altura del terreno en puntos sueltos (para asentar los monumentos)
   GET  /api/img?u=<url>               → proxy de imágenes con CORS para las imágenes para compartir (lista blanca de hosts)
@@ -67,7 +68,7 @@ from app import horizon
 from app import peaks
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.46.0"
+VERSION = "1.47.0"
 _STARTED = time.time()
 
 app = FastAPI(

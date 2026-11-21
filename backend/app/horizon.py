@@ -54,6 +54,10 @@ R_E = 6371008.8
 K_REFR = 0.13
 EYE_M = 1.7
 CELL_DEG = 0.002             # ≈ 220 m: el punto exacto importa (una cumbre, un mirador)
+CELL_FINE = 0.0002           # ≈ 22 m: para cumbres y para la posición del GPS (fine=1)
+SUMMIT_Z = 13                # teselas para buscar la cumbre (≈ 19 m por píxel en el ecuador)
+SUMMIT_STEP_M = 12.0         # rejilla de búsqueda (más fina que el píxel: el máximo no se escapa)
+SUMMIT_MAX_R = 2000.0
 TIMEOUT_S = 20.0
 CONCURRENCY = 12
 TILE_CACHE_MAX = 140
@@ -76,12 +80,13 @@ def reset_cache() -> None:
     stats.update(computed=0, tiles_fetched=0, last_error=None, last_ms=None)
 
 
-def cell_of(lat: float, lon: float) -> tuple:
-    """Celda de 0,01° (lat, lon) del lugar; lon en [−180, 180)."""
-    la = round(round(lat / CELL_DEG) * CELL_DEG, 3)
-    lo = round(round(lon / CELL_DEG) * CELL_DEG, 3)
+def cell_of(lat: float, lon: float, fine: bool = False) -> tuple:
+    """Celda del lugar (0,002° o, con fine, 0,0002°): (lat, lon) con lon en [−180, 180)."""
+    step, nd = (CELL_FINE, 4) if fine else (CELL_DEG, 3)
+    la = round(round(lat / step) * step, nd)
+    lo = round(round(lon / step) * step, nd)
     lo = ((lo + 180.0) % 360.0) - 180.0
-    return (max(-85.0, min(85.0, la)), round(lo, 3))
+    return (max(-85.0, min(85.0, la)), round(lo, nd))
 
 
 def decode_terrarium(png: bytes) -> np.ndarray:
@@ -218,8 +223,8 @@ def compute_profile(lat0: float, lon0: float, near: Mosaic, mid: Mosaic, far: Mo
     }
 
 
-async def get_horizon(lat: float, lon: float) -> dict:
-    key = cell_of(lat, lon)
+async def get_horizon(lat: float, lon: float, fine: bool = False) -> dict:
+    key = cell_of(lat, lon, fine)
     if key in _results:
         _results.move_to_end(key)
         return _results[key]
@@ -258,14 +263,73 @@ async def get_horizon(lat: float, lon: float) -> dict:
 @router.get("/horizon")
 async def horizon(response: Response,
                   lat: float = Query(..., ge=-85.0, le=85.0),
-                  lon: float = Query(..., ge=-180.0, le=180.0)):
-    """Horizonte real del lugar (silueta del relieve): ángulo sobre el horizonte astronómico cada 0,5° de
-    acimut (desde el norte hacia el este), total y por bandas de distancia. El lugar se redondea a 0,01°;
-    no se guarda ni se registra más que en la caché del servidor."""
+                  lon: float = Query(..., ge=-180.0, le=180.0),
+                  fine: bool = Query(False, description="celda de 0,0002° (≈ 22 m) en vez de 0,002°: cumbres y GPS")):
+    """Horizonte real del lugar (silueta del relieve): ángulo sobre el horizonte astronómico cada 0,2° de
+    acimut (desde el norte hacia el este), total y por bandas de distancia. El lugar se redondea a 0,002°
+    (con fine, a 0,0002°); no se guarda ni se registra más que en la caché del servidor."""
     try:
-        data = await get_horizon(lat, lon)
+        data = await get_horizon(lat, lon, fine)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"No se pudo leer el relieve ({SOURCE.split(' (')[0]}): {e}")
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return data
+
+
+# ── la cumbre más cercana (para situarse de pie en lo alto de una montaña o un volcán) ───────────────────
+def find_summit(mos: "Mosaic", lat0: float, lon0: float, radius_m: float, strict: bool = False) -> dict:
+    """El punto más alto del modelo a menos de `radius_m` del lugar (puro: recibe el mosaico).
+
+    Con strict (la posición del GPS), solo vale si de verdad es una cima y tú estás en ella: el punto más alto
+    también debe serlo en un círculo tres veces mayor (no la ladera de una montaña más grande), destacar al
+    menos 15 m sobre ese círculo (no una llanura) y estar como mucho 40 m por encima de ti (no un refugio más
+    abajo). Devuelve found=False si no; entonces el lugar se queda como está."""
+    big = max(600.0, 3.0 * radius_m) if strict else radius_m
+    n = int(math.ceil(big / SUMMIT_STEP_M))
+    g = np.arange(-n, n + 1) * SUMMIT_STEP_M
+    dx, dy = np.meshgrid(g, g)
+    rr = np.hypot(dx, dy)
+    inside = rr <= big
+    dx, dy, rr = dx[inside], dy[inside], rr[inside]
+    k = 1.0 / R_E
+    lat = lat0 + np.degrees(dy * k)
+    lon = lon0 + np.degrees(dx * k / max(0.05, math.cos(math.radians(lat0))))
+    h = np.asarray(mos.sample(lat, lon), dtype=np.float64)
+    here = float(mos.sample(np.array([lat0]), np.array([lon0]))[0])
+    near = rr <= radius_m
+    i = int(np.flatnonzero(near)[np.argmax(h[near])])
+    top = float(h[i])
+    out = {"found": True, "lat": round(float(lat[i]), 5), "lon": round(((float(lon[i]) + 540.0) % 360.0) - 180.0, 5),
+           "ground_m": int(round(max(0.0, top))), "here_m": int(round(max(0.0, here))),
+           "dist_m": int(round(float(rr[i]))), "rise_m": int(round(top - here)), "radius_m": int(radius_m)}
+    if strict:
+        rim = h[rr >= big - 2 * SUMMIT_STEP_M]
+        ok = top >= float(h.max()) - 0.5 and top - float(np.mean(rim)) >= 15.0 and top - here <= 40.0
+        if not ok:
+            out.update(found=False, lat=round(lat0, 5), lon=round(lon0, 5), ground_m=int(round(max(0.0, here))), dist_m=0, rise_m=0)
+    return out
+
+
+@router.get("/summit")
+async def summit(response: Response,
+                 lat: float = Query(..., ge=-85.0, le=85.0),
+                 lon: float = Query(..., ge=-180.0, le=180.0),
+                 r: float = Query(600.0, ge=20.0, le=SUMMIT_MAX_R, description="radio de búsqueda (m)"),
+                 strict: bool = Query(False, description="solo si es una cima y estás en ella (posición del GPS)")):
+    """La cumbre más cercana: el punto más alto del modelo de terreno (AWS Terrain Tiles) a menos de r metros.
+    Sirve para ponerse de pie en lo alto de una montaña o un volcán buscado por su nombre (cuyas coordenadas
+    suelen ser aproximadas) o para corregir la posición del GPS en una cima. No se guarda ni se registra."""
+    try:
+        big = max(600.0, 3.0 * r) if strict else r
+        sem = asyncio.Semaphore(CONCURRENCY)
+        keys = tiles_for(lat, lon, SUMMIT_Z, big + 60.0)
+        async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=_transport, headers=provider_headers()) as client:
+            arrs = await asyncio.gather(*[_fetch_tile(client, SUMMIT_Z, x, y, sem) for (x, y) in keys])
+        mos = Mosaic(SUMMIT_Z, dict(zip(keys, arrs)))
+        data = await run_in_threadpool(find_summit, mos, lat, lon, r, strict)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"No se pudo leer el relieve ({SOURCE.split(' (')[0]}): {e}")
+    data["source"] = SOURCE
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
     return data
 

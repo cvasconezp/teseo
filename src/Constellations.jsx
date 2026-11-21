@@ -59,7 +59,7 @@ import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE } from "./sky/cloudsLayer.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
 import { andeanLabels, TX_AND } from "./sky/andean.js";
-import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations } from "./sky/horizon.js";
+import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit } from "./sky/horizon.js";
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints } from "./sky/monumentLayer.js";
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
@@ -169,7 +169,8 @@ function initialPlace() {
   if (saved && saved.kind === "off") return { local: false, lat: null, lon: null, kind: "custom", elev: null, preset: false, isDefault: false };
   if (saved && Number.isFinite(saved.lat) && Number.isFinite(saved.lon)) {
     const pr = PLACES.find((x) => x.name === saved.kind);
-    return { local: !linkWins, lat: saved.lat, lon: saved.lon, kind: saved.kind || "custom", elev: Number.isFinite(saved.elev) ? saved.elev : (pr ? pr.elev : null), preset: !!pr, isDefault: false };
+    return { local: !linkWins, lat: saved.lat, lon: saved.lon, kind: saved.kind || "custom", elev: Number.isFinite(saved.elev) ? saved.elev : (pr ? pr.elev : null),
+      preset: saved.elevSrc === "terrain" ? "terrain" : !!pr, isDefault: false, fine: !!saved.fine };
   }
   return { local: !linkWins, lat: quito.lat, lon: quito.lon, kind: quito.name, elev: quito.elev, preset: true, isDefault: true };
 }
@@ -640,7 +641,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [lat, setLat] = useState(place0.lat);
   const [lon, setLon] = useState(place0.lon);
   const [elev, setElev] = useState(place0.elev);   // altitud del lugar (m) o null si no se conoce (GPS sin altitud)
-  const [elevPreset, setElevPreset] = useState(place0.preset);
+  const [elevPreset, setElevPreset] = useState(place0.preset);   // true: altitud de un atajo; "terrain": del modelo de terreno (cumbres)
+  // posición exacta (celda de ≈ 22 m en vez de 220 m) para el horizonte: cumbres y GPS (ver backend/app/horizon.py)
+  const [placeFine, setPlaceFine] = useState(!!place0.fine);
+  const placeSeq = useRef(0);   // la última elección de lugar gana (la búsqueda de la cumbre es asíncrona)
   const [placeDefault, setPlaceDefault] = useState(place0.isDefault);   // Quito puesto por Teseo, no elegido
   // primera visita sin lugar elegido: lo primero que se pide es la ubicación (antes que los primeros pasos)
   const [welcomePlace, setWelcomePlace] = useState(() => {
@@ -2586,12 +2590,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
 
   // montañas: el horizonte real del lugar (backend /api/horizon, guardado en el teléfono por celda de 0,01°)
   useEffect(() => { try { localStorage.setItem(TERRAIN_KEY, terrainOn ? "1" : "0"); } catch { /* no-op */ } }, [terrainOn]);
-  const hzKey = localActive && !viewFrom && lat != null && lon != null ? cellKey(lat, lon) : null;
+  const hzKey = localActive && !viewFrom && lat != null && lon != null ? cellKey(lat, lon, placeFine) : null;
   useEffect(() => {
     if (!hzKey || !terrainOn) return;
     let alive = true;
     setHz((h) => (h.key === hzKey && h.status === "ok" ? h : { status: "loading", data: null, key: hzKey }));
-    fetchHorizon(lat, lon, { api: API }).then(
+    fetchHorizon(lat, lon, { api: API, fine: placeFine }).then(
       (data) => { if (alive) setHz({ status: "ok", data, key: hzKey }); },
       (e) => { if (alive) setHz({ status: "error", data: null, key: hzKey, error: String(e && e.message || e) }); });
     return () => { alive = false; };
@@ -3208,30 +3212,49 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) { setGeo("unsupported"); return; }
     setGeo("asking");
+    const seq = ++placeSeq.current;
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const la = +pos.coords.latitude.toFixed(4), lo = +pos.coords.longitude.toFixed(4);
+      async (pos) => {
+        let la = +pos.coords.latitude.toFixed(5), lo = +pos.coords.longitude.toFixed(5);
         // altitud del GPS si la da (muchos navegadores no): si no, 0 m y la interfaz lo dice
-        const al = Number.isFinite(pos.coords.altitude) ? Math.round(pos.coords.altitude) : null;
-        setLat(la); setLon(lo); setElev(al); setElevPreset(false); setPlaceDefault(false);
-        savePlace({ kind: "me", lat: la, lon: lo, elev: al });
+        let al = Number.isFinite(pos.coords.altitude) ? Math.round(pos.coords.altitude) : null;
+        // ¿estás en una cima? El modelo de terreno redondea las puntas: te sube al punto más alto a tu alrededor
+        // solo si es una cumbre y estás en ella (strict: ver /api/summit); si no, tu posición tal cual
+        const acc = Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : 50;
+        const sm = await fetchSummit(la, lo, { r: Math.max(60, Math.min(200, 2 * acc)), strict: true, api: API });
+        if (seq !== placeSeq.current) return;
+        let src = false;
+        if (sm && sm.found) { la = sm.lat; lo = sm.lon; }
+        if (al == null && sm) { al = sm.ground_m; src = "terrain"; }
+        setLat(la); setLon(lo); setElev(al); setElevPreset(src); setPlaceFine(true); setPlaceDefault(false);
+        savePlace({ kind: "me", lat: la, lon: lo, elev: al, fine: true, ...(src ? { elevSrc: src } : {}) });
         track("sky_location", { kind: "gps" });
         setPlaceKind("me"); setLocalMode(true); setGeo("ok"); setSel(null);
         if (!isWideRef.current) setPanel(null);
       },
       (err) => setGeo(err && err.code === 1 ? "denied" : err && err.code === 3 ? "timeout" : "unavailable"),
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+      // alta precisión y sin posiciones viejas: en una cumbre, unas decenas de metros cambian el horizonte
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 }
     );
   }, []);
-  const pickPlace = useCallback((p) => {
-    setLat(p.lat); setLon(p.lon); setElev(p.elev ?? null); setElevPreset(p.elev != null); setPlaceDefault(false);
-    savePlace({ kind: p.name, lat: p.lat, lon: p.lon, elev: p.elev ?? null });
+  const pickPlace = useCallback(async (p0) => {
+    const seq = ++placeSeq.current;
+    let p = p0, fine = !!p0.exact, src = p0.elev != null;
+    if (p0.peak > 0) {
+      // una montaña o un volcán: de pie en su cumbre (las coordenadas del buscador suelen ser aproximadas)
+      const sm = await fetchSummit(p0.lat, p0.lon, { r: p0.peak, api: API });
+      if (seq !== placeSeq.current) return;
+      if (sm && sm.found) { p = { ...p0, lat: sm.lat, lon: sm.lon, elev: sm.ground_m }; fine = true; src = "terrain"; }
+    }
+    setLat(p.lat); setLon(p.lon); setElev(p.elev ?? null); setElevPreset(src); setPlaceFine(fine); setPlaceDefault(false);
+    savePlace({ kind: p.name, lat: p.lat, lon: p.lon, elev: p.elev ?? null, ...(fine ? { fine: true } : {}), ...(src === "terrain" ? { elevSrc: "terrain" } : {}) });
     track("sky_location", { kind: "manual" });   // los atajos de ciudad cuentan como "manual"
     setPlaceKind(p.name); setLocalMode(true); setGeo("idle"); setSel(null);
     if (!isWideRef.current) setPanel(null);
   }, []);
   const setManualPlace = useCallback((a, o) => {
-    setLat(+a.toFixed(4)); setLon(+o.toFixed(4)); setElev(null); setElevPreset(false); setPlaceDefault(false);
+    ++placeSeq.current;
+    setLat(+a.toFixed(4)); setLon(+o.toFixed(4)); setElev(null); setElevPreset(false); setPlaceFine(false); setPlaceDefault(false);
     savePlace({ kind: "custom", lat: +a.toFixed(4), lon: +o.toFixed(4), elev: null });
     track("sky_location", { kind: "manual" });
     setPlaceKind("custom"); setLocalMode(true); setGeo("idle"); setSel(null);

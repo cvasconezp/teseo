@@ -4,8 +4,19 @@
 // Buscador: Open-Meteo Geocoding (https://open-meteo.com/en/docs/geocoding-api), con los nombres de GeoNames
 // (CC BY 4.0). Sale del navegador (permite CORS, sin claves; cuota gratuita por visitante). Da ciudades y pueblos
 // con su altura; los sitios arqueológicos casi no los tiene, por eso van aparte, con coordenadas comprobadas.
+//
+// Montañas y volcanes: GeoNames marca casi siempre el centro del macizo, no la cumbre (el Cotopaxi queda a 1,4 km
+// y 580 m por debajo de ella) y le faltan muchos (el volcán Cayambe, el Chimborazo). Por eso se pregunta también
+// a Photon (https://photon.komoot.io, de Komoot, sobre OpenStreetMap, ODbL; CORS abierto y sin claves) solo por
+// cumbres (natural=peak y natural=volcano), que en OSM están en el punto de la cima. Al elegir una montaña, la
+// app busca además la cumbre en el modelo de terreno (/api/summit) y te pone de pie en ella.
 
 export const GEOCODER = "https://geocoding-api.open-meteo.com/v1/search";
+export const PHOTON = "https://photon.komoot.io/api/";
+/** Códigos de GeoNames que son montañas, y el radio (m) en el que buscar su cumbre: un macizo (MT) es grande. */
+export const PEAK_CODES = { MT: 1500, MTS: 1500, PK: 600, PKS: 600, VLC: 1500, HLL: 400, HLLS: 400 };
+/** Radio (m) para buscar la cumbre de un pico de OpenStreetMap (ya está en la cima: solo se ajusta al modelo). */
+export const OSM_PEAK_R = 300;
 
 /**
  * Sitios astronómicos y arqueológicos (coordenadas de Wikipedia o de sus fichas oficiales, comprobadas el
@@ -58,7 +69,8 @@ export function geocodeUrl(q, lang = "es") {
   return `${GEOCODER}?${p}`;
 }
 
-/** Respuesta de Open-Meteo → [{ name, lat, lon, elev, region, country, cc }] (sin duplicados por nombre y lugar). */
+/** Respuesta de Open-Meteo → [{ name, lat, lon, elev, region, country, cc, peak? }] (sin duplicados por nombre y
+ * lugar). `peak` es el radio (m) en el que buscar la cumbre si el resultado es una montaña. */
 export function parseGeocode(json) {
   const out = [], seen = new Set();
   for (const r of (json && json.results) || []) {
@@ -67,16 +79,60 @@ export function parseGeocode(json) {
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({ name: r.name, lat: +r.latitude.toFixed(4), lon: +r.longitude.toFixed(4), elev: Number.isFinite(r.elevation) ? Math.round(r.elevation) : null,
-      region: r.admin1 || null, country: r.country || null, cc: r.country_code || null });
+      region: r.admin1 || null, country: r.country || null, cc: r.country_code || null,
+      ...(PEAK_CODES[r.feature_code] ? { peak: PEAK_CODES[r.feature_code], kind: r.feature_code === "VLC" ? "volcano" : "peak" } : {}) });
   }
   return out;
 }
 
-/** Una línea para mostrar un resultado: «Comunidad de Madrid, España · 665 m». */
+/** URL de Photon solo para cumbres y volcanes (Photon no tiene español: los nombres van como en OSM). */
+export function photonUrl(q, lang = "es") {
+  const p = new URLSearchParams({ q: String(q).trim(), limit: "8" });
+  if (lang === "en") p.set("lang", "en");
+  return `${PHOTON}?${p}&osm_tag=natural:peak&osm_tag=natural:volcano`;
+}
+
+/** Respuesta de Photon → cumbres cuyo nombre contiene lo buscado (Photon es difuso: «Cayambe» trae «Catamba»). */
+export function parsePhoton(json, q) {
+  const f = fold(q), out = [], seen = new Set();
+  for (const ft of (json && json.features) || []) {
+    const pr = ft && ft.properties, c = ft && ft.geometry && ft.geometry.coordinates;
+    if (!pr || !pr.name || !Array.isArray(c) || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) continue;
+    if (!fold(pr.name).includes(f)) continue;
+    const key = `${fold(pr.name)}|${c[1].toFixed(2)}|${c[0].toFixed(2)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ name: pr.name, lat: +c[1].toFixed(5), lon: +c[0].toFixed(5), elev: null, region: pr.state || null, country: pr.country || null,
+      cc: pr.countrycode || null, peak: OSM_PEAK_R, kind: pr.osm_value === "volcano" ? "volcano" : "peak", osm: true });
+  }
+  return out;
+}
+
+const kmBetween = (a, b) => {
+  const dy = (a.lat - b.lat) * 111.2, dx = (a.lon - b.lon) * 111.2 * Math.cos(a.lat * Math.PI / 180);
+  return Math.hypot(dx, dy);
+};
+/** Une las dos listas: una montaña de GeoNames con su pico de OSM a menos de 6 km (mismo nombre) se cambia por
+ * este, que está en la cima; los demás picos de OSM van después. Como mucho `max`. */
+export function mergePeaks(geo, osm, max = 10) {
+  const used = new Set();
+  const out = geo.map((g) => {
+    if (!g.peak) return g;
+    const i = osm.findIndex((o, k) => !used.has(k) && kmBetween(g, o) < 6 && (fold(o.name).includes(fold(g.name)) || fold(g.name).includes(fold(o.name))));
+    if (i < 0) return g;
+    used.add(i);
+    return { ...osm[i], region: osm[i].region || g.region, country: osm[i].country || g.country };
+  });
+  osm.forEach((o, k) => { if (!used.has(k)) out.push(o); });
+  return out.slice(0, max);
+}
+
+/** Una línea para mostrar un resultado: «Comunidad de Madrid, España · 665 m» o «Volcán · Pichincha, Ecuador». */
 export function placeLine(p, lang = "es") {
   const parts = [p.region, p.country].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
-  const el = p.elev != null ? `${p.elev.toLocaleString(lang === "es" ? "es" : "en-US", { useGrouping: "always" })} m` : null;
-  return [parts.join(", "), el].filter(Boolean).join(" · ");
+  const el = p.elev != null && !p.peak ? `${p.elev.toLocaleString(lang === "es" ? "es" : "en-US", { useGrouping: "always" })} m` : null;
+  const kind = p.kind ? (TP[lang] || TP.es)[p.kind] : null;
+  return [kind, parts.join(", "), el].filter(Boolean).join(" · ");
 }
 
 const cache = new Map();
@@ -86,11 +142,20 @@ export function searchPlaces(q, lang = "es", { fetchImpl = (typeof fetch !== "un
   if (fold(q).length < 2) return Promise.resolve([]);
   if (cache.has(key)) return cache.get(key);
   if (!fetchImpl) return Promise.reject(new Error("sin red"));
-  const p = fetchImpl(geocodeUrl(q, lang), signal ? { signal } : undefined).then(async (r) => {
+  const opt = signal ? { signal } : undefined;
+  const geo = fetchImpl(geocodeUrl(q, lang), opt).then(async (r) => {
     let body = null;
     try { body = await r.json(); } catch { /* no JSON */ }
     if (!r.ok) throw new Error((body && body.reason) || `HTTP ${r.status}`);
     return parseGeocode(body);
+  });
+  // las cumbres de OSM son un extra: si Photon falla, se busca igual
+  const osm = fetchImpl(photonUrl(q, lang), opt).then(async (r) => (r.ok ? parsePhoton(await r.json(), q) : []))
+    .catch((e) => { if (e && e.name === "AbortError") throw e; return []; });
+  const p = Promise.allSettled([geo, osm]).then(([g, o]) => {
+    const peaks = o.status === "fulfilled" ? o.value : [];
+    if (g.status === "rejected") { if (peaks.length) return peaks; throw g.reason; }
+    return mergePeaks(g.value, peaks);
   });
   cache.set(key, p);
   p.catch(() => cache.delete(key));
@@ -108,8 +173,10 @@ export const TP = {
     sitesTitle: "Sitios astronómicos y arqueológicos",
     sitesHint: "Teseo dibuja las montañas que los rodean y también el monumento; donde la posición es aproximada, lo dice.",
     siteMore: "Saber más en Wikipedia",
-    source: "Búsqueda: Open-Meteo, con los nombres de GeoNames (CC BY 4.0).",
+    source: "Búsqueda: Open-Meteo, con los nombres de GeoNames (CC BY 4.0); cumbres y volcanes: Photon (Komoot) sobre OpenStreetMap (ODbL). Al elegir una montaña te pone en su cumbre, según el modelo de terreno.",
     site: "Sitio",
+    volcano: "Volcán",
+    peak: "Cumbre",
   },
   en: {
     searchTitle: "Search any place in the world",
@@ -121,7 +188,9 @@ export const TP = {
     sitesTitle: "Astronomical and archaeological sites",
     sitesHint: "Teseo draws the mountains around them and the monument too; where a position is approximate, it says so.",
     siteMore: "Learn more on Wikipedia",
-    source: "Search: Open-Meteo, with GeoNames place names (CC BY 4.0).",
+    source: "Search: Open-Meteo, with GeoNames place names (CC BY 4.0); summits and volcanoes: Photon (Komoot) on OpenStreetMap (ODbL). Picking a mountain puts you on its summit, from the terrain model.",
     site: "Site",
+    volcano: "Volcano",
+    peak: "Summit",
   },
 };

@@ -140,3 +140,42 @@ def test_alturas_en_puntos(tiles):
     assert abs(h[0] - PLAIN) < 3 and abs(h[1] - PEAK_H) < 60, h
     assert client.get("/api/elevation?pts=95,0").status_code == 422
     assert client.get("/api/elevation?pts=" + ";".join(["0,0"] * 81)).status_code == 422
+
+
+# ── cumbres ──────────────────────────────────────────────────────────────────────────────────────────────
+def test_celda_fina():
+    assert hz.cell_of(0.04312, -78.14563, fine=True) == (0.0432, -78.1456)
+
+
+def test_horizonte_fino_no_redondea_a_220_m(tiles):
+    d = client.get(f"/api/horizon?lat={LAT0 + 0.0008}&lon={LON0}&fine=1").json()
+    assert d["lat"] == round(LAT0 + 0.0008, 4)
+
+
+def test_cumbre_desde_coordenadas_aproximadas(tiles):
+    # el volcán está 18 km al este; pedimos la cumbre desde 900 m al oeste de ella
+    lon = PEAK_LON - math.degrees(900.0 / R)
+    d = client.get(f"/api/summit?lat={LAT0}&lon={lon}&r=1500").json()
+    assert d["found"] and abs(d["lon"] - PEAK_LON) < 0.0003 and abs(d["lat"] - LAT0) < 0.0003, d
+    assert abs(d["ground_m"] - PEAK_H) < 30 and d["rise_m"] > 300
+
+
+def test_gps_en_la_cima_se_corrige(tiles):
+    lon = PEAK_LON - math.degrees(25.0 / R)          # a 25 m de la cumbre: unos 12 m más abajo
+    d = client.get(f"/api/summit?lat={LAT0}&lon={lon}&r=80&strict=1").json()
+    assert d["found"] and d["rise_m"] <= 40 and abs(d["lon"] - PEAK_LON) < 0.0002, d
+
+
+def test_gps_en_la_ladera_no_se_mueve(tiles):
+    lon = PEAK_LON - math.degrees(1500.0 / R)        # en la ladera: lo más alto cerca es cuesta arriba, no una cima
+    d = client.get(f"/api/summit?lat={LAT0}&lon={lon}&r=150&strict=1").json()
+    assert not d["found"] and d["lon"] == round(lon, 5)
+
+
+def test_gps_en_la_llanura_no_se_mueve(tiles):
+    d = client.get(f"/api/summit?lat={LAT0}&lon={LON0}&r=150&strict=1").json()
+    assert not d["found"] and d["dist_m"] == 0
+
+
+def test_cumbre_parametros():
+    assert client.get("/api/summit?lat=0&lon=0&r=5000").status_code == 422

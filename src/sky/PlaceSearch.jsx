@@ -1,5 +1,6 @@
 // PlaceSearch.jsx — buscador de lugares del mundo para «Mi cielo» (Open-Meteo Geocoding) y sitios
-// astronómicos y arqueológicos (places.js). Elegir un resultado llama a onPlace({ name, lat, lon, elev }).
+// astronómicos y arqueológicos (places.js). Elegir un resultado llama a onPlace({ name, lat, lon, elev, peak?, exact? }):
+// peak = radio (m) para buscar la cumbre de una montaña; exact = sitio con coordenadas comprobadas (horizonte a ≈ 22 m).
 import { useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { SITES, TP, searchPlaces, searchSites, placeLine, siteUrl } from "./places.js";
@@ -36,11 +37,11 @@ export function PlaceSearch({ lang = "es", onPlace }) {
       {q.trim().length >= 2 && (
         <ul className="sk-psearch-list" role="listbox" aria-label={tp.searchTitle}>
           {sites.map((s) => (
-            <li key={s.id}><button type="button" role="option" aria-selected="false" onClick={() => pick({ name: s.name[lang] || s.name.es, lat: s.lat, lon: s.lon, elev: s.elev })}>
+            <li key={s.id}><button type="button" role="option" aria-selected="false" onClick={() => pick({ name: s.name[lang] || s.name.es, lat: s.lat, lon: s.lon, elev: s.elev, exact: true })}>
               <b>{s.name[lang] || s.name.es}</b><small>{tp.site} · {s.note[lang] || s.note.es}</small></button></li>
           ))}
           {st.list.map((p) => (
-            <li key={`${p.name}${p.lat}${p.lon}`}><button type="button" role="option" aria-selected="false" onClick={() => pick({ name: p.name, lat: p.lat, lon: p.lon, elev: p.elev })}>
+            <li key={`${p.name}${p.lat}${p.lon}`}><button type="button" role="option" aria-selected="false" onClick={() => pick({ name: p.name, lat: p.lat, lon: p.lon, elev: p.elev, peak: p.peak || 0 })}>
               <b>{p.name}</b><small>{placeLine(p, lang)}</small></button></li>
           ))}
           {st.status === "loading" && !any && <li className="sk-psearch-msg" role="status">{tp.searching}</li>}
@@ -62,7 +63,7 @@ export function SiteChips({ lang = "es", placeName, localMode, onPlace }) {
       <div className="sk-quick sk-sites">
         {SITES.map((s) => {
           const nm = s.name[lang] || s.name.es;
-          return <button key={s.id} type="button" aria-pressed={cur === s} onClick={() => onPlace({ name: nm, lat: s.lat, lon: s.lon, elev: s.elev })}>{nm}</button>;
+          return <button key={s.id} type="button" aria-pressed={cur === s} onClick={() => onPlace({ name: nm, lat: s.lat, lon: s.lon, elev: s.elev, exact: true })}>{nm}</button>;
         })}
       </div>
       {cur && <p className="sk-site-note">{cur.note[lang] || cur.note.es}{siteUrl(cur, lang) && <> <a href={siteUrl(cur, lang)} target="_blank" rel="noopener noreferrer">{tp.siteMore}</a></>}</p>}

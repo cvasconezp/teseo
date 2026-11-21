@@ -1,5 +1,22 @@
 # Cambios
 
+## 1.47.0 — 20 de noviembre de 2026
+
+- De pie en la cumbre: al buscar una montaña o un volcán, Teseo te pone en
+  su cima según el modelo de terreno (antes quedabas en el punto que da
+  GeoNames, a veces a más de 1 km y 500 m por debajo; el Cotopaxi, por
+  ejemplo). Nuevo `/api/summit` en el servidor.
+- El buscador encuentra también las cumbres y volcanes de OpenStreetMap
+  (Photon, de Komoot): ahora aparecen el volcán Cayambe, el Chimborazo, el
+  Antisana… marcados como «Volcán» o «Cumbre».
+- «Usar mi ubicación» pide el GPS en alta precisión, calcula el horizonte
+  en tu punto exacto (celda de 22 m en vez de 220 m) y, si estás en una
+  cima, te sube al punto más alto del modelo; los sitios arqueológicos
+  usan también la posición exacta.
+- Desde una cumbre el paisaje se ve hacia abajo: las montañas que quedan
+  bajo el horizonte se dibujan (antes solo se veía suelo oscuro), con
+  bruma entre los filos lejanos y el horizonte.
+
 ## 1.46.0 — 19 de noviembre de 2026
 
 - Cochasquí, un solo lugar: el observador queda de pie en el vértice oeste

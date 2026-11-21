@@ -64,7 +64,7 @@ export function AtmosphereControls({ lang = "es", on, onToggle, available = true
             </div>
           )}
           <div><dt>{ta.lpLimitDark(nelmText(cls, lang))}</dt><dd className="sk-atm-fine">{ta.lpObserver}</dd></div>
-          {elevation && available && <div><dt>{elevation.m != null ? ta.elevLine(elevation.m) : ta.elevNone}</dt>{elevation.preset && <dd className="sk-atm-fine">{ta.elevSrc}</dd>}</div>}
+          {elevation && available && <div><dt>{elevation.m != null ? ta.elevLine(elevation.m) : ta.elevNone}</dt>{elevation.preset && <dd className="sk-atm-fine">{elevation.preset === "terrain" ? ta.elevSrcTerrain : ta.elevSrc}</dd>}</div>}
         </dl>
         {deepNote && on && available && <p className="sk-atm-fine sk-atm-deep">{deepNote}</p>}
         <button type="button" className="sk-btn wide sk-atm-real" aria-expanded={realOpen} onClick={() => setRealOpen((v) => !v)}>

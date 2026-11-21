@@ -1,5 +1,5 @@
 // Pruebas del buscador de lugares (src/sky/places.js) y de la lista de sitios astronómicos y arqueológicos.
-import { SITES, fold, searchSites, geocodeUrl, parseGeocode, placeLine, searchPlaces } from "../src/sky/places.js";
+import { SITES, fold, searchSites, geocodeUrl, parseGeocode, placeLine, searchPlaces, photonUrl, parsePhoton, mergePeaks, PEAK_CODES, OSM_PEAK_R } from "../src/sky/places.js";
 import { readFileSync } from "node:fs";
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log("  ok   ", m); } else { fail++; console.log("  FALLA", m); } };
@@ -26,13 +26,38 @@ ok(r.length === 2 && r[0].elev === 665 && r[1].cc === "CO", "lee nombre, lugar y
 ok(placeLine(r[0], "es") === "Comunidad de Madrid, España · 665 m", "línea de cada resultado");
 ok(parseGeocode({}).length === 0, "sin resultados: lista vacía");
 let calls = 0;
-const f = async () => { calls++; return { ok: true, status: 200, json: async () => sample }; };
+const f = async (url) => { calls++; return { ok: true, status: 200, json: async () => (String(url).includes("photon") ? { features: [] } : sample) }; };
 const a = await searchPlaces("Madrid", "es", { fetchImpl: f }); await searchPlaces("madrid ", "es", { fetchImpl: f });
-ok(a.length === 2 && calls === 1, "la misma búsqueda no se repite");
-ok((await searchPlaces("M", "es", { fetchImpl: f })).length === 0 && calls === 1, "con una letra no pregunta");
+ok(a.length === 2 && calls === 2, "la misma búsqueda no se repite (una consulta a cada servicio)");
+ok((await searchPlaces("M", "es", { fetchImpl: f })).length === 0 && calls === 2, "con una letra no pregunta");
 let err = null;
 try { await searchPlaces("zzz", "es", { fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({ reason: "limit" }) }) }); } catch (e) { err = e.message; }
 ok(err === "limit", "si el servicio falla, el error trae su motivo");
+
+console.log("Cumbres y volcanes (Photon, OpenStreetMap)");
+const pu = new URL(photonUrl("Cayambe", "es"));
+ok(pu.hostname === "photon.komoot.io" && pu.searchParams.getAll("osm_tag").join() === "natural:peak,natural:volcano" && !pu.searchParams.get("lang"), "solo cumbres y volcanes (Photon no admite lang=es)");
+const ph = { features: [
+  { properties: { name: "Cayambe", osm_value: "volcano", state: "Pichincha", country: "Ecuador", countrycode: "EC" }, geometry: { coordinates: [-77.9889555, 0.0251586] } },
+  { properties: { name: "Catamba", osm_value: "peak", country: "Angola" }, geometry: { coordinates: [14.65, -13.42] } },
+  { properties: { name: "Cayambe" }, geometry: {} }] };
+const pk = parsePhoton(ph, "cayambe");
+ok(pk.length === 1 && pk[0].kind === "volcano" && pk[0].peak === OSM_PEAK_R && Math.abs(pk[0].lat - 0.02516) < 1e-5, "deja solo los nombres que contienen lo buscado (Photon es difuso)");
+ok(placeLine(pk[0], "es") === "Volcán · Pichincha, Ecuador", "línea de un volcán");
+const geo = parseGeocode({ results: [
+  { name: "Cotopaxi", latitude: -0.68917, longitude: -78.42889, elevation: 5315, admin1: "Cotopaxi", country: "Ecuador", country_code: "EC", feature_code: "MT" },
+  { name: "Cotopaxi", latitude: 0.80383, longitude: -79.59165, elevation: 62, country: "Ecuador", country_code: "EC", feature_code: "PPL" }] });
+ok(geo[0].peak === PEAK_CODES.MT && !geo[1].peak, "una montaña de GeoNames lleva el radio para buscar su cumbre; un pueblo no");
+ok(placeLine(geo[0], "es") === "Cumbre · Cotopaxi, Ecuador", "de una montaña no se da la altura de GeoNames (suele ser la de la falda)");
+const osmC = parsePhoton({ features: [{ properties: { name: "Cotopaxi", osm_value: "volcano", state: "Pichincha", country: "Ecuador" }, geometry: { coordinates: [-78.4377734, -0.6805597] } }] }, "Cotopaxi");
+const mg = mergePeaks(geo, [...osmC, ...pk]);
+ok(mg.length === 3 && mg[0].osm && mg[0].lat === -0.68056 && mg[0].region === "Pichincha" && mg[1].cc === "EC" && mg[2].name === "Cayambe",
+  "la montaña de GeoNames se cambia por su cumbre de OSM (a 1,4 km); los demás picos van después");
+let n2 = 0;
+const f2 = async (url) => { n2++; if (String(url).includes("photon")) throw new Error("caído"); return { ok: true, status: 200, json: async () => sample }; };
+ok((await searchPlaces("Madrid2", "es", { fetchImpl: f2 })).length === 2 && n2 === 2, "si Photon falla, la búsqueda sigue");
+const f3 = async (url) => (String(url).includes("photon") ? { ok: true, status: 200, json: async () => ph } : { ok: false, status: 500, json: async () => ({}) });
+ok((await searchPlaces("Cayambe", "es", { fetchImpl: f3 })).length === 1, "si Open-Meteo falla, quedan las cumbres");
 
 console.log("Integración");
 const panels = readFileSync(new URL("../src/sky/panels.jsx", import.meta.url), "utf8");

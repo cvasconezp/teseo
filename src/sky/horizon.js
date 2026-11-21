@@ -11,11 +11,13 @@ const STORE_KEY = "teseo_horizon_v2";   // v2: 0,2° y seis bandas (v1 era de 0,
 const STORE_MAX = 4;                 // lugares guardados en el teléfono (≈ 140 KB cada uno)
 const mem = new Map();
 
-/** Celda de 0,002° (≈ 220 m) del lugar: la misma que usa el servidor. */
-export function cellKey(lat, lon) {
-  const r = (v) => Math.round(v / 0.002) * 0.002;
+/** Celda de 0,002° (≈ 220 m) del lugar, o de 0,0002° (≈ 22 m) con fine (cumbres y GPS): la misma que usa el
+ * servidor. Las finas llevan delante «f:». */
+export function cellKey(lat, lon, fine = false) {
+  const st = fine ? 0.0002 : 0.002, nd = fine ? 4 : 3;
+  const r = (v) => Math.round(v / st) * st;
   const la = r(lat), lo = ((r(lon) + 540) % 360) - 180;
-  return `${la.toFixed(3)},${lo.toFixed(3)}`;
+  return `${fine ? "f:" : ""}${la.toFixed(nd)},${lo.toFixed(nd)}`;
 }
 
 /** Altura del filo del relieve en un acimut (interpolación lineal; acepta cualquier número de grados). */
@@ -128,14 +130,14 @@ function readStore() { try { const v = JSON.parse(localStorage.getItem(STORE_KEY
 function writeStore(list) { try { localStorage.setItem(STORE_KEY, JSON.stringify(list.slice(0, STORE_MAX))); } catch { /* lleno o privado */ } }
 
 /** Horizonte del lugar: memoria → teléfono → servidor. Rechaza con Error si el servidor no responde. */
-export function fetchHorizon(lat, lon, { api = "", fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
-  const key = cellKey(lat, lon);
+export function fetchHorizon(lat, lon, { api = "", fine = false, fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
+  const key = cellKey(lat, lon, fine);
   if (mem.has(key)) return mem.get(key);
   const saved = readStore().find((e) => e.key === key);
   if (saved && saved.data && saved.data.alt) { const p = Promise.resolve(saved.data); mem.set(key, p); return p; }
   if (!fetchImpl) return Promise.reject(new Error("sin red"));
-  const [la, lo] = key.split(",");
-  const p = fetchImpl(`${api}/api/horizon?lat=${la}&lon=${lo}`).then(async (r) => {
+  const [la, lo] = key.replace(/^f:/, "").split(",");
+  const p = fetchImpl(`${api}/api/horizon?lat=${la}&lon=${lo}${fine ? "&fine=1" : ""}`).then(async (r) => {
     let body = null;
     try { body = await r.json(); } catch { /* no JSON */ }
     if (!r.ok || !body || !Array.isArray(body.alt)) throw new Error((body && body.detail) || `HTTP ${r.status}`);
@@ -145,6 +147,23 @@ export function fetchHorizon(lat, lon, { api = "", fetchImpl = (typeof fetch !==
   mem.set(key, p);
   p.catch(() => mem.delete(key));
   return p;
+}
+
+/**
+ * La cumbre más cercana según el modelo de terreno (/api/summit): { found, lat, lon, ground_m, dist_m, rise_m }.
+ * r: radio de búsqueda (m). strict (posición del GPS): solo si es una cima y estás en ella. Sin respuesta en
+ * `timeoutMs`, o si falla, resuelve null (el lugar se queda como estaba).
+ */
+export function fetchSummit(lat, lon, { r = 600, strict = false, api = "", timeoutMs = 9000, fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
+  if (!fetchImpl || !Number.isFinite(lat) || !Number.isFinite(lon)) return Promise.resolve(null);
+  const rr = Math.max(20, Math.min(2000, Math.round(r)));
+  const url = `${api}/api/summit?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}&r=${rr}${strict ? "&strict=1" : ""}`;
+  const ask = fetchImpl(url).then(async (res) => {
+    if (!res.ok) return null;
+    const b = await res.json();
+    return b && Number.isFinite(b.lat) && Number.isFinite(b.lon) ? b : null;
+  }).catch(() => null);
+  return Promise.race([ask, new Promise((ok) => setTimeout(() => ok(null), timeoutMs))]);
 }
 
 // ── nombres de las montañas (/api/peaks, OpenStreetMap) ─────────────────────

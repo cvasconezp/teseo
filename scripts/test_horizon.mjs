@@ -1,6 +1,6 @@
 // Pruebas del horizonte real en el navegador: src/sky/horizon.js (perfil, refracción, ocultación, salida y puesta
 // tras las montañas, colores) y su integración en la vista Cielo y la ficha.
-import { cellKey, terrainAltAt, refraction, apparentAlt, behindTerrain, highestPoint, snowLine, terrainRiseSet, terrainPalette, fetchHorizon, fetchPeaks, peaksToLabel, peakName } from "../src/sky/horizon.js";
+import { cellKey, terrainAltAt, refraction, apparentAlt, behindTerrain, highestPoint, snowLine, terrainRiseSet, terrainPalette, fetchHorizon, fetchPeaks, peaksToLabel, peakName, fetchSummit } from "../src/sky/horizon.js";
 import { riseTransitSet, H0_SUN } from "../src/sky/riseset.js";
 import { visibilityOf } from "../src/sky/objVisibility.js";
 import { angleOf, snowAngles, snowJitter, sunLight, glowOf } from "../src/sky/terrainLayer.js";
@@ -21,6 +21,7 @@ const HZ = { lat: 0, lon: -78.15, ground_m: 2800, step_deg: 0.5, alt, bands: [
 
 console.log("Perfil");
 ok(cellKey(0.04312, -78.14563) === "0.044,-78.146" && cellKey(10, 180) === "10.000,-180.000", "celda de 0,002° como la del servidor");
+ok(cellKey(0.04312, -78.14563, true) === "f:0.0432,-78.1456", "celda fina de 0,0002° (cumbres y GPS), con su propia clave");
 ok(terrainAltAt(HZ, 270) === 10 && terrainAltAt(HZ, 0) === 0 && terrainAltAt(HZ, 270 + 360) === 10 && terrainAltAt(HZ, -90) === 10, "altura del filo por acimut (y con vueltas)");
 ok(near(terrainAltAt(HZ, 239.75), 5, 1e-9), "interpola entre muestras");
 ok(near(refraction(0), 0.48, 0.03) && near(refraction(45), 0.017, 0.003) && apparentAlt(-0.5) > -0.5, "refracción: ~29′ en el horizonte, casi nada en lo alto");
@@ -140,6 +141,20 @@ ok(/OpenStreetMap/.test(credits) && /ODbL/.test(credits), "créditos de los nomb
   ok(glowOf(1, 1) > 0.95 && glowOf(4, 1) > 0.3 && glowOf(4, 1) < 0.8 && glowOf(1, 0) === 0, "el arrebol, fuerte con el Sol rasante y solo donde da el Sol");
   const tl = readFileSync(new URL("../src/sky/terrainLayer.js", import.meta.url), "utf8");
   ok(/litAt\(b, j, true\)/.test(tl) && /litAt\(b, j, false\)/.test(tl) && /glowOf\(sunAlt, lt\)/.test(tl), "el pintado usa la luz del filo y la del pie de cada banda");
+}
+
+console.log("Cumbre más cercana (/api/summit)");
+{
+  let url = "";
+  const sm = await fetchSummit(-0.68917, -78.42889, { r: 1500, api: "https://x", fetchImpl: async (u) => { url = u; return { ok: true, json: async () => ({ found: true, lat: -0.68043, lon: -78.43785, ground_m: 5880 }) }; } });
+  ok(sm && sm.ground_m === 5880 && /\/api\/summit\?lat=-0\.68917&lon=-78\.42889&r=1500$/.test(url), "pide la cumbre con el radio de búsqueda");
+  await fetchSummit(0, 0, { r: 99999, strict: true, fetchImpl: async (u) => { url = u; return { ok: false }; } });
+  ok(/r=2000&strict=1$/.test(url), "radio acotado a 2 km; strict para el GPS");
+  ok(await fetchSummit(0, 0, { fetchImpl: async () => { throw new Error("x"); } }) === null, "si falla, null (el lugar se queda como estaba)");
+  ok(await fetchSummit(0, 0, { timeoutMs: 20, fetchImpl: () => new Promise(() => {}) }) === null, "si tarda, null");
+  const cj = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
+  ok(/enableHighAccuracy: true/.test(cj) && /maximumAge: 60000/.test(cj), "GPS en alta precisión y sin posiciones viejas");
+  ok(/strict: true/.test(cj) && /cellKey\(lat, lon, placeFine\)/.test(cj), "el GPS busca la cima en modo estricto y el horizonte usa la celda fina");
 }
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
