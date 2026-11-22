@@ -17,6 +17,7 @@ import { visibilityOf } from "./objVisibility.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import { citizenFor, CITIZEN_VERIFIED } from "./citizen.js";
 import { useDialogFocus } from "./focus.js";
+import { curiosityFor, CURIOSITY_T } from "./curiosities.js";
 import { canSpeak, speakText, sheetText, sheetStory, LISTEN_T } from "./speak.js";
 import { track } from "../ui/track.js";
 import SunToday from "../sun/SunToday.jsx";
@@ -366,6 +367,7 @@ export default function ObjectSheet({ obj, lang, t, wiki, wikiState, credit, met
           </dl>
         )}
         {info.note && <p className="sk-note">{info.note}</p>}
+        {!isNote && curiosityFor(obj, lang) && <p className="sk-note sk-fun"><b>{CURIOSITY_T[lang] || CURIOSITY_T.es}</b> {curiosityFor(obj, lang)}</p>}
         {!isNote && <RiseSet obj={obj} t={t} lang={lang} local={local} when={when} onNeedPlace={onNeedPlace} />}
         {/* «El Sol hoy»: manchas, regiones activas, fulguraciones, Kp y ciclo con datos reales (src/sun/) */}
         {obj.layer === "solar" && obj.name === "Sol" && <SunToday lang={lang} source="sheet" />}

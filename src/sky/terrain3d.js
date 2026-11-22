@@ -137,9 +137,14 @@ void main() {
   // radio: sin desenfocar, cada columna sería una raya. Se lee un nivel más borroso cuanto más cerca
   vec3 c = texture2D(map, vUv, clamp(log2(2600.0 / max(vD, 30.0)), 0.0, 6.5)).rgb;
   if (vD < 400.0) {
-    vec3 avg = (texture2D(map, vec2(0.125, 0.03), 6.0).rgb + texture2D(map, vec2(0.375, 0.03), 6.0).rgb + texture2D(map, vec2(0.625, 0.03), 6.0).rgb + texture2D(map, vec2(0.875, 0.03), 6.0).rgb) * 0.25;
-    // (a menos de ~100 m la imagen polar no tiene nada que decir a lo largo del radio: un solo color, el del lugar)
-    c = mix(avg, c, smoothstep(90.0, 400.0, vD));
+    // (a menos de ~100 m la imagen polar no tiene nada que decir a lo largo del radio: el color es el del terreno
+    // de alrededor —a unos 300 m—, mitad el promedio de todo el contorno y mitad el de esa dirección, muy borroso;
+    // el detalle lo pone el grano de más abajo)
+    const float V300 = 0.206;
+    vec3 avg = vec3(0.0);
+    for (int q = 0; q < 8; q++) avg += texture2D(map, vec2((float(q) + 0.5) / 8.0, V300), 5.0).rgb;
+    vec3 sector = texture2D(map, vec2(vUv.x, V300), 5.5).rgb;
+    c = mix(mix(avg / 8.0, sector, 0.15), c, smoothstep(90.0, 400.0, vD));
   }
   // el mosaico es más claro y menos saturado que el suelo visto de lado: a albedo
   float g = (c.r + c.g + c.b) / 3.0;
@@ -149,9 +154,22 @@ void main() {
   float cloudy = smoothstep(0.4, 0.6, g) * (1.0 - smoothstep(0.1, 0.26, sat));
   alb = mix(alb, vec3(0.19, 0.21, 0.15), cloudy);
   // grano fino (el píxel del satélite mide 10 m: de cerca hace falta algo más menudo)
-  vec2 wm = normalize(vP.xz + vec2(1e-6)) * vD;                 // metros (posición horizontal)
+  // metros: la posición horizontal más la altura (en una ladera empinada la posición horizontal casi no cambia de
+  // arriba abajo y el grano saldría en rayas verticales)
+  vec2 wm = normalize(vP.xz + vec2(1e-6)) * vD + vec2(vH, vH * 0.73);
   float grain = tn(wm / 9.0) * 0.6 + tn(wm / 31.0) * 0.4;
   alb *= 1.0 + 0.16 * (grain - 0.5) * (1.0 - smoothstep(1500.0, 6000.0, vD));
+  // bajo los pies y alrededor: matas, piedras y manchas a varias escalas (0,6 m … 30 m), para que el suelo
+  // cercano tenga la misma textura que el paisaje y no sea un color liso
+  float nearK = 1.0 - smoothstep(120.0, 900.0, vD), nearDet = 0.0;
+  if (nearK > 0.0) {
+    float fine = tn(wm / 0.6) * (1.0 - smoothstep(40.0, 160.0, vD));
+    float tuft = tn(wm / 2.3) * 0.55 + tn(wm / 6.5 + 17.0) * 0.45;
+    float blot = tn(wm / 21.0 + 5.0);
+    nearDet = nearK * (0.34 * (tuft - 0.5) + 0.22 * (fine - 0.5) + 0.26 * (blot - 0.5));
+    alb *= 1.0 + nearDet;
+    alb *= mix(vec3(1.0), mix(vec3(1.10, 1.04, 0.84), vec3(0.90, 1.02, 0.96), tn(wm / 4.1 + 31.0)), 0.7 * nearK);
+  }
   // nieve sobre la línea de nieves (con el borde roto)
   // (más nieve en lo llano y menos en lo empinado: las paredes de roca asoman)
   float sj = (tn(wm / 260.0) - 0.5) * 110.0 + (tn(wm / 70.0) - 0.5) * 50.0 + (normalize(vN).y - 0.85) * 500.0;
@@ -168,7 +186,7 @@ void main() {
   float shade = mix(0.6, 0.48 + 0.72 * ndl, lit);
   // la nieve: sin quemarse (se ve el relieve del glaciar) y con las grietas y manchas de la imagen
   float shadeS = mix(0.62, 0.5 + 0.48 * ndl, lit);
-  vec3 dcol = mix(alb * shade, uSnow * (0.82 + 0.2 * g) * shadeS, sn);
+  vec3 dcol = mix(alb * shade, uSnow * (0.82 + 0.2 * g) * shadeS * (1.0 + 0.45 * nearDet), sn);   // la nieve cercana, con su relieve menudo
   // en la sombra, solo la luz del cielo (más azulada)
   float lum = (dcol.r + dcol.g + dcol.b) / 3.0;
   dcol = mix(dcol, vec3(0.55, 0.66, 0.95) * lum * 1.3, mix(0.22, 0.4, sn) * (1.0 - lit * smoothstep(-0.15, 0.5, dot(n, uSun))));

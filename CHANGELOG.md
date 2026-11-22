@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.56.0 — 2026-11-21
+
+- **El suelo bajo los pies ya no es un color liso**: desde una cumbre, el terreno cercano tiene la textura del paisaje —matas, piedras y manchas a varias escalas, y en la nieve su relieve menudo—, con el color del terreno de alrededor. Sin rayas en las laderas empinadas.
+- **«¿Sabías que…?»**: un dato llamativo y comprobado en la ficha de los objetos más conocidos (Sol, Luna, planetas, Sirio, Canopus, Vega, Betelgeuse, Rigel, Antares, Aldebarán, Arturo, Polaris, Alfa Centauri, M1, M13, M31, M42, M45 y M87), que «Escuchar» también cuenta.
+
 ## 1.55.0 — 2026-11-21
 
 - **Relieve 3D hasta 150 km** (antes 60): todo lo que abarca el horizonte es ya terreno con la imagen de satélite; las siluetas planas dejan de usarse cuando el relieve está cargado.
