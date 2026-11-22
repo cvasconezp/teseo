@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.53.0 — 2026-11-21
+
+- **Relieve en 3D con la imagen de satélite**: los primeros 25 km alrededor del lugar ya no son siluetas planas, sino el terreno de verdad (AWS Terrain Tiles) con la imagen de Sentinel-2 cloudless 2016 (EOX, CC BY 4.0) encima: laderas, quebradas, cultivos y páramo, con la luz del Sol según la pendiente, sombra, arrebol, bruma y nieve sobre la línea de nieves (más en lo llano, menos en las paredes). Desde una cumbre se ve el paisaje hacia abajo. Más allá de 25 km siguen las siluetas. Los restos de nubes del mosaico se pintan con el color medio del monte.
+- **Viento en la pastilla del clima**: de dónde viene y a cuántos km/h (Open-Meteo, a 10 m del suelo). Si no hay pronóstico en altura, ese viento también tumba las plumas de los volcanes.
+- **Erupciones**: columnas más contenidas (el VEI de una erupción larga es el de su momento más fuerte: ahora se dibuja la parte baja del intervalo; VEI 3 ≈ 6 km en vez de 9), la pluma ya no se ensancha sin límite, sale de la cima (no flotando sobre ella) y se corrigió una arista recta en el humo. El aviso de la simulación dice el año de la última erupción y que hoy no está en erupción, y la ficha del volcán trae «Parar la simulación».
+- **Capas al empezar**: vienen encendidas Sol, Luna y planetas, planetas enanos y asteroides, cometas, sondas, mapa fotográfico, Messier, NGC e IC, galaxias, campos profundos, agujeros negros, atmósfera, montañas con sus nombres, monumentos y la eclíptica.
+- **Arreglos**: de día ya no se ven estrellas entre el horizonte de 0° y las montañas (desde una cumbre); las marcas de los polos celestes, el cenit y el nadir conservan su tamaño al acercarse.
+
 ## 1.52.0 — 2026-11-21
 
 - **Erupciones con volumen**: el humo de los volcanes (los que están en erupción y las simulaciones) ya no es una mancha plana: es una pluma con cuerpo, que sube, se tumba con el viento, se abulta como coliflor, recibe la luz del Sol y hace sombra sobre sí misma; de noche el cráter resplandece. Sin viento del pronóstico se dibuja de lado, como se ve en las cámaras. Sigue siendo una ilustración, no un pronóstico de ceniza.

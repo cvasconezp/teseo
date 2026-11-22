@@ -290,7 +290,7 @@ export const GUIDE_KEYS = ["ecliptic", "equator", "galactic", "eqGrid", "altAzGr
 export const LOCAL_ONLY = new Set(["altAzGrid", "meridian"]);
 // Por defecto TODO apagado: en un teléfono la vista ya lleva figuras, nombres de estrellas y de
 // constelaciones; cada línea es una decisión del usuario (justificación en el informe de fase 1).
-export const DEFAULT_GUIDES = Object.freeze(Object.fromEntries(GUIDE_KEYS.map((k) => [k, false])));
+export const DEFAULT_GUIDES = Object.freeze(Object.fromEntries(GUIDE_KEYS.map((k) => [k, k === "ecliptic"])));   // la eclíptica, encendida al empezar
 /** Normaliza un objeto de estado (p. ej. leído de localStorage) a { clave: booleano } válido. */
 export function sanitizeGuides(obj) {
   const out = { ...DEFAULT_GUIDES };

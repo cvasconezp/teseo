@@ -774,6 +774,8 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 /* el tiempo de ahora en el lugar (nowWeather.js): pastilla translúcida bajo el buscador */
 .sk-stage .sk-wx-pill { gap: 7px; padding: 0 14px 0 11px; border: 1px solid rgba(255, 255, 255, 0.24); background: rgba(12, 16, 34, 0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #f4f6ff; font-variant-numeric: tabular-nums; cursor: pointer; }
 .sk-stage .sk-wx-pill svg { color: #cfe0ff; }
+.sk-stage .sk-wx-pill .sk-wx-wind { display: inline-flex; align-items: center; gap: 5px; padding-left: 9px; border-left: 1px solid rgba(255, 255, 255, 0.22); font-size: 0.92em; color: #dfe7ff; }
+.sk-stage .sk-wx-pill .sk-wx-wind svg { flex: none; }
 .sk-stage .sk-wx-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* «Escuchar» en las fichas (speak.js) */
@@ -785,4 +787,8 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 /* teléfono: el tiempo de ahora, flotando arriba entre el buscador y el botón «…» */
 .sk-stage .sk-wx-float { position: absolute; top: 12px; right: 66px; z-index: 29; height: 46px; display: flex; align-items: center; }
 .sk-stage .sk-wx-float .sk-wx-pill { min-height: 38px; }
+/* en el teléfono, el viento va en una segunda línea (al lado no cabe junto al buscador) */
+.sk-stage .sk-wx-float .sk-wx-pill { display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 6px; row-gap: 0; padding: 3px 12px 3px 10px; line-height: 1.15; }
+.sk-stage .sk-wx-float .sk-wx-pill .sk-wx-wind { grid-column: 1 / -1; justify-content: center; padding-left: 0; border-left: 0; font-size: 11px; gap: 4px; }
+.sk-stage .sk-wx-float .sk-wx-pill .sk-wx-wind svg { width: 9px; height: 9px; }
 .sk-stage .sk-top:focus-within ~ .sk-wx-float, .sk-stage.is-covered .sk-wx-float, .sk-stage.has-panel .sk-wx-float, .sk-stage.is-immersive .sk-wx-float { display: none; }

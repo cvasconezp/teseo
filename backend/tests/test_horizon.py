@@ -219,3 +219,61 @@ def test_colores_sin_nubes():
     out = lc.fill_gaps(cols, np.array([True, False, False, True]))
     assert out[1].tolist() == [10, 20, 30] and out[2].tolist() == [40, 50, 60]
     assert lc.fill_gaps(cols, np.zeros(4, dtype=bool))[0].tolist() == [95, 100, 80]
+
+
+# ── relieve cercano en 3D (app/terrain3d.py) ─────────────────────────────────────────────────────────────
+def _near(tiles, monkeypatch, color=(90, 120, 60), status=200):
+    import io
+    import httpx as _httpx
+    from PIL import Image
+    from app import landcolor as lc
+    from app import terrain3d as t3
+    buf = io.BytesIO(); Image.new("RGB", (256, 256), color).save(buf, "JPEG"); jpg = buf.getvalue()
+    monkeypatch.setattr(lc, "_transport", _httpx.MockTransport(lambda req: _httpx.Response(status, content=jpg)))
+    lc._tiles.clear(); lc._results.clear(); t3.reset_cache()
+    return t3
+
+
+def test_relieve_cercano_alturas(tiles, monkeypatch):
+    import base64
+    t3 = _near(tiles, monkeypatch)
+    d = client.get(f"/api/terrain/near?lat={LAT0}&lon={LON0}").json()
+    assert d["n_az"] == t3.N_AZ and d["n_r"] == t3.N_R and d["coverage"] == 1.0 and "EOX" in d["credit"]
+    assert d["ground_m"] == 2800
+    h = np.frombuffer(base64.b64decode(d["heights"]), dtype="<u2").reshape(t3.N_AZ, t3.N_R) / d["h_scale"] - d["h_off"]
+    dist = t3.ring_dist(t3.N_R)
+    east, west = t3.N_AZ // 4, 3 * t3.N_AZ // 4
+    j = int(np.argmin(np.abs(dist - PEAK_D)))
+    # al este, a 18 km, el volcán (el anillo más cercano a la cumbre queda a menos de 400 m de ella)
+    assert h[east, j] > PEAK_H - 250, h[east, j]
+    # al oeste y cerca, la llanura
+    assert abs(h[west, j] - PLAIN) < 2 and abs(h[east, 0] - PLAIN) < 2
+    assert abs(dist[0] - t3.D_MIN) < 1e-6 and abs(dist[-1] - t3.D_MAX) < 1e-3
+
+
+def test_relieve_cercano_imagen(tiles, monkeypatch):
+    import io
+    from PIL import Image
+    t3 = _near(tiles, monkeypatch)
+    r = client.get(f"/api/terrain/near.jpg?lat={LAT0}&lon={LON0}")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg"
+    im = Image.open(io.BytesIO(r.content))
+    assert im.size == (t3.TEX_W, t3.TEX_H)
+    px = im.convert("RGB").getpixel((700, 500))
+    assert abs(px[0] - 90) < 8 and abs(px[1] - 120) < 8 and abs(px[2] - 60) < 8
+    # una sola vez por celda: la segunda petición sale de la caché
+    n = t3.stats["computed"]
+    client.get(f"/api/terrain/near?lat={LAT0}&lon={LON0}")
+    assert t3.stats["computed"] == n
+
+
+def test_relieve_cercano_sin_satelite(tiles, monkeypatch):
+    _near(tiles, monkeypatch, status=503)
+    assert client.get(f"/api/terrain/near?lat={LAT0}&lon={LON0}").status_code == 502
+
+
+def test_relieve_cercano_teselas_por_distancia():
+    from app import terrain3d as t3
+    need = t3.tex_tiles(LAT0, LON0)
+    zs = {z for z, _, _ in need}
+    assert zs == {11, 12, 13, 14} and len(need) < 90, len(need)

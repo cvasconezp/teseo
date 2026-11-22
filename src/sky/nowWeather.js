@@ -7,7 +7,7 @@ export const OPEN_METEO = "https://api.open-meteo.com/v1/forecast";
 
 /** URL de la consulta: lugar con 2 decimales (≈ 1 km) y, si se sabe, la altitud (m). */
 export function nowUrl(lat, lon, elev) {
-  const q = new URLSearchParams({ latitude: lat.toFixed(2), longitude: lon.toFixed(2), current: "temperature_2m,weather_code,is_day", timezone: "GMT" });
+  const q = new URLSearchParams({ latitude: lat.toFixed(2), longitude: lon.toFixed(2), current: "temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m", wind_speed_unit: "kmh", timezone: "GMT" });
   if (Number.isFinite(elev)) q.set("elevation", String(Math.round(elev)));
   return `${OPEN_METEO}?${q}`;
 }
@@ -16,7 +16,10 @@ export function nowUrl(lat, lon, elev) {
 export function parseNow(json) {
   const c = json && json.current;
   if (!c || typeof c.temperature_2m !== "number" || !Number.isFinite(c.temperature_2m)) return null;
-  return { temp: c.temperature_2m, code: Number.isFinite(c.weather_code) ? c.weather_code : null, day: c.is_day !== 0 };
+  const ws = Number.isFinite(c.wind_speed_10m) && c.wind_speed_10m >= 0 ? c.wind_speed_10m : null;
+  const wd = ws != null && Number.isFinite(c.wind_direction_10m) ? ((c.wind_direction_10m % 360) + 360) % 360 : null;
+  // windKmh: velocidad a 10 m del suelo; windFrom: de dónde viene (grados desde el norte hacia el este), como en meteorología
+  return { temp: c.temperature_2m, code: Number.isFinite(c.weather_code) ? c.weather_code : null, day: c.is_day !== 0, windKmh: ws, windFrom: wd };
 }
 
 /** Código WMO → icono (icons.jsx) y nombre del estado. */
@@ -39,3 +42,28 @@ export const WX_NAMES = {
 
 /** «16 °C» (o «−3 °C»), redondeado al grado. */
 export const fmtTemp = (t) => `${Math.round(t) === 0 ? 0 : Math.round(t)}`.replace("-", "−") + " °C";
+
+const ROSE = { es: ["N", "NE", "E", "SE", "S", "SO", "O", "NO"], en: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] };
+const ROSE_LONG = {
+  es: ["norte", "noreste", "este", "sureste", "sur", "suroeste", "oeste", "noroeste"],
+  en: ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"],
+};
+/** Rumbo (grados) → «NE» (o, con long, «noreste»), en 8 rumbos. */
+export function compass8(deg, lang = "es", long = false) {
+  const i = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
+  return ((long ? ROSE_LONG : ROSE)[lang] || (long ? ROSE_LONG : ROSE).es)[i];
+}
+/** «12 km/h» (redondeado; en calma, «0 km/h»). */
+export const fmtWind = (kmh) => `${Math.round(kmh)} km/h`;
+/** Texto largo: «Viento del noreste, 12 km/h» / «Calma». */
+export function windText(now, lang = "es") {
+  if (!now || now.windKmh == null) return "";
+  if (now.windKmh < 1 || now.windFrom == null) return lang === "en" ? "Calm" : "Calma";
+  return lang === "en" ? `Wind from the ${compass8(now.windFrom, "en", true)}, ${fmtWind(now.windKmh)}` : `Viento del ${compass8(now.windFrom, "es", true)}, ${fmtWind(now.windKmh)}`;
+}
+/** El viento como vector (m/s; [hacia el este, hacia el norte]) o null: hacia dónde sopla. */
+export function windVector(now) {
+  if (!now || now.windKmh == null || now.windFrom == null || now.windKmh < 1) return null;
+  const sp = now.windKmh / 3.6, a = (now.windFrom * Math.PI) / 180;
+  return [-sp * Math.sin(a), -sp * Math.cos(a)];
+}

@@ -13,8 +13,9 @@ import * as THREE from "three";
 
 const R_SKY = 850;                      // radio de la esfera donde se dibuja el rectángulo (como los nombres, a 860)
 const STEPS = 40;
-// altura típica de la columna (km sobre el cráter) para cada VEI (Newhall y Self, 1982)
-export const VEI_KM = [0.1, 0.6, 3, 9, 17, 27, 35, 40, 45];
+// altura de la columna (km sobre el cráter) para cada VEI: la parte baja del intervalo de Newhall y Self (1982).
+// El VEI de una erupción larga es el de su momento más fuerte; casi todo el tiempo la columna fue menor
+export const VEI_KM = [0.1, 0.6, 2.5, 6, 13, 25, 32, 38, 42];
 export const veiColumnKm = (vei) => VEI_KM[Math.max(0, Math.min(8, Number.isFinite(vei) ? Math.round(vei) : 2))];
 
 /** Posición (km; x este, y arriba, z −norte) del cráter visto desde el observador: rumbo, ángulo y distancia. */
@@ -34,10 +35,10 @@ export function plumeParams(vei, kind = "sim", windMs = 5) {
     const H = Math.max(0.8, Math.min(2.2, veiColumnKm(vei) * 0.5));
     return { H, Lb: H * 0.9 * w, len: Math.max(7, H * 6), r0: 0.16, ash: 0.3, strong: 0 };
   }
-  const H = veiColumnKm(vei), strong = H >= 6 ? 1 : 0;
+  const H = veiColumnKm(vei), strong = H >= 10 ? 1 : 0;
   return strong
     ? { H, Lb: H * 0.14 * w, len: H * 2.6, r0: 0.05 * H + 0.3, ash: 0.9, strong }
-    : { H: Math.max(0.5, H), Lb: Math.max(0.4, H * 0.8 * w), len: Math.max(5, H * 5), r0: 0.12 + 0.05 * H, ash: 0.8, strong };
+    : { H: Math.max(0.5, H), Lb: Math.max(0.4, H * 0.8 * w), len: Math.max(5, Math.min(22, H * 5)), r0: 0.12 + 0.05 * H, ash: 0.8, strong };
 }
 
 /** Altura (km) de la línea central a `u` km del cráter a favor del viento. */
@@ -74,13 +75,16 @@ float dens(vec3 p, int oct, out float path) {
   float dA = z < 0.97 * uH ? length(vec2(u - ucz, v)) : 1e3;
   float dB = length(vec3(min(u, 0.0), v, z - hc));
   float dd = min(dA, dB);
-  path = (dA < dB ? ucz + zc : uc + hc);
-  float r = uR0 + 0.2 * path + uStrong * 0.35 * uH * smoothstep(0.75 * uH, uH, z);   // el paraguas de las grandes
+  path = mix(ucz + zc, uc + hc, smoothstep(-0.5, 0.5, (dA - dB) / (uR0 + 0.3)));
+  // se ensancha al alejarse, cada vez menos (si no, una pluma larga acabaría ocupando medio cielo)
+  float r = uR0 + 0.2 * path / (1.0 + path / 12.0) + uStrong * 0.35 * uH * smoothstep(0.75 * uH, uH, z);   // el paraguas de las grandes
   if (dd > r * 1.7) return 0.0;
   // el borde, roto por ruido que viaja con la pluma (coliflores); más grueso cuanto más ancha
   // coordenadas que crecen con la pluma (los bultos se agrandan al alejarse) y viajan con ella sin deformarse
   float sc = 0.55 * r + 0.25;
-  vec3 nc = vec3(log(sc) / 0.11 - uT * 0.3, v / sc, (dA < dB ? u - ucz : z - hc) / sc);
+  // (la tercera pasa sin salto del tramo que sube al tendido: con un salto se vería una arista recta en el humo)
+  float tb = smoothstep(-0.5 * r, 0.5 * r, dA - dB);
+  vec3 nc = vec3(log(sc) / 0.11 - uT * 0.3, v / sc, mix(u - ucz, z - hc, tb) / sc);
   float nz = fbm(nc, oct);
   dd += r * 1.25 * (nz - 0.45);
   float d = smoothstep(r, r * 0.45, dd);
@@ -96,7 +100,7 @@ void main() {
   if (disc <= 0.0) discard;
   float sq = sqrt(disc), tA = max(b - sq, 0.0), tB = b + sq;
   // …y contra las dos losas que la ciñen (ancho a través del viento y altura): pasos más cortos, sin rayado
-  float rm = 1.7 * (uR0 + 0.2 * (uLen + uH) + uStrong * 0.35 * uH);
+  float rm = 1.7 * (uR0 + min(2.4, 0.2 * (uLen + uH)) + uStrong * 0.35 * uH);
   float dv = dot(d.xz, vec2(-uW.y, uW.x)), v0 = dot(uVent.xz, vec2(-uW.y, uW.x));
   if (abs(dv) > 1e-4) { float a1 = (v0 - rm) / dv, a2 = (v0 + rm) / dv; tA = max(tA, min(a1, a2)); tB = min(tB, max(a1, a2)); }
   if (abs(d.y) > 1e-4) { float a1 = (uVent.y - 0.05) / d.y, a2 = (uVent.y + uH + rm) / d.y; tA = max(tA, min(a1, a2)); tB = min(tB, max(a1, a2)); }
@@ -110,7 +114,7 @@ void main() {
     vec3 p = d * (tA + (float(i) + jit) * dt);
     float path, rho = dens(p, 4, path);
     if (rho > 0.004) {
-      float pl, shd = dens(p + uSun * (uR0 + 0.12 * path) * 0.9, 2, pl);
+      float pl, shd = dens(p + uSun * (uR0 + min(1.5, 0.12 * path)) * 0.9, 2, pl);
       float lit = exp(-1.8 * shd);
       // ceniza cerca del cráter, más clara (vapor y ceniza fina) al alejarse
       float ash = uAsh * mix(1.0, 0.55, smoothstep(0.0, uLen * 0.7, path));

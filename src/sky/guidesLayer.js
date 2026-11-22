@@ -75,7 +75,9 @@ function marker(dir, R, material) {
   for (const [x0, y0, x1, y1] of [[-c, 0, -r, 0], [r, 0, c, 0], [0, -c, 0, -r], [0, r, 0, c]]) {
     const p = at(x0, y0), q = at(x1, y1); lines.push({ pts: new Float32Array([p.x, p.y, p.z, q.x, q.y, q.z]) });
   }
-  return segments(lines, R, material);
+  const seg = segments(lines, R, material);
+  seg.userData.pole = d.clone().multiplyScalar(R);      // para encogerlo al acercarse (setFov)
+  return seg;
 }
 
 // guías ecuatoriales que se dibujan en el ecuador DE LA FECHA (grupo eqDate)
@@ -168,6 +170,14 @@ export class GuidesLayer {
     this.eqDate.visible = s.equator || s.eqGrid || s.poles;
   }
 
+  /** Con el zoom, las marcas de polos, cenit y nadir conservan su tamaño en pantalla (no crecen al acercarse). */
+  setFov(fovDeg) {
+    const s = Math.min(1, Math.max(0.03, fovDeg / 60));
+    for (const g of [this.objs.polesEq, this.objs.polesLocal]) for (const m of g.children) {
+      if (!m.userData.pole) continue;
+      m.scale.setScalar(s); m.position.copy(m.userData.pole).multiplyScalar(1 - s);
+    }
+  }
   /** Enciende o apaga una guía ("ecliptic", "equator", "galactic", "eqGrid", "altAzGrid", "meridian", "poles"). */
   setVisible(key, on) {
     if (!(key in this.state)) return;

@@ -234,7 +234,7 @@ console.log("Cuadrícula ecuatorial, densidad según el zoom y etiquetas");
   const es = GUIDES.es, en = GUIDES.en, keysOf = (o) => JSON.stringify(Object.keys(o).sort());
   ok(keysOf(es) === keysOf(en) && GUIDE_KEYS.every((k) => es.guideName[k] && en.guideName[k] && es.guideDesc[k] && en.guideDesc[k]), "i18n-guides: mismas claves en ES y EN, una explicación por guía");
   ok(JSON.stringify(sanitizeGuides({ ecliptic: true, galactic: "sí", bogus: true })) === JSON.stringify({ ...DEFAULT_GUIDES, ecliptic: true }), "sanitizeGuides descarta valores no booleanos y claves desconocidas");
-  ok(GUIDE_KEYS.every((k) => DEFAULT_GUIDES[k] === false) && LOCAL_ONLY.has("altAzGrid") && LOCAL_ONLY.has("meridian"), "por defecto todo apagado; cuadrícula horizontal y meridiano solo en Mi cielo");
+  ok(GUIDE_KEYS.every((k) => DEFAULT_GUIDES[k] === (k === "ecliptic")) && LOCAL_ONLY.has("altAzGrid") && LOCAL_ONLY.has("meridian"), "por defecto solo la eclíptica; cuadrícula horizontal y meridiano solo en Mi cielo");
 }
 
 console.log("GuidesLayer (three, sin WebGL)");

@@ -50,7 +50,13 @@ export function eruptingInView(volcs, hz, lat, lon, angleOf, maxKm = 150) {
     const az = bearingDeg(lat, lon, v.lat, v.lon), alt = angleOf(v.elev_m, d, h0);
     const i = ((Math.round(az / step) % n) + n) % n;
     if (alt < hz.alt[i] - 0.3) continue;                        // tapado por montañas más cercanas
-    out.push({ az, alt: Math.max(alt, hz.alt[i]), dist_km: d, vei: v.last_vei, name: v.name, id: v.id });
+    // el cráter, en lo más alto del filo cercano (±1,5 km vistos desde aquí): la altura y el punto del catálogo no
+    // coinciden del todo con el modelo de relieve, y la pluma saldría flotando sobre la cima
+    const w = Math.max(2, Math.ceil((Math.atan2(1.5, d) * 180 / Math.PI) / step));
+    let bi = i, ba = hz.alt[i];
+    for (let q = -w; q <= w; q++) { const k = (((i + q) % n) + n) % n; if (hz.alt[k] > ba) { ba = hz.alt[k]; bi = k; } }
+    const onRim = Math.abs(ba - alt) <= 0.8;
+    out.push({ az: onRim ? bi * step : az, alt: onRim ? ba : Math.max(alt, hz.alt[i]), dist_km: d, vei: v.last_vei, name: v.name, id: v.id });
   }
   return out;
 }
@@ -151,8 +157,9 @@ export const VT = {
     erupting: (y) => `El Smithsonian la da en erupción en ${y}. La columna que se dibuja sobre ella es ilustrativa: para alertas oficiales, el Instituto Geofísico.`,
     simulate: "Simular su última erupción",
     gasNote: "Sobre él se dibuja una pluma de gases y ceniza (ilustrativa: la forma es genérica).",
-    simChip: (n, vei, km) => `Simulación ilustrativa · ${n} · VEI ${vei} · columna ≈ ${km} km`,
+    simChip: (n, vei, km, y) => `Simulación ilustrativa · ${n}${y != null ? ` · su última erupción fue en ${y < 0 ? `${-y} a. C.` : y}` : ""}: hoy no está en erupción · VEI ${vei} · columna ≈ ${km} km`,
     simStop: "Parar",
+    simStopLong: "Parar la simulación",
     simNote: "Solo la altura (por el VEI) y la dirección del viento salen de datos; la forma es genérica. No es una predicción.",
   },
   en: {
@@ -169,8 +176,9 @@ export const VT = {
     erupting: (y) => `The Smithsonian lists it as erupting in ${y}. The plume drawn over it is illustrative: for official alerts, check your geophysical institute.`,
     simulate: "Simulate its last eruption",
     gasNote: "A plume of gas and ash is drawn over it (illustrative: the shape is generic).",
-    simChip: (n, vei, km) => `Illustrative simulation · ${n} · VEI ${vei} · column ≈ ${km} km`,
+    simChip: (n, vei, km, y) => `Illustrative simulation · ${n}${y != null ? ` · its last eruption was in ${y < 0 ? `${-y} BCE` : y}` : ""}: not erupting today · VEI ${vei} · column ≈ ${km} km`,
     simStop: "Stop",
+    simStopLong: "Stop the simulation",
     simNote: "Only the height (from the VEI) and the wind direction come from data; the shape is generic. Not a prediction.",
   },
 };

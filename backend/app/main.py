@@ -70,9 +70,10 @@ from app import horizon
 from app import peaks
 from app import volcanoes
 from app import landcolor
+from app import terrain3d
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.52.0"
+VERSION = "1.53.0"
 _STARTED = time.time()
 
 app = FastAPI(
@@ -367,6 +368,7 @@ async def _metrics_flusher():
 
 app.include_router(sun.router)  # «El Sol hoy»: /api/sun/today (app/sun.py)
 app.include_router(push.router)  # «Recordarme»: /api/push/* y su bucle de envío (arranque/parada en app/push.py)
+app.include_router(terrain3d.router)  # relieve cercano en 3D con la imagen de satélite: /api/terrain/near (app/terrain3d.py)
 app.include_router(landcolor.router)  # color real de las laderas: /api/horizon/colors (app/landcolor.py, Sentinel-2 cloudless)
 app.include_router(horizon.router)  # horizonte real: /api/horizon (app/horizon.py, relieve de AWS Terrain Tiles)
 app.include_router(peaks.router)    # nombres de las montañas del horizonte: /api/peaks (app/peaks.py, OpenStreetMap)

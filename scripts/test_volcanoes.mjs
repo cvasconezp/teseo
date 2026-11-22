@@ -50,7 +50,7 @@ ok(VT.es.sub("4.784 m", 2002) === "4.784 m · erupción 2002", "texto bajo el no
 
 console.log("El tiempo de ahora");
 const u = new URL(nowUrl(0.04312, -78.14563, 2911.4));
-ok(u.searchParams.get("latitude") === "0.04" && u.searchParams.get("elevation") === "2911" && u.searchParams.get("current") === "temperature_2m,weather_code,is_day", "lugar a 1 km y temperatura corregida a la altitud");
+ok(u.searchParams.get("latitude") === "0.04" && u.searchParams.get("elevation") === "2911" && u.searchParams.get("current") === "temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m" && u.searchParams.get("wind_speed_unit") === "kmh", "lugar a 1 km y temperatura corregida a la altitud");
 ok(!new URL(nowUrl(0, 0, null)).searchParams.get("elevation"), "sin altitud, la del modelo de Open-Meteo");
 ok(parseNow({ current: { temperature_2m: 15.6, weather_code: 61, is_day: 1 } }).temp === 15.6 && parseNow({}) === null, "lee la respuesta");
 ok(wxKind(0, true) === "sun" && wxKind(0, false) === "moon" && wxKind(3) === "cloud" && wxKind(63) === "rain" && wxKind(95) === "storm" && wxKind(73) === "snow" && wxKind(45) === "fog", "códigos WMO → icono");
@@ -62,15 +62,25 @@ ok(Math.abs(la2 + 0.2) < 1e-9 && Math.abs(lo2 + 78.5) < 1e-9, "Mercator ida y vu
 ok(Math.abs(toPx(0, 0, 0)[0] - 128) < 1e-9 && Math.abs(toPx(0, 0, 0)[1] - 128) < 1e-9, "el centro del mundo en el zoom 0");
 ok(/^https:\/\/[abc]\.tile\.opentopomap\.org\/12\/1\/2\.png$/.test(TOPO_TILE(12, 1, 2)), "teselas de OpenTopoMap");
 
+{
+  const { parseNow: pn, compass8, windText, windVector, fmtWind } = await import("../src/sky/nowWeather.js");
+  const w = pn({ current: { temperature_2m: 12, weather_code: 2, is_day: 1, wind_speed_10m: 14.4, wind_direction_10m: 45 } });
+  ok(w.windKmh === 14.4 && w.windFrom === 45 && compass8(45) === "NE" && compass8(225, "es") === "SO" && compass8(225, "en") === "SW" && compass8(350) === "N", "viento: velocidad y de dónde viene, en 8 rumbos");
+  ok(windText(w, "es") === "Viento del noreste, 14 km/h" && windText(w, "en") === "Wind from the northeast, 14 km/h" && fmtWind(3.6) === "4 km/h", "viento en palabras");
+  const v = windVector(w);
+  ok(Math.abs(v[0] + 4 * Math.SQRT1_2) < 1e-9 && Math.abs(v[1] + 4 * Math.SQRT1_2) < 1e-9, "el viento del noreste sopla hacia el suroeste (4 m/s)");
+  const calm = pn({ current: { temperature_2m: 12, wind_speed_10m: 0.4, wind_direction_10m: 10 } });
+  ok(windText(calm, "es") === "Calma" && windVector(calm) === null && pn({ current: { temperature_2m: 5 } }).windKmh === null && windText(pn({ current: { temperature_2m: 5 } })) === "", "calma y respuesta sin viento");
+}
 console.log("Erupciones ilustrativas");
-ok(veiColumnKm(2) === 3 && veiColumnKm(4) === 17 && veiColumnKm(null) === 3 && veiColumnKm(12) === 45, "altura de la columna según el VEI (Newhall y Self)");
+ok(veiColumnKm(2) === 2.5 && veiColumnKm(3) === 6 && veiColumnKm(4) === 13 && veiColumnKm(null) === 2.5 && veiColumnKm(12) === 42, "altura de la columna según el VEI (Newhall y Self)");
 const vp = ventPos(90, 0, 10);
 ok(Math.abs(vp[0] - 10) < 1e-9 && Math.abs(vp[1]) < 1e-9 && Math.abs(vp[2]) < 1e-9, "cráter al este, en el horizonte");
 const weak = plumeParams(2, "sim", 6), big = plumeParams(4, "sim", 6), gas = plumeParams(2, "gas", 6);
-ok(weak.strong === 0 && big.strong === 1 && weak.H === 3 && big.H === 17 && big.Lb / big.H < weak.Lb / weak.H, "erupción pequeña: pluma tendida; grande: columna casi vertical con paraguas");
+ok(weak.strong === 0 && big.strong === 1 && plumeParams(3, "sim", 6).strong === 0 && weak.H === 2.5 && big.H === 13 && big.Lb / big.H < weak.Lb / weak.H, "erupción pequeña: pluma tendida; grande: columna casi vertical con paraguas");
 ok(gas.H <= 2.2 && gas.ash < weak.ash, "en erupción ahora: pluma baja y clara (sobre todo gases)");
 ok(plumeParams(2, "sim", 12).Lb > weak.Lb, "con más viento se tumba antes de subir (pluma más tendida)");
-ok(centerHeight(0, weak) === 0 && centerHeight(100, weak) > 2.99 && centerHeight(weak.Lb, weak) > 1.8 && centerHeight(weak.Lb, weak) < 2, "la línea central sube y se allana a la altura de la columna");
+ok(centerHeight(0, weak) === 0 && centerHeight(100, weak) > 2.49 && centerHeight(weak.Lb, weak) > 1.5 && centerHeight(weak.Lb, weak) < 1.65, "la línea central sube y se allana a la altura de la columna");
 {
   const pl = readFileSync(new URL("../src/sky/plumeLayer.js", import.meta.url), "utf8");
   ok(/float dens\(/.test(pl) && /uSun/.test(pl) && /fbm\(/.test(pl), "humo volumétrico con ruido y luz del Sol");

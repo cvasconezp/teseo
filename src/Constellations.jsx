@@ -59,6 +59,7 @@ import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/cloudsLayer.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
 import { andeanLabels, TX_AND } from "./sky/andean.js";
+import { fetchNearTerrain, createNearTerrainLayer } from "./sky/terrain3d.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit, fetchLandColors } from "./sky/horizon.js";
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints } from "./sky/monumentLayer.js";
@@ -80,7 +81,7 @@ import { GuidesControls, useGuides } from "./sky/GuidesControls.jsx";
 import { IssLayer, ISS_COLORS, ISS_RATES, stepClock as stepIssClock } from "./sky/issLayer.js";
 import IssSheet from "./sky/IssSheet.jsx";
 import PeakSheet from "./sky/PeakSheet.jsx";
-import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp } from "./sky/nowWeather.js";
+import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp, compass8, fmtWind, windText, windVector } from "./sky/nowWeather.js";
 import { fetchVolcanoes, matchVolcanoes, recentEruption, eruptingInView, volcanoesOnSkyline, VT as VOLC_T } from "./sky/volcanoes.js";
 import { angleOf as terrainAngleOf } from "./sky/terrainLayer.js";
 import { createPlumeLayer, veiColumnKm, plumeParams } from "./sky/plumeLayer.js";
@@ -636,7 +637,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [datasetsRaw, setDatasets] = useState({}); // key -> {objects}
   const [cometOrbits, setCometOrbits] = useState(null);   // public/comet-orbits.json (.comets)
   const [neoRaw, setNeoRaw] = useState(null);             // /api/asteroids: los que pasan cerca de la Tierra estos días, con su órbita
-  const [enabled, setEnabled] = useState({ photo: true, ngc: true });   // key -> bool (el mapa fotográfico y NGC/IC, que solo salen al acercarse, vienen encendidos)
+  // capas encendidas al empezar (las demás se encienden en «Capas» o llegan en el enlace)
+  const [enabled, setEnabled] = useState({ photo: true, ngc: true, minor: true, comets: true, probes: true, messier: true, galaxies: true, deepfields: true, blackholes: true });   // key -> bool (el mapa fotográfico y NGC/IC, que solo salen al acercarse, vienen encendidos)
   const [selObj, setSelObj] = useState(null);
   const [viewFrom, setViewFrom] = useState(null); // null = Tierra; {name,pos:[x,y,z]} = otra estrella
   const [outside, setOutside] = useState(false);  // vista opcional: la esfera celeste entera, desde fuera
@@ -671,7 +673,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [hzRetry, setHzRetry] = useState(0);
   const satOn = true;   // los colores del satélite van siempre con «Montañas» (sin interruptor propio)
   const [land, setLand] = useState({ key: null, status: null, data: null });
-  const [peaksOn, setPeaksOn] = useState(() => { try { return localStorage.getItem(PEAKS_KEY) === "1"; } catch { return false; } });
+  const [peaksOn, setPeaksOn] = useState(() => { try { return localStorage.getItem(PEAKS_KEY) !== "0"; } catch { return true; } });
   const [andOn, setAndOn] = useState(() => { try { return localStorage.getItem(ANDEAN_KEY) === "1"; } catch { return false; } });
   const [consOn, setConsOn] = useState(() => { try { return localStorage.getItem(CONS_KEY) !== "0"; } catch { return true; } });
   const [pk, setPk] = useState({ status: "idle", data: null, key: null });   // nombres de las cumbres (/api/peaks)
@@ -1334,6 +1336,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // montañas del horizonte real (src/sky/terrainLayer.js): en el marco local, sobre el suelo sombreado
     const terrain = createTerrainLayer();
     horizon.add(terrain.group);
+    // el relieve cercano en 3D con la imagen de satélite (src/sky/terrain3d.js), delante de las franjas
+    const near3d = createNearTerrainLayer({ onReady: () => { const r = sceneRef.current; if (r) r._dirty = true; } });
+    horizon.add(near3d.group);
     // monumentos (src/sky/monumentLayer.js): en 3D en el mismo marco, delante de las montañas
     const monuments = createMonumentLayer({ onReady: () => { const r = sceneRef.current; if (r) r._dirty = true; } });
     horizon.add(monuments.group);
@@ -1537,6 +1542,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       if (r.mode === "in") {
         camera.fov = spanToFov(r.look.span, camera.aspect);
         r.points.material.uniforms.uScale.value = starScaleFor(camera.fov);
+        if (r.guides && r.guides.setFov) r.guides.setFov(camera.fov);
       } else {
         camera.fov = 55;
         r.points.material.uniforms.uScale.value = 1;
@@ -1604,7 +1610,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, plume, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat, groundMesh: ground, horizonLine,
+      atm, clouds, terrain, monuments, plume, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat, groundMesh: ground, horizonLine, near3d,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1666,8 +1672,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           for (let i = 0; i < stars.length; i++) {
             const s = stars[i], d = dirOf(s[1], s[2], s[3]);
             // bajo el horizonte manda el suelo sombreado (deja ver y tocar lo que hay debajo), no la atmósfera
-            if (d[1] <= 0) { atmAlpha[i] = 1; atmRed[i] = 0; starVis[i] = 1; continue; }
-            const v = visibility({ mag: s[4], dir: d }, st);
+            // (desde un alto el cielo baja hasta las montañas: entre 0° y ese filo sigue siendo cielo, con su luz)
+            const dipR = ((sceneRef.current && sceneRef.current.skyDip) || 0) * Math.PI / 180;
+            if (d[1] <= 0 && !(dipR < 0 && d[1] > Math.sin(dipR))) { atmAlpha[i] = 1; atmRed[i] = 0; starVis[i] = 1; continue; }
+            let dv2 = d;
+            if (d[1] <= 0) { const hl = Math.hypot(d[0], d[2]) || 1; dv2 = [d[0] / hl * 0.99995, 0.01, d[2] / hl * 0.99995]; }
+            const v = visibility({ mag: s[4], dir: dv2 }, st);
             if (v.visible && occ && occ(d) > OCC_HIDE) v.visible = false;   // detrás de una nube: sin nombre ni recuento
             if (v.visible && behind(d)) v.visible = false;                  // detrás de una montaña
             atmAlpha[i] = v.alpha; atmRed[i] = v.visible ? Math.min(1, v.reddening / 1.2) : 0; starVis[i] = v.visible ? 1 : 0;
@@ -1737,7 +1747,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       camera.quaternion.copy(lookQuat(lk.yaw, lk.pitch, lk.qF));
       applyFov();
       if (E2E) window.__teseoSky = {
-        tex: (on) => { for (const m of r.terrain.group.children) if (m.material && m.material.userData && m.material.userData.tex) m.material.userData.tex.value = on ? 1 : 0; r.wake(); },
+        vis: (name, on) => { const o = name === "near" ? r.near3d.group : name === "bands" ? r.terrain.group : name === "clouds" ? r.clouds : null; if (o) { (o.group || o).visible = !!on; r.wake(); } },
+        near3dGeo: () => { const m = r.near3d.group.children[0]; if (!m) return null; const P = m.geometry.attributes.position.array, H = m.geometry.attributes.aHD.array, out = []; for (const k of [399 * 160 + 40, 400 * 160 + 80, 400 * 160 + 120, 400 * 160 + 159, 159]) out.push([P[k * 3], P[k * 3 + 1], P[k * 3 + 2], H[k * 2], H[k * 2 + 1]].map((x) => Math.round(x * 10) / 10)); return out; },
+        near3d: (k, v) => { const m = r.near3d.group.children[0]; if (!m) return null; const u = m.material.uniforms, o = {}; if (k) { u[k].value = v; r.wake(); } for (const k in u) if (typeof u[k].value === "number") o[k] = u[k].value; return o; },
+        tex: (on) => { for (const m of r.terrain.group.children) if (m.material && m.material.userData && m.material.userData.tex) m.material.userData.tex.value = on ? 1 : 0; r.near3d.setEnabled(!!on); r.wake(); },
         hips: () => (r.hips ? { ...r.hips.stats, active: r.hips.active, fine: r.hipsFine ? { ...r.hipsFine.stats, level: r.hipsFine.level } : null } : null),
         // estado de cada capa (pruebas): puntos a la vista por capa, mapa fotográfico, cometas dibujados
         layers: () => { const o = {}; for (const l of (r.layerObjs || [])) { o[l.key] = o[l.key] || { n: 0, visible: false }; o[l.key].n += l.points.userData.objs.length; o[l.key].visible = o[l.key].visible || l.points.visible; } return { pts: o, photo: !!r.hipsOn, img: r.skyImages ? r.skyImages.state : null, cometItems: r.cometLayer ? r.cometLayer.group.children.length : 0, fov: r.camera.fov }; },
@@ -2650,6 +2663,17 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     return () => { alive = false; };
   }, [satOn, hzData, hzKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   const landData = satOn && land.key === hzKey && land.status === "ok" ? land.data : null;
+  // el relieve cercano en 3D (hasta 25 km) con la imagen de satélite encima (backend/app/terrain3d.py)
+  const [near3, setNear3] = useState({ key: null, near: null });
+  useEffect(() => {
+    if (!satOn || !hzData || !hzKey) return undefined;
+    let alive = true;
+    fetchNearTerrain(lat, lon, { api: API, fine: placeFine }).then(
+      (near) => { if (alive) setNear3({ key: hzKey, near }); },
+      () => { if (alive) setNear3({ key: hzKey, near: null }); });
+    return () => { alive = false; };
+  }, [satOn, hzData, hzKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const nearData = satOn && hzData && near3.key === hzKey ? near3.near : null;
   // volcanes del Smithsonian de la zona (para la ficha de cada volcán del horizonte; src/sky/volcanoes.js)
   const [volc, setVolc] = useState({ key: null, list: null });
   const volcKey = hzData && lat != null && lon != null ? `${Math.round(lat * 2)},${Math.round(lon * 2)}` : null;
@@ -2781,6 +2805,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (hzEff && hzEff.alt) for (const v of hzEff.alt) if (v < low) low = v;
     const dip = low < 0 ? low - 0.3 : 0;
     if (ref.atm && ref.atm.setDip) ref.atm.setDip(dip);
+    ref.skyDip = dip;
     if (ref.groundMesh) ref.groundMesh.position.y = -1.5 + 905 * Math.tan((dip * Math.PI) / 180);
     if (ref.horizonLine) ref.horizonLine.material.opacity = dip < 0 ? 0.25 : 0.85;   // la línea de 0° queda como referencia tenue
     if (ref.terrain.data !== hzData || ref.terrain.floor !== floor) ref.terrain.set(hzData, lat, null, floor);
@@ -2789,7 +2814,19 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   useEffect(() => {      // el color de las montañas sigue la luz del cielo (sin atmósfera: siluetas de noche)
     const ref = sceneRef.current; if (!ref || !ref.terrain || !hzData) return;
     try { ref.terrain.setLand(landData, satOn); ref.terrain.paint(atmState); } catch { /* no-op */ }
-  }, [hzData, atmState, ready, placeSummit, landData, satOn]);
+    try {
+      let low = 0;
+      if (hzData.alt) for (const v of hzData.alt) if (v < low) low = v;
+      ref.near3d.setLook(atmState, { hz: hzData, lat, floor: ref.terrain.floor, lowest: low });
+      ref._dirty = true;
+    } catch { /* no-op */ }
+  }, [hzData, atmState, ready, placeSummit, landData, satOn, nearData]);
+  useEffect(() => {      // la malla del relieve cercano: se pone cuando llegan sus datos y se quita al cambiar de lugar
+    const ref = sceneRef.current; if (!ref || !ref.near3d) return;
+    ref.near3d.set(hzData && nearData ? nearData : null, hzKey);
+    ref.near3d.setEnabled(!!hzData);
+    ref._dirty = true;
+  }, [hzData, nearData, hzKey, ready]);
 
   // nubes: pronóstico de Open-Meteo para el lugar (solo si se piden o se abre su panel) y capa del cielo
   useEffect(() => { try { localStorage.setItem(CLOUDS_KEY, cloudsOn ? "1" : "0"); } catch { /* no-op */ } }, [cloudsOn]);
@@ -2819,12 +2856,13 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.plume.ambient(amb);
     let windMs = null;
     try { if (wxData) { const c = cloudsAt(wxData, new Date(whenStr)); windMs = c && c.wind && c.wind.mid; } } catch { /* sin viento */ }
+    if (!windMs) windMs = windVector(wxNow);        // sin pronóstico en altura, el viento de ahora en superficie
     const day = atmState ? Math.min(1, Math.max(0, (atmState.sunAlt + 8) / 14)) : 0;
     // arrebol: con el Sol entre −4° y 8°, la luz que llega a la pluma es rojiza
     const sa = atmState ? atmState.sunAlt : -90, glow = sa > -6 && sa < 10 ? 1 - Math.abs(sa - 1) / 9 : 0;
     ref.plume.setLook({ windMs, day, glow: Math.max(0, glow), sunDir: atmState && atmState.sunDir ? atmState.sunDir : null, horizon: atmState && atmState.colors ? atmState.colors.horizon : null });
     ref._dirty = true;
-  }, [plumeSim, peakList, volcList, hzData, localActive, viewFrom, wxData, whenStr, atmState, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [plumeSim, peakList, volcList, hzData, localActive, viewFrom, wxData, whenStr, atmState, ready, wxNow]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setPlumeSim(null); }, [lat, lon]);
 
   // atmósfera: estrellas, planetas y cielo profundo según lo que deja ver el cielo (después de colocar
@@ -3952,8 +3990,20 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const k = wxKind(wxNow.code, wxNow.day), nm = (WX_NAMES[lang] || WX_NAMES.es)[k];
     return (
       <button type="button" className="sk-chip sk-wx-pill" onClick={() => { setWxWanted(true); openPanel("layers"); }}
-        aria-label={`${nm}, ${fmtTemp(wxNow.temp)} · ${placeLabel}`} title={`${nm} · ${placeLabel}`}>
+        aria-label={`${nm}, ${fmtTemp(wxNow.temp)}${wxNow.windKmh != null ? `. ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}
+        title={`${nm}${wxNow.windKmh != null ? ` · ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}>
         <Icon name={`wx_${k}`} size={18} /><span>{fmtTemp(wxNow.temp)}</span>
+        {wxNow.windKmh != null && (
+          <span className="sk-wx-wind">
+            {wxNow.windKmh >= 1 && wxNow.windFrom != null && (
+              // la flecha apunta hacia donde va el viento; las letras dicen de dónde viene
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style={{ transform: `rotate(${wxNow.windFrom + 180}deg)` }}>
+                <path d="M6 1 L9.6 9.8 L6 7.6 L2.4 9.8 Z" fill="currentColor" />
+              </svg>
+            )}
+            {wxNow.windKmh >= 1 && wxNow.windFrom != null ? `${compass8(wxNow.windFrom, lang)} ` : ""}{fmtWind(wxNow.windKmh)}
+          </span>
+        )}
       </button>
     );
   })() : null;
@@ -4080,7 +4130,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
                 const VTl = VOLC_T[lang] || VOLC_T.es, vei = plumeSim.volcano && Number.isFinite(plumeSim.volcano.last_vei) ? plumeSim.volcano.last_vei : 2;
                 return (
                   <div className="sk-chip tone-violet sk-sim-chip">
-                    <span>{VTl.simChip(plumeSim.label || plumeSim.name, vei, String(veiColumnKm(vei)).replace(".", lang === "es" ? "," : "."))}</span>
+                    <span>{VTl.simChip(plumeSim.label || plumeSim.name, vei, String(veiColumnKm(vei)).replace(".", lang === "es" ? "," : "."), plumeSim.volcano ? (Number.isFinite(plumeSim.volcano.last_end) ? plumeSim.volcano.last_end : Number.isFinite(plumeSim.volcano.last_start) ? plumeSim.volcano.last_start : null) : null)}</span>
                     <button type="button" onClick={() => setPlumeSim(null)}>{VTl.simStop}</button>
                   </div>
                 );
@@ -4247,6 +4297,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       )}
       {peakSheet && !selObj && (
         <PeakSheet t={t} lang={lang} peak={peakSheet} onClose={() => setPeakSheet(null)}
+          simulating={!!plumeSim && (plumeSim.label || plumeSim.name) === (peakSheet.label || peakSheet.name)} onStop={() => { setPlumeSim(null); setPeakSheet(null); }}
           onGo={() => { const pk0 = peakSheet; setPeakSheet(null); pickPlace({ name: pk0.label || pk0.name, lat: pk0.lat, lon: pk0.lon, elev: null, peak: 400 }); }}
           onSimulate={() => {
             const pk0 = peakSheet, ref = sceneRef.current; setPeakSheet(null); setPlumeSim(pk0);
