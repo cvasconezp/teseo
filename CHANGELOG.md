@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.57.1 — 2026-11-21
+
+- **Nombres siempre en su sitio tras un salto de la vista**: los nombres se recalculan solo uno de cada cinco cuadros; si la vista saltaba y luego se quedaba quieta, podían quedar donde estaban antes del salto hasta el siguiente cálculo (en un aparato lento, segundos). Ahora, si un cuadro con movimiento no los recalcula, se recalculan en el siguiente.
+- **«¿Sabías que…?» contrastado con fuentes**: el monte Olimpo de Marte mide unas dos veces y media el Everest (no casi tres); la Gran Mancha Roja de Júpiter se sigue sin interrupción desde 1878; Sirio B es algo más pequeña que la Tierra; se añade la distancia actual de Arturo (37 años luz) y se precisa el estudio de las Pléyades (Nature, 2000).
+
 ## 1.57.0 — 2026-11-21
 
 - **En las cumbres el paisaje se ve desde 5 m más arriba** (como desde una torre baja): con los ojos a 1,7 m, una cima ancha tapaba casi todo lo de abajo. Solo cambia el dibujo del relieve; el cielo y las horas de salida y puesta siguen siendo los del lugar. No se aplica donde hay monumentos al lado.

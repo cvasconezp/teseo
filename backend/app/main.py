@@ -74,7 +74,7 @@ from app import terrain3d
 from app import lightpollution
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.57.0"
+VERSION = "1.57.1"
 _STARTED = time.time()
 
 app = FastAPI(

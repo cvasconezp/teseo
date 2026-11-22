@@ -2019,7 +2019,13 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       // ── etiquetas con nivel de detalle (LOD) ──
       // (en reposo no se recalculan: si nada se movió, los nombres siguen donde estaban)
       if (draw) ref._lf = (ref._lf || 0) + 1;
-      if (draw && (ref._lf < 4 || ref._lf % 5 === 0)) {
+      // (si en un cuadro con movimiento no tocaba recalcularlos, quedan «atrasados» y se recalculan en el primer
+      // cuadro siguiente, haya o no dibujo: si no, tras un salto de la vista los nombres se quedaban donde estaban
+      // antes del salto hasta el siguiente cálculo, que en un aparato lento podía tardar segundos)
+      const lblTurn = draw && (ref._lf < 4 || ref._lf % 5 === 0);
+      if (moved && !lblTurn) ref._lblStale = true;
+      if (lblTurn || ref._lblStale) {
+        ref._lblStale = false;
         const W = mount.clientWidth, H = mount.clientHeight;
         // desde dentro (también apuntando) la cámara está en el centro: el detalle lo decide el campo de visión
         const inside = ar.on || ref.mode === "in", outside = !ar.on && ref.mode === "out";
@@ -2060,9 +2066,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           const dx = x - cpx, dy = y - cpy, dz = z - cpz, d = dx * fx + dy * fy + dz * fz;
           return d > 0 && d * d > cos2 * (dx * dx + dy * dy + dz * dz);
         };
-        // la cámara al día antes de proyectar los nombres: si no, tras un salto de la vista quedarían colocados con
-        // la orientación del cuadro anterior (y ahí se quedarían hasta el siguiente movimiento)
-        ref.camera.updateMatrixWorld();
+        ref.camera.updateMatrixWorld();   // la cámara al día antes de proyectar los nombres
         const proj = (x, y, z, cls) => {
           tmp.set(x, y, z);
           if (ref.localQuat) tmp.applyQuaternion(ref.localQuat);
