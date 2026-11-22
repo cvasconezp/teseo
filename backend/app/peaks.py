@@ -50,6 +50,7 @@ OVERPASS = (
 )
 NEAR_KM = 40.0          # hasta aquí, todas las cumbres con nombre
 MAX_KM = 150.0          # más lejos, solo las que tienen altura y superan la del lugar en ≥ 300 m
+VOLC_KM = 300.0         # y más allá de MAX_KM, solo volcanes (pocos y altos: asoman desde las cumbres)
 MIN_KM = 0.5
 MAX_PEAKS = 40
 TIMEOUT_S = 75.0            # los servidores públicos van cargados: a veces tardan
@@ -116,13 +117,13 @@ def bbox(lat: float, lon: float, km: float) -> str:
 def overpass_query(lat: float, lon: float, min_far_ele: float) -> str:
     """Consulta ligera para servidores cargados: etiquetas exactas (usan el índice, sin expresiones regulares ni
     «if») y el filtro de altura de las lejanas se hace aquí (`far_ok`)."""
-    near, far = bbox(lat, lon, NEAR_KM), bbox(lat, lon, MAX_KM)
+    near, far, volc = bbox(lat, lon, NEAR_KM), bbox(lat, lon, MAX_KM), bbox(lat, lon, VOLC_KM)
     return (
         "[out:json][timeout:60];("
         f'node["natural"="peak"]["name"]({near});'
         f'node["natural"="volcano"]["name"]({near});'
         f'node["natural"="peak"]["name"]["ele"]({far});'
-        f'node["natural"="volcano"]["name"]({far});'
+        f'node["natural"="volcano"]["name"]({volc});'
         ");out body qt;"
     )
 
@@ -134,6 +135,8 @@ def far_ok(el: dict, lat: float, lon: float, min_far_ele: float) -> bool:
     _, d = bearing_dist(lat, lon, float(el["lat"]), float(el["lon"]))
     if d <= NEAR_KM:
         return True
+    if d > MAX_KM and (el.get("tags") or {}).get("natural") != "volcano":
+        return False
     e = parse_ele((el.get("tags") or {}).get("ele"))
     return e is None or e >= min_far_ele
 
@@ -149,13 +152,13 @@ def visible_peaks(prof: dict, nodes: list, lang_keys=("es", "en")) -> list:
         if not name or "lat" not in el or "lon" not in el:
             continue
         az, d = bearing_dist(lat0, lon0, float(el["lat"]), float(el["lon"]))
-        if d < MIN_KM or d > MAX_KM:
+        is_volc = tags.get("natural") == "volcano" or name.lower().startswith("volc")
+        if d < MIN_KM or d > (VOLC_KM if is_volc else MAX_KM):
             continue
         tol = max(0.5, 0.08 * d)                                          # km: margen entre el modelo y el mapa
         w = max(2, int(math.ceil(max(0.4, math.degrees(math.atan2(0.35, d))) / step)))
         # un volcán es un macizo: su punto del mapa suele estar en el cráter o la laguna (Mojanda, Cuicocha), no en
         # el filo que se ve. Se busca el filo en todo el macizo (≈ 4 km alrededor)
-        is_volc = tags.get("natural") == "volcano" or name.lower().startswith("volc")
         if is_volc and d > 6.0:
             tol = max(tol, 4.0)
             w = max(w, int(math.ceil(math.degrees(math.atan2(3.5, d)) / step)))

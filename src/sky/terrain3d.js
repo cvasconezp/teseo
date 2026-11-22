@@ -1,4 +1,4 @@
-// terrain3d.js — el relieve en 3D (hasta 150 km) con la imagen de satélite encima, en la vista Cielo.
+// terrain3d.js — el relieve en 3D (hasta 300 km) con la imagen de satélite encima, en la vista Cielo.
 //
 // El servidor (backend/app/terrain3d.py) da las alturas en una rejilla polar (acimut × distancia geométrica) y
 // una imagen de Sentinel-2 cloudless 2016 (EOX, CC BY 4.0) en esa misma rejilla. Aquí se levanta la malla en el
@@ -14,7 +14,7 @@ import { cellKey, snowLine } from "./horizon.js";
 
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
-export const UNITS_PER_M = 0.0048;        // 150 km → 720 unidades (dentro de la esfera del cielo, radio ≈ 900)
+export const UNITS_PER_M = 0.0024;        // 300 km → 720 unidades (dentro de la esfera del cielo, radio ≈ 900)
 // Lo muy cercano quedaría por delante del plano cercano de la cámara (0,1 unidades = 8 m) y se recortaría: cada
 // vértice se aleja OFFSET unidades a lo largo de su propia dirección. Visto desde el origen nada cambia (misma
 // dirección, mismo orden de cerca a lejos).
@@ -33,6 +33,28 @@ export function decodeNear(body) {
 }
 
 /** Distancia (m) del anillo j. */
+/**
+ * La rejilla de relieve de los monumentos (monumentLayer.js: RELIEF_R × RELIEF_NA, alturas respecto a los ojos) sacada
+ * de las alturas del relieve 3D: así el piso de un sitio sigue la loma (Catequilla) en vez de ser un llano a la
+ * altura de los pies que tapa el valle.
+ */
+export function reliefFromNear(nr, reach, ground, radii, na, eye = 1.7) {
+  if (!nr || !nr.heights) return null;
+  const L = Math.log(nr.dMax / nr.dMin), h = new Array(radii.length * na);
+  radii.forEach((f, j) => {
+    const r = f * reach, x = Math.min(nr.nR - 1, Math.max(0, ((nr.nR - 1) * Math.log(Math.max(r, nr.dMin) / nr.dMin)) / L));
+    const j0 = Math.floor(x), j1 = Math.min(nr.nR - 1, j0 + 1), t = x - j0;
+    for (let i = 0; i < na; i++) {
+      const ai = Math.round((i / na) * nr.nAz) % nr.nAz;
+      let v = nr.heights[ai * nr.nR + j0] * (1 - t) + nr.heights[ai * nr.nR + j1] * t;
+      // más cerca que el primer anillo (60 m) no hay medida: rampa suave desde el suelo bajo los pies
+      if (r < nr.dMin && Number.isFinite(nr.ground)) v = nr.ground + (v - nr.ground) * (r / nr.dMin);
+      h[j * na + i] = v - ground - eye;
+    }
+  });
+  return { reach, h, radii, na };
+}
+
 export function ringDist(nr, j) { return nr.dMin * Math.pow(nr.dMax / nr.dMin, j / (nr.nR - 1)); }
 
 /**
@@ -166,7 +188,7 @@ void main() {
   // cercano tenga la misma textura que el paisaje y no sea un color liso
   float nearK = 1.0 - smoothstep(120.0, 900.0, vD), nearDet = 0.0;
   if (nearK > 0.0) {
-    float fine = tn(wm / 0.6) * (1.0 - smoothstep(40.0, 160.0, vD));
+    float fine = tn(wm / 0.6) * (1.0 - smoothstep(12.0, 45.0, vD));   // (más lejos haría un cuadriculado)
     float tuft = tn(wm / 2.3) * 0.55 + tn(wm / 6.5 + 17.0) * 0.45;
     float blot = tn(wm / 21.0 + 5.0);
     nearDet = nearK * (0.34 * (tuft - 0.5) + 0.22 * (fine - 0.5) + 0.26 * (blot - 0.5));
@@ -197,9 +219,9 @@ void main() {
   float gl = uGlow * lit * smoothstep(-0.15, 0.7, dot(n, uSun));     // suave: sin motas donde la ladera gira
   dcol = mix(dcol, mix(vec3(1.0, 0.5, 0.33) * max(0.45, lum * 1.6), vec3(1.0, 0.6, 0.55), sn), mix(0.45, 0.8, sn) * gl);
   // bruma con la distancia
-  dcol = mix(dcol, uHorizon, 1.0 - exp(-vD / 55000.0));
+  dcol = mix(dcol, uHorizon, 0.86 * (1.0 - exp(-vD / 95000.0)));   // aire limpio de altura: no todo blanquecino
   // de noche, siluetas (algo más claras lejos), con un resto del relieve
-  float f = sqrt(clamp(vD / 150000.0, 0.0, 1.0));
+  float f = sqrt(clamp(vD / 300000.0, 0.0, 1.0));
   vec3 ncol = mix(uNightNear, uNightFar, pow(f, 0.8) * 0.95) * (0.82 + 0.5 * g + 0.5 * sn);
   gl_FragColor = vec4(mix(ncol, dcol, uDay), a);
 }`;

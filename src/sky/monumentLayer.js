@@ -135,7 +135,7 @@ const GLSL_OUT = `
 `;
 
 const texCache = new Map();
-const GROUND_NEAR_M = 3;      // con el relieve 3D alrededor, hasta dónde llega el piso propio del sitio
+const GROUND_NEAR_M = 450;    // con el relieve 3D alrededor, hasta dónde llega como mucho el piso propio del sitio
 
 /** Hasta dónde llega el suelo continuo (m): algo más lejos que el monumento más lejano. */
 export function groundReach(items) {
@@ -159,7 +159,7 @@ export function reliefPoints(lat, lon, reach) {
 }
 /** Altura del relieve (m, respecto a los ojos) en (e, n): interpolada en la rejilla; a los pies, 1,7 m abajo. */
 export function reliefAt(grid, e, n) {
-  const r = Math.hypot(e, n), NA = RELIEF_NA, rad = RELIEF_R.map((f) => f * grid.reach);
+  const r = Math.hypot(e, n), NA = grid.na || RELIEF_NA, rad = (grid.radii || RELIEF_R).map((f) => f * grid.reach);
   let az = (Math.atan2(e, n) / (2 * Math.PI)) * NA; if (az < 0) az += NA;
   const i0 = Math.floor(az) % NA, i1 = (i0 + 1) % NA, fa = az - Math.floor(az);
   const ring = (j) => grid.h[j * NA + i0] * (1 - fa) + grid.h[j * NA + i1] * fa;
@@ -173,6 +173,9 @@ export function reliefAt(grid, e, n) {
  * 1,7 m por debajo; junto a cada monumento, la de su base; entre medias, una mezcla suave según la cercanía.
  * Con `grid` (relieve cercano), lejos de los monumentos manda el relieve: una cresta cae por detrás.
  */
+/** Piezas bajas y abiertas (muros de pirca, discos de piedra): con relieve, siguen el suelo vértice a vértice. */
+export function drapes(m) { return !m.solid && !m.seat && m.height != null && m.height <= 2.5; }
+
 export function groundHeight(e, n, items, grid = null) {
   let sw, sh;
   // `items.up`: el observador está subido a una plataforma (placeMonuments): todo el suelo queda esos metros más abajo
@@ -184,8 +187,9 @@ export function groundHeight(e, n, items, grid = null) {
   for (const it of items) {
     // las piezas asentadas sobre el relieve (`seat`) no aplanan el suelo a su alrededor: la ladera sigue igual y la
     // pieza sale de ella (enterrada por el lado alto, alta por el bajo, como las pirámides de Cochasquí)
-    if (grid && it.m.seat) continue;
-    const d = Math.hypot(e - it.o.e, n - it.o.n), r = Math.max(d - 0.7 * footprintRadius(it.m), 1.5);
+    if (grid && (it.m.seat || drapes(it.m))) continue;
+    // (con relieve, todo su asiento queda llano: las casas no se hunden en la cuesta)
+    const d = Math.hypot(e - it.o.e, n - it.o.n), r = Math.max(d - (grid ? 1 : 0.7) * footprintRadius(it.m), 1.5);
     // con relieve, cada monumento solo levanta el suelo a su alrededor (hasta 80 m de su borde, sobre todo en los primeros 25)
     const w = grid ? Math.max(0, 1 / (r * r) - 1 / (80 * 80)) * 4 : 1 / (r * r);
     sw += w; sh += (it.dz + up - (it.m.lift || 0)) * w;
@@ -258,10 +262,10 @@ export function createMonumentLayer({ onReady = null } = {}) {
     clear();
     items = list || [];
     if (!items.length) return;
-    let far = 1;
-    for (const it of items) for (const f of it.faces) for (const v of f.v) { const q = toLocal(v, it.o, it.dz); far = Math.max(far, Math.hypot(q[0], q[1], q[2])); }
+    let far = 1, farH = 0;
+    for (const it of items) for (const f of it.faces) for (const v of f.v) { const q = toLocal(v, it.o, it.dz); far = Math.max(far, Math.hypot(q[0], q[1], q[2])); farH = Math.max(farH, Math.hypot(q[0], q[2])); }
     // el suelo llega algo más lejos que el monumento más lejano
-    const reach = groundReach(items);
+    const reach = groundReach(items), gridOk = !!(grid && grid.reach === reach);
     k = Math.min(1, MAX_R / Math.max(far, reach));
     shared.uK.value = k;
     box = new THREE.Box3();
@@ -288,6 +292,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
         const { n: nn, uv: tuv } = info[i];
         for (let j = 0; j < 3; j++) {
           const q = toLocal(f.v[j], it.o, it.dz);
+          if (gridOk && drapes(it.m)) q[1] += groundHeight(q[0], -q[2], items, grid) - it.dz;
           pos.set([q[0] * k, q[1] * k, q[2] * k], i * 9 + j * 3);
           let vn = nn;
           if (f.smooth) { const s = acc.get(keyOf(it, f.v[j])), L = Math.hypot(s[0], s[1], s[2]) || 1; vn = [s[0] / L, s[1] / L, s[2] / L]; }
@@ -310,7 +315,8 @@ export function createMonumentLayer({ onReady = null } = {}) {
       meshes.push(mesh); group.add(mesh);
     }
     // el suelo: una sola malla alrededor del observador (anillos cada vez más anchos), con la textura del lugar;
-    // recibe las sombras y se desvanece hacia fuera, donde sigue el horizonte del relieve
+    // recibe las sombras y se desvanece hacia fuera, donde sigue el horizonte del relieve. Con el relieve 3D
+    // alrededor (terrain3d.js) cubre solo el entorno del sitio y se funde con el relieve en el borde
     {
       const near = items.reduce((a, b) => (a.o.d <= b.o.d ? a : b)), gmat = groundPatch(near.m).mat, tile = (MON_MATS[gmat] || MON_MATS.dirt).tile;
       // con relieve (crestas, laderas) la malla es más fina, para que el suelo llegue al pie de cada monumento
@@ -324,7 +330,10 @@ export function createMonumentLayer({ onReady = null } = {}) {
       // …y solo cubre el entorno inmediato del observador (el piso del sitio), no kilómetros de llano
       // (con el relieve 3D, el suelo es el del relieve —con su color y su textura—: el piso propio del sitio se
       // queda en nada; un llano de arena de decenas de metros a la altura de los pies taparía todo el valle)
-      const reachG = skirt ? reach : GROUND_NEAR_M;
+      // (hasta el borde del monumento más lejano y un poco más: ninguno queda fuera del piso, flotando)
+      // (lo más lejano de verdad: un muro en arco no tiene «huella», pero sus extremos llegan lejos)
+      const farN = Math.max(farH, items.reduce((a, it) => Math.max(a, it.o.d + footprintRadius(it.m)), 0));
+      const reachG = skirt ? reach : Math.min(reach, GROUND_NEAR_M, Math.max(40, farN + 35));
       const pos = new Float32Array(verts * 3), uv = new Float32Array(verts * 2), col = new Float32Array(verts * 4), idx = [];
       const rEnd = EX ? reach * FAR : reachG;
       const put = (i, e, n, r) => {
@@ -335,7 +344,8 @@ export function createMonumentLayer({ onReady = null } = {}) {
         // queda DELANTE de las líneas de las constelaciones y de las estrellas bajo el horizonte, que si no se verían encima)
         let px = e * k, py = h * k, pz = -n * k; const pl = Math.hypot(px, py, pz); if (pl > MAX_R) { const q2 = MAX_R / pl; px *= q2; py *= q2; pz *= q2; }
         pos.set([px, py, pz], i * 3); uv.set([e / tile, n / tile], i * 2);
-        const fade = 1 - Math.min(1, Math.max(0, (r - (skirt ? 0.9 : 0.6) * rEnd) / ((skirt ? 0.1 : 0.4) * rEnd)));
+        const f0 = skirt ? 0.9 * rEnd : Math.min(0.75 * rEnd, farN + 8);
+        const fade = 1 - Math.min(1, Math.max(0, (r - f0) / (rEnd - f0)));
         col.set([1, 1, 1, fade * fade * (3 - 2 * fade)], i * 4);
       };
       put(0, 0, 0, 0);
@@ -402,6 +412,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
   return {
     group,
     set(list, st, grid = null) { last = { list, st, grid }; build(list, grid); paint(st); show(); },
+    get grid() { return last ? last.grid : null; },
     /** Con el relieve 3D alrededor (terrain3d.js) el suelo del sitio no se alarga en un faldón llano. */
     setSkirt(b) { if (skirt === !!b) return; skirt = !!b; if (last) { build(last.list, last.grid); paint(last.st); show(); } },
     paint,

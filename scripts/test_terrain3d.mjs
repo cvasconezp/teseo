@@ -35,7 +35,7 @@ ok(pe[0] > 9000 && Math.abs(pe[2]) < 1 && Math.abs(altE - expected) < 1e-3 && al
 // la llanura lejana al oeste queda bajo el horizonte por la curvatura
 const pw = V(54, nR - 1);
 ok(pw[0] < -24000 && pw[1] < -40 && pw[1] > -50, "a 25 km la llanura cae ≈ 43 m por la curvatura");
-ok(UNITS_PER_M * 150000 + NEAR_OFFSET < 880, "la malla de 150 km cabe dentro de la esfera del cielo");
+ok(UNITS_PER_M * 300000 + NEAR_OFFSET < 880, "la malla de 300 km cabe dentro de la esfera del cielo");
 // normales: en la llanura, hacia arriba; en la ladera oeste del cerro (la que mira al observador), inclinada hacia el oeste
 const N = (i, j) => { const k = i * RR + j + 1; return [G.nor[k * 3], G.nor[k * 3 + 1], G.nor[k * 3 + 2]]; };
 const jS = [...Array(nR).keys()].reduce((a, j) => (Math.abs(dist(j) - 8000) < Math.abs(dist(a) - 8000) ? j : a), 0);
@@ -72,3 +72,14 @@ ok(failed, "sin servidor, falla (quedan las franjas)");
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 if (fail) process.exit(1);
+
+// el piso de los monumentos a partir del relieve 3D: una loma que baja 40 m hacia fuera
+{
+  const { reliefFromNear } = await import("../src/sky/terrain3d.js");
+  const nAz = 8, nR = 50, dMin = 60, dMax = 300000, heights = new Float32Array(nAz * nR);
+  for (let i = 0; i < nAz; i++) for (let j = 0; j < nR; j++) { const d = dMin * Math.pow(dMax / dMin, j / (nR - 1)); heights[i * nR + j] = 3000 - Math.min(40, d / 10); }
+  const g = reliefFromNear({ nAz, nR, dMin, dMax, heights }, 400, 3000, [0.08, 0.9], 4);
+  ok(g && g.reach === 400 && g.h.length === 8, "rejilla del tamaño de la de los monumentos");
+  ok(Math.abs(g.h[0] - (-6 - 1.7)) < 0.6 && Math.abs(g.h[4] - (-36 - 1.7)) < 2.5, "alturas respecto a los ojos, bajando con la loma");
+  ok(reliefFromNear(null, 400, 0, [0.5], 4) === null, "sin relieve, nada");
+}

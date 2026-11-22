@@ -59,11 +59,13 @@ import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/cloudsLayer.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
 import { andeanLabels, TX_AND } from "./sky/andean.js";
-import { fetchNearTerrain, createNearTerrainLayer, SUMMIT_LIFT_M } from "./sky/terrain3d.js";
+import { fetchNearTerrain, createNearTerrainLayer, SUMMIT_LIFT_M, reliefFromNear } from "./sky/terrain3d.js";
 import { DEFAULT_LAYERS, presetState, presetOf } from "./sky/layerPresets.js";
+import { useKeepAwake } from "./sky/keepAwake.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit, fetchLandColors } from "./sky/horizon.js";
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints } from "./sky/monumentLayer.js";
+const NEAR_RELIEF_R = [0.03, 0.06, 0.1, 0.15, 0.22, 0.3, 0.4, 0.52, 0.68, 0.9];
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
 import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
 import { createSkyImagesLayer } from "./sky/skyImagesLayer.js";
@@ -629,6 +631,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const [sky, setSky] = useState(null);
+  useKeepAwake(true);   // mirando el cielo, la pantalla del teléfono no se apaga (src/sky/keepAwake.js)
   // el mapa fotográfico se apaga alrededor de las estrellas más brillantes (su halo en las placas no es cielo)
   useEffect(() => { if (sky && sky.stars) setHipsMasks(sky.stars.map((st) => [st[1], st[2], st[3], st[4]])); }, [sky]);
   const [sel, setSel] = useState(null);      // abbr or null
@@ -1789,7 +1792,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         // mirar a una altura/azimut del lugar (pruebas y capturas; solo en «Mi cielo»)
         lookAltAz: (alt, az, span) => { const v = altAzToLocal(alt, az); r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), span, true); r.wake(); },
         // monumentos (pruebas): cuántos hay, si hay relieve cercano y el rango de alturas de cada malla
-        mon: () => ({ n: r.monuments.items.length, loading: r.monuments.loading, vis: r.monuments.group.visible, meshes: r.monuments.group.children.filter((c) => c.isMesh).map((c) => { c.geometry.computeBoundingBox(); const b = c.geometry.boundingBox; return [c.renderOrder, c.geometry.attributes.position.count, +b.min.y.toFixed(1), +b.max.y.toFixed(1), Number.isFinite(b.min.y)]; }) }),
+        mon: () => ({ grid: r.monuments.grid ? { reach: r.monuments.grid.reach, h: r.monuments.grid.h.slice(0, 24).map((v) => +v.toFixed(1)) } : null, n: r.monuments.items.length, loading: r.monuments.loading, vis: r.monuments.group.visible, meshes: r.monuments.group.children.filter((c) => c.isMesh).map((c) => { c.geometry.computeBoundingBox(); const b = c.geometry.boundingBox; return [c.renderOrder, c.geometry.attributes.position.count, +b.min.y.toFixed(1), +b.max.y.toFixed(1), Number.isFinite(b.min.y)]; }) }),
         // mirar a una dirección ecuatorial (la de un cuerpo de bodies()), con el campo `span`
         lookEq: (nx, ny, nz, span) => { r.lookAt(new THREE.Vector3(nx, ny, nz).normalize().applyQuaternion(r.localQuat), span, true); r.wake(); },
         // mueve el reloj de la ISS (pruebas): al segundo, y whenStr con él
@@ -2767,16 +2770,23 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const monItems = useMemo(() => (monOn && hzData && monBase.status === "ok" && monBase.key === monKey
     ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases, monBase.relief || null) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon]);
   const summitLift = placeSummit && nearData && monItems.length === 0 ? SUMMIT_LIFT_M : 0;
+  // sin relieve propio del sitio, el piso de los monumentos sigue el relieve 3D (una loma no queda como un llano)
+  // (más fina que la de /api/elevation: 10 anillos × 72 acimuts; cada edificio queda en su explanada)
+  const monRelief = useMemo(() => {
+    if (monBase.relief) return monBase.relief;
+    if (!nearData || !monItems.length || monBase.ground == null) return null;
+    return reliefFromNear(nearData.data || nearData, groundReach(monItems), monBase.ground, NEAR_RELIEF_R, 72);
+  }, [monBase.relief, monBase.ground, nearData, monItems]);
   // el horizonte con los monumentos macizos: lo que queda detrás de una pirámide tampoco se ve
   const monSil = useMemo(() => (hzData && monItems.length ? silhouette(monItems, hzData.step_deg || 0.2) : null), [hzData, monItems]);
   const hzEff = useMemo(() => (hzData && monSil ? withMonuments(hzData, monSil) : hzData), [hzData, monSil]);
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.monuments) return;
-    ref.monuments.set(monItems, atmState, monBase.relief || null);
+    ref.monuments.set(monItems, atmState, monRelief);
     ref.monGround = monItems.length > 0;
     ref.monLabels = monItems.length ? monumentLabels(monItems, lang, monSil, hzData ? hzData.step_deg || 0.2 : 0.2).map((p) => ({ ...p, label: p.name, subText: p.sub || (lang === "es" ? `${String(p.ele_m).replace(".", ",")} m de alto` : `${p.ele_m} m tall`) })) : null;
     ref._dirty = true;
-  }, [monItems, monSil, lang, ready, monBase.relief]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [monItems, monSil, lang, ready, monRelief]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.monuments || !monItems.length) return;
     try { ref.monuments.paint(atmState); } catch { /* no-op */ }
@@ -2851,10 +2861,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     try {
       let low = 0;
       if (hzData.alt) for (const v of hzData.alt) if (v < low) low = v;
-      ref.near3d.setLook(atmState, { hz: hzData, lat, floor: ref.terrain.floor, lowest: low });
+      // opaco en las cumbres y donde hay monumentos (si no, quedarían flotando sobre un hueco translúcido)
+      ref.near3d.setLook(atmState, { hz: hzData, lat, floor: ref.terrain.floor || monItems.length > 0, lowest: low });
       ref._dirty = true;
     } catch { /* no-op */ }
-  }, [hzData, atmState, ready, placeSummit, landData, satOn, nearData]);
+  }, [hzData, atmState, ready, placeSummit, landData, satOn, nearData, monItems.length]);
   useEffect(() => {      // la malla del relieve cercano: se pone cuando llegan sus datos y se quita al cambiar de lugar
     const ref = sceneRef.current; if (!ref || !ref.near3d) return;
     // en una cumbre (sin monumentos al lado, que se dibujan a la altura de los ojos de siempre) se mira desde 5 m más arriba

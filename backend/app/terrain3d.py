@@ -27,12 +27,12 @@ from app import landcolor as lc
 from app.cache import provider_headers
 
 D_MIN = 60.0                 # m: más cerca, el píxel del satélite (10 m) ya no da
-D_MAX = 150000.0             # m: todo lo que abarca el horizonte (app/horizon.py llega igual de lejos)
+D_MAX = 300000.0             # m: todo lo que abarca el horizonte (app/horizon.py llega igual de lejos)
 N_AZ = 720                   # alturas: cada 0,5° de acimut
-N_R = 260                    # … y 260 anillos (≈ 3,1 % entre uno y otro)
+N_R = 284                    # … y 284 anillos (≈ 3,1 % entre uno y otro)
 TEX_W, TEX_H = 2048, 1024    # imagen: 0,18° de acimut × 0,59 % de distancia por píxel
 # zoom de las teselas del satélite según la distancia (m): el píxel de la imagen pisa ≈ lo que mide el de la tesela
-TEX_ZOOMS = ((2500.0, 14), (6000.0, 13), (13000.0, 12), (26000.0, 11), (55000.0, 10), (D_MAX + 1.0, 9))
+TEX_ZOOMS = ((2500.0, 14), (6000.0, 13), (13000.0, 12), (26000.0, 11), (55000.0, 10), (150000.0, 9), (D_MAX + 1.0, 8))
 SUB_AZ, SUB_R = 0.17, 0.2   # submuestreo de cada celda: ±0,17° de acimut y ±0,2 y ±0,4 de paso de anillo
 H_OFF, H_SCALE = 500.0, 4.0  # uint16 = (altura + 500 m) × 4  → pasos de 25 cm, hasta 15,8 km
 NEUTRAL = (96, 102, 84)      # donde falte una tesela

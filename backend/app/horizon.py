@@ -10,7 +10,7 @@ GMTED2010 (USGS), ETOPO1 (NOAA) y otros modelos (ver CREDITS.md). Con CORS abier
 Cálculo (en el servidor: son decenas de teselas; al navegador solo le llega la lista de ángulos):
   * el lugar se redondea a una celda de 0,002° (≈ 220 m) y su altura es la del propio modelo (en el punto o, si es
     mayor, la media de un anillo de 150 m) más 1,7 m de los ojos: así el observador nunca queda «dentro» del terreno;
-  * cada 0,2° de acimut se recorre el terreno desde 300 m hasta 150 km, con pasos que crecen con la distancia
+  * cada 0,2° de acimut se recorre el terreno desde 300 m hasta 300 km, con pasos que crecen con la distancia
     (zoom 12 de las teselas, ≈ 38 m por píxel en el ecuador, hasta 20 km; zoom 11, ≈ 76 m, hasta 50 km; zoom 9,
     ≈ 300 m, más lejos). El detalle lo limita el modelo: SRTM mide cada ~30 m, así que agujas de roca más
     finas que eso no aparecen;
@@ -44,12 +44,12 @@ SOURCE = "AWS Terrain Tiles (Mapzen terrarium: SRTM, GMTED2010, ETOPO1…)"
 TILE_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
 STEP_DEG = 0.2
 N_AZ = int(round(360 / STEP_DEG))
-BANDS_KM = (1.5, 4.0, 10.0, 25.0, 60.0, 150.0)
+BANDS_KM = (1.5, 4.0, 10.0, 25.0, 60.0, 150.0, 300.0)
 NEAR = (12, 20e3)            # zoom de teselas y alcance (m) del tramo cercano (≈ 38 m por píxel en el ecuador)
 MID = (11, 50e3)             # tramo medio (≈ 76 m)
-FAR = (9, 150e3)             # tramo lejano (≈ 300 m)
+FAR = (9, 300e3)             # tramo lejano (≈ 300 m): desde una cumbre andina asoman nevados a más de 200 km
 D_MIN = 300.0                # más cerca, el modelo mezcla edificios y árboles con el suelo (ruido)
-N_SAMPLES = 640              # muestras por acimut (espaciado geométrico ≈ 1,0 %)
+N_SAMPLES = 720              # muestras por acimut (espaciado geométrico ≈ 1,0 %)
 R_E = 6371008.8
 K_REFR = 0.13
 EYE_M = 1.7

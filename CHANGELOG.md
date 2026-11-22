@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.58.0 — 2026-11-21
+
+- **Relieve hasta 300 km.** El relieve 3D y el horizonte llegan ahora a 300 km (antes 150): desde las cumbres asoman con su forma nevados lejanos que antes no se dibujaban. Más allá de 150 km también se rotulan los volcanes. La bruma de la distancia es más ligera: las cordilleras lejanas ya no se ven como franjas blanquecinas.
+- **El piso de los sitios con monumentos sigue el terreno.** Ya no es un llano a la altura de los pies que tapaba la caída de la loma (Catequilla parecía una pampa de cientos de metros). Ahora toma las alturas del relieve 3D: en una cima, el suelo baja y se ve el valle. Los muros y discos bajos (el muro semicircular y el disco lítico de Catequilla) siguen el suelo y ya no flotan. Los edificios quedan en su propia explanada, y el piso llega hasta el más lejano (en Machu Picchu ninguna casa queda fuera).
+- **Pantalla siempre encendida en el celular** mientras se usa la app; vuelve a apagarse tras 20 minutos sin tocarla.
+- El grano de la nieve en las cumbres ya no hace un cuadriculado a lo lejos.
+
 ## 1.57.1 — 2026-11-21
 
 - **Nombres siempre en su sitio tras un salto de la vista**: los nombres se recalculan solo uno de cada cinco cuadros; si la vista saltaba y luego se quedaba quieta, podían quedar donde estaban antes del salto hasta el siguiente cálculo (en un aparato lento, segundos). Ahora, si un cuadro con movimiento no los recalcula, se recalculan en el siguiente.

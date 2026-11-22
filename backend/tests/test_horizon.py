@@ -276,4 +276,4 @@ def test_relieve_cercano_teselas_por_distancia():
     from app import terrain3d as t3
     need = t3.tex_tiles(LAT0, LON0)
     zs = {z for z, _, _ in need}
-    assert zs == {9, 10, 11, 12, 13, 14} and len(need) < 130, len(need)
+    assert zs == {8, 9, 10, 11, 12, 13, 14} and len(need) < 130, len(need)
