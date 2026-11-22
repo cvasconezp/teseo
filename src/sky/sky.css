@@ -93,6 +93,9 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-quick button { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.04); color: var(--text); font-family: var(--serif); font-size: 17px; transition: border-color 0.15s, background 0.15s; }
 .sk-quick button:hover { border-color: var(--violet); background: rgba(167, 139, 250, 0.14); }
 .sk-quick.sk-sites button { font-size: 15px; padding: 0 13px; }
+.sk-site-select { width: 100%; min-height: 44px; padding: 0 12px; border-radius: 12px; font: inherit; font-size: 15px; color: #e3e6f3; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); }
+.sk-site-select optgroup { color: #9aa3c7; background: #12152a; }
+.sk-site-select option { color: #e3e6f3; background: #12152a; }
 .sk-site-note { margin: 2px 0 0; font-size: 13px; line-height: 1.4; color: #e3e6f3; }
 .sk-psearch-in { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.05); color: var(--mute); }
 .sk-psearch-in:focus-within { border-color: var(--violet); }

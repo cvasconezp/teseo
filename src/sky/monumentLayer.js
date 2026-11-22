@@ -8,7 +8,7 @@
 // las sombras, sombras propias y sobre el suelo, bruma con la distancia y un suelo continuo desde los pies del
 // observador hasta la base de cada monumento. De noche, una silueta apenas iluminada por el cielo.
 import * as THREE from "three";
-import { buildFaces, toLocal, offsetOf, EYE_M, apexOf, altAzOf, groundPatch, footprintRadius } from "./monuments.js";
+import { buildFaces, toLocal, offsetOf, EYE_M, apexOf, altAzOf, groundPatch, footprintRadius, onPlatform } from "./monuments.js";
 import { terrainPalette } from "./horizon.js";
 import { makeMonumentTexture, MON_MATS } from "./monumentTextures.js";
 
@@ -38,11 +38,7 @@ export function toneAt(p) {
  * ¿Está el observador sobre la plataforma de esta pirámide (`standOn`)? `o`: dónde queda la pirámide desde el lugar.
  * La plataforma mide 0,72 × la planta (como la dibuja buildFaces) y va girada `rot`.
  */
-export function onPlatform(m, o) {
-  if (!m.standOn || !o) return false;
-  const a = (m.rot || 0) * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a), e = -o.e, n = -o.n;
-  return Math.abs(e * c - n * sn) < m.w * 0.36 && Math.abs(e * sn + n * c) < m.d * 0.36;
-}
+export { onPlatform };
 
 export function placeMonuments(list, { lat, lon, ground }, bases, relief = null) {
   const out = [];
@@ -182,7 +178,9 @@ export function groundHeight(e, n, items, grid = null) {
   const up = (items && items.up) || 0;
   // (a los pies del observador manda siempre su propio suelo: si no, un monumento cercano y más alto podría
   // levantar el suelo por encima de sus ojos)
-  if (grid) { const w0 = 1 / (e * e + n * n + 4); sw = 1 / (22 * 22) + w0; sh = reliefAt(grid, e, n) / (22 * 22) - EYE_M * w0; }
+  // (subido a una plataforma, el suelo de sus pies es la propia pirámide: el de alrededor sigue el relieve, sin
+  // prolongar la plataforma en un llano de decenas de metros)
+  if (grid) { const w0 = up > 0 ? 0 : 1 / (e * e + n * n + 4); sw = 1 / (22 * 22) + w0; sh = reliefAt(grid, e, n) / (22 * 22) - EYE_M * w0; }
   else { sw = 1 / (e * e + n * n + 16); sh = -EYE_M * sw; }
   for (const it of items) {
     // las piezas asentadas sobre el relieve (`seat`) no aplanan el suelo a su alrededor: la ladera sigue igual y la

@@ -1752,7 +1752,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       camera.quaternion.copy(lookQuat(lk.yaw, lk.pitch, lk.qF));
       applyFov();
       if (E2E) window.__teseoSky = {
-        vis: (name, on) => { const o = name === "near" ? r.near3d.group : name === "bands" ? r.terrain.group : name === "clouds" ? r.clouds : null; if (o) { (o.group || o).visible = !!on; r.wake(); } },
+        vis: (name, on) => { const o = name === "near" ? r.near3d.group : name === "bands" ? r.terrain.group : name === "clouds" ? r.clouds : name === "mon" ? r.monuments.group : null; if (o) { (o.group || o).visible = !!on; r.wake(); } },
         near3dGeo: () => { const m = r.near3d.group.children[0]; if (!m) return null; const P = m.geometry.attributes.position.array, H = m.geometry.attributes.aHD.array, out = []; for (const k of [399 * 160 + 40, 400 * 160 + 80, 400 * 160 + 120, 400 * 160 + 159, 159]) out.push([P[k * 3], P[k * 3 + 1], P[k * 3 + 2], H[k * 2], H[k * 2 + 1]].map((x) => Math.round(x * 10) / 10)); return out; },
         near3d: (k, v) => { const m = r.near3d.group.children[0]; if (!m) return null; const u = m.material.uniforms, o = {}; if (k) { u[k].value = v; r.wake(); } for (const k in u) if (typeof u[k].value === "number") o[k] = u[k].value; return o; },
         tex: (on) => { for (const m of r.terrain.group.children) if (m.material && m.material.userData && m.material.userData.tex) m.material.userData.tex.value = on ? 1 : 0; r.near3d.setEnabled(!!on); r.terrain.setCovered(r.near3d.coverKm); r.monuments.setSkirt(!(r.near3d.coverKm > 0)); r.wake(); },
@@ -2881,7 +2881,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   useEffect(() => {      // la malla del relieve cercano: se pone cuando llegan sus datos y se quita al cambiar de lugar
     const ref = sceneRef.current; if (!ref || !ref.near3d) return;
     // en una cumbre (sin monumentos al lado, que se dibujan a la altura de los ojos de siempre) se mira desde 5 m más arriba
-    ref.near3d.set(hzData && nearData ? nearData : null, hzKey, { lift: summitLift, ground: monItems.length && Number.isFinite(monBase.ground) ? monBase.ground : null });
+    // (de pie en la plataforma de una pirámide: el suelo es el de abajo y los ojos suben su altura —lift—; si no, el
+    // disco central de la malla quedaría a la altura de la plataforma, como un llano de decenas de metros)
+    ref.near3d.set(hzData && nearData ? nearData : null, hzKey, { lift: summitLift + (monItems.up || 0), ground: monItems.length && Number.isFinite(monBase.ground) ? monBase.ground : null });
     ref.near3d.setEnabled(!!hzData);
     const wait = nearPending || ref.near3d.loading;
     ref.terrain.setCovered(wait ? 1e9 : ref.near3d.coverKm); ref.monuments.setSkirt(!(ref.near3d.coverKm > 0) && !wait);

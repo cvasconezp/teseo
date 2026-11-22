@@ -140,17 +140,17 @@ for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) {
  */
 export const MONUMENTS = [
   { id: "sol", site: "teotihuacan", name: { es: "Pirámide del Sol", en: "Pyramid of the Sun" }, lat: 19.69240, lon: -98.84360,
-    kind: "stepped", base: 225, top: 30, height: 65, tiers: 4, rot: 15.5, color: BASALT, mat: "basalt", ground: "dirt", solid: true,
+    kind: "stepped", base: 225, top: 30, height: 65, tiers: 4, rot: 15.5, color: BASALT, mat: "basalt", ground: "dirt", solid: true, standOn: true,
     stairs: [{ side: "w", w: 14, out: 7 }] },
   { id: "luna", site: "teotihuacan", name: { es: "Pirámide de la Luna", en: "Pyramid of the Moon" }, lat: 19.69969, lon: -98.84395,
-    kind: "stepped", base: 145, top: 22, height: 43, tiers: 4, rot: 15.5, color: BASALT, mat: "basalt", ground: "dirt", solid: true,
+    kind: "stepped", base: 145, top: 22, height: 43, tiers: 4, rot: 15.5, color: BASALT, mat: "basalt", ground: "dirt", solid: true, standOn: true,
     stairs: [{ side: "s", w: 12, out: 7 }] },
   { id: "castillo", site: "chichenitza", name: { es: "El Castillo (Kukulcán)", en: "El Castillo (Kukulcan)" }, lat: 20.68290, lon: -88.56865,
-    kind: "stepped", base: 55.3, top: 19.5, height: 24, tiers: 9, rot: 17, color: YUCATAN, mat: "yucatan", ground: "grass", solid: true,
+    kind: "stepped", base: 55.3, top: 19.5, height: 24, tiers: 9, rot: 17, color: YUCATAN, mat: "yucatan", ground: "grass", solid: true, standOn: true,
     temple: { w: 13, h: 6, doors: { n: 3, s: 1, e: 1, w: 1 } },
     stairs: [{ side: "n", w: 8.8, out: 4.5 }, { side: "s", w: 8.8, out: 4.5 }, { side: "e", w: 8.8, out: 4.5 }, { side: "w", w: 8.8, out: 4.5 }] },
   { id: "keops", site: "giza", name: { es: "Pirámide de Keops", en: "Pyramid of Khufu" }, lat: 29.97917, lon: 31.13417,
-    kind: "pyramid", base: 230.3, top: 10, height: 138.5, rot: 0, color: LIMESTONE, mat: "blocks", ground: "sand", solid: true },
+    kind: "pyramid", base: 230.3, top: 10, height: 138.5, rot: 0, color: LIMESTONE, mat: "blocks", ground: "sand", solid: true, standOn: true },
   { id: "kefren", site: "giza", name: { es: "Pirámide de Kefrén", en: "Pyramid of Khafre" }, lat: 29.97593, lon: 31.13092,
     kind: "pyramid", base: 215.3, top: 0, height: 136.4, rot: 0, color: LIMESTONE, mat: "blocks", ground: "sand", solid: true, casing: 0.78 },
   { id: "micerino", site: "giza", name: { es: "Pirámide de Micerino", en: "Pyramid of Menkaure" }, lat: 29.97250, lon: 31.12806,
@@ -214,10 +214,19 @@ export function offsetOf(lat0, lon0, lat, lon) {
 }
 
 /** Monumentos a menos de `km` del lugar (y fuera de su planta), del más cercano al más lejano. */
+/** ¿Está el lugar `o` (offsetOf del lugar al monumento) sobre la plataforma de arriba de un monumento `standOn`? */
+export function onPlatform(m, o) {
+  if (!m.standOn || !o) return false;
+  const a = (m.rot || 0) * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a), e = -o.e, n = -o.n;
+  // (pirámides de base cuadrada: la plataforma de arriba mide `top` de lado)
+  const hw = m.w != null ? m.w * 0.36 : (m.top || 0) * 0.5, hd = m.d != null ? m.d * 0.36 : (m.top || 0) * 0.5;
+  return Math.abs(e * c - n * sn) < hw && Math.abs(e * sn + n * c) < hd;
+}
+
 export function monumentsNear(lat, lon, km = 20) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [];
   return MONUMENTS.map((m) => ({ m, o: offsetOf(lat, lon, m.lat, m.lon) }))
-    .filter(({ m, o }) => o.d <= Math.min(km * 1000, m.far || Infinity) && (m.core == null || o.d > m.core) && (m.walkIn || m.kind === "stonehenge" || o.d > footprintRadius(m) + 3))
+    .filter(({ m, o }) => o.d <= Math.min(km * 1000, m.far || Infinity) && (m.core == null || o.d > m.core) && (m.walkIn || m.kind === "stonehenge" || o.d > footprintRadius(m) + 3 || onPlatform(m, o)))
     .sort((a, b) => a.o.d - b.o.d).map(({ m }) => m);
 }
 

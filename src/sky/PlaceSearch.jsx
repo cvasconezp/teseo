@@ -3,7 +3,7 @@
 // peak = radio (m) para buscar la cumbre de una montaña; exact = sitio con coordenadas comprobadas (horizonte a ≈ 22 m).
 import { useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
-import { SITES, TP, searchPlaces, searchSites, placeLine, siteUrl } from "./places.js";
+import { SITES, TP, searchPlaces, searchSites, placeLine, siteUrl, sitesByRegion } from "./places.js";
 
 const API = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) || "";
 
@@ -62,12 +62,16 @@ export function SiteChips({ lang = "es", placeName, localMode, onPlace }) {
   return (
     <div className="sk-group">
       <h3>{tp.sitesTitle}</h3>
-      <div className="sk-quick sk-sites">
-        {SITES.map((s) => {
-          const nm = s.name[lang] || s.name.es;
-          return <button key={s.id} type="button" aria-pressed={cur === s} onClick={() => onPlace({ name: nm, lat: s.lat, lon: s.lon, elev: s.elev, exact: true })}>{nm}</button>;
-        })}
-      </div>
+      {/* lista desplegable, por regiones (con muchos sitios, los botones ocupaban toda la pantalla) */}
+      <select className="sk-site-select" aria-label={tp.sitesTitle} value={cur ? cur.id : ""}
+        onChange={(e) => { const s = SITES.find((x) => x.id === e.target.value); if (s) onPlace({ name: s.name[lang] || s.name.es, lat: s.lat, lon: s.lon, elev: s.elev, exact: true }); }}>
+        <option value="" disabled>{tp.sitesPick}</option>
+        {sitesByRegion(lang).map((g) => (
+          <optgroup key={g.region} label={tp.sitesGroups[g.region]}>
+            {g.sites.map((s) => <option key={s.id} value={s.id}>{s.name[lang] || s.name.es}</option>)}
+          </optgroup>
+        ))}
+      </select>
       {cur && <p className="sk-site-note">{cur.note[lang] || cur.note.es}{siteUrl(cur, lang) && <> <a href={siteUrl(cur, lang)} target="_blank" rel="noopener noreferrer">{tp.siteMore}</a></>}</p>}
       <small className="sk-hint">{tp.sitesHint}</small>
     </div>

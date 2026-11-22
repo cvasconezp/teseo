@@ -38,7 +38,9 @@ const top = altAzOf(toLocal(apexOf(sol), oS, -1.7));
 ok(near(top.alt, Math.atan2(65 - 1.7, oS.d) * 180 / Math.PI, 0.05), `su cima se ve a ${top.alt.toFixed(1)}° (como en el sitio)`);
 const g = site("giza"), nG = monumentsNear(g.lat, g.lon, 25).map((m) => m.id);
 ok(nG[0] === "micerino" && nG.includes("kefren") && nG.includes("keops"), "desde el mirador de Guiza: Micerino delante, Kefrén y Keops detrás");
-ok(monumentsNear(sol.lat, sol.lon, 25).every((m) => m.id !== "sol"), "desde dentro de una pirámide no se dibuja esa pirámide");
+// (a 60 m del centro: dentro de su bulto, fuera de la plataforma de arriba)
+ok(monumentsNear(sol.lat, sol.lon + 60 / (111320 * Math.cos(sol.lat * Math.PI / 180)), 25).every((m) => m.id !== "sol"), "desde dentro de una pirámide no se dibuja esa pirámide");
+ok(monumentsNear(sol.lat, sol.lon, 25).some((m) => m.id === "sol") && onPlatform(sol, offsetOf(sol.lat, sol.lon, sol.lat, sol.lon)), "de pie en su plataforma de arriba, sí (se sube a ella)");
 ok(monumentsNear(byId("stonehenge").lat, byId("stonehenge").lon, 1).some((m) => m.id === "stonehenge"), "en el centro de Stonehenge sí: es un círculo de piedras");
 ok(monumentsNear(0.0, -78.17518, 25).map((m) => m.id).join() === "quitsato", "desde su plataforma se dibuja el reloj solar Quitsato");
 

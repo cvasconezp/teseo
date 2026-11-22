@@ -277,3 +277,15 @@ def test_relieve_cercano_teselas_por_distancia():
     need = t3.tex_tiles(LAT0, LON0)
     zs = {z for z, _, _ in need}
     assert zs == {8, 9, 10, 11, 12, 13, 14} and len(need) < 130, len(need)
+
+
+def test_despike_quita_agujas_y_respeta_cumbres():
+    yy, xx = np.mgrid[0:256, 0:256].astype(np.float32)
+    # una cumbre empinada de verdad (600 m, ~120 m de radio a zoom 12) y una aguja de un píxel sobre un llano
+    h = 2660.0 + 600.0 * np.exp(-((xx - 60) ** 2 + (yy - 60) ** 2) / (2 * 3.0 ** 2))
+    h[200, 200] = 3062.0
+    h[201, 200] = 2990.0
+    out = hz.despike(h.astype(np.float32), 12)
+    assert abs(out[200, 200] - 2660.0) < 5 and abs(out[201, 200] - 2660.0) < 5     # la aguja (dos píxeles), fuera
+    assert abs(out[60, 60] - h[60, 60]) < 1e-3                                      # la cumbre, intacta
+    assert np.allclose(out[100:150, 100:150], h[100:150, 100:150])                  # el resto, igual

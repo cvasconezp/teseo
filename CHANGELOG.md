@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.59.0 — 2026-11-21
+
+- **Lista desplegable de sitios, por regiones** (Ecuador, América, resto del mundo y siete maravillas modernas), con 25 sitios nuevos; coordenadas de Wikidata o Wikipedia, comprobadas el 21-nov-2026:
+  - **Ecuador:** Ingapirca, Pucará de Rumicucho, Quitoloma (Pambamarca), Tulipe y Real Alto.
+  - **América:** Fajada Butte (Chaco), Xochicalco, Monte Albán, Sacsayhuamán, Písac e Isla del Sol.
+  - **Resto del mundo:** Abu Simbel, Karnak, Angkor Wat, Maeshowe y Mnajdra.
+  - **Siete maravillas modernas:** Petra, Gran Muralla (Badaling), Coliseo, Cristo Redentor y Taj Mahal (Machu Picchu y Chichén Itzá ya estaban).
+- **De pie en la cima de las pirámides:** Pirámide del Sol y de la Luna (Teotihuacan), El Castillo (Chichén Itzá) y Keops (Guiza). Se ve desde la plataforma de arriba, con el relieve 3D a la altura correcta. Hoy no se permite subir a ninguna.
+- **Sin agujas falsas en el relieve.** Las teselas de relieve traen a veces picos sueltos (en el lago San Pablo, uno de 400 m sobre el agua; otro junto al Sangay). Ahora se quitan al leerlas: se descarta todo píxel muy por encima de la mediana de su entorno, con un umbral que respeta las cumbres reales.
+
 ## 1.58.2 — 2026-11-21
 
 - **Imagen nítida al quedarse quieto.** Al moverse, si el equipo va lento, la app dibuja con menos resolución; ahora, quieta más de medio segundo, vuelve a la resolución completa (antes la imagen quieta quedaba en escalones).

@@ -30,7 +30,8 @@ const sky = fs.readFileSync(new URL("../src/Constellations.jsx", import.meta.url
 ok(/loadSunImage\(tW, \{ api: API \}\)/.test(sky) && /real: \{ img: sunReal, \.\.\.SDO_DISC \}/.test(sky) && /pl = SUN_POLE/.test(sky), "el cielo pide la imagen al cambiar de cuarto de hora, la dibuja y la gira según el eje del Sol");
 
 console.log("Enlaces de los sitios");
-ok(SITES.every((s) => /^https:\/\/es\.wikipedia\.org\/wiki\/\S+$/.test(siteUrl(s, "es")) && /^https:\/\/en\.wikipedia\.org\/wiki\/\S+$/.test(siteUrl(s, "en"))), "cada sitio tiene su página en español y en inglés");
+ok(SITES.every((s) => !s.wiki || (/^https:\/\/(es|en)\.wikipedia\.org\/wiki\/\S+$/.test(siteUrl(s, "es")) && /^https:\/\/en\.wikipedia\.org\/wiki\/\S+$/.test(siteUrl(s, "en")))), "cada sitio con artículo: en español (o, si no lo hay, en inglés) y en inglés");
+ok(SITES.filter((s) => !s.wiki).length <= 2 && siteUrl(SITES.find((s) => s.id === "realalto"), "es").startsWith("https://en."), "solo uno o dos sin artículo; sin artículo en español, el inglés");
 ok(/siteUrl\(cur, lang\)/.test(fs.readFileSync(new URL("../src/sky/PlaceSearch.jsx", import.meta.url), "utf8")), "el panel de sitios enlaza la página del sitio elegido");
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);

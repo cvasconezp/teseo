@@ -86,5 +86,15 @@ ok(/GeoNames/.test(credits) && /Geocoding/.test(credits), "créditos del buscado
   ok(r.length === 1 && r[0].name === "Volcán Fuego" && r[0].kind === "volcano" && r[0].cc === "GT", "«volcán de fuego» encuentra el Fuego de Guatemala (y no el de Colima)");
   ok(nameWords("Volcán de Fuego").join() === "fuego" && nameWords("Cerro El Altar").join() === "altar" && pp(js, "fuego", "en")[0].name === "Fuego Volcano", "palabras propias del nombre; en inglés, el nombre tal cual");
 }
+
+// la lista desplegable: todos los sitios, cada uno en su región, y las cimas de pirámides
+{
+  const { sitesByRegion, SITE_REGIONS, TP } = await import("../src/sky/places.js");
+  const g = sitesByRegion("es");
+  ok(g.length === SITE_REGIONS.length && g.reduce((a, x) => a + x.sites.length, 0) === SITES.length, "la lista desplegable reúne todos los sitios, por región");
+  ok(SITE_REGIONS.every((r) => TP.es.sitesGroups[r] && TP.en.sitesGroups[r]), "cada región con su nombre en ES y EN");
+  ok(["teotihuacan-sol", "teotihuacan-luna", "chichenitza-cima", "giza-keops", "ingapirca", "abusimbel", "petra"].every((id) => SITES.some((s) => s.id === id)), "cimas de pirámides, Ecuador, mundo y maravillas");
+}
+
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

@@ -89,10 +89,28 @@ def cell_of(lat: float, lon: float, fine: bool = False) -> tuple:
     return (max(-85.0, min(85.0, la)), round(lo, nd))
 
 
-def decode_terrarium(png: bytes) -> np.ndarray:
-    """PNG terrarium → alturas (m), float32 256×256."""
+def decode_terrarium(png: bytes, z: Optional[int] = None) -> np.ndarray:
+    """PNG terrarium → alturas (m), float32 256×256 (con `z`, sin picos aislados: despike)."""
     a = np.asarray(Image.open(io.BytesIO(png)).convert("RGB"), dtype=np.float32)
-    return a[..., 0] * 256.0 + a[..., 1] + a[..., 2] / 256.0 - 32768.0
+    h = a[..., 0] * 256.0 + a[..., 1] + a[..., 2] / 256.0 - 32768.0
+    return despike(h, z) if z is not None else h
+
+
+def despike(h: np.ndarray, z: int) -> np.ndarray:
+    """Quita los picos sueltos del modelo: píxeles muy por encima de la mediana de su entorno de 5×5.
+    Las teselas tienen errores así (en el lago San Pablo, la de zoom 12 trae un pico de 400 m sobre el agua); como
+    la malla 3D toma el máximo de varias muestras por celda, uno solo se veía como una aguja en el horizonte.
+    El umbral crece con el píxel: una cumbre de verdad sobresale de su entorno mucho menos que eso."""
+    pix_m = 40075016.7 / (256 * 2 ** z)
+    thr = max(250.0, 6.0 * pix_m)
+    pad = np.pad(h, 2, mode="edge")
+    win = np.lib.stride_tricks.sliding_window_view(pad, (5, 5))
+    med = np.median(win.reshape(h.shape[0], h.shape[1], 25), axis=2).astype(np.float32)
+    bad = (h - med) > thr
+    if bad.any():
+        h = h.copy(); h[bad] = med[bad]
+        stats["despiked"] = stats.get("despiked", 0) + int(bad.sum())
+    return h
 
 
 def merc_px(lat, lon, z):
@@ -138,7 +156,7 @@ async def _fetch_tile(client: httpx.AsyncClient, z: int, x: int, y: int, sem: as
             try:
                 r = await client.get(TILE_URL.format(z=z, x=x, y=y))
                 if r.status_code == 200:
-                    arr = await run_in_threadpool(decode_terrarium, r.content)
+                    arr = await run_in_threadpool(decode_terrarium, r.content, z)
                     _tiles[key] = arr
                     stats["tiles_fetched"] += 1
                     while len(_tiles) > TILE_CACHE_MAX:
