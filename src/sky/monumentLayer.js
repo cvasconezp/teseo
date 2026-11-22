@@ -135,6 +135,7 @@ const GLSL_OUT = `
 `;
 
 const texCache = new Map();
+const GROUND_NEAR_M = 60;      // con el relieve 3D alrededor, hasta dónde llega el piso propio del sitio
 
 /** Hasta dónde llega el suelo continuo (m): algo más lejos que el monumento más lejano. */
 export function groundReach(items) {
@@ -320,8 +321,13 @@ export function createMonumentLayer({ onReady = null } = {}) {
       // (con el relieve en 3D alrededor —terrain3d.js— el faldón ya no hace falta: el suelo del sitio acaba en su
       // borde, desvanecido, y más allá se ve el terreno de verdad)
       const EX = skirt ? 8 : 0, FAR = skirt ? 12 : 1, verts = (NR + 1 + EX) * NS + 1;
+      // …y solo cubre el entorno inmediato del observador (el piso del sitio), no kilómetros de llano
+      // (con un monumento a mano, hasta poco más allá de él; si el más cercano queda lejos, nada: un llano de 100 m
+      // a la altura de los pies ya taparía todo el valle)
+      const fpN = footprintRadius(near.m);
+      const reachG = skirt ? reach : near.o.d - fpN > 120 ? 3 : Math.min(reach, GROUND_NEAR_M, Math.max(25, near.o.d + fpN + 8));
       const pos = new Float32Array(verts * 3), uv = new Float32Array(verts * 2), col = new Float32Array(verts * 4), idx = [];
-      const rEnd = EX ? reach * FAR : reach;
+      const rEnd = EX ? reach * FAR : reachG;
       const put = (i, e, n, r) => {
         // (en el faldón, la altura es la del borde de la malla en esa dirección)
         const q = r > reach ? reach / r : 1;
@@ -335,7 +341,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
       };
       put(0, 0, 0, 0);
       for (let j = 0; j <= NR; j++) {
-        const r = r0 * Math.pow(reach / r0, j / NR);
+        const r = r0 * Math.pow(reachG / r0, j / NR);
         for (let i = 0; i < NS; i++) { const a = (i / NS) * 2 * Math.PI; put(1 + j * NS + i, r * Math.sin(a), r * Math.cos(a), r); }
       }
       for (let m = 1; m <= EX; m++) {

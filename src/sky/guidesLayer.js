@@ -171,8 +171,11 @@ export class GuidesLayer {
   }
 
   /** Con el zoom, las marcas de polos, cenit y nadir conservan su tamaño en pantalla (no crecen al acercarse). */
-  setFov(fovDeg) {
-    const s = Math.min(1, Math.max(0.03, fovDeg / 60));
+  setFov(fovDeg, heightPx = 800) {
+    // el aro mide 1,2° de radio; se encoge para ocupar unos 13 px en pantalla, sea cual sea el zoom
+    const s = Math.min(1, Math.max(0.01, (13 * fovDeg / Math.max(200, heightPx)) / 1.2));
+    if (Math.abs(s - (this._poleS || 0)) < 1e-4) return;
+    this._poleS = s;
     for (const g of [this.objs.polesEq, this.objs.polesLocal]) for (const m of g.children) {
       if (!m.userData.pole) continue;
       m.scale.setScalar(s); m.position.copy(m.userData.pole).multiplyScalar(1 - s);

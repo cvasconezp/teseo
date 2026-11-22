@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.55.0 — 2026-11-21
+
+- **Relieve 3D hasta 150 km** (antes 60): todo lo que abarca el horizonte es ya terreno con la imagen de satélite; las siluetas planas dejan de usarse cuando el relieve está cargado.
+- **Fuera las franjas verticales** al mirar hacia abajo desde una cumbre: cerca del observador la imagen se lee desenfocada (a menos de ~100 m, un solo color, el del lugar) y la luz se calcula con la pendiente medida sobre al menos 60 m.
+- **Sitios arqueológicos sin «desierto»**: con el relieve 3D, el piso propio del sitio solo cubre el entorno del monumento (como mucho 60 m) y se desvanece; más allá se ve el terreno real. Si el monumento más cercano queda lejos, no se dibuja piso.
+- **Con las montañas a la vista no se nombran los astros del otro lado del globo**, salvo los que están a menos de 3° bajo el filo del relieve (a punto de salir).
+- **Buscador de cumbres**: «volcán de fuego» encuentra el Volcán de Fuego de Guatemala (se comparan las palabras propias del nombre, no la frase entera).
+- **Marcas de los polos celestes, el cenit y el nadir**: pequeñas (unos 13 px) y del mismo tamaño con cualquier zoom, también al apuntar con el teléfono.
+
 ## 1.54.0 — 2026-11-21
 
 - **«Escuchar» cuenta la ficha en vez de leerla**: quién es el objeto, dos frases de su descripción, los datos dichos como frases («Está a 25 años luz. La luz que ves salió hace 25 años…»), en las estrellas su vida y su final («Ahora está en la etapa de secuencia principal. Después será gigante roja…»), cómo se ve desde tu lugar y de quién es la imagen. Sin letra pequeña ni detalles técnicos.

@@ -1,4 +1,4 @@
-// terrain3d.js — el relieve cercano en 3D (hasta 60 km) con la imagen de satélite encima, en la vista Cielo.
+// terrain3d.js — el relieve en 3D (hasta 150 km) con la imagen de satélite encima, en la vista Cielo.
 //
 // El servidor (backend/app/terrain3d.py) da las alturas en una rejilla polar (acimut × distancia geométrica) y
 // una imagen de Sentinel-2 cloudless 2016 (EOX, CC BY 4.0) en esa misma rejilla. Aquí se levanta la malla en el
@@ -14,7 +14,7 @@ import { cellKey, snowLine } from "./horizon.js";
 
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
-export const UNITS_PER_M = 0.012;         // 60 km → 720 unidades (dentro de la esfera del cielo, radio ≈ 900)
+export const UNITS_PER_M = 0.0048;        // 150 km → 720 unidades (dentro de la esfera del cielo, radio ≈ 900)
 // Lo muy cercano quedaría por delante del plano cercano de la cámara (0,1 unidades = 8 m) y se recortaría: cada
 // vértice se aleja OFFSET unidades a lo largo de su propia dirección. Visto desde el origen nada cambia (misma
 // dirección, mismo orden de cerca a lejos).
@@ -53,8 +53,15 @@ export function nearGeometry(nr, scale = UNITS_PER_M) {
   }
   // solo se allana lo que sube (un bulto del modelo delante de los ojos); lo que baja se deja como es: desde una
   // cumbre, una plataforma a la altura de los pies taparía todo el paisaje de abajo
-  const H = (i, j) => { const h = heights[((i + nAz) % nAz) * nR + j]; return h > ground ? ground + (h - ground) * w[j] : h; };
+  const H = (i, j) => { const h = heights[(((i % nAz) + nAz) % nAz) * nR + j]; return h > ground ? ground + (h - ground) * w[j] : h; };
   const dAz = (2 * Math.PI) / nAz;
+  const BASE_M = 60, jLo = new Int32Array(nR), jHi = new Int32Array(nR), mAz = new Int32Array(nR);
+  for (let j = 0; j < nR; j++) {
+    let a = Math.max(0, j - 1), b = Math.min(nR - 1, j + 1);
+    while (d[b] - d[a] < BASE_M && (a > 0 || b < nR - 1)) { if (a > 0) a--; if (d[b] - d[a] < BASE_M && b < nR - 1) b++; }
+    jLo[j] = a; jHi[j] = b;
+    mAz[j] = Math.max(1, Math.min(Math.floor(nAz / 8), Math.round(BASE_M / 2 / (dAz * d[j]))));
+  }
   for (let i = 0; i < cols; i++) {
     const az = i * dAz, s = Math.sin(az), c = Math.cos(az);
     { const k = i * R; pos[k * 3] = 0; pos[k * 3 + 1] = -(eye * scale + NEAR_OFFSET); pos[k * 3 + 2] = 0; uv[k * 2] = i / nAz; uv[k * 2 + 1] = 0; nor[k * 3 + 1] = 1; hd[k * 2] = ground; hd[k * 2 + 1] = 0; }
@@ -65,9 +72,11 @@ export function nearGeometry(nr, scale = UNITS_PER_M) {
       pos[k * 3] = dj * s * f; pos[k * 3 + 1] = y * f; pos[k * 3 + 2] = -dj * c * f;
       uv[k * 2] = i / nAz; uv[k * 2 + 1] = j / (nR - 1);
       // pendiente: a lo largo del radio y a lo largo del acimut
-      const j0 = Math.max(0, j - 1), j1 = Math.min(nR - 1, j + 1);
+      // pendiente medida sobre al menos ~60 m (cerca, los vértices están a centímetros unos de otros y la pendiente
+      // de vértice a vértice es ruido: saldrían rayas de luz y sombra)
+      const j0 = jLo[j], j1 = jHi[j], m = mAz[j];
       const hr = (H(i, j1) - H(i, j0)) / (d[j1] - d[j0]);
-      const ht = (H(i + 1, j) - H(i - 1, j)) / (2 * dAz * dj);
+      const ht = (H(i + m, j) - H(i - m, j)) / (2 * m * dAz * dj);
       const gE = hr * s + ht * c, gN = hr * c - ht * s;
       const il = 1 / Math.hypot(gE, gN, 1);
       nor[k * 3] = -gE * il; nor[k * 3 + 1] = il; nor[k * 3 + 2] = gN * il;
@@ -124,10 +133,13 @@ void main() {
   float a = mix(smoothstep(uFadeLo, uFadeHi, alt), 1.0, uOpaque);
   if (a < 0.004) discard;
   // bajo los pies (más cerca que el primer anillo de la imagen) el color se toma muy desenfocado: sin rayas
-  vec3 c = texture2D(map, vUv).rgb;
-  if (vD < 90.0) {
+  // cerca, cada píxel del satélite (10 m) ocupa decenas de columnas de la imagen polar y casi nada a lo largo del
+  // radio: sin desenfocar, cada columna sería una raya. Se lee un nivel más borroso cuanto más cerca
+  vec3 c = texture2D(map, vUv, clamp(log2(2600.0 / max(vD, 30.0)), 0.0, 6.5)).rgb;
+  if (vD < 400.0) {
     vec3 avg = (texture2D(map, vec2(0.125, 0.03), 6.0).rgb + texture2D(map, vec2(0.375, 0.03), 6.0).rgb + texture2D(map, vec2(0.625, 0.03), 6.0).rgb + texture2D(map, vec2(0.875, 0.03), 6.0).rgb) * 0.25;
-    c = mix(avg, c, smoothstep(20.0, 90.0, vD));
+    // (a menos de ~100 m la imagen polar no tiene nada que decir a lo largo del radio: un solo color, el del lugar)
+    c = mix(avg, c, smoothstep(90.0, 400.0, vD));
   }
   // el mosaico es más claro y menos saturado que el suelo visto de lado: a albedo
   float g = (c.r + c.g + c.b) / 3.0;
@@ -166,7 +178,7 @@ void main() {
   // bruma con la distancia
   dcol = mix(dcol, uHorizon, 1.0 - exp(-vD / 55000.0));
   // de noche, siluetas (algo más claras lejos), con un resto del relieve
-  float f = 0.8 * sqrt(clamp(vD / 60000.0, 0.0, 1.0));
+  float f = sqrt(clamp(vD / 150000.0, 0.0, 1.0));
   vec3 ncol = mix(uNightNear, uNightFar, pow(f, 0.8) * 0.95) * (0.82 + 0.5 * g + 0.5 * sn);
   gl_FragColor = vec4(mix(ncol, dcol, uDay), a);
 }`;

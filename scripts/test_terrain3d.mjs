@@ -35,7 +35,7 @@ ok(pe[0] > 9000 && Math.abs(pe[2]) < 1 && Math.abs(altE - expected) < 1e-3 && al
 // la llanura lejana al oeste queda bajo el horizonte por la curvatura
 const pw = V(54, nR - 1);
 ok(pw[0] < -24000 && pw[1] < -40 && pw[1] > -50, "a 25 km la llanura cae ≈ 43 m por la curvatura");
-ok(UNITS_PER_M * 60000 < 880, "la malla de 60 km cabe dentro de la esfera del cielo");
+ok(UNITS_PER_M * 150000 + NEAR_OFFSET < 880, "la malla de 150 km cabe dentro de la esfera del cielo");
 // normales: en la llanura, hacia arriba; en la ladera oeste del cerro (la que mira al observador), inclinada hacia el oeste
 const N = (i, j) => { const k = i * RR + j + 1; return [G.nor[k * 3], G.nor[k * 3 + 1], G.nor[k * 3 + 2]]; };
 const jS = [...Array(nR).keys()].reduce((a, j) => (Math.abs(dist(j) - 8000) < Math.abs(dist(a) - 8000) ? j : a), 0);

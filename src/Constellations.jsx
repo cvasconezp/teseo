@@ -1543,7 +1543,6 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       if (r.mode === "in") {
         camera.fov = spanToFov(r.look.span, camera.aspect);
         r.points.material.uniforms.uScale.value = starScaleFor(camera.fov);
-        if (r.guides && r.guides.setFov) r.guides.setFov(camera.fov);
       } else {
         camera.fov = 55;
         r.points.material.uniforms.uScale.value = 1;
@@ -2083,9 +2082,16 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         };
         // con monumentos hay un suelo de verdad (hierba, arena…): lo que queda bajo el horizonte no se nombra
         const underGround = (x, y) => {
-          if (!ref.monGround || !inside || !ref.localModeOn) return false;
+          if (!inside || !ref.localModeOn || !(ref.monGround || ref.hzData)) return false;
           tmpB.set((x / W) * 2 - 1, -((y / H) * 2 - 1), 0.5).unproject(ref.camera).sub(ref.camera.position).normalize();
-          return tmpB.y < -0.008;
+          if (ref.monGround && tmpB.y < -0.008) return true;
+          // con las montañas a la vista: nada de nombres del otro lado del globo, salvo lo que está a punto de salir
+          // (hasta 3° bajo el filo del relieve en esa dirección)
+          const hzd = ref.hzData;
+          if (!hzd || !hzd.alt || !hzd.alt.length) return false;
+          const altD = Math.asin(Math.max(-1, Math.min(1, tmpB.y))) * 180 / Math.PI, n = hzd.alt.length, step = hzd.step_deg || 360 / n;
+          const azD = ((Math.atan2(tmpB.x, -tmpB.z) * 180 / Math.PI) % 360 + 360) % 360;
+          return altD < Math.min(0, hzd.alt[Math.round(azD / step) % n]) - 3;
         };
         const place = (sx, sy, name, cls, sub, dx, extra) => {
           let flip = false;
@@ -2255,6 +2261,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           }
         }
         // líneas guía: nombres y marcas de cuadrícula al final, solo en los huecos que dejan los objetos
+        if (ref.guides && ref.guides.setFov) ref.guides.setFov(ref.camera.fov, H);   // cada cuadro: también al apuntar con el teléfono
         if (camDist < 1050 && ref.guides && ref.guides.anyVisible()) {
           for (const g of ref.guides.labelsForView(ref.camera, { w: W, h: H })) {
             const n0 = out.length, dxg = g.prio > 1 ? 8 : 5;

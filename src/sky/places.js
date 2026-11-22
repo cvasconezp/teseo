@@ -102,16 +102,24 @@ export function countryName(cc, lang = "es", fallback = null) {
 
 /** Respuesta de Photon → cumbres cuyo nombre (o su región: el Uhuru, en la región de Kilimanjaro) contiene lo
  * buscado. Photon es difuso: «Cayambe» trae «Catamba», que se descarta. */
+const GENERIC = new Set(["volcan", "volcano", "vulkan", "cerro", "monte", "mount", "mt", "montana", "mountain", "nevado", "pico", "peak", "de", "del", "la", "el", "los", "las", "the", "of"]);
+/** Palabras que distinguen un nombre («volcán de Fuego» → ["fuego"]): sin «volcán», «cerro», «de»… */
+export const nameWords = (s) => fold(s).split(/[^a-z0-9]+/).filter((w) => w && !GENERIC.has(w));
 export function parsePhoton(json, q, lang = "es") {
-  const f = fold(q), out = [], seen = new Set();
+  const f = fold(q), qw = nameWords(q), out = [], seen = new Set();
   for (const ft of (json && json.features) || []) {
     const pr = ft && ft.properties, c = ft && ft.geometry && ft.geometry.coordinates;
     if (!pr || !pr.name || !Array.isArray(c) || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) continue;
-    if (!fold(pr.name).includes(f) && !fold(pr.state).includes(f)) continue;
+    // vale si el nombre (o la región) contiene lo buscado tal cual o todas sus palabras propias: «volcán de fuego»
+    // encuentra «Fuego Volcano»
+    const hay = `${fold(pr.name)} ${fold(pr.state)}`;
+    if (!fold(pr.name).includes(f) && !fold(pr.state).includes(f) && !(qw.length && qw.every((w) => hay.includes(w)))) continue;
     const key = `${fold(pr.name)}|${c[1].toFixed(2)}|${c[0].toFixed(2)}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ name: pr.name, lat: +c[1].toFixed(5), lon: +c[0].toFixed(5), elev: null, region: pr.state || null, country: countryName(pr.countrycode, lang, pr.country || null),
+    // «Fuego Volcano» → «Volcán Fuego» (Photon solo da el nombre en inglés)
+    const shown = lang !== "en" && /^(.+)\s+Volcano$/i.test(pr.name) ? `Volcán ${pr.name.replace(/\s+Volcano$/i, "")}` : pr.name;
+    out.push({ name: shown, lat: +c[1].toFixed(5), lon: +c[0].toFixed(5), elev: null, region: pr.state || null, country: countryName(pr.countrycode, lang, pr.country || null),
       cc: pr.countrycode || null, peak: OSM_PEAK_R, kind: pr.osm_value === "volcano" ? "volcano" : "peak", osm: true });
   }
   return out;

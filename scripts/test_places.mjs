@@ -79,5 +79,12 @@ ok(/<PlaceSearch lang=\{lang\}/.test(panels) && /<SiteChips/.test(panels), "el p
 const credits = readFileSync(new URL("../CREDITS.md", import.meta.url), "utf8");
 ok(/GeoNames/.test(credits) && /Geocoding/.test(credits), "créditos del buscador");
 
+{
+  const { parsePhoton: pp, nameWords } = await import("../src/sky/places.js");
+  const js = { features: [{ properties: { name: "Fuego Volcano", countrycode: "GT", osm_value: "volcano" }, geometry: { coordinates: [-90.88, 14.474] } }, { properties: { name: "Colima Volcano", countrycode: "MX", osm_value: "volcano" }, geometry: { coordinates: [-103.61, 19.51] } }] };
+  const r = pp(js, "volcan de fuego", "es");
+  ok(r.length === 1 && r[0].name === "Volcán Fuego" && r[0].kind === "volcano" && r[0].cc === "GT", "«volcán de fuego» encuentra el Fuego de Guatemala (y no el de Colima)");
+  ok(nameWords("Volcán de Fuego").join() === "fuego" && nameWords("Cerro El Altar").join() === "altar" && pp(js, "fuego", "en")[0].name === "Fuego Volcano", "palabras propias del nombre; en inglés, el nombre tal cual");
+}
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);
