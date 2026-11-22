@@ -2701,14 +2701,20 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const landData = satOn && land.key === hzKey && land.status === "ok" ? land.data : null;
   // el relieve cercano en 3D (hasta 25 km) con la imagen de satélite encima (backend/app/terrain3d.py)
   const [near3, setNear3] = useState({ key: null, near: null });
+  // (se pide a la vez que el horizonte, sin esperarlo: el servidor reutiliza el mismo cálculo)
   useEffect(() => {
-    if (!satOn || !hzData || !hzKey) return undefined;
+    if (!satOn || !hzKey) return undefined;
     let alive = true;
     fetchNearTerrain(lat, lon, { api: API, fine: placeFine }).then(
       (near) => { if (alive) setNear3({ key: hzKey, near }); },
       () => { if (alive) setNear3({ key: hzKey, near: null }); });
     return () => { alive = false; };
-  }, [satOn, hzData, hzKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [satOn, hzKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // mientras llega el relieve 3D no se dibujan las franjas planas (se verían un momento y luego cambiarían);
+  // si tarda más de 8 s o falla, quedan las franjas
+  const [nearWaitOver, setNearWaitOver] = useState(false);
+  useEffect(() => { setNearWaitOver(false); if (!hzKey) return undefined; const id = setTimeout(() => setNearWaitOver(true), 8000); return () => clearTimeout(id); }, [hzKey]);
+  const nearPending = satOn && !!hzKey && near3.key !== hzKey && !nearWaitOver;
   const nearData = satOn && hzData && near3.key === hzKey ? near3.near : null;
   // volcanes del Smithsonian de la zona (para la ficha de cada volcán del horizonte; src/sky/volcanoes.js)
   const [volc, setVolc] = useState({ key: null, list: null });
@@ -2869,11 +2875,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   useEffect(() => {      // la malla del relieve cercano: se pone cuando llegan sus datos y se quita al cambiar de lugar
     const ref = sceneRef.current; if (!ref || !ref.near3d) return;
     // en una cumbre (sin monumentos al lado, que se dibujan a la altura de los ojos de siempre) se mira desde 5 m más arriba
-    ref.near3d.set(hzData && nearData ? nearData : null, hzKey, { lift: summitLift });
+    ref.near3d.set(hzData && nearData ? nearData : null, hzKey, { lift: summitLift, ground: monItems.length && Number.isFinite(monBase.ground) ? monBase.ground : null });
     ref.near3d.setEnabled(!!hzData);
-    ref.terrain.setCovered(ref.near3d.coverKm); ref.monuments.setSkirt(!(ref.near3d.coverKm > 0));
+    const wait = nearPending || ref.near3d.loading;
+    ref.terrain.setCovered(wait ? 1e9 : ref.near3d.coverKm); ref.monuments.setSkirt(!(ref.near3d.coverKm > 0) && !wait);
     ref._dirty = true;
-  }, [hzData, nearData, hzKey, ready, summitLift]);
+  }, [hzData, nearData, hzKey, ready, summitLift, nearPending, monItems.length, monBase.ground]);
 
   // nubes: pronóstico de Open-Meteo para el lugar (solo si se piden o se abre su panel) y capa del cielo
   useEffect(() => { try { localStorage.setItem(CLOUDS_KEY, cloudsOn ? "1" : "0"); } catch { /* no-op */ } }, [cloudsOn]);

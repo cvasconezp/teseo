@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.58.1 — 2026-11-21
+
+- **Sin paisaje provisional.** El relieve 3D se pide a la vez que el horizonte y, mientras llega, ya no se dibujan las franjas planas que luego cambiaban (si tarda más de 8 s o falla, quedan las franjas).
+- **Sin rayas verticales al mirar ladera abajo** (Pichincha, la nieve del Chimborazo): el filtrado anisótropo de la imagen dejaba nítida cada columna y emborronaba el radio. Ahora se desenfoca igual en los dos sentidos, y lo lejano se ve igual de nítido.
+- **Sin escalones en el perfil cercano** (el borde del cráter del Cotopaxi): cerca, las alturas se promedian a lo ancho (±15 m), según la resolución real del dato.
+- **Paranal y otras explanadas:** la malla 3D y el piso del sitio usan la misma altura bajo los pies; ya no aparece una «cortina» oscura de unos metros en el borde.
+
 ## 1.58.0 — 2026-11-21
 
 - **Relieve hasta 300 km.** El relieve 3D y el horizonte llegan ahora a 300 km (antes 150): desde las cumbres asoman con su forma nevados lejanos que antes no se dibujaban. Más allá de 150 km también se rotulan los volcanes. La bruma de la distancia es más ligera: las cordilleras lejanas ya no se ven como franjas blanquecinas.

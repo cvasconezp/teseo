@@ -19,6 +19,12 @@ export const UNITS_PER_M = 0.0024;        // 300 km → 720 unidades (dentro de 
 // vértice se aleja OFFSET unidades a lo largo de su propia dirección. Visto desde el origen nada cambia (misma
 // dirección, mismo orden de cerca a lejos).
 export const NEAR_OFFSET = 1.5;
+// filtrado anisótropo de la imagen polar: alto, afila lo lejano rasante pero, mirando ladera abajo, deja nítida cada
+// columna y emborrona el radio (rayas verticales). Con 1, igual de nítido lo lejano y sin rayas
+const ANISO = 1;
+// cerca, las columnas de la malla (cada 0,5°) quedan a pocos metros unas de otras, mucho menos que el dato del
+// relieve (10–30 m): cada una con su propia altura, el perfil sale en escalones. Se promedian a lo ancho ±15 m
+const SMOOTH_ARC_M = 15;
 const FLAT_IN = 150, FLAT_OUT = 450;      // m: más cerca, el modelo mezcla casas y árboles con el suelo → llano
 
 /** Respuesta de /api/terrain/near → { nAz, nR, dMin, dMax, ground, eye, heights: Float32Array(nAz·nR) } o null. */
@@ -48,7 +54,7 @@ export function reliefFromNear(nr, reach, ground, radii, na, eye = 1.7) {
       const ai = Math.round((i / na) * nr.nAz) % nr.nAz;
       let v = nr.heights[ai * nr.nR + j0] * (1 - t) + nr.heights[ai * nr.nR + j1] * t;
       // más cerca que el primer anillo (60 m) no hay medida: rampa suave desde el suelo bajo los pies
-      if (r < nr.dMin && Number.isFinite(nr.ground)) v = nr.ground + (v - nr.ground) * (r / nr.dMin);
+      if (r < nr.dMin) v = ground + (v - ground) * (r / nr.dMin);
       h[j * na + i] = v - ground - eye;
     }
   });
@@ -65,8 +71,29 @@ export function ringDist(nr, j) { return nr.dMin * Math.pow(nr.dMax / nr.dMin, j
 /** Metros que se sube al observador al situarlo en una cumbre o un mirador (como en una torre baja): con los ojos a
  * 1,7 m, una cima ancha tapa casi todo el paisaje de abajo. */
 export const SUMMIT_LIFT_M = 5;
-export function nearGeometry(nr, scale = UNITS_PER_M, lift = 0) {
-  const { nAz, nR, heights, ground } = nr, eye = nr.eye + (lift > 0 ? lift : 0);
+/** Copia de las alturas con cada anillo cercano promediado a lo ancho (±SMOOTH_ARC_M de arco), media circular. */
+export function smoothNear(heights, nAz, nR, d, dAz) {
+  const out = Float32Array.from(heights), col = new Float64Array(nAz + 1);
+  for (let j = 0; j < nR; j++) {
+    const half = Math.min(Math.floor(nAz / 4), Math.round(SMOOTH_ARC_M / (dAz * d[j])));
+    if (half < 1) break;                                         // (más lejos, las columnas ya miden más que el dato)
+    col[0] = 0;
+    for (let i = 0; i < nAz; i++) col[i + 1] = col[i] + heights[i * nR + j];
+    const tot = col[nAz], n = 2 * half + 1;
+    for (let i = 0; i < nAz; i++) {
+      const a = i - half, b = i + half + 1;
+      let sum;
+      if (a >= 0 && b <= nAz) sum = col[b] - col[a];
+      else if (a < 0) sum = col[b] + (tot - col[nAz + a]);
+      else sum = (tot - col[a]) + col[b - nAz];
+      out[i * nR + j] = sum / n;
+    }
+  }
+  return out;
+}
+export function nearGeometry(nr, scale = UNITS_PER_M, lift = 0, groundAt = null) {
+  // (`groundAt`: el suelo bajo los pies con que se colocan los monumentos, si lo hay: malla y monumentos a la misma altura)
+  const { nAz, nR, heights } = nr, ground = Number.isFinite(groundAt) ? groundAt : nr.ground, eye = nr.eye + (lift > 0 ? lift : 0);
   // un anillo más, en el centro (todos sus vértices bajo los pies): cierra el hueco de los primeros 60 m
   const cols = nAz + 1, R = nR + 1, nv = cols * R, h0 = ground + eye;
   const pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), nor = new Float32Array(nv * 3), hd = new Float32Array(nv * 2);
@@ -78,8 +105,9 @@ export function nearGeometry(nr, scale = UNITS_PER_M, lift = 0) {
   }
   // solo se allana lo que sube (un bulto del modelo delante de los ojos); lo que baja se deja como es: desde una
   // cumbre, una plataforma a la altura de los pies taparía todo el paisaje de abajo
-  const H = (i, j) => { const h = heights[(((i % nAz) + nAz) % nAz) * nR + j]; return h > ground ? ground + (h - ground) * w[j] : h; };
   const dAz = (2 * Math.PI) / nAz;
+  const hs = smoothNear(heights, nAz, nR, d, dAz);
+  const H = (i, j) => { const h = hs[(((i % nAz) + nAz) % nAz) * nR + j]; return h > ground ? ground + (h - ground) * w[j] : h; };
   const BASE_M = 60, jLo = new Int32Array(nR), jHi = new Int32Array(nR), mAz = new Int32Array(nR);
   for (let j = 0; j < nR; j++) {
     let a = Math.max(0, j - 1), b = Math.min(nR - 1, j + 1);
@@ -160,7 +188,12 @@ void main() {
   // bajo los pies (más cerca que el primer anillo de la imagen) el color se toma muy desenfocado: sin rayas
   // cerca, cada píxel del satélite (10 m) ocupa decenas de columnas de la imagen polar y casi nada a lo largo del
   // radio: sin desenfocar, cada columna sería una raya. Se lee un nivel más borroso cuanto más cerca
-  vec3 c = texture2D(map, vUv, clamp(log2(2600.0 / max(vD, 30.0)), 0.0, 6.5)).rgb;
+  // (cada fila de la imagen polar mide ~2,7 veces lo que una columna: el desenfoque del mipmap alarga cada píxel
+  // a lo largo del radio y salen rayas verticales; se compensa promediando también a lo ancho)
+  float lod = clamp(log2(2600.0 / max(vD, 30.0)), 0.0, 6.5);
+  float du = exp2(lod) * 0.9 / 2048.0;
+  vec3 c = (texture2D(map, vUv + vec2(-1.5 * du, 0.0), lod).rgb + texture2D(map, vUv + vec2(-0.5 * du, 0.0), lod).rgb
+          + texture2D(map, vUv + vec2(0.5 * du, 0.0), lod).rgb + texture2D(map, vUv + vec2(1.5 * du, 0.0), lod).rgb) * 0.25;
   if (vD < 400.0) {
     // (a menos de ~100 m la imagen polar no tiene nada que decir a lo largo del radio: el color es el del terreno
     // de alrededor —a unos 300 m—, mitad el promedio de todo el contorno y mitad el de esa dirección, muy borroso;
@@ -233,7 +266,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
   const group = new THREE.Group();
   group.name = "terrain3d";
   group.visible = false;
-  let mesh = null, key = null, enabled = true, seq = 0, h0 = 0, coverKm = 0;
+  let mesh = null, key = null, enabled = true, seq = 0, h0 = 0, coverKm = 0, loading = false;
   const uniforms = {
     map: { value: null }, uSun: { value: new THREE.Vector3(0, 1, 0) }, uHorizon: { value: new THREE.Vector3(0.1, 0.11, 0.17) },
     uNightNear: { value: new THREE.Vector3(0.05, 0.056, 0.085) }, uNightFar: { value: new THREE.Vector3(0.17, 0.185, 0.27) },
@@ -249,20 +282,24 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
     group,
     get key() { return key; },
     get ready() { return !!mesh; },
+    /** true mientras se descarga la imagen de una malla nueva (las franjas planas no deben asomar entretanto). */
+    get loading() { return loading; },
     /** km que cubre la malla cuando está puesta y visible (0 si no). */
     get coverKm() { return mesh && group.visible ? coverKm : 0; },
     /** near: { data, texUrl } de fetchNearTerrain (o null para quitarlo); k: clave del lugar. */
-    set(near, k0, { lift = 0 } = {}) {
-      const my = ++seq, k = `${k0}|${lift}`;
-      if (!near) { clear(); return; }
+    set(near, k0, { lift = 0, ground = null } = {}) {
+      const my = ++seq, k = `${k0}|${lift}|${Number.isFinite(ground) ? ground.toFixed(1) : "-"}`;
+      if (!near) { loading = false; clear(); return; }
       if (k === key && mesh) return;
+      loading = true;
       new THREE.TextureLoader().setCrossOrigin("anonymous").load(near.texUrl, (tex) => {
         if (my !== seq) { tex.dispose(); return; }
+        loading = false;
         clear();
         tex.colorSpace = THREE.NoColorSpace;                      // los colores se escriben tal cual, como las franjas
         tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
-        tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter; tex.anisotropy = 16;
-        const G = nearGeometry(near.data, UNITS_PER_M, lift);
+        tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter; tex.anisotropy = ANISO;
+        const G = nearGeometry(near.data, UNITS_PER_M, lift, ground);
         const g = new THREE.BufferGeometry();
         g.setAttribute("position", new THREE.BufferAttribute(G.pos, 3));
         g.setAttribute("uv", new THREE.BufferAttribute(G.uv, 2));
@@ -280,7 +317,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
         mesh.onAfterRender = (renderer) => renderer.clearDepth();  // …ni ella tapa lo que viene después (monumentos, con su propia escala)
         group.add(mesh); key = k; group.visible = enabled;
         if (onReady) onReady();
-      }, undefined, () => { /* sin imagen: quedan las franjas */ });
+      }, undefined, () => { if (my === seq) { loading = false; if (onReady) onReady(); } /* sin imagen: quedan las franjas */ });
     },
     /** st: skyState(...) o null; hz: el horizonte (para la sombra del valle); lat; floor: de pie en una cumbre. */
     setLook(st, { hz = null, lat = 0, floor = false, lowest = 0 } = {}) {

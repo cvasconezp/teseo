@@ -70,8 +70,6 @@ let failed = false;
 await fetchNearTerrain(10, 10, { fetchImpl: async () => ({ ok: false, status: 502 }) }).catch(() => { failed = true; });
 ok(failed, "sin servidor, falla (quedan las franjas)");
 
-console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
-if (fail) process.exit(1);
 
 // el piso de los monumentos a partir del relieve 3D: una loma que baja 40 m hacia fuera
 {
@@ -80,6 +78,19 @@ if (fail) process.exit(1);
   for (let i = 0; i < nAz; i++) for (let j = 0; j < nR; j++) { const d = dMin * Math.pow(dMax / dMin, j / (nR - 1)); heights[i * nR + j] = 3000 - Math.min(40, d / 10); }
   const g = reliefFromNear({ nAz, nR, dMin, dMax, heights }, 400, 3000, [0.08, 0.9], 4);
   ok(g && g.reach === 400 && g.h.length === 8, "rejilla del tamaño de la de los monumentos");
-  ok(Math.abs(g.h[0] - (-6 - 1.7)) < 0.6 && Math.abs(g.h[4] - (-36 - 1.7)) < 2.5, "alturas respecto a los ojos, bajando con la loma");
+  ok(Math.abs(g.h[0] - (-6 * 32 / 60 - 1.7)) < 0.6 && Math.abs(g.h[4] - (-36 - 1.7)) < 2.5, "alturas respecto a los ojos, bajando con la loma (rampa desde los pies hasta el primer anillo)");
   ok(reliefFromNear(null, 400, 0, [0.5], 4) === null, "sin relieve, nada");
 }
+
+// cerca, las alturas se promedian a lo ancho (sin escalones); lejos quedan igual
+{
+  const { smoothNear } = await import("../src/sky/terrain3d.js");
+  const nAz = 720, nR = 2, d = [100, 50000], dAz = (2 * Math.PI) / nAz, h = new Float32Array(nAz * nR);
+  for (let i = 0; i < nAz; i++) { h[i * nR] = i % 2 ? 10 : 0; h[i * nR + 1] = i % 2 ? 10 : 0; }
+  const s = smoothNear(h, nAz, nR, d, dAz);
+  ok(Math.abs(s[0] - 5) < 0.6 && Math.abs(s[2 * nR] - 5) < 0.6, "a 100 m, columna a columna sin dientes");
+  ok(s[1] === 0 && s[nR + 1] === 10, "a 50 km, sin tocar");
+}
+
+console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
+if (fail) process.exit(1);
