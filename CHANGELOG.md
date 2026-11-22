@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.60.0 — 2026-11-21
+
+- **Modelos 3D nuevos:**
+  - **Ingapirca:** el Templo del Sol o «Castillo», una plataforma de 37,10 × 12,35 m con los extremos redondeados, de sillería (Fresco y Ziółkowski, 1984); la orientación es aproximada. El punto de vista está a 40 m al sur.
+  - **Maeshowe:** el túmulo de 35 m de diámetro y 7,3 m de alto, con la entrada al suroeste. El punto de vista está frente a ella.
+  - **Coliseo:** la elipse de 188 × 156 m y 48 m de alto, con las gradas y la arena (forma simplificada), vista desde el centro de la arena.
+- **Puntiachil** (Cayambe), en la lista de sitios de Ecuador.
+
 ## 1.59.1 — 2026-11-21
 
 - Se quita la vista desde la cima de las pirámides (Sol, Luna, El Castillo y Keops) y sus entradas de la lista: las pirámides vuelven a verse desde el suelo, como antes.

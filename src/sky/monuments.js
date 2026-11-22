@@ -38,6 +38,9 @@ const EARTH = [0.55, 0.47, 0.36];      // Tiwanaku: Akapana, hoy un cerro de tie
 const REDSTONE = [0.66, 0.5, 0.42];    // Tiwanaku: arenisca roja de Kalasasaya
 const ANDESITE = [0.55, 0.56, 0.58];   // Tiwanaku: andesita gris (Puerta del Sol, estela Ponce)
 const GRANITE = [0.72, 0.72, 0.7];     // Machu Picchu: granito
+const INGA = [0.6, 0.6, 0.58];         // Ingapirca: andesita labrada
+const TRAVERTINE = [0.8, 0.74, 0.62];  // Coliseo: travertino
+const SAND_C = [0.78, 0.68, 0.5];      // Coliseo: la arena
 
 // Chankillo: las Trece Torres, de norte (1) a sur (13). Desplazamiento [este, norte] en metros desde el punto
 // de referencia (9,561149° S, 78,227355° O), giro de la planta y alto. La fila mide unos 205 m; las tres últimas
@@ -159,6 +162,19 @@ export const MONUMENTS = [
     kind: "stonehenge", axis: 49.9, height: 6.7, color: SARSEN, mat: "sarsen", ground: "grass", solid: false },
   { id: "newgrange", site: "newgrange", name: { es: "Newgrange", en: "Newgrange" }, lat: 53.69509, lon: -6.47531,
     kind: "mound", radius: 42.5, wall: 3, height: 13.5, entrance: 135, color: GRASS, wallColor: QUARTZ, mat: "grass", wallMat: "quartz", ground: "grass", solid: true },
+  // Ingapirca: la plataforma del Templo del Sol o «Castillo» mide 37,10 × 12,35 m (Fresco y Ziółkowski, Revista
+  // Española de Antropología Americana 14, 1984); sus muros de sillería, de hasta unos 4 m. Las puertas de los
+  // extremos se han descrito orientadas a la salida y la puesta del Sol: eje este–oeste aproximado
+  { id: "ingapirca-castillo", site: "ingapirca", name: { es: "Templo del Sol (Castillo)", en: "Temple of the Sun (Castle)" }, sub: { es: "plataforma de 37 × 12 m · orientación aproximada", en: "37 × 12 m platform · approximate orientation" },
+    lat: -2.548588, lon: -78.87188, kind: "stadium", length: 37.1, width: 12.35, height: 3.6, axis: 90, foot: 19, color: INGA, mat: "sarsen", topMat: "grass", ground: "grass", solid: true },
+  // Maeshowe: túmulo de hierba de unos 35 m de diámetro y 7,3 m de alto; el pasillo de entrada (unos 11 m) se abre
+  // al suroeste, hacia la puesta del Sol del solsticio de invierno (Wikipedia; Historic Environment Scotland)
+  { id: "maeshowe", site: "maeshowe", name: { es: "Maeshowe", en: "Maeshowe" }, lat: 58.9966, lon: -3.1882,
+    kind: "mound", radius: 17.5, wall: 0, skirt: 0.5, height: 7.3, entrance: 230, roofBox: false, color: GRASS, mat: "grass", ground: "grass", solid: true },
+  // Coliseo: elipse de 188 × 156 m y 48 m de alto, con la arena de unos 87 × 55 m; el eje largo va de
+  // oessuroeste a estenoreste. Desde el centro de la arena (forma simplificada)
+  { id: "coliseo", site: "coliseo", name: { es: "Coliseo", en: "Colosseum" }, sub: { es: "188 × 156 m · forma simplificada", en: "188 × 156 m · simplified shape" }, lat: 41.890278, lon: 12.492222,
+    kind: "amphitheatre", a: 94, b: 78, arenaA: 43.5, arenaB: 27.5, height: 48, podium: 4, tiers: 4, axis: 67.5, foot: 0, ring: 125, walkIn: true, color: TRAVERTINE, mat: "yucatan", ground: "dirt", solid: true },
   ...COCHASQUI,
   ...COCHASQUI_MOUNDS,
   ...machu,
@@ -374,6 +390,44 @@ function cyl(out, { e = 0, n = 0, z0, z1, r0, r1 = r0, seg = 48, col, mat, cap =
   if (cap && r1 > 0) for (let i = 0; i < seg; i++) out.push({ v: [[e, n, z1], P(i, 1), P(i + 1, 1)], c: col, mat, tone });
 }
 
+// --- contornos en planta (Ingapirca, Coliseo): puntos [e, n] alrededor del centro, en el mismo sentido que cyl ---
+/** Rota un punto del marco del monumento (x a lo largo del eje `axis`, en grados desde el norte) a (e, n). */
+function axisRot([x, y], axis) { const f = (axis - 90) * RAD, c = Math.cos(f), s = Math.sin(f); return [x * c + y * s, -x * s + y * c]; }
+/** Elipse de semiejes a (a lo largo del eje) y b. */
+function ellipseOutline(a, b, axis, seg) { return Array.from({ length: seg }, (_, k) => { const t = (k / seg) * 2 * Math.PI; return axisRot([a * Math.sin(t), b * Math.cos(t)], axis); }); }
+/** «Estadio» (rectángulo con los extremos en semicírculo) de largo L y ancho W, encogido `inset` m hacia dentro. */
+function stadiumOutline(L, W, axis, seg, inset = 0) {
+  const s = (L - W) / 2, r = W / 2 - inset;
+  return Array.from({ length: seg }, (_, k) => {
+    const t = (k / seg) * 2 * Math.PI, dx = Math.sin(t), dy = Math.cos(t);
+    // distancia del centro al borde en esa dirección (el borde está a `r` del segmento central)
+    let lo = 0, hi = L;
+    for (let it = 0; it < 40; it++) { const m = (lo + hi) / 2, px = m * dx, py = m * dy, qx = Math.max(-s, Math.min(s, px)); if (Math.hypot(px - qx, py) < r) lo = m; else hi = m; }
+    return axisRot([lo * dx, lo * dy], axis);
+  });
+}
+/** Pared entre dos contornos (abajo A a z0, arriba B a z1); `inward`: mira hacia dentro (gradas, podio). */
+function outlineWall(out, A, B, z0, z1, col, mat, inward = false, tone = 1) {
+  const n = A.length;
+  let u = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n, a = [...A[i], z0], b = [...A[j], z0], c = [...B[j], z1], d = [...B[i], z1];
+    const du = Math.hypot(A[j][0] - A[i][0], A[j][1] - A[i][1]), uv = [[u, z0], [u + du, z0], [u + du, z1], [u, z1]];
+    if (inward) out.push({ v: [a, d, c], uv: [uv[0], uv[3], uv[2]], c: col, mat, tone }, { v: [a, c, b], uv: [uv[0], uv[2], uv[1]], c: col, mat, tone });
+    else out.push({ v: [a, b, c], uv: [uv[0], uv[1], uv[2]], c: col, mat, tone }, { v: [a, c, d], uv: [uv[0], uv[2], uv[3]], c: col, mat, tone });
+    u += du;
+  }
+}
+/** Superficie (de cara arriba) entre el contorno de fuera A (a zA) y el de dentro B (a zB); sin B, tapa entera. */
+function outlineBand(out, A, zA, B, zB, col, mat, tone = 1) {
+  const n = A.length;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n, a0 = [...A[i], zA], a1 = [...A[j], zA];
+    if (!B) { out.push({ v: [[0, 0, zA], a0, a1], c: col, mat, tone }); continue; }
+    quad(out, [...B[i], zB], a0, a1, [...B[j], zB], col, mat);
+  }
+}
+
 /** Círculo horizontal (suelo de una plataforma) a la altura z. */
 function disk(out, { e = 0, n = 0, z, r, seg = 72, col, mat, tone = 1 }) {
   for (let i = 0; i < seg; i++) {
@@ -500,7 +554,7 @@ export function buildFaces(m, opt = {}) {
       const az = m.entrance * RAD, r = m.radius + 0.07, ox = Math.sin(az), oy = Math.cos(az), tx = Math.cos(az), ty = -Math.sin(az);
       const P = (t, z) => [ox * r + tx * t, oy * r + ty * t, z];
       quad(out, P(-0.55, 0), P(0.55, 0), P(0.55, 1.6), P(-0.55, 1.6), [0.05, 0.05, 0.05], "door");
-      quad(out, P(-0.5, 2.0), P(0.5, 2.0), P(0.5, 2.5), P(-0.5, 2.5), [0.05, 0.05, 0.05], "door");
+      if (m.roofBox !== false) quad(out, P(-0.5, 2.0), P(0.5, 2.0), P(0.5, 2.5), P(-0.5, 2.5), [0.05, 0.05, 0.05], "door");
     }
   } else if (m.kind === "tola") {
     // pirámide trunca de tierra cubierta de hierba: taludes tendidos, plataforma y, si la tiene, la rampa al sur de
@@ -582,6 +636,25 @@ export function buildFaces(m, opt = {}) {
         quad(out, P(a, r0), P(a, r1), P(b, r1), P(b, r0), PEBBLE, "pebblelight"); } }
     // el poste (gnomon)
     cyl(out, { z0: 0, z1: m.height, r0: m.pole, seg: 28, col, mat: m.mat });
+  } else if (m.kind === "stadium") {
+    // Ingapirca: la plataforma en «estadio» (dos semicírculos unidos por tramos rectos) de piedra labrada, con los
+    // muros algo inclinados hacia dentro, como los incas
+    const seg = 96, A = stadiumOutline(m.length, m.width, m.axis, seg), B = stadiumOutline(m.length, m.width, m.axis, seg, m.height * Math.tan(7 * RAD));
+    outlineWall(out, A, B, 0, m.height, col, m.mat);
+    outlineBand(out, B, m.height, null, 0, col, m.topMat || m.mat, 0.95);
+  } else if (m.kind === "amphitheatre") {
+    // Coliseo: muro exterior en elipse, una corona estrecha arriba, las gradas que bajan hacia la arena, el muro
+    // del podio y la arena (forma simplificada: sin arcos ni la parte que falta hoy del anillo exterior)
+    const seg = 160, E = (a, b) => ellipseOutline(a, b, m.axis, seg);
+    const O = E(m.a, m.b), C = E(m.a - 6, m.b - 6), P = E(m.arenaA + 3, m.arenaB + 3), R = E(m.arenaA, m.arenaB);
+    outlineWall(out, O, O, 0, m.height, col, m.mat);
+    for (let k = 1; k < m.tiers; k++) { const z = (m.height * k) / m.tiers; outlineWall(out, O.map(([e, n]) => [e * 1.004, n * 1.004]), O.map(([e, n]) => [e * 1.004, n * 1.004]), z - 0.6, z, col, m.mat, false, 0.82); }
+    outlineBand(out, O, m.height, C, m.height, col, m.mat, 0.9);
+    outlineWall(out, C, C, m.height - 8, m.height, col, m.mat, true, 0.8);
+    outlineBand(out, C, m.height - 8, P, m.podium, col, m.mat, 0.85);
+    outlineBand(out, P, m.podium, R, m.podium, col, m.mat, 0.9);
+    outlineWall(out, R, R, 0.1, m.podium, col, m.mat, true, 0.75);
+    outlineBand(out, R, 0.1, null, 0, SAND_C, "sand");
   } else if (m.kind === "arcwall") {
     arcWall(out, m);
   } else if (m.kind === "disc") {
@@ -677,6 +750,7 @@ export function apexOf(m) {
   if (m.kind === "stonehenge") return [0, 0, m.height];
   if (m.kind === "arcwall") { const a = ((m.az0 + m.az1) / 2) * RAD; return [m.radius * Math.sin(a), m.radius * Math.cos(a), m.height]; }
   if (m.kind === "kalasasaya") return [m.w / 2, -m.d / 4, m.pillar];
+  if (m.kind === "amphitheatre") return [...axisRot([m.a, 0], m.axis), m.height];   // (desde la arena: el rótulo, en el muro del este)
   return [0, 0, m.height + (m.temple ? m.temple.h : 0)];
 }
 
