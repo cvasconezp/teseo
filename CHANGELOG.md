@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.62.0 — 2026-11-22
+
+- **Modelos 3D nuevos (formas simplificadas, con medidas publicadas):**
+  - **Karnak:** el primer pilono, de 113 m de ancho y 14,5 m de fondo, con la torre norte en 21,7 m y la sur en 31,65 m (quedó sin terminar) y la puerta de 7,4 m. Se ve desde 90 m delante, en el eje del templo: en el solsticio de diciembre el Sol sale por la puerta.
+  - **Angkor Wat:** la galería exterior (187 × 215 m), el segundo recinto (100 × 115 m), la galería interior de 60 m y las cinco torres; la central, a 65 m sobre el suelo. Se ve desde 170 m al oeste, en el eje de la entrada. Las alturas de las galerías bajas y de las torres de las esquinas son aproximadas.
+
 ## 1.61.0 — 2026-11-22
 
 - **Modelos 3D nuevos (formas simplificadas, con medidas publicadas):**

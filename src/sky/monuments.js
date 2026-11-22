@@ -44,6 +44,7 @@ const SAND_C = [0.78, 0.68, 0.5];      // Coliseo: la arena
 const SOAPSTONE = [0.82, 0.81, 0.77];  // Cristo Redentor: esteatita
 const MARBLE = [0.92, 0.91, 0.88];     // Taj Mahal: mármol blanco
 const NUBIAN = [0.78, 0.6, 0.42];      // Abu Simbel: arenisca
+const KHMER = [0.6, 0.58, 0.5];         // Angkor Wat: arenisca gris
 
 // Chankillo: las Trece Torres, de norte (1) a sur (13). Desplazamiento [este, norte] en metros desde el punto
 // de referencia (9,561149° S, 78,227355° O), giro de la planta y alto. La fila mide unos 205 m; las tres últimas
@@ -190,6 +191,17 @@ export const MONUMENTS = [
   // sentados de unos 20 m; mira al este (World History Encyclopedia; Lonely Planet)
   { id: "abusimbel-gran", site: "abusimbel", name: { es: "Gran Templo de Ramsés II", en: "Great Temple of Ramesses II" }, sub: { es: "fachada de 35 × 30 m · forma simplificada", en: "35 × 30 m façade · simplified shape" },
     lat: 22.33694, lon: 31.62556, kind: "rockfacade", width: 35, height: 30, axis: 90, foot: 25, color: NUBIAN, mat: "sarsen", ground: "sand", solid: true },
+  // Karnak, primer pilono: 113 m de ancho y 14,5 m de fondo; torre norte de 21,70 m y sur de 31,65 m, sin terminar;
+  // la puerta, de 7,4 m de ancho (Digital Karnak, UCLA/UCSC). Cierra el templo de Amón por el oeste; el eje del templo
+  // va a 117° (hacia la salida del Sol en el solsticio de diciembre). Posición: Vici.org (±5 m)
+  { id: "karnak-pilono", site: "karnak", name: { es: "Primer pilono de Karnak", en: "First Pylon of Karnak" }, sub: { es: "113 m de ancho · forma simplificada", en: "113 m wide · simplified shape" },
+    lat: 25.719046, lon: 32.656757, kind: "pylon", width: 113, depth: 14.5, gate: 7.4, hN: 21.7, hS: 31.65, height: 31.65, axis: 297, foot: 30, color: NUBIAN, mat: "sarsen", ground: "sand", solid: true },
+  // Angkor Wat: galería exterior de 187 × 215 m, segundo recinto de 100 × 115 m, galería interior de 60 m y torre
+  // central de 65 m sobre el suelo, 43 m sobre el último nivel (MIT Dome; Universidad de Notre Dame). Mira al oeste;
+  // el orden de los lados es aproximado, como las alturas de las dos galerías bajas y de las torres de las
+  // esquinas
+  { id: "angkorwat", site: "angkorwat", name: { es: "Angkor Wat", en: "Angkor Wat" }, sub: { es: "torre central de 65 m · forma simplificada", en: "65 m central tower · simplified shape" },
+    lat: 13.4125, lon: 103.866667, kind: "angkor", outer: [215, 187], second: [115, 100], inner: 60, h1: 6, h2: 11, h3: 22, height: 65, corner: 52, axis: 270, foot: 110, color: KHMER, mat: "sarsen", ground: "grass", solid: true },
   ...COCHASQUI,
   ...COCHASQUI_MOUNDS,
   ...machu,
@@ -727,6 +739,30 @@ export function buildFaces(m, opt = {}) {
       boxAt(out, ax, 2, y, 15.5, 17.6, 2.6, 2.8, 2.4, 2.4, col, m.mat);                           // cabeza
       lathe(out, [[1.3, 17.6], [1.1, 19], [0.6, 19.6], [0.1, 20]], { e: axisRot([2, y], ax)[0], n: axisRot([2, y], ax)[1], seg: 12, col, mat: m.mat });  // corona
     });
+  } else if (m.kind === "pylon") {
+    // Primer pilono de Karnak (forma simplificada): dos torres en talud de 14,5 m de fondo, 113 m de ancho en total,
+    // a cada lado de una puerta de 7,4 m; la torre norte quedó en 21,7 m y la sur en 31,65 (sin terminar)
+    const ax = m.axis, D = m.depth, g = m.gate, Wt = (m.width - g) / 2, bat = 0.1;
+    // (+y, a la izquierda del frente: con el frente al oeste-noroeste, el sur)
+    [[-1, m.hN], [1, m.hS]].forEach(([s, H]) => {
+      boxAt(out, ax, 0, s * (g / 2 + Wt / 2), 0, H, D, Wt, D - 2 * bat * H, Wt - bat * H, col, m.mat);
+      boxAt(out, ax, 0, s * (g / 2 + 1), 0, H, D * 0.85, 2, D * 0.85, 2, col, m.mat);   // la jamba, a plomo
+    });
+  } else if (m.kind === "angkor") {
+    // Angkor Wat (forma simplificada): la galería exterior (187 × 215 m), el segundo recinto (100 × 115 m), la
+    // galería interior de 60 m sobre su basamento y el quincunce de torres; la central, a 65 m sobre el suelo
+    const ax = m.axis, [L1, W1] = m.outer, [L2, W2] = m.second, s3 = m.inner, g = 9, h1 = m.h1, h2 = m.h2, h3 = m.h3;
+    boxAt(out, ax, 0, (W1 - g) / 2, 0, h1, L1, g, L1, g * 0.6, col, m.mat);
+    boxAt(out, ax, 0, -(W1 - g) / 2, 0, h1, L1, g, L1, g * 0.6, col, m.mat);
+    boxAt(out, ax, (L1 - g) / 2, 0, 0, h1, g, W1 - 2 * g, g * 0.6, W1 - 2 * g, col, m.mat);
+    boxAt(out, ax, -(L1 - g) / 2, 0, 0, h1, g, W1 - 2 * g, g * 0.6, W1 - 2 * g, col, m.mat);
+    boxAt(out, ax, 0, 0, 0, h2, L2, W2, L2 - 6, W2 - 6, col, m.mat);
+    boxAt(out, ax, 0, 0, h2, h3, s3, s3, s3 - 10, s3 - 10, col, m.mat);
+    const tower = (x, y, top, r) => { const [e, n] = axisRot([x, y], ax), H = top - h3;
+      lathe(out, [[r, h3], [r * 0.95, h3 + H * 0.2], [r * 0.85, h3 + H * 0.45], [r * 0.68, h3 + H * 0.65], [r * 0.42, h3 + H * 0.82], [r * 0.15, h3 + H * 0.95], [0, top]], { e, n, seg: 24, col, mat: m.mat }); };
+    tower(0, 0, m.height, 9);
+    const c = s3 / 2 - 7;
+    for (const [x, y] of [[c, c], [c, -c], [-c, c], [-c, -c]]) tower(x, y, m.corner, 6);
   } else if (m.kind === "arcwall") {
     arcWall(out, m);
   } else if (m.kind === "disc") {
@@ -824,6 +860,8 @@ export function apexOf(m) {
   if (m.kind === "kalasasaya") return [m.w / 2, -m.d / 4, m.pillar];
   if (m.kind === "amphitheatre") return [...axisRot([m.a, 0], m.axis), m.height];
   if (m.kind === "statue") return [0, 0, m.pedestal + m.height];
+  if (m.kind === "angkor") return [0, 0, m.height];
+  if (m.kind === "pylon") return [0, 0, m.hS];
   if (m.kind === "rockfacade") return [0, 0, m.height];   // (desde la arena: el rótulo, en el muro del este)
   return [0, 0, m.height + (m.temple ? m.temple.h : 0)];
 }
