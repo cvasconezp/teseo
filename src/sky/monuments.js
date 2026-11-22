@@ -41,6 +41,9 @@ const GRANITE = [0.72, 0.72, 0.7];     // Machu Picchu: granito
 const INGA = [0.6, 0.6, 0.58];         // Ingapirca: andesita labrada
 const TRAVERTINE = [0.8, 0.74, 0.62];  // Coliseo: travertino
 const SAND_C = [0.78, 0.68, 0.5];      // Coliseo: la arena
+const SOAPSTONE = [0.82, 0.81, 0.77];  // Cristo Redentor: esteatita
+const MARBLE = [0.92, 0.91, 0.88];     // Taj Mahal: mármol blanco
+const NUBIAN = [0.78, 0.6, 0.42];      // Abu Simbel: arenisca
 
 // Chankillo: las Trece Torres, de norte (1) a sur (13). Desplazamiento [este, norte] en metros desde el punto
 // de referencia (9,561149° S, 78,227355° O), giro de la planta y alto. La fila mide unos 205 m; las tres últimas
@@ -175,6 +178,18 @@ export const MONUMENTS = [
   // oessuroeste a estenoreste. Desde el centro de la arena (forma simplificada)
   { id: "coliseo", site: "coliseo", name: { es: "Coliseo", en: "Colosseum" }, sub: { es: "188 × 156 m · forma simplificada", en: "188 × 156 m · simplified shape" }, lat: 41.890278, lon: 12.492222,
     kind: "amphitheatre", a: 94, b: 78, arenaA: 43.5, arenaB: 27.5, height: 48, podium: 4, tiers: 4, axis: 67.5, foot: 0, ring: 125, walkIn: true, color: TRAVERTINE, mat: "yucatan", ground: "dirt", solid: true },
+  // Cristo Redentor: 30 m de figura sobre un pedestal de 8 m, brazos de 28 m y túnica de 8,5 m de ancho (Britannica;
+  // Structurae). La figura mira, aproximadamente, al sureste, hacia la bahía
+  { id: "cristo", site: "cristoredentor", name: { es: "Cristo Redentor", en: "Christ the Redeemer" }, sub: { es: "38 m con el pedestal · forma simplificada", en: "38 m with its pedestal · simplified shape" },
+    lat: -22.951916, lon: -43.210464, kind: "statue", height: 30, pedestal: 8, span: 28, axis: 140, foot: 7, level: true, levelR: 30, ring: 14, color: SOAPSTONE, mat: "yucatan", ground: "dirt", solid: true },
+  // Taj Mahal: zócalo de 95,5 m de lado y unos 7 m de alto; edificio de unos 57 m de lado con las esquinas
+  // achaflanadas y arcos de 33 m; cúpula hasta 73 m; minaretes de más de 40 m (Wikipedia; Britannica)
+  { id: "tajmahal", site: "tajmahal", name: { es: "Taj Mahal", en: "Taj Mahal" }, sub: { es: "73 m · forma simplificada", en: "73 m · simplified shape" },
+    lat: 27.175, lon: 78.041944, kind: "taj", plinth: 95.5, plinthH: 7, body: 57, chamfer: 12, bodyH: 33, dome: 18, height: 73, minaret: 41, axis: 0, foot: 50, color: MARBLE, mat: "quartz", ground: "grass", solid: true },
+  // Abu Simbel, el Gran Templo: fachada tallada en la roca de 30 m de alto y 35 de ancho, con cuatro colosos
+  // sentados de unos 20 m; mira al este (World History Encyclopedia; Lonely Planet)
+  { id: "abusimbel-gran", site: "abusimbel", name: { es: "Gran Templo de Ramsés II", en: "Great Temple of Ramesses II" }, sub: { es: "fachada de 35 × 30 m · forma simplificada", en: "35 × 30 m façade · simplified shape" },
+    lat: 22.33694, lon: 31.62556, kind: "rockfacade", width: 35, height: 30, axis: 90, foot: 25, color: NUBIAN, mat: "sarsen", ground: "sand", solid: true },
   ...COCHASQUI,
   ...COCHASQUI_MOUNDS,
   ...machu,
@@ -428,6 +443,23 @@ function outlineBand(out, A, zA, B, zB, col, mat, tone = 1) {
   }
 }
 
+/** Sólido de revolución: perfil [[r, z], …] de abajo arriba, alrededor de (e, n). */
+function lathe(out, prof, { e = 0, n = 0, seg = 48, col, mat, tone = 1 }) {
+  const ring = ([r, z]) => Array.from({ length: seg }, (_, k) => { const a = (k / seg) * 2 * Math.PI; return [e + r * Math.sin(a), n + r * Math.cos(a), z]; });
+  for (let i = 0; i + 1 < prof.length; i++) {
+    const A = ring(prof[i]), B = ring(prof[i + 1]);
+    for (let k = 0; k < seg; k++) {
+      const j = (k + 1) % seg;
+      out.push({ v: [A[k], A[j], B[j]], c: col, mat, smooth: true, tone }, { v: [A[k], B[j], B[k]], c: col, mat, smooth: true, tone });
+    }
+  }
+}
+/** Caja (o tronco) en el marco del monumento: x hacia `axis`, y a la izquierda; (x, y) es su centro. */
+function boxAt(out, axis, x, y, z0, z1, w0, d0, w1 = w0, d1 = d0, col, mat) {
+  const [ce, cn] = axisRot([x, y], axis);
+  frustum(out, { ce, cn, z0, z1, w0, d0, w1, d1, rot: axis - 90, col, mat });
+}
+
 /** Círculo horizontal (suelo de una plataforma) a la altura z. */
 function disk(out, { e = 0, n = 0, z, r, seg = 72, col, mat, tone = 1 }) {
   for (let i = 0; i < seg; i++) {
@@ -655,6 +687,46 @@ export function buildFaces(m, opt = {}) {
     outlineBand(out, P, m.podium, R, m.podium, col, m.mat, 0.9);
     outlineWall(out, R, R, 0.1, m.podium, col, m.mat, true, 0.75);
     outlineBand(out, R, 0.1, null, 0, SAND_C, "sand");
+  } else if (m.kind === "statue") {
+    // Cristo Redentor (forma simplificada): pedestal de 8 m y la figura de 30 m: la túnica que se estrecha hacia
+    // los hombros, los brazos abiertos de 28 m y la cabeza (3,75 m)
+    const ax = m.axis, p = m.pedestal, top = p + m.height, sh = top - 4.6;
+    boxAt(out, ax, 0, 0, 0, p, 9.5, 9.5, 8.8, 8.8, col, m.mat);
+    boxAt(out, ax, 0, 0, p, sh - 1.2, 4.2, 8.5, 3.6, 6.2, col, m.mat);
+    boxAt(out, ax, 0, 0, sh - 1.2, sh + 1.4, 3.6, m.span, 3.0, m.span, col, m.mat);
+    lathe(out, [[0.9, sh + 1.4], [1.1, sh + 1.9], [1.5, top - 2.6], [1.55, top - 1.4], [1.2, top - 0.4], [0, top]], { seg: 20, col, mat: m.mat });
+  } else if (m.kind === "taj") {
+    // Taj Mahal (forma simplificada): el zócalo cuadrado, el edificio de esquinas achaflanadas con sus grandes arcos,
+    // el tambor y la cúpula en bulbo hasta 73 m, cuatro templetes y los cuatro minaretes
+    const P = m.plinthH, H = P + m.bodyH, half = m.body / 2, ch = m.chamfer;
+    frustum(out, { z0: 0, z1: P, w0: m.plinth, w1: m.plinth, rot: m.axis - 90, col, mat: m.mat, tone: 0.95 });
+    const oct = [[half, half - ch], [half - ch, half], [ch - half, half], [-half, half - ch], [-half, ch - half], [ch - half, -half], [half - ch, -half], [half, ch - half]]
+      .map((q) => axisRot(q, m.axis)).reverse();
+    outlineWall(out, oct, oct, P, H, col, m.mat);
+    outlineBand(out, oct, H, null, 0, col, m.mat);
+    // los arcos de las cuatro fachadas (oscuros, apenas hundidos)
+    for (const s of [0, 90, 180, 270]) { const [ce, cn] = axisRot([half + 0.05, 0], m.axis + s); frustum(out, { ce, cn, z0: P + 1, z1: P + m.bodyH * 0.78, w0: 0.1, d0: 16, w1: 0.1, d1: 9, rot: m.axis + s - 90, col: [0.55, 0.55, 0.55], mat: m.mat, tone: 0.7 }); }
+    const d = m.dome / 2, z0 = H, zt = m.height;
+    lathe(out, [[d, z0], [d, z0 + 7], [d * 1.12, z0 + 12], [d * 1.08, z0 + 17], [d * 0.7, zt - 9], [d * 0.25, zt - 6.5], [0.5, zt - 5.5], [0.25, zt]], { seg: 48, col, mat: m.mat });
+    for (const s of [45, 135, 225, 315]) { const [ce, cn] = axisRot([half * 0.62, 0], m.axis + s); lathe(out, [[3, H], [3, H + 6], [3.4, H + 8], [1.2, H + 11], [0.2, H + 12.5]], { e: ce, n: cn, seg: 16, col, mat: m.mat }); }
+    for (const s of [45, 135, 225, 315]) { const [ce, cn] = axisRot([(m.plinth / 2 - 3.5) * Math.SQRT2, 0], m.axis + s); lathe(out, [[3, P], [2.5, P + m.minaret - 6], [3.2, P + m.minaret - 5.5], [2.6, P + m.minaret - 3.5], [1.6, P + m.minaret - 2], [0.2, P + m.minaret]], { e: ce, n: cn, seg: 16, col, mat: m.mat }); }
+  } else if (m.kind === "rockfacade") {
+    // Abu Simbel (forma simplificada): la fachada tallada en la roca (35 m de ancho y 30 de alto), el cerro detrás,
+    // la puerta y los cuatro colosos sentados de 20 m (el segundo desde la izquierda, roto desde la Antigüedad)
+    const ax = m.axis, W = m.width, Hh = m.height;
+    // (el cerro: laderas tendidas a los lados y detrás; delante, la fachada vertical)
+    boxAt(out, ax, -24, 0, 0, Hh, 48, W + 44, 14, W + 4, col, m.mat);
+    boxAt(out, ax, -1, 0, 0, Hh, 2, W, 2, W, col, m.mat);
+    boxAt(out, ax, 0.05, 0, 0, 7, 0.1, 3, 0.1, 3, [0.08, 0.07, 0.06], "door");
+    [-13, -6, 6, 13].forEach((y, i) => {
+      const broken = i === 1;
+      boxAt(out, ax, 3.5, y, 0, 9, 7, 6.2, 7, 6.2, col, m.mat);                                  // trono
+      boxAt(out, ax, 5.5, y, 9, 11.5, 4.5, 4.8, 4.5, 4.6, col, m.mat);                            // regazo
+      if (broken) return;
+      boxAt(out, ax, 1.8, y, 9, 15.5, 3.4, 5.4, 3.2, 4.6, col, m.mat);                            // torso
+      boxAt(out, ax, 2, y, 15.5, 17.6, 2.6, 2.8, 2.4, 2.4, col, m.mat);                           // cabeza
+      lathe(out, [[1.3, 17.6], [1.1, 19], [0.6, 19.6], [0.1, 20]], { e: axisRot([2, y], ax)[0], n: axisRot([2, y], ax)[1], seg: 12, col, mat: m.mat });  // corona
+    });
   } else if (m.kind === "arcwall") {
     arcWall(out, m);
   } else if (m.kind === "disc") {
@@ -750,7 +822,9 @@ export function apexOf(m) {
   if (m.kind === "stonehenge") return [0, 0, m.height];
   if (m.kind === "arcwall") { const a = ((m.az0 + m.az1) / 2) * RAD; return [m.radius * Math.sin(a), m.radius * Math.cos(a), m.height]; }
   if (m.kind === "kalasasaya") return [m.w / 2, -m.d / 4, m.pillar];
-  if (m.kind === "amphitheatre") return [...axisRot([m.a, 0], m.axis), m.height];   // (desde la arena: el rótulo, en el muro del este)
+  if (m.kind === "amphitheatre") return [...axisRot([m.a, 0], m.axis), m.height];
+  if (m.kind === "statue") return [0, 0, m.pedestal + m.height];
+  if (m.kind === "rockfacade") return [0, 0, m.height];   // (desde la arena: el rótulo, en el muro del este)
   return [0, 0, m.height + (m.temple ? m.temple.h : 0)];
 }
 

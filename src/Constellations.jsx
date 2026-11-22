@@ -2761,7 +2761,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // dónde medir el suelo de cada uno: en explanadas y cimas llanas (m.level), si el observador está al lado,
     // el monumento va al nivel de sus pies (sin puntos); lo que está sobre una cresta estrecha (m.ring pequeño), en
     // su centro; el resto, en un anillo fuera de su bulto
-    const rings = monNear.map((m) => (m.level && offsetOf(lat, lon, m.lat, m.lon).d < 600 ? [] : m.ring != null && m.ring < 10 ? [[m.lat, m.lon]] : groundRing(m, 8)));
+    // (`levelR`: solo tan cerca —la terraza del Cristo—; más lejos, en la ladera, se mide su suelo de verdad)
+    const rings = monNear.map((m) => (m.level && offsetOf(lat, lon, m.lat, m.lon).d < (m.levelR || 600) ? [] : m.ring != null && m.ring < 10 ? [[m.lat, m.lon]] : groundRing(m, 8)));
     fetchElevations([...obs, ...rings.flat()], { api: API }).then((h) => {
       if (!alive) return;
       const bases = {};

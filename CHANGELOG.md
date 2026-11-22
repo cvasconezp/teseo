@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.61.0 — 2026-11-22
+
+- **Modelos 3D nuevos (formas simplificadas, con medidas publicadas):**
+  - **Taj Mahal:** zócalo de 95,5 m, edificio de unos 57 m con las esquinas achaflanadas, cúpula en bulbo hasta 73 m, cuatro templetes y cuatro minaretes de más de 40 m. Visto desde el jardín, 150 m al sur.
+  - **Cristo Redentor:** pedestal de 8 m, figura de 30 m y brazos de 28 m. Visto desde la terraza; la dirección a la que mira es aproximada.
+  - **Abu Simbel:** la fachada del Gran Templo, de 35 × 30 m, tallada en el cerro, con los cuatro colosos sentados de unos 20 m (el segundo desde la izquierda, roto desde la Antigüedad). Mira al este y se ve desde 70 m al este.
+
 ## 1.60.0 — 2026-11-21
 
 - **Modelos 3D nuevos:**
