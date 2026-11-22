@@ -60,6 +60,7 @@ import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/clou
 import { createTerrainLayer } from "./sky/terrainLayer.js";
 import { andeanLabels, TX_AND } from "./sky/andean.js";
 import { fetchNearTerrain, createNearTerrainLayer } from "./sky/terrain3d.js";
+import { DEFAULT_LAYERS, presetState, presetOf } from "./sky/layerPresets.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit, fetchLandColors } from "./sky/horizon.js";
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints } from "./sky/monumentLayer.js";
@@ -72,7 +73,7 @@ import { createHipsLayer, HIPS_FINE } from "./sky/hipsLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
-import { clampBortle, BORTLE_DEFAULT } from "./sky/lightPollution.js";
+import { clampBortle, BORTLE_DEFAULT, fetchBortleEstimate, bortleCell, BORTLE_EST_T } from "./sky/lightPollution.js";
 import { bodyMagnitude, SUN_MAG_V } from "./sky/planetMag.js";
 import { track } from "./ui/track.js";
 import { GuidesLayer, GUIDE_LABEL_COLOR } from "./sky/guidesLayer.js";
@@ -638,7 +639,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [cometOrbits, setCometOrbits] = useState(null);   // public/comet-orbits.json (.comets)
   const [neoRaw, setNeoRaw] = useState(null);             // /api/asteroids: los que pasan cerca de la Tierra estos días, con su órbita
   // capas encendidas al empezar (las demás se encienden en «Capas» o llegan en el enlace)
-  const [enabled, setEnabled] = useState({ photo: true, ngc: true, minor: true, comets: true, probes: true, messier: true, galaxies: true, deepfields: true, blackholes: true });   // key -> bool (el mapa fotográfico y NGC/IC, que solo salen al acercarse, vienen encendidos)
+  const [enabled, setEnabled] = useState(() => Object.fromEntries(DEFAULT_LAYERS.map((k) => [k, true])));   // key -> bool (el mapa fotográfico y NGC/IC, que solo salen al acercarse, vienen encendidos)
   const [selObj, setSelObj] = useState(null);
   const [viewFrom, setViewFrom] = useState(null); // null = Tierra; {name,pos:[x,y,z]} = otra estrella
   const [outside, setOutside] = useState(false);  // vista opcional: la esfera celeste entera, desde fuera
@@ -1337,7 +1338,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const terrain = createTerrainLayer();
     horizon.add(terrain.group);
     // el relieve cercano en 3D con la imagen de satélite (src/sky/terrain3d.js), delante de las franjas
-    const near3d = createNearTerrainLayer({ onReady: () => { const r = sceneRef.current; if (r) r._dirty = true; } });
+    const near3d = createNearTerrainLayer({ onReady: () => { const r = sceneRef.current; if (r) { r.terrain.setCovered(near3d.coverKm); r.monuments.setSkirt(!(near3d.coverKm > 0)); r._dirty = true; } } });
     horizon.add(near3d.group);
     // monumentos (src/sky/monumentLayer.js): en 3D en el mismo marco, delante de las montañas
     const monuments = createMonumentLayer({ onReady: () => { const r = sceneRef.current; if (r) r._dirty = true; } });
@@ -1750,7 +1751,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         vis: (name, on) => { const o = name === "near" ? r.near3d.group : name === "bands" ? r.terrain.group : name === "clouds" ? r.clouds : null; if (o) { (o.group || o).visible = !!on; r.wake(); } },
         near3dGeo: () => { const m = r.near3d.group.children[0]; if (!m) return null; const P = m.geometry.attributes.position.array, H = m.geometry.attributes.aHD.array, out = []; for (const k of [399 * 160 + 40, 400 * 160 + 80, 400 * 160 + 120, 400 * 160 + 159, 159]) out.push([P[k * 3], P[k * 3 + 1], P[k * 3 + 2], H[k * 2], H[k * 2 + 1]].map((x) => Math.round(x * 10) / 10)); return out; },
         near3d: (k, v) => { const m = r.near3d.group.children[0]; if (!m) return null; const u = m.material.uniforms, o = {}; if (k) { u[k].value = v; r.wake(); } for (const k in u) if (typeof u[k].value === "number") o[k] = u[k].value; return o; },
-        tex: (on) => { for (const m of r.terrain.group.children) if (m.material && m.material.userData && m.material.userData.tex) m.material.userData.tex.value = on ? 1 : 0; r.near3d.setEnabled(!!on); r.wake(); },
+        tex: (on) => { for (const m of r.terrain.group.children) if (m.material && m.material.userData && m.material.userData.tex) m.material.userData.tex.value = on ? 1 : 0; r.near3d.setEnabled(!!on); r.terrain.setCovered(r.near3d.coverKm); r.monuments.setSkirt(!(r.near3d.coverKm > 0)); r.wake(); },
         hips: () => (r.hips ? { ...r.hips.stats, active: r.hips.active, fine: r.hipsFine ? { ...r.hipsFine.stats, level: r.hipsFine.level } : null } : null),
         // estado de cada capa (pruebas): puntos a la vista por capa, mapa fotográfico, cometas dibujados
         layers: () => { const o = {}; for (const l of (r.layerObjs || [])) { o[l.key] = o[l.key] || { n: 0, visible: false }; o[l.key].n += l.points.userData.objs.length; o[l.key].visible = o[l.key].visible || l.points.visible; } return { pts: o, photo: !!r.hipsOn, img: r.skyImages ? r.skyImages.state : null, cometItems: r.cometLayer ? r.cometLayer.group.children.length : 0, fov: r.camera.fov }; },
@@ -2509,10 +2510,26 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // "out": la esfera entera desde fuera, solo con el interruptor rotulado de Capas.
   const localActive = localMode && lat != null && lon != null;
   // ── atmósfera y contaminación lumínica (solo en Mi cielo, desde la Tierra) ──
-  const bortle = clampBortle(bortleMap[placeKind] ?? (PLACES.find((p) => p.name === placeKind) || {}).bortle ?? BORTLE_DEFAULT);
+  // la clase del lugar: la que eligió la persona; si no, la medida (solo Quito); si no, la estimada por las luces
+  // nocturnas del satélite alrededor (backend/app/lightpollution.py); si no hay nada, la neutra
+  const presetPlace = PLACES.find((p) => p.name === placeKind) || null;
+  const bortleKey = presetPlace ? placeKind : (lat != null && lon != null ? `@${bortleCell(lat, lon)}` : placeKind);
+  const [bortleEst, setBortleEst] = useState({ key: null, value: null });
+  const estKey = lat != null && lon != null ? bortleCell(lat, lon) : null;
+  useEffect(() => {
+    if (!estKey || !localMode) return undefined;
+    let alive = true;
+    fetchBortleEstimate(lat, lon, { api: API }).then(
+      (e) => { if (alive) setBortleEst({ key: estKey, value: e.bortle }); },
+      () => { if (alive) setBortleEst({ key: estKey, value: null }); });
+    return () => { alive = false; };
+  }, [estKey, localMode]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const estHere = bortleEst.key === estKey ? bortleEst.value : null;
+  const bortleSrc = bortleMap[bortleKey] != null ? "set" : presetPlace && presetPlace.bortle != null ? "measured" : estHere != null ? "estimate" : null;
+  const bortle = clampBortle(bortleMap[bortleKey] ?? (presetPlace || {}).bortle ?? estHere ?? BORTLE_DEFAULT);
   const setBortle = useCallback((n) => {
-    setBortleMap((m) => { const nm = { ...m, [placeKind]: clampBortle(n) }; try { localStorage.setItem(BORTLE_KEY, JSON.stringify(nm)); } catch { /* no-op */ } return nm; });
-  }, [placeKind]);
+    setBortleMap((m) => { const nm = { ...m, [bortleKey]: clampBortle(n) }; try { localStorage.setItem(BORTLE_KEY, JSON.stringify(nm)); } catch { /* no-op */ } return nm; });
+  }, [bortleKey]);
   useEffect(() => { try { localStorage.setItem(ATM_KEY, atmOn ? "1" : "0"); } catch { /* no-op */ } }, [atmOn]);
   const atmActive = !!(atmOn && localActive && !viewFrom);
   const atmState = useMemo(() => {
@@ -2807,7 +2824,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (ref.atm && ref.atm.setDip) ref.atm.setDip(dip);
     ref.skyDip = dip;
     if (ref.groundMesh) ref.groundMesh.position.y = -1.5 + 905 * Math.tan((dip * Math.PI) / 180);
-    if (ref.horizonLine) ref.horizonLine.material.opacity = dip < 0 ? 0.25 : 0.85;   // la línea de 0° queda como referencia tenue
+    if (ref.horizonLine) ref.horizonLine.material.opacity = hzData ? 0 : 0.85;   // con el relieve real a la vista, la línea de 0° sobra
     if (ref.terrain.data !== hzData || ref.terrain.floor !== floor) ref.terrain.set(hzData, lat, null, floor);
     ref.terrain.setEnabled(!!hzData);
   }, [hzData, hzEff, ready, placeSummit]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -2825,6 +2842,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const ref = sceneRef.current; if (!ref || !ref.near3d) return;
     ref.near3d.set(hzData && nearData ? nearData : null, hzKey);
     ref.near3d.setEnabled(!!hzData);
+    ref.terrain.setCovered(ref.near3d.coverKm); ref.monuments.setSkirt(!(ref.near3d.coverKm > 0));
     ref._dirty = true;
   }, [hzData, nearData, hzKey, ready]);
 
@@ -3960,6 +3978,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const atmControls = (
     <AtmosphereControls lang={lang} on={atmOn} available={localActive && !viewFrom}
       onToggle={() => { const nv = !atmOn; setAtmOn(nv); track("sky_setting", { setting: "atmosphere", state: nv ? "on" : "off" }); }}
+      srcNote={bortleSrc === "estimate" ? BORTLE_EST_T[lang] || BORTLE_EST_T.es : bortleSrc === "set" ? BORTLE_EST_T[lang === "en" ? "enSet" : "esSet"] : bortleSrc === "measured" ? BORTLE_EST_T[lang === "en" ? "enMeasured" : "esMeasured"] : null}
       bortle={bortle} onBortle={setBortle} onBortleCommit={() => track("sky_setting", { setting: "light_pollution", state: "ok" })}
       state={atmState} mags={skyMags} visibleNow={atmActive ? atmInfo.stars : null}
       elevation={localActive ? { m: elev, preset: elevPreset } : null}
@@ -4130,7 +4149,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
                 const VTl = VOLC_T[lang] || VOLC_T.es, vei = plumeSim.volcano && Number.isFinite(plumeSim.volcano.last_vei) ? plumeSim.volcano.last_vei : 2;
                 return (
                   <div className="sk-chip tone-violet sk-sim-chip">
-                    <span>{VTl.simChip(plumeSim.label || plumeSim.name, vei, String(veiColumnKm(vei)).replace(".", lang === "es" ? "," : "."), plumeSim.volcano ? (Number.isFinite(plumeSim.volcano.last_end) ? plumeSim.volcano.last_end : Number.isFinite(plumeSim.volcano.last_start) ? plumeSim.volcano.last_start : null) : null)}</span>
+                    <span>{VTl.simChip(plumeSim.label || plumeSim.name, vei, String(veiColumnKm(vei)).replace(".", lang === "es" ? "," : "."), plumeSim.volcano ? (Number.isFinite(plumeSim.volcano.last_end) ? plumeSim.volcano.last_end : Number.isFinite(plumeSim.volcano.last_start) ? plumeSim.volcano.last_start : null) : null)}{wxNow && wxNow.windKmh != null ? ` · ${windText(wxNow, lang)}` : ""}</span>
                     <button type="button" onClick={() => setPlumeSim(null)}>{VTl.simStop}</button>
                   </div>
                 );
@@ -4235,6 +4254,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           vivid={vividStars} onVivid={() => setVividStars(v => !v)} atmosphere={<>{atmControls}{terrainCtl}{wxPanel}</>}
           guides={<GuidesControls lang={lang} value={guidesOn} localAvailable={localActive} onToggle={(k, on) => { track("sky_setting", { setting: "guides", state: on ? "on" : "off" }); toggleGuide(k, on); }} />}
           outside={outside} onOutside={inMySky ? null : () => { setOutside(o => !o); setSel(null); setDepth(0); if (!isWideRef.current) setPanel(null); }}
+          preset={presetOf(enabled, LAYERS.map((c) => c.key), showSolar)}
+          onPreset={(id) => { const st = presetState(id, LAYERS.map((c) => c.key)); if (!st) return; track("sky_setting", { setting: "layer_group", state: id }); setLayerError({}); setEnabled((e) => ({ ...e, ...st })); setShowSolar(true); }}
           onClose={() => setPanel(null)} notes={notes} onNote={openNote} />
       )}
       {sky && panel === "location" && (

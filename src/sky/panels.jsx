@@ -1,6 +1,7 @@
 // Paneles de la vista Cielo: etiquetas, buscador, dock, capas, ubicación, tiempo,
 // tour y primeros pasos. Componentes de presentación: el estado vive en
 // Constellations.jsx y los textos llegan por `t` (diccionario TC).
+import { LAYER_PRESETS, PRESET_T } from "./layerPresets.js";
 import { lazy, memo, Suspense, useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { PlaceSearch, SiteChips } from "./PlaceSearch.jsx";
@@ -170,7 +171,8 @@ const GROUPS = [
   { id: "deep", keys: ["photo", "messier", "caldwell", "ngc", "oddities", "specialstars", "galaxies", "deepfields", "blackholes", "pulsars", "exoplanets"] },
 ];
 export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, layerError, onToggle, onRetry,
-  showSolar, onToggleSolar, consOn = true, onToggleCons, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid, outside = false, onOutside , atmosphere, guides}) {
+  showSolar, onToggleSolar, consOn = true, onToggleCons, constellations, sel, onPick, labelDensity, onDensity, onClose, notes = [], onNote, vivid = false, onVivid, outside = false, onOutside , atmosphere, guides, preset = null, onPreset }) {
+  const PT = PRESET_T[lang] || PRESET_T.es;
   // patrón llamativo de la capa (contado en los datos cargados): una línea y un botón para verlo
   const noteLine = (key) => {
     const n = enabled[key] && notes.find((x) => x.layer === key);
@@ -237,6 +239,17 @@ export function LayersPanel({ t, lang, layers, datasets, enabled, loadingLayer, 
   return (
     <PanelShell t={t} title={t.layersTitle} onClose={onClose} labelledBy="sk-layers-title">
       <p className="sk-panel-lead">{t.layersLead}</p>
+      {onPreset && (
+        <div className="sk-field sk-presets">
+          <span id="sk-presets">{PT.title}</span>
+          <div className="sk-seg" role="radiogroup" aria-labelledby="sk-presets">
+            {LAYER_PRESETS.map((p) => (
+              <button key={p.id} type="button" role="radio" aria-checked={preset === p.id} onClick={() => onPreset(p.id)}>{PT[p.id]}</button>
+            ))}
+          </div>
+          <small>{preset ? PT.hint[preset] : PT.custom}</small>
+        </div>
+      )}
       {GROUPS.map((g) => (
         <div className="sk-group" key={g.id}>
           <h3>{t.groups[g.id]}</h3>

@@ -126,7 +126,9 @@ export function createTerrainLayer({ radius = 880 } = {}) {
   };
   const P = (az, alt) => [radius * Math.cos(alt * RAD) * Math.sin(az * RAD), radius * Math.sin(alt * RAD), -radius * Math.cos(alt * RAD) * Math.cos(az * RAD)];
 
-  let floorOn = false, snowyFloor = false;
+  let floorOn = false, snowyFloor = false, coveredKm = 0;
+  // las franjas que la malla 3D del relieve cercano ya dibuja (terrain3d.js) no se pintan: asomarían tras ella
+  const applyCover = () => { if (!data) return; for (const m of meshes) { if (m.userData.haze) continue; if (m.userData.floor) { m.visible = !(coveredKm > 0); continue; } const b = data.bands[m.userData.band]; m.visible = !(coveredKm > 0 && b && b.max_km <= coveredKm); } };
   let land = null, landOn = true;     // colores del satélite (fetchLandColors) y si se usan
   function build(hz, latDeg, floor = false) {
     clear();
@@ -355,7 +357,9 @@ export function createTerrainLayer({ radius = 880 } = {}) {
     group,
     /** hz: respuesta de /api/horizon (o null para quitarlo); latDeg: para la línea de nieves; floor: de pie en una
      * cumbre (suelo opaco bajo las montañas). */
-    set(hz, latDeg, st, floor = false) { build(hz, latDeg, floor); paint(st); group.visible = !!hz && meshes.length > 0 && enabledFlag; },
+    set(hz, latDeg, st, floor = false) { build(hz, latDeg, floor); applyCover(); paint(st); group.visible = !!hz && meshes.length > 0 && enabledFlag; },
+    /** km hasta donde la malla 3D cubre el relieve (0: sin malla): esas franjas se ocultan. */
+    setCovered(km) { coveredKm = km > 0 ? km : 0; applyCover(); },
     get floor() { return floorOn; },
     /** Colores del satélite (decodeLandColors) para el horizonte actual, o null; on: si se usan (y la textura). */
     setLand(lc, on = true) { land = lc || null; landOn = !!on; for (const m of meshes) if (m.material.userData.tex) m.material.userData.tex.value = landOn ? 1 : 0; },

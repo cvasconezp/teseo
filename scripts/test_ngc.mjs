@@ -26,7 +26,7 @@ ok(fs.statSync(new URL("../public/ngc.json", import.meta.url)).size < 700000, "e
 
 console.log("En la vista");
 const src = read("../src/Constellations.jsx"), panels = read("../src/sky/panels.jsx"), desc = read("../src/sky/describe.js");
-ok(/key: "ngc",\s+file: "\/ngc\.json"/.test(src) && /lazy: true/.test(src.split('key: "ngc"')[1].split("\n")[0]) && /ngc: true/.test(src), "la capa se carga aparte y viene encendida");
+ok(/key: "ngc",\s+file: "\/ngc\.json"/.test(src) && /lazy: true/.test(src.split('key: "ngc"')[1].split("\n")[0]) && /DEFAULT_LAYERS = \[[^\]]*"ngc"/.test(read("../src/sky/layerPresets.js")), "la capa se carga aparte y viene encendida");
 ok(/const NGC_FOV = 40/.test(src) && /o\.key === "ngc" && o\.points\.visible !== show/.test(src), "sus símbolos solo se dibujan con menos de 40° de campo");
 ok(/MAG_LAYERS = new Set\(\["messier", "caldwell", "galaxies", "ngc"\]\)/.test(src) && /if \(key === "ngc"\) return !!ob\.cn && \(ob\.mag == null \|\| ob\.mag <= 9\)/.test(src), "brillo del símbolo por magnitud; nombre a la vista solo para los que tienen nombre propio y brillan");
 ok(/\^\(ngc\|ic\)\\s\*\\d/.test(src) && /key === "ngc" \? o\.name\.replace\(" ", ""\)/.test(src), "el buscador los encuentra con la capa apagada («ngc 2024», «ngc2024», «ic 434»)");

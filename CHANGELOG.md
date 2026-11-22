@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.54.0 — 2026-11-21
+
+- **«Escuchar» cuenta la ficha en vez de leerla**: quién es el objeto, dos frases de su descripción, los datos dichos como frases («Está a 25 años luz. La luz que ves salió hace 25 años…»), en las estrellas su vida y su final («Ahora está en la etapa de secuencia principal. Después será gigante roja…»), cómo se ve desde tu lugar y de quién es la imagen. Sin letra pequeña ni detalles técnicos.
+- **Relieve 3D hasta 60 km** (antes 25) y más fiel: la malla toma lo más alto de cada celda, así su silueta coincide con la del horizonte y ya no asoma una segunda montaña detrás; el suelo bajo los pies es parte del relieve (sin disco ni círculo en las cumbres) y el arrebol ya no deja motas.
+- **Contaminación lumínica según el lugar**: si no has elegido tú la clase de cielo de un lugar, se estima con las luces nocturnas que ve el satélite en 80 km a la redonda (NASA Black Marble 2016). Es una estimación (±1 clase), no una medición; la que elijas tú manda y se guarda por lugar.
+- **Capas por grupos**: en «Capas», tres botones —Imprescindibles, Básicas, Avanzadas— encienden los catálogos de una vez.
+- **Vía Láctea** más limpia y menos apagada: se fundió el grano de la imagen y se aclararon los medios tonos.
+- **Erupciones**: el aviso de la simulación dice también el viento; de pie en la cumbre de un volcán en erupción, la columna sube a tu lado.
+- **Fuera la línea del horizonte de 0°** cuando se ve el relieve real.
+
 ## 1.53.0 — 2026-11-21
 
 - **Relieve en 3D con la imagen de satélite**: los primeros 25 km alrededor del lugar ya no son siluetas planas, sino el terreno de verdad (AWS Terrain Tiles) con la imagen de Sentinel-2 cloudless 2016 (EOX, CC BY 4.0) encima: laderas, quebradas, cultivos y páramo, con la luz del Sol según la pendiente, sombra, arrebol, bruma y nieve sobre la línea de nieves (más en lo llano, menos en las paredes). Desde una cumbre se ve el paisaje hacia abajo. Más allá de 25 km siguen las siluetas. Los restos de nubes del mosaico se pintan con el color medio del monte.

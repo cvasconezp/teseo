@@ -23,7 +23,7 @@ import "./atmosphere.css";
 
 const CHART_MAGS = [3, 4, 5, 6, 7];
 
-export function AtmosphereControls({ lang = "es", on, onToggle, available = true, bortle, onBortle, state, mags, visibleNow, catalogLimit = 6.0, elevation, deepNote, onBortleCommit }) {
+export function AtmosphereControls({ lang = "es", on, onToggle, available = true, bortle, onBortle, state, mags, visibleNow, catalogLimit = 6.0, elevation, deepNote, onBortleCommit , srcNote = null }) {
   const ta = ATM[lang] || ATM.es, bt = BORTLE_TEXT[lang] || BORTLE_TEXT.es;
   const cls = clampBortle(bortle);
   const [realOpen, setRealOpen] = useState(false);
@@ -66,6 +66,7 @@ export function AtmosphereControls({ lang = "es", on, onToggle, available = true
           <div><dt>{ta.lpLimitDark(nelmText(cls, lang))}</dt><dd className="sk-atm-fine">{ta.lpObserver}</dd></div>
           {elevation && available && <div><dt>{elevation.m != null ? ta.elevLine(elevation.m) : ta.elevNone}</dt>{elevation.preset && <dd className="sk-atm-fine">{elevation.preset === "terrain" ? ta.elevSrcTerrain : ta.elevSrc}</dd>}</div>}
         </dl>
+        {srcNote && available && <p className="sk-atm-fine sk-atm-src">{srcNote}</p>}
         {deepNote && on && available && <p className="sk-atm-fine sk-atm-deep">{deepNote}</p>}
         <button type="button" className="sk-btn wide sk-atm-real" aria-expanded={realOpen} onClick={() => setRealOpen((v) => !v)}>
           <Icon name="eye" size={17} />{ta.realSky}

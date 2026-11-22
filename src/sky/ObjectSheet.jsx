@@ -17,7 +17,7 @@ import { visibilityOf } from "./objVisibility.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import { citizenFor, CITIZEN_VERIFIED } from "./citizen.js";
 import { useDialogFocus } from "./focus.js";
-import { canSpeak, speakText, sheetText, LISTEN_T } from "./speak.js";
+import { canSpeak, speakText, sheetText, sheetStory, LISTEN_T } from "./speak.js";
 import { track } from "../ui/track.js";
 import SunToday from "../sun/SunToday.jsx";
 import MoonsView from "./MoonsView.jsx";
@@ -296,7 +296,7 @@ function ListenButton({ boxRef, lang = "es", resetKey }) {
   const toggle = () => {
     if (on) { if (stopRef.current) stopRef.current(); stopRef.current = null; setOn(false); return; }
     setOn(true);
-    stopRef.current = speakText(sheetText(boxRef.current), lang, () => { stopRef.current = null; setOn(false); });
+    stopRef.current = speakText(sheetStory(boxRef.current, lang), lang, () => { stopRef.current = null; setOn(false); });
     track("sky_listen", { state: "on" });
   };
   return (

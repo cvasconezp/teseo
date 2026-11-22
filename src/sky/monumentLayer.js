@@ -252,6 +252,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
     for (const T of texCache.values()) T.waiters = [];
   }
 
+  let skirt = true, last = null;      // faldón llano más allá del sitio (sin relieve 3D alrededor) y lo último que se puso
   function build(list, grid = null) {
     clear();
     items = list || [];
@@ -316,7 +317,9 @@ export function createMonumentLayer({ onReady = null } = {}) {
       // El suelo sigue más allá del último monumento como un faldón llano (8 anillos, hasta 12 veces el
       // alcance) a la altura que tenía en su borde: desde un sitio alto (la plataforma de una pirámide) se mira hacia
       // abajo, y sin él quedaba una franja oscura entre el suelo y las montañas lejanas.
-      const EX = 8, FAR = 12, verts = (NR + 1 + EX) * NS + 1;
+      // (con el relieve en 3D alrededor —terrain3d.js— el faldón ya no hace falta: el suelo del sitio acaba en su
+      // borde, desvanecido, y más allá se ve el terreno de verdad)
+      const EX = skirt ? 8 : 0, FAR = skirt ? 12 : 1, verts = (NR + 1 + EX) * NS + 1;
       const pos = new Float32Array(verts * 3), uv = new Float32Array(verts * 2), col = new Float32Array(verts * 4), idx = [];
       const rEnd = EX ? reach * FAR : reach;
       const put = (i, e, n, r) => {
@@ -327,7 +330,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
         // queda DELANTE de las líneas de las constelaciones y de las estrellas bajo el horizonte, que si no se verían encima)
         let px = e * k, py = h * k, pz = -n * k; const pl = Math.hypot(px, py, pz); if (pl > MAX_R) { const q2 = MAX_R / pl; px *= q2; py *= q2; pz *= q2; }
         pos.set([px, py, pz], i * 3); uv.set([e / tile, n / tile], i * 2);
-        const fade = 1 - Math.min(1, Math.max(0, (r - 0.9 * rEnd) / (0.1 * rEnd)));
+        const fade = 1 - Math.min(1, Math.max(0, (r - (skirt ? 0.9 : 0.6) * rEnd) / ((skirt ? 0.1 : 0.4) * rEnd)));
         col.set([1, 1, 1, fade * fade * (3 - 2 * fade)], i * 4);
       };
       put(0, 0, 0, 0);
@@ -393,7 +396,9 @@ export function createMonumentLayer({ onReady = null } = {}) {
 
   return {
     group,
-    set(list, st, grid = null) { build(list, grid); paint(st); show(); },
+    set(list, st, grid = null) { last = { list, st, grid }; build(list, grid); paint(st); show(); },
+    /** Con el relieve 3D alrededor (terrain3d.js) el suelo del sitio no se alarga en un faldón llano. */
+    setSkirt(b) { if (skirt === !!b) return; skirt = !!b; if (last) { build(last.list, last.grid); paint(last.st); show(); } },
     paint,
     setEnabled(b) { enabledFlag = !!b; show(); },
     get items() { return items; },

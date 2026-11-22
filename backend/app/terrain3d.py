@@ -1,4 +1,4 @@
-"""El relieve cercano en 3D (app/terrain3d.py): alturas e imagen de satélite de los primeros 25 km alrededor
+"""El relieve cercano en 3D (app/terrain3d.py): alturas e imagen de satélite de los primeros 60 km alrededor
 del lugar, en una rejilla polar (acimut × distancia, con la distancia en progresión geométrica: mucho detalle
 cerca, menos lejos), que el navegador levanta como una malla con la imagen encima (src/sky/terrain3d.js).
 
@@ -27,12 +27,13 @@ from app import landcolor as lc
 from app.cache import provider_headers
 
 D_MIN = 60.0                 # m: más cerca, el píxel del satélite (10 m) ya no da
-D_MAX = 25000.0              # m: más allá siguen las siluetas del horizonte
+D_MAX = 60000.0              # m: más allá siguen las siluetas del horizonte
 N_AZ = 720                   # alturas: cada 0,5° de acimut
-N_R = 160                    # … y 160 anillos (≈ 3,9 % entre uno y otro)
+N_R = 230                    # … y 230 anillos (≈ 3,1 % entre uno y otro)
 TEX_W, TEX_H = 2048, 1024    # imagen: 0,18° de acimut × 0,59 % de distancia por píxel
 # zoom de las teselas del satélite según la distancia (m): el píxel de la imagen pisa ≈ lo que mide el de la tesela
-TEX_ZOOMS = ((2500.0, 14), (6000.0, 13), (13000.0, 12), (D_MAX + 1.0, 11))
+TEX_ZOOMS = ((2500.0, 14), (6000.0, 13), (13000.0, 12), (26000.0, 11), (D_MAX + 1.0, 10))
+SUB_AZ, SUB_R = 0.17, 0.2   # submuestreo de cada celda: ±0,17° de acimut y ±0,2 y ±0,4 de paso de anillo
 H_OFF, H_SCALE = 500.0, 4.0  # uint16 = (altura + 500 m) × 4  → pasos de 25 cm, hasta 15,8 km
 NEUTRAL = (96, 102, 84)      # donde falte una tesela
 JPEG_Q = 80
@@ -54,17 +55,28 @@ def ring_dist(n: int) -> np.ndarray:
     return D_MIN * (D_MAX / D_MIN) ** (np.arange(n) / (n - 1))
 
 
-def heights_grid(lat0: float, lon0: float, near: "hz.Mosaic", mid: "hz.Mosaic") -> np.ndarray:
+def heights_grid(lat0: float, lon0: float, near: "hz.Mosaic", mid: "hz.Mosaic", far: "hz.Mosaic" = None) -> np.ndarray:
     """Alturas (m, el mar a 0) en la rejilla polar N_AZ × N_R."""
     az = np.arange(N_AZ) * (360.0 / N_AZ)
     d = ring_dist(N_R)
-    lat, lon = hz.destination(lat0, lon0, az, d)
-    h = np.empty((N_AZ, N_R), dtype=np.float32)
+    # en cada celda, lo más alto de 15 puntos (3 acimutes × 5 distancias): con un solo punto por celda las crestas
+    # quedarían recortadas y la silueta de la malla, por debajo de la del horizonte (que muestrea mucho más fino)
+    ratio = (D_MAX / D_MIN) ** (1.0 / (N_R - 1))
+    h = np.full((N_AZ, N_R), -1e9, dtype=np.float32)
     m = d <= hz.NEAR[1]
-    if m.any():
-        h[:, m] = near.sample(lat[:, m], lon[:, m])
-    if (~m).any():
-        h[:, ~m] = mid.sample(lat[:, ~m], lon[:, ~m])
+    mf = (d > hz.MID[1] * 0.9) if far is not None else np.zeros(len(d), dtype=bool)
+    mm = ~m & ~mf
+    for da in (-SUB_AZ, 0.0, SUB_AZ):
+        for fr in (ratio ** (-2 * SUB_R), ratio ** -SUB_R, 1.0, ratio ** SUB_R, ratio ** (2 * SUB_R)):
+            lat, lon = hz.destination(lat0, lon0, az + da, d * fr)
+            s = np.empty((N_AZ, N_R), dtype=np.float32)
+            if m.any():
+                s[:, m] = near.sample(lat[:, m], lon[:, m])
+            if mm.any():
+                s[:, mm] = mid.sample(lat[:, mm], lon[:, mm])
+            if mf.any():
+                s[:, mf] = far.sample(lat[:, mf], lon[:, mf])
+            np.maximum(h, s, out=h)
     return np.maximum(h, 0.0)
 
 
@@ -141,11 +153,11 @@ async def near_terrain(lat: float, lon: float, fine: bool = False) -> dict:
         async with httpx.AsyncClient(timeout=hz.TIMEOUT_S, transport=hz._transport, headers=provider_headers()) as client:
             sem = asyncio.Semaphore(hz.CONCURRENCY)
             mos = []
-            for z, rad in (hz.NEAR, hz.MID):
+            for z, rad in (hz.NEAR, hz.MID, hz.FAR):
                 keys = hz.tiles_for(la, lo, z, min(rad, D_MAX * 1.05))
                 arrs = await asyncio.gather(*[hz._fetch_tile(client, z, x, y, sem) for (x, y) in keys])
                 mos.append(hz.Mosaic(z, dict(zip(keys, arrs))))
-        h = await run_in_threadpool(heights_grid, la, lo, mos[0], mos[1])
+        h = await run_in_threadpool(heights_grid, la, lo, mos[0], mos[1], mos[2])
         need = tex_tiles(la, lo)
         async with httpx.AsyncClient(timeout=lc.TIMEOUT_S, transport=lc._transport, headers=provider_headers()) as client:
             sem = asyncio.Semaphore(lc.CONCURRENCY)
@@ -185,7 +197,7 @@ _Q_LON = Query(..., ge=-180.0, le=180.0)
 
 @router.get("/terrain/near")
 async def terrain_near(response: Response, lat: float = _Q_LAT, lon: float = _Q_LON, fine: bool = Query(False)):
-    """Relieve cercano (hasta 25 km) en rejilla polar: `heights` es base64 de uint16 (little-endian), n_az × n_r,
+    """Relieve cercano (hasta 60 km) en rejilla polar: `heights` es base64 de uint16 (little-endian), n_az × n_r,
     acimut a acimut; altura (m) = valor / h_scale − h_off. Los anillos van de d_min_m a d_max_m en progresión
     geométrica. La imagen de satélite que va encima, en /api/terrain/near.jpg con los mismos parámetros."""
     try:

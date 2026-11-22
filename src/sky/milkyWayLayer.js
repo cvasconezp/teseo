@@ -4,7 +4,8 @@
 // Imagen: «Deep Star Maps 2020» de NASA/Goddard Space Flight Center Scientific Visualization Studio (mapa
 // `milkyway_2020`, solo el resplandor de la galaxia, sin estrellas sueltas; dominio público), en coordenadas
 // celestes J2000 y proyección equirrectangular: el centro es la ascensión recta 0 h, que crece hacia la
-// izquierda, y el norte queda arriba. Se preparó en public/textures/milkyway-4k.webp y -2k.webp (curva de tono
+// izquierda, y el norte queda arriba. Se preparó en public/textures/milkyway-4k.webp y -2k.webp (grano de estrellas
+// sin resolver fundido con un filtro de mediana y un desenfoque suave, medios tonos aclarados, curva de tono
 // para pantalla y fondo llevado a negro, así solo suma luz donde hay galaxia).
 //
 // El marco de la escena es el ecuatorial (x hacia AR 0 h, y hacia AR 6 h, z hacia el polo norte), el mismo de las
@@ -30,8 +31,8 @@ export function milkyWayVisibility(st) {
   return night * Math.pow(Math.min(1, Math.max(0, (mag - 18.6) / 3.0)), 1.5);
 }
 
-// con el cielo más oscuro la imagen entra al 80 %: se ve con claridad sin tapar las estrellas débiles
-const GAIN = 0.8;
+// con el cielo más oscuro la imagen entra al 90 %: se ve con claridad sin tapar las estrellas débiles
+const GAIN = 0.9;
 
 export function createMilkyWayLayer({ radius = 895, small = false, onLoad = null } = {}) {
   const NA = 96, ND = 48, pos = new Float32Array((NA + 1) * (ND + 1) * 3), uv = new Float32Array((NA + 1) * (ND + 1) * 2), idx = [];

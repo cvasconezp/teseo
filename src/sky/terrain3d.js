@@ -1,4 +1,4 @@
-// terrain3d.js — el relieve cercano en 3D (hasta 25 km) con la imagen de satélite encima, en la vista Cielo.
+// terrain3d.js — el relieve cercano en 3D (hasta 60 km) con la imagen de satélite encima, en la vista Cielo.
 //
 // El servidor (backend/app/terrain3d.py) da las alturas en una rejilla polar (acimut × distancia geométrica) y
 // una imagen de Sentinel-2 cloudless 2016 (EOX, CC BY 4.0) en esa misma rejilla. Aquí se levanta la malla en el
@@ -14,7 +14,11 @@ import { cellKey, snowLine } from "./horizon.js";
 
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
-export const UNITS_PER_M = 0.03;          // 25 km → 750 unidades (dentro de la esfera del cielo, radio ≈ 900)
+export const UNITS_PER_M = 0.012;         // 60 km → 720 unidades (dentro de la esfera del cielo, radio ≈ 900)
+// Lo muy cercano quedaría por delante del plano cercano de la cámara (0,1 unidades = 8 m) y se recortaría: cada
+// vértice se aleja OFFSET unidades a lo largo de su propia dirección. Visto desde el origen nada cambia (misma
+// dirección, mismo orden de cerca a lejos).
+export const NEAR_OFFSET = 1.5;
 const FLAT_IN = 150, FLAT_OUT = 450;      // m: más cerca, el modelo mezcla casas y árboles con el suelo → llano
 
 /** Respuesta de /api/terrain/near → { nAz, nR, dMin, dMax, ground, eye, heights: Float32Array(nAz·nR) } o null. */
@@ -38,7 +42,8 @@ export function ringDist(nr, j) { return nr.dMin * Math.pow(nr.dMax / nr.dMin, j
  */
 export function nearGeometry(nr, scale = UNITS_PER_M) {
   const { nAz, nR, heights, ground, eye } = nr;
-  const cols = nAz + 1, nv = cols * nR, h0 = ground + eye;
+  // un anillo más, en el centro (todos sus vértices bajo los pies): cierra el hueco de los primeros 60 m
+  const cols = nAz + 1, R = nR + 1, nv = cols * R, h0 = ground + eye;
   const pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), nor = new Float32Array(nv * 3), hd = new Float32Array(nv * 2);
   const d = new Float64Array(nR), w = new Float64Array(nR);
   for (let j = 0; j < nR; j++) {
@@ -52,10 +57,12 @@ export function nearGeometry(nr, scale = UNITS_PER_M) {
   const dAz = (2 * Math.PI) / nAz;
   for (let i = 0; i < cols; i++) {
     const az = i * dAz, s = Math.sin(az), c = Math.cos(az);
+    { const k = i * R; pos[k * 3] = 0; pos[k * 3 + 1] = -(eye * scale + NEAR_OFFSET); pos[k * 3 + 2] = 0; uv[k * 2] = i / nAz; uv[k * 2 + 1] = 0; nor[k * 3 + 1] = 1; hd[k * 2] = ground; hd[k * 2 + 1] = 0; }
     for (let j = 0; j < nR; j++) {
-      const k = i * nR + j, h = H(i, j), dj = d[j];
+      const k = i * R + j + 1, h = H(i, j), dj = d[j];
       const y = h - h0 - (dj * dj * (1 - K_REFR)) / (2 * R_E);
-      pos[k * 3] = dj * s * scale; pos[k * 3 + 1] = y * scale; pos[k * 3 + 2] = -dj * c * scale;
+      const rr = Math.hypot(dj, y), f = (rr * scale + NEAR_OFFSET) / rr;
+      pos[k * 3] = dj * s * f; pos[k * 3 + 1] = y * f; pos[k * 3 + 2] = -dj * c * f;
       uv[k * 2] = i / nAz; uv[k * 2 + 1] = j / (nR - 1);
       // pendiente: a lo largo del radio y a lo largo del acimut
       const j0 = Math.max(0, j - 1), j1 = Math.min(nR - 1, j + 1);
@@ -67,10 +74,10 @@ export function nearGeometry(nr, scale = UNITS_PER_M) {
       hd[k * 2] = h; hd[k * 2 + 1] = dj;
     }
   }
-  const idx = new Uint32Array(nAz * (nR - 1) * 6);
+  const idx = new Uint32Array(nAz * (R - 1) * 6);
   let q = 0;
-  for (let j = 0; j < nR - 1; j++) for (let i = 0; i < nAz; i++) {
-    const a = i * nR + j, b = (i + 1) * nR + j;
+  for (let j = 0; j < R - 1; j++) for (let i = 0; i < nAz; i++) {
+    const a = i * R + j, b = (i + 1) * R + j;
     idx[q++] = a; idx[q++] = a + 1; idx[q++] = b; idx[q++] = b; idx[q++] = a + 1; idx[q++] = b + 1;
   }
   return { pos, uv, nor, hd, idx, h0 };
@@ -116,7 +123,12 @@ void main() {
   float alt = degrees(asin(clamp(normalize(vDir).y, -1.0, 1.0)));
   float a = mix(smoothstep(uFadeLo, uFadeHi, alt), 1.0, uOpaque);
   if (a < 0.004) discard;
+  // bajo los pies (más cerca que el primer anillo de la imagen) el color se toma muy desenfocado: sin rayas
   vec3 c = texture2D(map, vUv).rgb;
+  if (vD < 90.0) {
+    vec3 avg = (texture2D(map, vec2(0.125, 0.03), 6.0).rgb + texture2D(map, vec2(0.375, 0.03), 6.0).rgb + texture2D(map, vec2(0.625, 0.03), 6.0).rgb + texture2D(map, vec2(0.875, 0.03), 6.0).rgb) * 0.25;
+    c = mix(avg, c, smoothstep(20.0, 90.0, vD));
+  }
   // el mosaico es más claro y menos saturado que el suelo visto de lado: a albedo
   float g = (c.r + c.g + c.b) / 3.0;
   vec3 alb = (vec3(g) + (c - g) * 1.3) * 0.6 * min(1.0, 0.62 / max(0.05, g));
@@ -125,7 +137,7 @@ void main() {
   float cloudy = smoothstep(0.4, 0.6, g) * (1.0 - smoothstep(0.1, 0.26, sat));
   alb = mix(alb, vec3(0.19, 0.21, 0.15), cloudy);
   // grano fino (el píxel del satélite mide 10 m: de cerca hace falta algo más menudo)
-  vec2 wm = vP.xz / uUnits;                                     // metros
+  vec2 wm = normalize(vP.xz + vec2(1e-6)) * vD;                 // metros (posición horizontal)
   float grain = tn(wm / 9.0) * 0.6 + tn(wm / 31.0) * 0.4;
   alb *= 1.0 + 0.16 * (grain - 0.5) * (1.0 - smoothstep(1500.0, 6000.0, vD));
   // nieve sobre la línea de nieves (con el borde roto)
@@ -138,7 +150,8 @@ void main() {
   float q = clamp(hRel / 1500.0, 0.0, 1.0);
   float thr = mix(max(uHzSun, -0.6), -dip, q);
   float lit = uSunAlt < -8.0 ? 0.0 : smoothstep(0.0, 1.0, (uSunAlt - thr) / 0.9 + 0.5);
-  vec3 n = normalize(vN);
+  // (bajo los pies la luz es la de un suelo parejo: sin las rayas que dejaría la pendiente de cada dirección)
+  vec3 n = normalize(mix(vec3(0.0, 1.0, 0.0), normalize(vN), smoothstep(10.0, 140.0, vD)));
   float ndl = max(0.0, dot(n, uSun));
   float shade = mix(0.6, 0.48 + 0.72 * ndl, lit);
   // la nieve: sin quemarse (se ve el relieve del glaciar) y con las grietas y manchas de la imagen
@@ -146,14 +159,14 @@ void main() {
   vec3 dcol = mix(alb * shade, uSnow * (0.82 + 0.2 * g) * shadeS, sn);
   // en la sombra, solo la luz del cielo (más azulada)
   float lum = (dcol.r + dcol.g + dcol.b) / 3.0;
-  dcol = mix(dcol, vec3(0.55, 0.66, 0.95) * lum * 1.3, mix(0.22, 0.4, sn) * (1.0 - lit * smoothstep(0.0, 0.35, ndl)));
+  dcol = mix(dcol, vec3(0.55, 0.66, 0.95) * lum * 1.3, mix(0.22, 0.4, sn) * (1.0 - lit * smoothstep(-0.15, 0.5, dot(n, uSun))));
   // arrebol: el Sol rasante enciende de anaranjado lo que aún lo ve
-  float gl = uGlow * lit * smoothstep(0.0, 0.25, ndl);
+  float gl = uGlow * lit * smoothstep(-0.15, 0.7, dot(n, uSun));     // suave: sin motas donde la ladera gira
   dcol = mix(dcol, mix(vec3(1.0, 0.5, 0.33) * max(0.45, lum * 1.6), vec3(1.0, 0.6, 0.55), sn), mix(0.45, 0.8, sn) * gl);
   // bruma con la distancia
   dcol = mix(dcol, uHorizon, 1.0 - exp(-vD / 55000.0));
   // de noche, siluetas (algo más claras lejos), con un resto del relieve
-  float f = 0.6 * sqrt(clamp(vD / 25000.0, 0.0, 1.0));
+  float f = 0.8 * sqrt(clamp(vD / 60000.0, 0.0, 1.0));
   vec3 ncol = mix(uNightNear, uNightFar, pow(f, 0.8) * 0.95) * (0.82 + 0.5 * g + 0.5 * sn);
   gl_FragColor = vec4(mix(ncol, dcol, uDay), a);
 }`;
@@ -165,7 +178,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
   const group = new THREE.Group();
   group.name = "terrain3d";
   group.visible = false;
-  let mesh = null, key = null, enabled = true, seq = 0, h0 = 0;
+  let mesh = null, key = null, enabled = true, seq = 0, h0 = 0, coverKm = 0;
   const uniforms = {
     map: { value: null }, uSun: { value: new THREE.Vector3(0, 1, 0) }, uHorizon: { value: new THREE.Vector3(0.1, 0.11, 0.17) },
     uNightNear: { value: new THREE.Vector3(0.05, 0.056, 0.085) }, uNightFar: { value: new THREE.Vector3(0.17, 0.185, 0.27) },
@@ -181,6 +194,8 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
     group,
     get key() { return key; },
     get ready() { return !!mesh; },
+    /** km que cubre la malla cuando está puesta y visible (0 si no). */
+    get coverKm() { return mesh && group.visible ? coverKm : 0; },
     /** near: { data, texUrl } de fetchNearTerrain (o null para quitarlo); k: clave del lugar. */
     set(near, k) {
       const my = ++seq;
@@ -199,7 +214,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
         g.setAttribute("normal", new THREE.BufferAttribute(G.nor, 3));
         g.setAttribute("aHD", new THREE.BufferAttribute(G.hd, 2));
         g.setIndex(new THREE.BufferAttribute(G.idx, 1));
-        uniforms.map.value = tex; h0 = G.h0; uniforms.uH0.value = h0;
+        uniforms.map.value = tex; h0 = G.h0; uniforms.uH0.value = h0; coverKm = near.data.dMax / 1000;
         // transparente para entrar en la misma pasada que las franjas (el orden lo da renderOrder), pero con
         // profundidad propia: lo cercano tapa lo de atrás
         const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms, transparent: true, depthTest: true, depthWrite: true, side: THREE.DoubleSide, fog: false });
@@ -207,6 +222,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
         mesh.renderOrder = 2.78;                                  // después de todas las franjas (2,70–2,76)
         mesh.frustumCulled = false;
         mesh.onBeforeRender = (renderer) => renderer.clearDepth(); // nada de lo dibujado antes la tapa
+        mesh.onAfterRender = (renderer) => renderer.clearDepth();  // …ni ella tapa lo que viene después (monumentos, con su propia escala)
         group.add(mesh); key = k; group.visible = enabled;
         if (onReady) onReady();
       }, undefined, () => { /* sin imagen: quedan las franjas */ });
@@ -236,7 +252,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
       const x = Math.min(1, Math.max(0, (sunAlt - 1) / 7));
       uniforms.uGlow.value = sunAlt > -8 ? 1 - x * x * (3 - 2 * x) : 0;
       // fuera de una cumbre, el relieve se deshace hacia abajo y deja ver el suelo translúcido de siempre
-      const top = Math.min(-0.45, lowest - 0.45);
+      const top = Math.min(-0.9, lowest - 0.9);
       uniforms.uFadeHi.value = top; uniforms.uFadeLo.value = top - 2.6;
     },
     setEnabled(b) { enabled = !!b; group.visible = enabled && !!mesh; },

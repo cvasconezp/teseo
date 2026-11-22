@@ -126,3 +126,29 @@ export function bortleForNelm(m) {
   for (let c = 1; c <= 9; c++) { const dd = Math.abs(BORTLE[c].nelmRef - m); if (dd < d - 1e-9) { d = dd; best = c; } }
   return best;
 }
+
+// Estimación para un lugar sin dato propio: backend/app/lightpollution.py (luces nocturnas de la NASA, Black Marble
+// 2016, en 80 km a la redonda). No es una medición: ±1 clase. Una vez por celda de 0,05°.
+const estMem = new Map();
+export const bortleCell = (lat, lon) => `${(Math.round(lat / 0.05) * 0.05).toFixed(2)},${(Math.round(lon / 0.05) * 0.05).toFixed(2)}`;
+export function fetchBortleEstimate(lat, lon, { api = "", fetchImpl = (typeof fetch !== "undefined" ? fetch : null) } = {}) {
+  const key = bortleCell(lat, lon);
+  if (estMem.has(key)) return estMem.get(key);
+  if (!fetchImpl) return Promise.reject(new Error("sin red"));
+  const [la, lo] = key.split(",");
+  const p = fetchImpl(`${api}/api/lightpollution?lat=${la}&lon=${lo}`).then(async (r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    if (!j || !(j.bortle >= 1 && j.bortle <= 9)) throw new Error("respuesta sin clase");
+    return { bortle: clampBortle(j.bortle), credit: j.credit || "NASA Black Marble 2016" };
+  });
+  estMem.set(key, p);
+  p.catch(() => estMem.delete(key));
+  return p;
+}
+export const BORTLE_EST_T = {
+  es: "Clase estimada para este lugar a partir de las luces nocturnas que ve el satélite en 80 km a la redonda (NASA Black Marble 2016). No es una medición: puede fallar por una clase. Si conoces tu cielo, muévela.",
+  en: "Class estimated for this place from the night lights seen by satellite within 80 km (NASA Black Marble 2016). Not a measurement: it can be off by one class. If you know your sky, adjust it.",
+  esSet: "Clase elegida por ti para este lugar.", enSet: "Class chosen by you for this place.",
+  esMeasured: "Clase con respaldo de mediciones publicadas para este lugar.", enMeasured: "Class backed by published measurements for this place.",
+};

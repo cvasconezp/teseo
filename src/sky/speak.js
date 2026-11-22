@@ -53,6 +53,124 @@ export function sheetText(el) {
 }
 
 /**
+ * Lo que hay en una ficha, por partes (para contarlo, no para leerlo de arriba abajo): título, tipo, descripción,
+ * datos, explicaciones, la vida de la estrella, lo que se ve desde el lugar y el crédito de la imagen. `el` es la
+ * <section> de la ficha (SheetShell). Lo que no reconoce queda en `other`, en su orden.
+ */
+export function sheetParts(el) {
+  if (!el || !el.querySelector) return null;
+  const tx = (n) => (n ? String(n.textContent || "").replace(/\s+/g, " ").trim() : "");
+  const all = (root, sel) => (root && root.querySelectorAll ? Array.from(root.querySelectorAll(sel)) : []);
+  const own = (n) => {                                   // el texto de un nodo sin sus <small>, enlaces ni botones
+    if (!n || !n.cloneNode) return tx(n);
+    const c = n.cloneNode(true);
+    for (const x of all(c, "small, a, button, svg, .sk-sr")) x.remove();
+    return tx(c);
+  };
+  const P = { title: tx(el.querySelector("h2")), type: "", badge: "", desc: "", notes: [], facts: [], explain: [], life: null, comp: [], place: null, credit: "", other: [] };
+  const type = el.querySelector(".sk-type");
+  if (type) { const b = type.querySelector && type.querySelector("em"); P.badge = tx(b); P.type = tx(type).replace(P.badge, "").trim(); }
+  const body = el.querySelector(".sk-sheet-body");
+  if (!body) return P;
+  P.desc = own(body.querySelector(".sk-desc"));
+  for (const n of all(body, ".sk-facts > div")) { const dd = n.querySelector("dd"); P.facts.push({ label: tx(n.querySelector("dt")), value: own(dd), hint: tx(dd && dd.querySelector("small")) }); }
+  for (const n of all(body, ".sk-explain > li")) P.explain.push({ title: tx(n.querySelector("b")), text: tx(n.querySelector("span")) });
+  const life = body.querySelector(".sk-life");
+  if (life) {
+    const L = { type: tx(life.querySelector(".sk-comp-body > p")), facts: [], past: [], here: "", next: [], notes: [] };
+    for (const n of all(life, ".sk-life-facts > div")) L.facts.push({ label: tx(n.querySelector("dt")), value: own(n.querySelector("dd")) });
+    for (const n of all(life, ".sk-tl > li")) {
+      const name = tx(n.querySelector("span"));
+      if (n.classList.contains("is-here")) L.here = name; else if (n.classList.contains("is-past")) L.past.push(name); else L.next.push(name);
+    }
+    for (const n of all(life, ".sk-comp-note")) L.notes.push(tx(n));
+    P.life = L;
+  }
+  for (const c of all(body, ".sk-comp")) if (!c.classList.contains("sk-life")) for (const n of all(c, ".sk-comp-note")) P.comp.push(tx(n));
+  const rs = body.querySelector(".sk-rs");
+  if (rs && !rs.classList.contains("is-off")) {
+    const ps = all(rs, "p").filter((n) => !n.classList.contains("sk-rs-main") && !n.classList.contains("sk-rs-hz"));
+    P.place = { title: tx(rs.querySelector("h3")), main: tx(rs.querySelector(".sk-rs-main")), hz: tx(rs.querySelector(".sk-rs-hz")), now: ps.length ? tx(ps[ps.length - 1]) : "" };
+  }
+  const cap = body.querySelector("figcaption");
+  if (cap) P.credit = tx(cap.querySelector("b, strong, span")) || "";
+  // lo demás (fichas de montañas, volcanes, monumentos…): párrafos, datos y subtítulos que no son de los bloques de arriba
+  for (const n of all(body, "h3, p, dl > div, li")) {
+    if (n.closest("button, a, .sk-actions, nav, details.sk-details, .sk-facts, .sk-explain, .sk-comp, .sk-rs, figure, .sk-desc")) continue;
+    if (n.classList.contains("sk-desc")) continue;
+    if (n.matches("dl > div")) { const dt = n.querySelector("dt"), dd = n.querySelector("dd"); if (dt && dd) P.other.push(`${tx(dt)}: ${own(dd)}`); }
+    else if (!n.querySelector("p, li")) { const v = own(n); if (v) P.other.push(v); }
+  }
+  return P;
+}
+
+const endDot = (s) => { const v = String(s || "").replace(/\s+/g, " ").trim(); return !v ? "" : /[.!?…]$/.test(v) ? v : v + "."; };
+const lowFirst = (s) => (s && !/^[A-ZÁÉÍÓÚÑ]{2}/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s);
+const listAnd = (arr, lang) => (arr.length <= 1 ? arr.join("") : arr.slice(0, -1).join(", ") + (lang === "en" ? " and " : " y ") + arr[arr.length - 1]);
+
+/** Un dato «etiqueta + valor» dicho como frase. */
+export function factSentence(f, lang = "es") {
+  const es = lang !== "en", l = f.label || "", v = f.value || "", h = f.hint ? `: ${lowFirst(f.hint)}` : "";
+  if (!v) return "";
+  if (/^(distancia|distance)$/i.test(l)) return es ? `Está a ${v}${f.hint ? `, ${f.hint}` : ""}.` : `It is ${v} away${f.hint ? `, ${f.hint}` : ""}.`;
+  if (/su luz sali[oó]|its light left/i.test(l)) return es ? `La luz que ves ${l.replace(/^su luz /i, "")} ${lowFirst(v)}${h}.` : `The light you see ${l.replace(/^its light /i, "")} ${lowFirst(v)}${h}.`;
+  if (/su luz tarda|light takes/i.test(l)) return es ? `Su luz tarda ${v} en llegar${h}.` : `Its light takes ${v} to arrive${h}.`;
+  if (/voyager/i.test(l)) return es ? `En la nave Voyager 1 tardarías ${v} en llegar.` : `Aboard Voyager 1 it would take you ${v} to get there.`;
+  // una etiqueta que ya es el comienzo de una frase («Tarda en dar la vuelta»): se continúa; si no, «etiqueta: valor»
+  return /\s(en|a|de|que|hace|is|in|to|of)$/i.test(l) ? `${l} ${v}${h}.` : `${l}: ${v}${h}.`;
+}
+
+/**
+ * La ficha contada: quién es, lo más llamativo, su historia (en las estrellas, su vida y su final) y dónde verlo
+ * desde tu lugar. No es leer la ficha de arriba abajo: es un resumen para ser oído.
+ */
+export function storyFromParts(P, lang = "es") {
+  if (!P) return "";
+  const es = lang !== "en", out = [];
+  const say = (s) => { const v = endDot(s); if (v) out.push(v); };
+  // 1. quién es: nombre y tipo (el de la vida de la estrella dice más que «Estrella»)
+  const kind = (P.life && P.life.type) || P.type;
+  say(kind ? `${P.title}. ${kind}` : P.title);
+  if (P.badge) say(P.badge);
+  // 2. lo que cuenta la enciclopedia, en dos frases
+  if (P.desc) say(P.desc.split(/(?<=[.!?])\s+/).slice(0, 2).join(" ").replace(/…$/, ""));
+  for (const n of P.notes) say(n);
+  // 3. los datos, como frases
+  for (const f of P.facts) say(factSentence(f, lang));
+  for (const e of P.explain.slice(0, 3)) say(e.title ? `${e.title}: ${lowFirst(e.text)}` : e.text);
+  for (const o of P.other) say(o);
+  // 4. su vida y su final
+  const L = P.life;
+  if (L) {
+    for (const f of L.facts) say(`${f.label}: ${f.value}`);
+    if (L.here) {
+      const next = L.next.map(lowFirst);
+      say(es ? `Ahora está en la etapa de ${lowFirst(L.here)}${next.length ? `. Después será ${next.length > 1 ? next.slice(0, -1).join(", luego ") + " y, al final, " + next[next.length - 1] : next[0]}` : ""}`
+        : `It is now in the ${lowFirst(L.here)} stage${next.length ? `. Later it will become ${next.length > 1 ? next.slice(0, -1).join(", then ") + " and, in the end, " + next[next.length - 1] : next[0]}` : ""}`);
+    } else if (L.next.length) say(es ? `Su vida: ${listAnd(L.next.map(lowFirst), lang)}` : `Its life: ${listAnd(L.next.map(lowFirst), lang)}`);
+    for (const n of L.notes) say(n);
+  }
+  for (const n of P.comp.slice(0, 1)) say(n);
+  // 5. desde tu lugar
+  if (P.place) {
+    if (P.place.now) say(`${P.place.title}: ${lowFirst(P.place.now)}`); else if (P.place.title) say(P.place.title);
+    if (P.place.main) say(P.place.main);
+    if (P.place.hz) say(P.place.hz);
+  }
+  // 6. de quién es la imagen
+  if (P.credit) say(/^(imagen|image)/i.test(P.credit) ? P.credit : (es ? `La imagen es de ${P.credit}` : `The image is by ${P.credit}`));
+  return out.join(" ").slice(0, 4000);
+}
+
+/** Texto para «Escuchar»: la ficha contada (storyFromParts); si la ficha no tiene partes reconocibles, su texto. */
+export function sheetStory(el, lang = "es") {
+  let P = null;
+  try { P = sheetParts(el); } catch { P = null; }
+  const story = P ? storyFromParts(P, lang) : "";
+  return story && story.length > (P.title || "").length + 20 ? story : sheetText(el);
+}
+
+/**
  * Texto para ser oído, no leído: sin signos que la voz deletrea («/», «·», «≈», «°», «×»…), con las unidades y
  * abreviaturas dichas en palabras y los datos «etiqueta: valor» como frases cortas.
  */

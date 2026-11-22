@@ -46,8 +46,10 @@ export function eruptingInView(volcs, hz, lat, lon, angleOf, maxKm = 150) {
   for (const v of volcs) {
     if (!v.erupting || !Number.isFinite(v.elev_m)) continue;
     const d = kmBetween(lat, lon, v.lat, v.lon);
-    if (d < 0.5 || d > maxKm) continue;
+    if (d > maxKm) continue;
     const az = bearingDeg(lat, lon, v.lat, v.lon), alt = angleOf(v.elev_m, d, h0);
+    // de pie en su cumbre: el cráter queda al lado, un poco más abajo, y la columna sube junto a ti
+    if (d < 0.5) { out.push({ az: Number.isFinite(az) ? az : 0, alt: -8, dist_km: 0.4, vei: v.last_vei, name: v.name, id: v.id, here: true }); continue; }
     const i = ((Math.round(az / step) % n) + n) % n;
     if (alt < hz.alt[i] - 0.3) continue;                        // tapado por montañas más cercanas
     // el cráter, en lo más alto del filo cercano (±1,5 km vistos desde aquí): la altura y el punto del catálogo no
