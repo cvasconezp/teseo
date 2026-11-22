@@ -93,7 +93,7 @@ ok(/GeoNames/.test(credits) && /Geocoding/.test(credits), "créditos del buscado
   const g = sitesByRegion("es");
   ok(g.length === SITE_REGIONS.length && g.reduce((a, x) => a + x.sites.length, 0) === SITES.length, "la lista desplegable reúne todos los sitios, por región");
   ok(SITE_REGIONS.every((r) => TP.es.sitesGroups[r] && TP.en.sitesGroups[r]), "cada región con su nombre en ES y EN");
-  ok(["teotihuacan-sol", "teotihuacan-luna", "chichenitza-cima", "giza-keops", "ingapirca", "abusimbel", "petra"].every((id) => SITES.some((s) => s.id === id)), "cimas de pirámides, Ecuador, mundo y maravillas");
+  ok(["ingapirca", "abusimbel", "petra"].every((id) => SITES.some((s) => s.id === id)) && !SITES.some((s) => /-cima$|-sol$|-luna$|-keops$/.test(s.id)), "Ecuador, mundo y maravillas; sin cimas de pirámides");
 }
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);

@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.59.1 — 2026-11-21
+
+- Se quita la vista desde la cima de las pirámides (Sol, Luna, El Castillo y Keops) y sus entradas de la lista: las pirámides vuelven a verse desde el suelo, como antes.
+
 ## 1.59.0 — 2026-11-21
 
 - **Lista desplegable de sitios, por regiones** (Ecuador, América, resto del mundo y siete maravillas modernas), con 25 sitios nuevos; coordenadas de Wikidata o Wikipedia, comprobadas el 21-nov-2026:
