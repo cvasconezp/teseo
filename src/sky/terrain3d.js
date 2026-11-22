@@ -107,7 +107,9 @@ export function nearGeometry(nr, scale = UNITS_PER_M, lift = 0, groundAt = null)
   // cumbre, una plataforma a la altura de los pies taparía todo el paisaje de abajo
   const dAz = (2 * Math.PI) / nAz;
   const hs = smoothNear(heights, nAz, nR, d, dAz);
-  const H = (i, j) => { const h = hs[(((i % nAz) + nAz) % nAz) * nR + j]; return h > ground ? ground + (h - ground) * w[j] : h; };
+  // (en una cumbre —lift— solo se allanan los bultos bajos: una subida de verdad, como la otra cima del Chimborazo a
+  // 200 m, se deja; allanada, quedaba una plataforma con un corte recto y la cumbre detrás)
+  const H = (i, j) => { const h = hs[(((i % nAz) + nAz) % nAz) * nR + j]; if (h <= ground) return h; const k = lift > 0 ? w[j] + (1 - w[j]) * sstep(12, 35, h - ground) : w[j]; return ground + (h - ground) * k; };
   const BASE_M = 60, jLo = new Int32Array(nR), jHi = new Int32Array(nR), mAz = new Int32Array(nR);
   for (let j = 0; j < nR; j++) {
     let a = Math.max(0, j - 1), b = Math.min(nR - 1, j + 1);

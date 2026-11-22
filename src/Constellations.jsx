@@ -1969,7 +1969,13 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       const plumeOn = !!(ref.plume && ref.plume.group.parent && ref.plume.group.parent.visible && ref.plume.update(tStart));
       const moved = rebuild || ar.on || issMoved || plumeOn || !!ref.look.fly || tStart < wakeUntil || far(cp.x, lastCam.px, 0.01) || far(cp.y, lastCam.py, 0.01) || far(cp.z, lastCam.pz, 0.01)
         || far(cq.x, lastCam.qx, 1e-6) || far(cq.y, lastCam.qy, 1e-6) || far(cq.z, lastCam.qz, 1e-6) || far(cq.w, lastCam.qw, 1e-6) || ref.camera.fov !== lastCam.fov || far(vs.cx, lastCam.vx, 0.25) || far(vs.cy, lastCam.vy, 0.25) || us !== lastCam.us;
-      const draw = moved || (++idleN % IDLE_EVERY === 0);
+      // resolución adaptativa: al moverse puede bajar; quieto más de 0,6 s, se dibuja a la resolución completa
+      // (si no, la imagen quieta quedaría en escalones) y al volver a moverse se recupera la adaptativa
+      const setPR = (pr) => { ref.renderer.setPixelRatio(pr); ref.points.material.uniforms.uPx.value = pr / basePR; ref.issLayer.setPixelRatio(pr); };
+      let sharpen = false;
+      if (moved) { ref._lastMove = tStart; if (ref._sharp) { ref._sharp = false; setPR(adaptive.ratio); } }
+      else if (!ref._sharp && adaptive.ratio < basePR - 1e-3 && tStart - (ref._lastMove || 0) > 600) { ref._sharp = true; setPR(basePR); sharpen = true; }
+      const draw = moved || sharpen || (++idleN % IDLE_EVERY === 0);
       if (moved) idleN = 0;
       if (draw) {
         lastCam.px = cp.x; lastCam.py = cp.y; lastCam.pz = cp.z; lastCam.qx = cq.x; lastCam.qy = cq.y; lastCam.qz = cq.z; lastCam.qw = cq.w; lastCam.fov = ref.camera.fov; lastCam.vx = vs.cx; lastCam.vy = vs.cy; lastCam.us = us;
@@ -1987,7 +1993,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         if (adaptMs >= 500) {
           // los primeros segundos (carga de catálogos y texturas) no cuentan: son lentos en cualquier equipo
           const nr = !ADAPT_OFF && tStart - sceneT0 > 8000 ? adaptive.update(1000 * adaptN / adaptMs, adaptMs) : null; adaptN = 0; adaptMs = 0;
-          if (nr != null) { ref.renderer.setPixelRatio(nr); ref.points.material.uniforms.uPx.value = nr / basePR; ref.issLayer.setPixelRatio(nr); wakeEv(); }
+          if (nr != null && !ref._sharp) { ref.renderer.setPixelRatio(nr); ref.points.material.uniforms.uPx.value = nr / basePR; ref.issLayer.setPixelRatio(nr); wakeEv(); }
         }
       } else if (!moved) { adaptN = 0; adaptMs = 0; }
       prevDrawn = draw && moved;

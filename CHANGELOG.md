@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.58.2 — 2026-11-21
+
+- **Imagen nítida al quedarse quieto.** Al moverse, si el equipo va lento, la app dibuja con menos resolución; ahora, quieta más de medio segundo, vuelve a la resolución completa (antes la imagen quieta quedaba en escalones).
+- **Cumbres con otra cima al lado** (Chimborazo): cerca del observador ya no se allanan las subidas de verdad, solo los bultos bajos del modelo. Desaparece la plataforma con un corte recto y la cumbre detrás.
+
 ## 1.58.1 — 2026-11-21
 
 - **Sin paisaje provisional.** El relieve 3D se pide a la vez que el horizonte y, mientras llega, ya no se dibujan las franjas planas que luego cambiaban (si tarda más de 8 s o falla, quedan las franjas).
