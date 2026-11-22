@@ -52,6 +52,9 @@ ok(Math.abs(M(Gb.pos, 1)[1] + 1.7) < 0.01 && Math.abs(M(Gb.pos, 0)[1] + 1.7) < 0
 const peak = { ...nr, heights: nr.heights.map((h, k) => h - 30 * (k % nR)) };
 const Gp = nearGeometry(peak);
 ok(M(Gp.pos, 4)[1] < -85, "desde una cumbre la ladera baja de verdad (sin plataforma que tape el paisaje)");
+// en una cumbre se mira desde 5 m más arriba: el suelo bajo los pies queda a 6,7 m
+const Gl = nearGeometry(nr, UNITS_PER_M, 5);
+ok(Math.abs(M(Gl.pos, 0)[1] + 6.7) < 0.01 && Math.abs(M(Gl.pos, 1)[1] + 6.7) < 0.02 && Math.abs(Gl.h0 - (2800 + 1.7 + 5)) < 1e-6, "con 5 m de más, el suelo queda 6,7 m bajo los ojos");
 // los índices van de cerca a lejos
 ok(G.idx[0] === 0 && G.idx[G.idx.length - 1] === nAz * RR + RR - 1, "triángulos de cerca a lejos");
 

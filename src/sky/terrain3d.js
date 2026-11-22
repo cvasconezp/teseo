@@ -40,8 +40,11 @@ export function ringDist(nr, j) { return nr.dMin * Math.pow(nr.dMax / nr.dMin, j
  * de cada vértice, e índices (de cerca a lejos: lo cercano se dibuja primero y tapa lo de atrás).
  * Cerca del observador (< 150 m) lo que sobresale de la altura de sus pies se allana, y empalma con el relieve hasta 450 m.
  */
-export function nearGeometry(nr, scale = UNITS_PER_M) {
-  const { nAz, nR, heights, ground, eye } = nr;
+/** Metros que se sube al observador al situarlo en una cumbre o un mirador (como en una torre baja): con los ojos a
+ * 1,7 m, una cima ancha tapa casi todo el paisaje de abajo. */
+export const SUMMIT_LIFT_M = 5;
+export function nearGeometry(nr, scale = UNITS_PER_M, lift = 0) {
+  const { nAz, nR, heights, ground } = nr, eye = nr.eye + (lift > 0 ? lift : 0);
   // un anillo más, en el centro (todos sus vértices bajo los pies): cierra el hueco de los primeros 60 m
   const cols = nAz + 1, R = nR + 1, nv = cols * R, h0 = ground + eye;
   const pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), nor = new Float32Array(nv * 3), hd = new Float32Array(nv * 2);
@@ -227,8 +230,8 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
     /** km que cubre la malla cuando está puesta y visible (0 si no). */
     get coverKm() { return mesh && group.visible ? coverKm : 0; },
     /** near: { data, texUrl } de fetchNearTerrain (o null para quitarlo); k: clave del lugar. */
-    set(near, k) {
-      const my = ++seq;
+    set(near, k0, { lift = 0 } = {}) {
+      const my = ++seq, k = `${k0}|${lift}`;
       if (!near) { clear(); return; }
       if (k === key && mesh) return;
       new THREE.TextureLoader().setCrossOrigin("anonymous").load(near.texUrl, (tex) => {
@@ -237,7 +240,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
         tex.colorSpace = THREE.NoColorSpace;                      // los colores se escriben tal cual, como las franjas
         tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
         tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter; tex.anisotropy = 16;
-        const G = nearGeometry(near.data);
+        const G = nearGeometry(near.data, UNITS_PER_M, lift);
         const g = new THREE.BufferGeometry();
         g.setAttribute("position", new THREE.BufferAttribute(G.pos, 3));
         g.setAttribute("uv", new THREE.BufferAttribute(G.uv, 2));

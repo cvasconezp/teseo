@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.57.0 — 2026-11-21
+
+- **En las cumbres el paisaje se ve desde 5 m más arriba** (como desde una torre baja): con los ojos a 1,7 m, una cima ancha tapaba casi todo lo de abajo. Solo cambia el dibujo del relieve; el cielo y las horas de salida y puesta siguen siendo los del lugar. No se aplica donde hay monumentos al lado.
+- **Sitios arqueológicos sobre el terreno real**: con el relieve 3D ya no se dibuja el piso de arena del sitio; los monumentos se apoyan en el relieve, con su color y su textura (Catequilla deja de parecer un desierto).
+- **Mapa fotográfico sin el halo de las estrellas más brillantes**: alrededor de Rigel, Sirio y las demás de magnitud menor que 1,3 las placas dejaban un disco azul con una cruz (reflejos del telescopio); ahí el mapa se apaga.
+
 ## 1.56.0 — 2026-11-21
 
 - **El suelo bajo los pies ya no es un color liso**: desde una cumbre, el terreno cercano tiene la textura del paisaje —matas, piedras y manchas a varias escalas, y en la nieve su relieve menudo—, con el color del terreno de alrededor. Sin rayas en las laderas empinadas.

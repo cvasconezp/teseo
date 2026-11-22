@@ -59,7 +59,7 @@ import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/cloudsLayer.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
 import { andeanLabels, TX_AND } from "./sky/andean.js";
-import { fetchNearTerrain, createNearTerrainLayer } from "./sky/terrain3d.js";
+import { fetchNearTerrain, createNearTerrainLayer, SUMMIT_LIFT_M } from "./sky/terrain3d.js";
 import { DEFAULT_LAYERS, presetState, presetOf } from "./sky/layerPresets.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit, fetchLandColors } from "./sky/horizon.js";
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
@@ -69,7 +69,7 @@ import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
 import { createSkyImagesLayer } from "./sky/skyImagesLayer.js";
 import { createCometLayer } from "./sky/cometLayer.js";
 import { cometsAt, minorObjects, neoPassing } from "./sky/cometSky.js";
-import { createHipsLayer, HIPS_FINE } from "./sky/hipsLayer.js";
+import { createHipsLayer, HIPS_FINE, setHipsMasks } from "./sky/hipsLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
@@ -629,6 +629,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const [sky, setSky] = useState(null);
+  // el mapa fotográfico se apaga alrededor de las estrellas más brillantes (su halo en las placas no es cielo)
+  useEffect(() => { if (sky && sky.stars) setHipsMasks(sky.stars.map((st) => [st[1], st[2], st[3], st[4]])); }, [sky]);
   const [sel, setSel] = useState(null);      // abbr or null
   const [depth, setDepth] = useState(0);     // 0..1
   const wrapRef = useRef(null);          // hueco en el flujo de la página; el visor se ensancha desde él
@@ -2058,6 +2060,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           const dx = x - cpx, dy = y - cpy, dz = z - cpz, d = dx * fx + dy * fy + dz * fz;
           return d > 0 && d * d > cos2 * (dx * dx + dy * dy + dz * dz);
         };
+        // la cámara al día antes de proyectar los nombres: si no, tras un salto de la vista quedarían colocados con
+        // la orientación del cuadro anterior (y ahí se quedarían hasta el siguiente movimiento)
+        ref.camera.updateMatrixWorld();
         const proj = (x, y, z, cls) => {
           tmp.set(x, y, z);
           if (ref.localQuat) tmp.applyQuaternion(ref.localQuat);
@@ -2757,6 +2762,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [monOn, monKey, !!hzData, hzRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
   const monItems = useMemo(() => (monOn && hzData && monBase.status === "ok" && monBase.key === monKey
     ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases, monBase.relief || null) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon]);
+  const summitLift = placeSummit && nearData && monItems.length === 0 ? SUMMIT_LIFT_M : 0;
   // el horizonte con los monumentos macizos: lo que queda detrás de una pirámide tampoco se ve
   const monSil = useMemo(() => (hzData && monItems.length ? silhouette(monItems, hzData.step_deg || 0.2) : null), [hzData, monItems]);
   const hzEff = useMemo(() => (hzData && monSil ? withMonuments(hzData, monSil) : hzData), [hzData, monSil]);
@@ -2847,11 +2853,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [hzData, atmState, ready, placeSummit, landData, satOn, nearData]);
   useEffect(() => {      // la malla del relieve cercano: se pone cuando llegan sus datos y se quita al cambiar de lugar
     const ref = sceneRef.current; if (!ref || !ref.near3d) return;
-    ref.near3d.set(hzData && nearData ? nearData : null, hzKey);
+    // en una cumbre (sin monumentos al lado, que se dibujan a la altura de los ojos de siempre) se mira desde 5 m más arriba
+    ref.near3d.set(hzData && nearData ? nearData : null, hzKey, { lift: summitLift });
     ref.near3d.setEnabled(!!hzData);
     ref.terrain.setCovered(ref.near3d.coverKm); ref.monuments.setSkirt(!(ref.near3d.coverKm > 0));
     ref._dirty = true;
-  }, [hzData, nearData, hzKey, ready]);
+  }, [hzData, nearData, hzKey, ready, summitLift]);
 
   // nubes: pronóstico de Open-Meteo para el lugar (solo si se piden o se abre su panel) y capa del cielo
   useEffect(() => { try { localStorage.setItem(CLOUDS_KEY, cloudsOn ? "1" : "0"); } catch { /* no-op */ } }, [cloudsOn]);
@@ -4002,7 +4009,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     };
   }, [lat, lon]);
   const terrainCtl = (
-    <TerrainControl lang={lang} available={localActive && !viewFrom} on={terrainOn}
+    <TerrainControl lang={lang} available={localActive && !viewFrom} on={terrainOn} lift={summitLift}
       onToggle={() => { const nv = !terrainOn; setTerrainOn(nv); track("sky_setting", { setting: "horizon", state: nv ? "on" : "off" }); }}
       hz={hzKey ? (hz.key === hzKey ? hz : { status: "loading" }) : null} onRetry={() => setHzRetry((n) => n + 1)}
       sat={hzKey ? (land.key === hzKey ? land.status : "loading") : null}

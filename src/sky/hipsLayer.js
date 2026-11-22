@@ -92,9 +92,21 @@ export const tileUrl = (order, ipix, base = HIPS.base) => `${base}/Norder${order
 /** Suave (sin esquinas): al acercar o alejar, el brillo cambia poco a poco. */
 export const hipsFade = (fov, far = 30, near = 11) => { const t = Math.min(1, Math.max(0, (far - fov) / (far - near))); return t * t * (3 - 2 * t); };
 
-const VERT = "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }";
+// Las estrellas más brillantes dejan en las placas un halo azul enorme con una cruz (reflejos del telescopio), que no
+// es parte del cielo: alrededor de cada una el mapa se apaga (uStars: dirección y radio en radianes; setHipsMasks).
+const MASKS = { uStars: { value: Array.from({ length: 16 }, () => new THREE.Vector4(0, 0, 1, 0)) }, uNStars: { value: 0 } };
+/** Radio (grados) del halo de una estrella de magnitud `mag` en las placas. */
+export const haloRadiusDeg = (mag) => 0.6 + 0.3 * (1.6 - mag);
+/** stars: [[x, y, z, mag], …] (dirección unitaria en el marco ecuatorial). Se usan las 16 más brillantes con mag < 1,3. */
+export function setHipsMasks(stars) {
+  const list = (stars || []).filter((s) => Number.isFinite(s[3]) && s[3] < 1.3).sort((a, b) => a[3] - b[3]).slice(0, 16);
+  list.forEach((s, i) => { const L = Math.hypot(s[0], s[1], s[2]) || 1; MASKS.uStars.value[i].set(s[0] / L, s[1] / L, s[2] / L, haloRadiusDeg(s[3]) * Math.PI / 180); });
+  MASKS.uNStars.value = list.length;
+  return list.length;
+}
+const VERT = "varying vec2 vUv; varying vec3 vDir; void main(){ vUv = uv; vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }";
 // se resta el fondo de la placa (un velo azulado) para que el cielo siga negro, y la luz se SUMA a lo que hay detrás
-const FRAG = "uniform sampler2D map; uniform float k; uniform vec3 bias; varying vec2 vUv; void main(){ vec3 c = texture2D(map, vUv).rgb; c = max(c - bias, 0.0); gl_FragColor = vec4(c * k, 1.0);\n#include <colorspace_fragment>\n}";
+const FRAG = "uniform sampler2D map; uniform float k; uniform vec3 bias; uniform vec4 uStars[16]; uniform int uNStars; varying vec2 vUv; varying vec3 vDir; void main(){ vec3 c = texture2D(map, vUv).rgb; c = max(c - bias, 0.0); vec3 d = normalize(vDir); float m = 1.0; for (int i = 0; i < 16; i++) { if (i >= uNStars) break; float a = acos(clamp(dot(d, uStars[i].xyz), -1.0, 1.0)); m *= smoothstep(uStars[i].w * 0.45, uStars[i].w * 1.6, a); } gl_FragColor = vec4(c * k * m, 1.0);\n#include <colorspace_fragment>\n}";
 
 export function createHipsLayer({ radius = 896, onLoad = null, maxTiles = 110, parallel = 6, base = HIPS.base, minOrder = HIPS.minOrder, maxOrder = HIPS.maxOrder,
   far = 30, near = 11, bias = [0.006, 0.010, 0.018], needAll = false, renderOrder = -5, avoid = null } = {}) {
@@ -113,7 +125,7 @@ export function createHipsLayer({ radius = 896, onLoad = null, maxTiles = 110, p
     dirs.forEach((d, i) => { pos.set([d[0] * radius, d[1] * radius, d[2] * radius], i * 3); uv.set(uvs[i], i * 2); });
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const a = i * (n + 1) + j, b = a + n + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); g.setIndex(idx);
-    const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: tex }, k: { value: 0 }, bias: { value: BIAS } }, vertexShader: VERT, fragmentShader: FRAG, side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false, fog: false,
+    const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: tex }, k: { value: 0 }, bias: { value: BIAS }, uStars: MASKS.uStars, uNStars: MASKS.uNStars }, vertexShader: VERT, fragmentShader: FRAG, side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false, fog: false,
       blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor });
     const mesh = new THREE.Mesh(g, mat); mesh.renderOrder = renderOrder; mesh.frustumCulled = false; mesh.visible = false; group.add(mesh);
     return { mesh, mat };

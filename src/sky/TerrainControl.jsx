@@ -85,7 +85,7 @@ const bandFrom = (data, km, lang) => {
   return i > 0 ? Number(bs[i - 1]).toLocaleString(lang === "es" ? "es" : "en-US") : "0";
 };
 
-export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry, sat = null, peaksOn = false, onTogglePeaks, peaks, monOn = true, onToggleMon, monNear = [], monStatus = null, andOn = false, onToggleAnd, andean = null }) {
+export function TerrainControl({ lang = "es", available = true, on, onToggle, hz, onRetry, sat = null, peaksOn = false, onTogglePeaks, peaks, monOn = true, onToggleMon, monNear = [], monStatus = null, andOn = false, onToggleAnd, andean = null, lift = 0 }) {
   const ta = TX_AND[lang] || TX_AND.es;
   const tx = TX_HZ[lang] || TX_HZ.es;
   const data = hz && hz.status === "ok" ? hz.data : null;
@@ -111,7 +111,7 @@ export function TerrainControl({ lang = "es", available = true, on, onToggle, hz
             <>
               <p className="sk-hz-line">{hp.alt < 1 ? tx.flat
                 : tx.high(n1(hp.alt, lang), (DIRS[lang] || DIRS.es)[compassPoint8(hp.az)], n0(hp.top_m, lang), bandFrom(data, hp.km, lang), n0(hp.km, lang))}</p>
-              <p className="sk-atm-fine">{tx.ground(n0(data.ground_m, lang))}</p>
+              <p className="sk-atm-fine">{tx.ground(n0(data.ground_m, lang))}{lift > 0 ? ` ${lang === "en" ? `On summits the landscape is drawn from ${lift} m higher, as from a low tower, so the summit itself does not hide the view below.` : `En las cumbres el paisaje se dibuja desde ${lift} m más arriba, como desde una torre baja, para que la propia cima no tape la vista de abajo.`}` : ""}</p>
             </>
           )}
           <p className="sk-atm-fine">{tx.source}</p>

@@ -135,7 +135,7 @@ const GLSL_OUT = `
 `;
 
 const texCache = new Map();
-const GROUND_NEAR_M = 60;      // con el relieve 3D alrededor, hasta dónde llega el piso propio del sitio
+const GROUND_NEAR_M = 3;      // con el relieve 3D alrededor, hasta dónde llega el piso propio del sitio
 
 /** Hasta dónde llega el suelo continuo (m): algo más lejos que el monumento más lejano. */
 export function groundReach(items) {
@@ -322,10 +322,9 @@ export function createMonumentLayer({ onReady = null } = {}) {
       // borde, desvanecido, y más allá se ve el terreno de verdad)
       const EX = skirt ? 8 : 0, FAR = skirt ? 12 : 1, verts = (NR + 1 + EX) * NS + 1;
       // …y solo cubre el entorno inmediato del observador (el piso del sitio), no kilómetros de llano
-      // (con un monumento a mano, hasta poco más allá de él; si el más cercano queda lejos, nada: un llano de 100 m
-      // a la altura de los pies ya taparía todo el valle)
-      const fpN = footprintRadius(near.m);
-      const reachG = skirt ? reach : near.o.d - fpN > 120 ? 3 : Math.min(reach, GROUND_NEAR_M, Math.max(25, near.o.d + fpN + 8));
+      // (con el relieve 3D, el suelo es el del relieve —con su color y su textura—: el piso propio del sitio se
+      // queda en nada; un llano de arena de decenas de metros a la altura de los pies taparía todo el valle)
+      const reachG = skirt ? reach : GROUND_NEAR_M;
       const pos = new Float32Array(verts * 3), uv = new Float32Array(verts * 2), col = new Float32Array(verts * 4), idx = [];
       const rEnd = EX ? reach * FAR : reachG;
       const put = (i, e, n, r) => {
