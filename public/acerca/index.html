@@ -174,6 +174,28 @@ footer nav a{color:var(--soft)}
 .cs b{color:var(--teal);font-size:17px}
 .cs span{color:var(--soft);font-size:15px}
 .src-foot{margin-top:26px;color:var(--muted);font-size:15px}
+/* recorrido de la página: capítulos, imagen con números y la media de cada capítulo */
+.sub-h{margin-top:48px;font-size:24px}
+.sub-h+.soft{margin-top:6px}
+.chap-media{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:28px;align-items:start;margin-top:44px}
+@media (max-width:720px){.chap-media{grid-template-columns:minmax(0,1fr)}.chap-media .vid{max-width:300px}}
+.hot{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:26px;align-items:start;margin-top:18px}
+@media (max-width:900px){.hot{grid-template-columns:minmax(0,1fr)}}
+.hot__fig{position:relative;margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+.hot__fig img{display:block;width:100%;height:auto}
+.hot__pt{position:absolute;transform:translate(-50%,-50%);display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--violet);color:#1a1440;font-weight:700;font-size:14px;text-decoration:none;box-shadow:0 0 0 4px rgba(167,139,250,.28)}
+.hot__pt:hover,.hot__pt:focus-visible{background:#fff;color:#1a1440}
+.hot__list{margin:0;padding:0;list-style:none;counter-reset:d;display:flex;flex-direction:column;gap:8px}
+.hot__list li{counter-increment:d;display:grid;grid-template-columns:28px 1fr;column-gap:10px;padding:10px 12px;border-radius:12px;border:1px solid transparent;scroll-margin-top:90px}
+.hot__list li::before{content:counter(d);grid-row:span 2;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:rgba(167,139,250,.18);color:var(--violet);font-weight:700;font-size:13px}
+.hot__list b{color:var(--text);font-size:15px}
+.hot__list span{color:var(--muted);font-size:14px;line-height:1.45}
+.hot__list li:target{border-color:rgba(167,139,250,.6);background:rgba(167,139,250,.08)}
+.card--txt{padding-top:22px}
+.pod-side .pod{flex-direction:column;align-items:flex-start;gap:16px}
+.split-vid{display:flex;justify-content:center}
+.split-vid .vid{width:100%;max-width:300px}
+@media (max-width:600px){.hot__pt{width:24px;height:24px;font-size:12px;box-shadow:0 0 0 3px rgba(167,139,250,.28)}}
 </style>
 <!-- Vercel Web Analytics: visitas sin cookies -->
 <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};</script>
@@ -191,12 +213,11 @@ footer nav a{color:var(--soft)}
     </a>
     <nav class="links" aria-label="Secciones">
       <a class="lang-link" href="/about" hreflang="en" lang="en" data-lang="en" aria-label="English version" title="English version">EN</a>
-      <a href="#que-es">Qué es</a>
-      <a href="#ciencia">La ciencia</a>
-      <a href="#fuentes">Fuentes</a>
-      <a href="#videos">Videos</a>
-      <a href="#podcast">Podcast</a>
-      <a href="#talleres">Talleres</a>
+      <a href="#tu-cielo">Tu cielo</a>
+      <a href="#viajes">Viajes</a>
+      <a href="#ciencia">Preguntas</a>
+      <a href="#fuentes">Cómo sabe</a>
+      <a href="#talleres">Súmate</a>
       <a href="https://github.com/cvasconezp/teseo">Código</a>
     </nav>
     <div class="top__ctas">
@@ -227,45 +248,31 @@ footer nav a{color:var(--soft)}
     </div>
   </div>
 
-  <!-- Qué es -->
+  <!-- Qué es: el hilo de esta página -->
   <section id="que-es">
     <div class="wrap sec">
-      <div class="head">
-        <h2>Cuatro maneras de explorar el universo</h2>
-        <p class="soft">Teseo es a la vez planetario, navegador interplanetario, calendario del cielo y laboratorio. No solo te dice qué hay allá arriba: calcula distancias, rutas y fechas de salida con física real y datos oficiales.</p>
-      </div>
-      <div class="grid">
-        <a class="card" href="/#sky">
-          <img src="/acerca/img/cielo-cayambe-noche.webp" width="1280" height="800" loading="lazy" alt="Cielo nocturno sobre Cayambe con las constelaciones de Géminis y Monoceros, y los nombres del Volcán Cayambe y del Churuloma sobre la silueta de las montañas.">
-          <h3>Cielo</h3>
-          <p>Un planetario desde tu lugar: el horizonte real en 3D con montañas, volcanes y sitios arqueológicos, el tiempo y las nubes del momento, y más de 17.000 objetos por capas.</p>
-          <span class="go">Abrir el cielo</span>
-        </a>
-        <a class="card" href="/#ruta">
-          <img src="/acerca/img/ruta.webp" width="1280" height="800" loading="lazy" alt="La pestaña Ruta: el viaje de la Tierra a Marte por una transferencia de Hohmann, con la duración de unos ocho meses y medio y las fechas de salida y llegada.">
-          <h3>Ruta</h3>
-          <p>Viajes por el sistema solar con física orbital real: cuánto tardarías en llegar a Marte y cuál es la próxima ventana para salir.</p>
-          <span class="go">Planear un viaje</span>
-        </a>
-        <a class="card" href="/#ahora">
-          <img src="/acerca/img/calendario.webp" width="1280" height="640" loading="lazy" alt="El Calendario del cielo con la cuenta regresiva «Lo próximo» hacia las Gemínidas y eventos como la Voyager 1 a un día-luz y Mercurio en máxima elongación.">
-          <h3>Ahora</h3>
-          <p>Lo que pasa hoy en el espacio y el calendario del cielo de tu ciudad, con cuentas regresivas. Se puede suscribir en Google Calendar, iPhone u Outlook.</p>
-          <span class="go">Ver el calendario</span>
-        </a>
-        <a class="card" href="/#preguntas">
-          <img src="/acerca/img/espectro.webp" width="1280" height="800" loading="lazy" alt="El recorrido «¿Cómo sabemos de qué están hechas las estrellas?», con un prisma que descompone la luz y el espectro de colores.">
-          <h3>Preguntas</h3>
-          <p>Diez recorridos interactivos sobre las grandes dudas del universo, con datos publicados que puedes tocar.</p>
-          <span class="go">Explorar las preguntas</span>
-        </a>
+      <div class="feat">
+        <div class="vid feat__vid" id="v-en-un-minuto">
+          <video controls playsinline preload="none" poster="/acerca/video/en-un-minuto.jpg" width="540" height="960" aria-label="Video: Teseo en un minuto (44 segundos, con narración)">
+            <source src="/acerca/video/en-un-minuto.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="feat__txt">
+          <p class="kicker">Qué es</p>
+          <h2>Un hilo para orientarte en el universo</h2>
+          <p class="soft">Teseo es a la vez planetario, navegador interplanetario, calendario del cielo y laboratorio. No solo te dice qué hay allá arriba: calcula distancias, rutas y fechas de salida con física real y datos oficiales.</p>
+          <p class="soft">Nació en Cayambe, en la latitud cero, para los talleres de astronomía comunitaria de Killa Ñan. Esta página sigue su hilo: desde donde estás parado hasta el fin del universo.</p>
+          <p class="fine">Teseo en un minuto: el mapa del cielo, tu horizonte, los viajes por el sistema solar y las grandes preguntas, filmados en la propia app. 44 segundos.</p>
+          <p class="fine">Las voces de los videos son sintéticas.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Tu cielo -->
-  <section class="alt">
+  <!-- 1 · Tu cielo -->
+  <section id="tu-cielo" class="alt">
     <div class="wrap sec">
+      <p class="kicker">1 · El hilo empieza en tus pies</p>
       <div class="split">
         <div style="display:flex;flex-direction:column;gap:18px">
           <h2>Tu cielo, no un cielo cualquiera</h2>
@@ -280,20 +287,67 @@ footer nav a{color:var(--soft)}
             <li><span><b>Participa en la ciencia.</b> Desde las fichas, proyectos de ciencia ciudadana vigentes de la NASA, Zooniverse o Globe at Night.</span></li>
             <li><span><b>Fotos 360° y postales</b> con los créditos de los datos, listas para compartir.</span></li>
           </ul>
+          <div class="ctas"><a class="btn btn--gold btn--sm" href="/#sky">Abrir el cielo en tu lugar</a></div>
         </div>
-        <figure style="margin:0">
-          <div class="shot"><img src="/acerca/img/cielo-capas.webp" width="1280" height="800" loading="lazy" alt="El panel Capas abierto sobre el cielo de Cayambe: constelaciones, Sol, Luna y planetas, lluvias de meteoros, cometas y sondas, cada una con su interruptor y su fuente."></div>
-          <figcaption>Cada capa dice de dónde salen sus datos.</figcaption>
-        </figure>
+        <div class="split-vid">
+          <div class="vid" id="v-horizonte">
+          <video controls playsinline preload="none" poster="/acerca/video/horizonte.jpg" width="540" height="960" aria-label="Video: El cielo empieza en tus montañas (1:19, con narración)">
+            <source src="/acerca/video/horizonte.mp4" type="video/mp4">
+          </video>
+          <h3>El cielo empieza en tus montañas</h3>
+          <p>Tu horizonte real con el relieve, la curvatura de la Tierra, las nubes y los monumentos. <span class="muted">1:19</span></p>
+        </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- La ciencia -->
-  <section id="ciencia">
+  <!-- 2 · Viajes por el Sistema Solar -->
+  <section id="viajes">
     <div class="wrap sec">
       <div class="head">
-        <p class="kicker">Laboratorio</p>
+        <p class="kicker">2 · Sigue el hilo por el Sistema Solar</p>
+        <h2>Qué tan lejos, cuánto tardarías y cuándo salir</h2>
+        <p class="soft">Desde tu cielo, el hilo sigue hacia los planetas: Teseo calcula viajes con física orbital real y te cuenta lo que pasa hoy allá arriba.</p>
+      </div>
+      <div class="grid">
+        <a class="card" href="/#ruta">
+          <img src="/acerca/img/ruta.webp" width="1280" height="800" loading="lazy" alt="La pestaña Ruta: el viaje de la Tierra a Marte por una transferencia de Hohmann, con la duración de unos ocho meses y medio y las fechas de salida y llegada.">
+          <h3>Ruta</h3>
+          <p>Viajes por el sistema solar con física orbital real: cuánto tardarías en llegar a Marte y cuál es la próxima ventana para salir.</p>
+          <span class="go">Planear un viaje</span>
+        </a>
+        <a class="card" href="/#ahora">
+          <img src="/acerca/img/calendario.webp" width="1280" height="640" loading="lazy" alt="El Calendario del cielo con la cuenta regresiva «Lo próximo» hacia las Gemínidas y eventos como la Voyager 1 a un día-luz y Mercurio en máxima elongación.">
+          <h3>Ahora</h3>
+          <p>Lo que pasa hoy en el espacio y el calendario del cielo de tu ciudad, con cuentas regresivas. Se puede suscribir en Google Calendar, iPhone u Outlook.</p>
+          <span class="go">Ver el calendario</span>
+        </a>
+      </div>
+      <div class="vids" style="margin-top:44px">
+        <div class="vid" id="v-marte">
+          <video controls playsinline preload="none" poster="/acerca/video/marte.jpg" width="540" height="960" aria-label="Video: ¿Por qué no vamos a Marte cualquier día? (2:08, con narración)">
+            <source src="/acerca/video/marte.mp4" type="video/mp4">
+          </video>
+          <h3>¿Por qué no vamos a Marte cualquier día?</h3>
+          <p>La transferencia de Hohmann, el ángulo de 44° y la ventana que se repite cada 26 meses. <span class="muted">2:08</span></p>
+        </div>
+        <div class="vid" id="v-jupiter">
+          <video controls playsinline preload="none" poster="/acerca/video/jupiter.jpg" width="540" height="960" aria-label="Video: Las lunas de Júpiter (2:12, con narración)">
+            <source src="/acerca/video/jupiter.mp4" type="video/mp4">
+          </video>
+          <h3>Las lunas de Júpiter</h3>
+          <p>Cuatro puntitos de luz que cambiaron la astronomía, y cómo verlos esta noche. <span class="muted">2:12</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · Las grandes preguntas -->
+  <section id="ciencia" class="alt">
+    <div class="wrap sec">
+      <div class="head">
+        <p class="kicker">3 · Hasta las grandes preguntas</p>
         <h2>La ciencia por dentro</h2>
         <p class="soft">En Preguntas no se lee sobre el universo: se experimenta. Cambias un número y miras qué pasa, con las cifras que publicaron los equipos científicos.</p>
       </div>
@@ -316,12 +370,36 @@ footer nav a{color:var(--soft)}
           <p>Elige una masa, de la Tierra a un cuásar, y calcula cuánto mide su horizonte y cuánto se frena el tiempo a su lado.</p>
           <span class="go">¿Qué pasa cerca de un agujero negro?</span>
         </a>
-        <a class="card" href="#v-marte">
-          <img src="/acerca/video/marte.jpg" width="540" height="960" loading="lazy" style="aspect-ratio:16/10;object-position:50% 30%" alt="Inicio del video «¿Por qué no salimos cualquier día?», con las órbitas de la Tierra y Marte alrededor del Sol.">
-          <h3>Ventanas de lanzamiento</h3>
-          <p>Por qué una nave a Marte no sale cualquier día: la transferencia de Hohmann, el ángulo de 44° y la ventana que se repite cada 26 meses.</p>
-          <span class="go">Ver el video (2:08)</span>
-        </a>
+              </div>
+      <div class="vids" style="margin-top:44px">
+        <div class="vid" id="v-estrellas">
+          <video controls playsinline preload="none" poster="/acerca/video/estrellas.jpg" width="540" height="960" aria-label="Video: ¿Cómo sabemos de qué está hecha una estrella? (1:43, con narración)">
+            <source src="/acerca/video/estrellas.mp4" type="video/mp4">
+          </video>
+          <h3>¿Cómo sabemos de qué está hecha una estrella?</h3>
+          <p>El espectro de la luz, sus rayas oscuras y cómo se descubrió el helio en el Sol. <span class="muted">1:43</span></p>
+        </div>
+        <div class="vid" id="v-vida-estrella">
+          <video controls playsinline preload="none" poster="/acerca/video/vida-estrella.jpg" width="540" height="960" aria-label="Video: ¿Cómo vive y muere una estrella? (2:15, con narración)">
+            <source src="/acerca/video/vida-estrella.mp4" type="video/mp4">
+          </video>
+          <h3>¿Cómo vive y muere una estrella?</h3>
+          <p>De la nube de gas a la enana blanca, la supernova o el agujero negro: todo depende de la masa. <span class="muted">2:15</span></p>
+        </div>
+        <div class="vid" id="v-estamos-solos">
+          <video controls playsinline preload="none" poster="/acerca/video/estamos-solos.jpg" width="540" height="960" aria-label="Video: ¿Estamos solos? (1:57, con narración)">
+            <source src="/acerca/video/estamos-solos.mp4" type="video/mp4">
+          </video>
+          <h3>¿Estamos solos?</h3>
+          <p>La ecuación de Drake con números que puedes cambiar tú. <span class="muted">1:57</span></p>
+        </div>
+        <div class="vid" id="v-fin-universo">
+          <video controls playsinline preload="none" poster="/acerca/video/fin-universo.jpg" width="540" height="960" aria-label="Video: ¿Cómo terminará el universo? (2:11, con narración)">
+            <source src="/acerca/video/fin-universo.mp4" type="video/mp4">
+          </video>
+          <h3>¿Cómo terminará el universo?</h3>
+          <p>La expansión, la energía oscura y los finales posibles. <span class="muted">2:11</span></p>
+        </div>
       </div>
       <nav class="chips" aria-label="Los diez recorridos de Preguntas">
         <a class="chip" href="/#preguntas?q=scale">¿Qué tan grande es el universo?</a>
@@ -335,27 +413,44 @@ footer nav a{color:var(--soft)}
     </div>
   </section>
 
-  <!-- Confianza -->
-  <section class="alt">
+  <!-- 4 · Cómo sabe Teseo que es cierto -->
+  <section id="fuentes" aria-label="Cómo sabe Teseo que es cierto y sus fuentes de datos">
     <div class="wrap sec">
-      <div class="head"><h2>Cómo sabe Teseo que lo que dice es cierto</h2></div>
+      <div class="head">
+        <p class="kicker">4 · Cómo sabe Teseo que es cierto</p>
+        <h2>Cómo sabe Teseo que lo que dice es cierto</h2>
+        <p class="soft">Todo lo que muestra Teseo sale de datos públicos de agencias espaciales, observatorios y comunidades de voluntarios. Aquí están, para que puedas comprobarlos, usarlos o sumarte.</p>
+      </div>
       <div class="pillars">
         <div><h3>Datos oficiales y física real</h3><p>Efemérides contrastadas con el Observatorio Naval de EE. UU., la NASA y catálogos abiertos. Cada número dice de dónde viene.</p></div>
         <div><h3>La IA narra, nunca calcula</h3><p>Cuando la app usa inteligencia artificial, solo describe resultados que ya calculó la física.</p></div>
         <div><h3>Tu lugar es tuyo</h3><p>Sin cuenta ni registro. Tu ubicación se usa para calcular tu cielo, no para perfilarte.</p></div>
         <div><h3>Código abierto</h3><p>Licencia AGPL-3.0 y pruebas automáticas: cualquiera puede revisar, usar y mejorar el código, y las mejoras vuelven a ser abiertas.</p></div>
       </div>
-    </div>
-  </section>
-
-  <!-- Fuentes y ciencia ciudadana -->
-  <section id="fuentes" aria-label="Fuentes de datos de Teseo">
-    <div class="wrap sec">
-      <div class="head">
-        <p class="kicker">Datos abiertos</p>
-        <h2>Fuentes y ciencia ciudadana</h2>
-        <p class="soft">Todo lo que muestra Teseo sale de datos públicos de agencias espaciales, observatorios y comunidades de voluntarios. Aquí están, para que puedas comprobarlos, usarlos o sumarte.</p>
+      <h3 class="sub-h">De dónde sale cada cosa</h3>
+      <p class="soft">Toca un número de la imagen para ver de dónde sale lo que muestra.</p>
+      <div class="hot">
+        <figure class="hot__fig">
+          <img src="/acerca/img/cielo-cayambe-noche.webp" width="1280" height="800" loading="lazy" alt="El cielo de Cayambe en Teseo, con números sobre las estrellas, las constelaciones, las montañas, los nombres de las cumbres, el lugar, la hora y las capas.">
+          <a class="hot__pt" href="#dato-1" style="left:19.4%;top:61.2%" aria-label="1: Las estrellas">1</a>
+          <a class="hot__pt" href="#dato-2" style="left:35.8%;top:44.8%" aria-label="2: Las figuras de las constelaciones">2</a>
+          <a class="hot__pt" href="#dato-3" style="left:46.9%;top:66.0%" aria-label="3: Las montañas">3</a>
+          <a class="hot__pt" href="#dato-4" style="left:75.2%;top:46.6%" aria-label="4: Los nombres de las cumbres">4</a>
+          <a class="hot__pt" href="#dato-5" style="left:15.9%;top:21.1%" aria-label="5: Tu lugar">5</a>
+          <a class="hot__pt" href="#dato-6" style="left:43.4%;top:93.1%" aria-label="6: La hora, el Sol, la Luna y los planetas">6</a>
+          <a class="hot__pt" href="#dato-7" style="left:90.6%;top:40.0%" aria-label="7: Las capas">7</a>
+        </figure>
+        <ol class="hot__list">
+          <li id="dato-1"><b>Las estrellas</b><span>Posición, brillo, color y distancia: HYG Database. El error de cada distancia: Hipparcos (ESA), vía HEASARC de la NASA.</span></li>
+          <li id="dato-2"><b>Las figuras de las constelaciones</b><span>Stellarium, con los límites y nombres de la Unión Astronómica Internacional.</span></li>
+          <li id="dato-3"><b>Las montañas</b><span>El relieve: AWS Terrain Tiles (SRTM de la NASA). Sus colores: Sentinel-2 cloudless (EOX, Copernicus).</span></li>
+          <li id="dato-4"><b>Los nombres de las cumbres</b><span>Wikidata y OpenStreetMap, con su altura.</span></li>
+          <li id="dato-5"><b>Tu lugar</b><span>El GPS del teléfono o la búsqueda con GeoNames y Open-Meteo. No se guarda en ningún servidor.</span></li>
+          <li id="dato-6"><b>La hora, el Sol, la Luna y los planetas</b><span>Cálculo propio en el teléfono, comprobado con NASA JPL Horizons y el Almanaque Astronómico del USNO.</span></li>
+          <li id="dato-7"><b>Las capas</b><span>Cada una dice su fuente. Las nubes, por ejemplo: Meteosat, GOES o Himawari, y el pronóstico de Open-Meteo.</span></li>
+        </ol>
       </div>
+      <h3 class="sub-h">Todas las fuentes</h3>
       <div class="src">
         <div><h3>Estrellas y cielo profundo</h3><ul>
           <li><a href="https://github.com/astronexus/HYG-Database" rel="noopener">HYG Database</a><span>posición, brillo, color y distancia de cada estrella</span></li>
@@ -398,117 +493,14 @@ footer nav a{color:var(--soft)}
           <li><a href="https://photon.komoot.io/" rel="noopener">Photon · Komoot</a><span>la búsqueda de cumbres</span></li>
         </ul></div>
       </div>
-      <h3 style="margin-top:40px;font-size:24px">Participa en la ciencia</h3>
-      <p class="soft" style="margin-top:6px">Mirar el cielo también sirve a la ciencia. Estos proyectos reciben observaciones de cualquier persona, sin ser astrónoma.</p>
-      <div class="cs">
-        <a href="https://globeatnight.org/" rel="noopener"><b>Globe at Night</b><span>Cuenta las estrellas que ves desde tu casa y ayuda a medir la contaminación lumínica del mundo.</span></a>
-        <a href="https://www.zooniverse.org/" rel="noopener"><b>Zooniverse</b><span>Clasifica galaxias, busca planetas y supernovas en datos reales de telescopios, desde el celular.</span></a>
-        <a href="https://backyardworlds.org/" rel="noopener"><b>Backyard Worlds</b><span>Busca enanas marrones y mundos cercanos al Sol en imágenes de la NASA.</span></a>
-        <a href="https://www.aavso.org/" rel="noopener"><b>AAVSO</b><span>Observa estrellas variables y envía tus medidas a una base que usan los astrónomos.</span></a>
-        <a href="https://www.imo.net/" rel="noopener"><b>Organización Internacional de Meteoros</b><span>Cuenta estrellas fugaces durante las lluvias de meteoros y comparte tus conteos.</span></a>
-        <a href="https://science.nasa.gov/citizen-science/" rel="noopener"><b>Ciencia ciudadana de la NASA</b><span>Decenas de proyectos abiertos: del Sol y los asteroides a la Tierra vista desde el espacio.</span></a>
-      </div>
       <p class="src-foot">La lista completa, con la licencia y el uso de cada dato, está en <a href="https://github.com/cvasconezp/teseo/blob/main/CREDITS.md" rel="noopener">CREDITS.md</a>. ¿Viste un dato que no cuadra? <a href="https://github.com/cvasconezp/teseo/issues" rel="noopener">Cuéntanos en GitHub</a>.</p>
     </div>
   </section>
 
-  <!-- Videos -->
-  <section id="videos">
+  <!-- 5 · El hilo lo tejemos juntos -->
+  <section id="talleres" class="alt">
     <div class="wrap sec">
-      <div class="feat">
-        <div class="vid feat__vid" id="v-en-un-minuto">
-          <video controls playsinline preload="none" poster="/acerca/video/en-un-minuto.jpg" width="540" height="960" aria-label="Video: Teseo en un minuto (44 segundos, con narración)">
-            <source src="/acerca/video/en-un-minuto.mp4" type="video/mp4">
-          </video>
-        </div>
-        <div class="feat__txt">
-          <p class="kicker">Videos</p>
-          <h2>Teseo en un minuto</h2>
-          <p class="soft">El mapa del cielo, tu horizonte, los viajes por el sistema solar y las grandes preguntas, filmados en la propia app. 44 segundos.</p>
-          <p class="fine">Las voces de los videos son sintéticas.</p>
-        </div>
-      </div>
-      <div class="head" style="margin-top:64px">
-        <h2 style="font-size:clamp(28px,3.4vw,38px)">Explicados paso a paso</h2>
-        <p class="soft">Un tema por video, de uno a dos minutos, con animaciones y la app donde se puede comprobar.</p>
-      </div>
-      <div class="vids">
-        <div class="vid" id="v-estrellas">
-          <video controls playsinline preload="none" poster="/acerca/video/estrellas.jpg" width="540" height="960" aria-label="Video: ¿Cómo sabemos de qué está hecha una estrella? (1:43, con narración)">
-            <source src="/acerca/video/estrellas.mp4" type="video/mp4">
-          </video>
-          <h3>¿Cómo sabemos de qué está hecha una estrella?</h3>
-          <p>El espectro de la luz, sus rayas oscuras y cómo se descubrió el helio en el Sol. <span class="muted">1:43</span></p>
-        </div>
-        <div class="vid" id="v-vida-estrella">
-          <video controls playsinline preload="none" poster="/acerca/video/vida-estrella.jpg" width="540" height="960" aria-label="Video: ¿Cómo vive y muere una estrella? (2:15, con narración)">
-            <source src="/acerca/video/vida-estrella.mp4" type="video/mp4">
-          </video>
-          <h3>¿Cómo vive y muere una estrella?</h3>
-          <p>De la nube de gas a la enana blanca, la supernova o el agujero negro: todo depende de la masa. <span class="muted">2:15</span></p>
-        </div>
-        <div class="vid" id="v-marte">
-          <video controls playsinline preload="none" poster="/acerca/video/marte.jpg" width="540" height="960" aria-label="Video: ¿Por qué no vamos a Marte cualquier día? (2:08, con narración)">
-            <source src="/acerca/video/marte.mp4" type="video/mp4">
-          </video>
-          <h3>¿Por qué no vamos a Marte cualquier día?</h3>
-          <p>La transferencia de Hohmann, el ángulo de 44° y la ventana que se repite cada 26 meses. <span class="muted">2:08</span></p>
-        </div>
-        <div class="vid" id="v-jupiter">
-          <video controls playsinline preload="none" poster="/acerca/video/jupiter.jpg" width="540" height="960" aria-label="Video: Las lunas de Júpiter (2:12, con narración)">
-            <source src="/acerca/video/jupiter.mp4" type="video/mp4">
-          </video>
-          <h3>Las lunas de Júpiter</h3>
-          <p>Cuatro puntitos de luz que cambiaron la astronomía, y cómo verlos esta noche. <span class="muted">2:12</span></p>
-        </div>
-        <div class="vid" id="v-horizonte">
-          <video controls playsinline preload="none" poster="/acerca/video/horizonte.jpg" width="540" height="960" aria-label="Video: El cielo empieza en tus montañas (1:19, con narración)">
-            <source src="/acerca/video/horizonte.mp4" type="video/mp4">
-          </video>
-          <h3>El cielo empieza en tus montañas</h3>
-          <p>Tu horizonte real con el relieve, la curvatura de la Tierra, las nubes y los monumentos. <span class="muted">1:19</span></p>
-        </div>
-        <div class="vid" id="v-estamos-solos">
-          <video controls playsinline preload="none" poster="/acerca/video/estamos-solos.jpg" width="540" height="960" aria-label="Video: ¿Estamos solos? (1:57, con narración)">
-            <source src="/acerca/video/estamos-solos.mp4" type="video/mp4">
-          </video>
-          <h3>¿Estamos solos?</h3>
-          <p>La ecuación de Drake con números que puedes cambiar tú. <span class="muted">1:57</span></p>
-        </div>
-        <div class="vid" id="v-fin-universo">
-          <video controls playsinline preload="none" poster="/acerca/video/fin-universo.jpg" width="540" height="960" aria-label="Video: ¿Cómo terminará el universo? (2:11, con narración)">
-            <source src="/acerca/video/fin-universo.mp4" type="video/mp4">
-          </video>
-          <h3>¿Cómo terminará el universo?</h3>
-          <p>La expansión, la energía oscura y los finales posibles. <span class="muted">2:11</span></p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Podcast -->
-  <section id="podcast" class="alt">
-    <div class="wrap sec">
-      <div class="pod">
-        <div class="pod__icon" aria-hidden="true">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#F2C46D" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"></path></svg>
-        </div>
-        <div class="pod__txt">
-          <p class="kicker">Podcast · 15 min</p>
-          <h2 style="font-size:clamp(28px,3.4vw,38px)">Teseo: astrofísica donde la IA no calcula</h2>
-          <p class="soft">Una conversación sobre de dónde viene Teseo, cómo sabe que lo que dice es cierto, la astronomía andina y lo que viene.</p>
-          <audio controls preload="none" aria-label="Podcast: Teseo, astrofísica donde la IA no calcula (15 minutos)">
-            <source src="/acerca/audio/podcast.m4a" type="audio/mp4">
-          </audio>
-          <p class="fine">Audio generado con NotebookLM de Google (voces de inteligencia artificial) a partir de la documentación de Teseo. También puedes <a href="https://notebooklm.link.google/cSXCkdP5ahzJ" target="_blank" rel="noopener noreferrer">escucharlo en NotebookLM</a>.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Talleres -->
-  <section id="talleres">
-    <div class="wrap sec">
+      <p class="kicker">5 · El hilo lo tejemos juntos</p>
       <div class="split">
         <div style="display:flex;flex-direction:column;gap:18px">
           <h2>Hecho en Cayambe, en la latitud cero</h2>
@@ -523,16 +515,38 @@ footer nav a{color:var(--soft)}
             <a class="btn btn--ghost btn--sm" href="https://github.com/cvasconezp/teseo/issues" target="_blank" rel="noopener noreferrer">Proponer una mejora</a>
           </div>
         </div>
-        <figure style="margin:0">
-          <div class="shot"><img src="/acerca/img/cielo-cayambe-noche.webp" width="1280" height="800" loading="lazy" alt="El cielo de diciembre sobre Cayambe, con el Volcán Cayambe rotulado sobre el horizonte."></div>
-          <figcaption>Una noche de diciembre en Cayambe, con el volcán en el horizonte.</figcaption>
-        </figure>
+        <div id="podcast" class="pod-side">
+          <div class="pod">
+        <div class="pod__icon" aria-hidden="true">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#F2C46D" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"></path></svg>
+        </div>
+        <div class="pod__txt">
+          <p class="kicker">Podcast · 15 min</p>
+          <h2 style="font-size:clamp(28px,3.4vw,38px)">Teseo: astrofísica donde la IA no calcula</h2>
+          <p class="soft">Una conversación sobre de dónde viene Teseo, cómo sabe que lo que dice es cierto, la astronomía andina y lo que viene.</p>
+          <audio controls preload="none" aria-label="Podcast: Teseo, astrofísica donde la IA no calcula (15 minutos)">
+            <source src="/acerca/audio/podcast.m4a" type="audio/mp4">
+          </audio>
+          <p class="fine">Audio generado con NotebookLM de Google (voces de inteligencia artificial) a partir de la documentación de Teseo. También puedes <a href="https://notebooklm.link.google/cSXCkdP5ahzJ" target="_blank" rel="noopener noreferrer">escucharlo en NotebookLM</a>.</p>
+        </div>
+      </div>
+        </div>
+      </div>
+      <h3 class="sub-h">Participa en la ciencia</h3>
+      <p class="soft" style="margin-top:6px">Mirar el cielo también sirve a la ciencia. Estos proyectos reciben observaciones de cualquier persona, sin ser astrónoma.</p>
+      <div class="cs">
+        <a href="https://globeatnight.org/" rel="noopener"><b>Globe at Night</b><span>Cuenta las estrellas que ves desde tu casa y ayuda a medir la contaminación lumínica del mundo.</span></a>
+        <a href="https://www.zooniverse.org/" rel="noopener"><b>Zooniverse</b><span>Clasifica galaxias, busca planetas y supernovas en datos reales de telescopios, desde el celular.</span></a>
+        <a href="https://backyardworlds.org/" rel="noopener"><b>Backyard Worlds</b><span>Busca enanas marrones y mundos cercanos al Sol en imágenes de la NASA.</span></a>
+        <a href="https://www.aavso.org/" rel="noopener"><b>AAVSO</b><span>Observa estrellas variables y envía tus medidas a una base que usan los astrónomos.</span></a>
+        <a href="https://www.imo.net/" rel="noopener"><b>Organización Internacional de Meteoros</b><span>Cuenta estrellas fugaces durante las lluvias de meteoros y comparte tus conteos.</span></a>
+        <a href="https://science.nasa.gov/citizen-science/" rel="noopener"><b>Ciencia ciudadana de la NASA</b><span>Decenas de proyectos abiertos: del Sol y los asteroides a la Tierra vista desde el espacio.</span></a>
       </div>
     </div>
   </section>
 
   <!-- Apoya -->
-  <section id="apoya" class="alt">
+  <section id="apoya">
     <div class="wrap sec">
       <div class="head">
         <h2>Apoya a Teseo</h2>

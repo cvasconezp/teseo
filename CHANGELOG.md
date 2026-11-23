@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.72.0 — 2026-11-23
+
+- **«Acerca de» con una línea narrativa** (también /about). La página sigue el hilo de Teseo, desde donde estás parado hasta el fin del universo:
+  - **Portada y qué es**, con «Teseo en un minuto» y su origen en Cayambe.
+  - **1 · El hilo empieza en tus pies:** tu cielo, con su video al lado.
+  - **2 · Sigue el hilo por el Sistema Solar:** Ruta y Ahora, con los videos de Marte y Júpiter.
+  - **3 · Hasta las grandes preguntas:** Preguntas y sus cuatro videos.
+  - **4 · Cómo sabe Teseo que es cierto:** sus principios, una captura del cielo de Cayambe con números que dicen de dónde sale cada cosa, y todas las fuentes.
+  - **5 · El hilo lo tejemos juntos:** los talleres de Killa Ñan con el podcast, la ciencia ciudadana y Apoya.
+  - **Cierre:** «Sal esta noche».
+- **Cada video está ahora en la parte que explica,** en vez de estar todos juntos. El menú queda en Tu cielo · Viajes · Preguntas · Cómo sabe · Súmate.
+
 ## 1.71.2 — 2026-11-23
 
 - **«Acerca de»: nueva sección «Fuentes y ciencia ciudadana»** (también en /about). Reúne las fuentes de datos abiertos de Teseo en cuatro grupos: estrellas y cielo profundo, Sistema Solar y misiones, Tierra, clima y relieve, y lugares y nombres. Cada fuente lleva su enlace y para qué la usa Teseo. Debajo, «Participa en la ciencia» enlaza seis proyectos donde cualquiera puede aportar observaciones: Globe at Night, Zooniverse, Backyard Worlds, AAVSO, la Organización Internacional de Meteoros y la ciencia ciudadana de la NASA. La lista completa con licencias sigue en CREDITS.md.
