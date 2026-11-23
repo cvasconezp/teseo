@@ -217,7 +217,7 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
   ok(u.searchParams.get("hourly") === u.searchParams.get("current") && u.searchParams.get("forecast_hours") === "26" && u.searchParams.get("elevation") === "2830", "las horas se piden con las mismas variables y la altura del lugar");
   const T0 = 1795420800;
   const r = nw.parseNow({ current: { time: T0, temperature_2m: 13, weather_code: 3, is_day: 1, wind_speed_10m: 2, wind_direction_10m: 45, precipitation_probability: 0 },
-    hourly: { time: [T0, T0 + 3600, T0 + 7200], temperature_2m: [13, 14, 12], apparent_temperature: [12, 13, 11], relative_humidity_2m: [82, 90, 140], precipitation_probability: [0, 100, 60],
+    hourly: { time: [T0, T0 + 3600, T0 + 7200], temperature_2m: [13, 14, 12], apparent_temperature: [12, 13, 11], relative_humidity_2m: [82, 90, 140], precipitation_probability: [0, 100, 60], precipitation: [0, 2.5, null],
       uv_index: [2, 3, 0], visibility: [2200, 900, null], wind_speed_10m: [2, 6, 0], wind_direction_10m: [45, 200, 10], weather_code: [3, 63, 61], is_day: [1, 1, 0], cloud_cover: [85, 100, 90] } });
   ok(r.at === T0 * 1000 && r.hours.length === 3 && r.hours[1].pop === 100 && r.hours[1].code === 63 && near(r.hours[1].visKm, 0.9, 1e-9) && r.hours[2].rh === null && r.hours[2].day === false, "lee las horas (y descarta lo que no es creíble)");
   ok(nw.hourAt(r.hours, T0 + 3600 + 600).t === T0 + 3600 && nw.hourAt(r.hours, T0 + 5 * 3600) === null && nw.hourAt([], T0) === null, "la hora que contiene un instante, o ninguna");
@@ -233,6 +233,9 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
     precipitation_probability: [98, 50], weather_code: [63, 3], precipitation: [2.4, 0], visibility: [4700, 24140] } });
   const c0 = cloudsAt(fcR, T1 + 600), c1 = cloudsAt(fcR, T1 + 3000);
   ok(c0.code === 63 && c1.code === 3 && near(c0.visKm, 4.7 + (24.14 - 4.7) / 6, 1e-6) && near(c0.mm, 2.4 * 5 / 6, 1e-9), "el código es el de la hora más cercana; lluvia y visibilidad se interpolan");
+  ok(rl.withPointRain({ low: 0.3, code: 3, mm: 0, visKm: 24, precip: 0.52 }, { code: 61, mm: 0.4, visKm: 11, pop: 26 }).precip === 0.26
+    && rl.withPointRain({ low: 0.3, code: 3, precip: 0.52 }, { code: 61, mm: 0.4, visKm: 11, pop: 26 }).code === 61
+    && rl.withPointRain({ low: 0.3, code: 3, precip: 0.52 }, null).rainSrc === "cell" && rl.withPointRain(null, null) === null, "la lluvia del dibujo es la de tu punto (la misma de la tarjeta); sin ella, la de la zona");
   ok(rl.rainAmount({ code: 63, mm: 2 }) === 0.7 && rl.rainAmount({ code: 3, mm: 0 }) === 0 && rl.rainAmount({ code: 95, mm: 0 }) === 1 && rl.rainAmount({ code: null, mm: 6 }) === 1 && rl.rainAmount(null) === 0, "intensidad de la lluvia por código y milímetros");
   ok(rl.visBeta(24.14) === 0 && rl.visBeta(null) === 0 && near(rl.visBeta(4.7), 3.912 * (1 / 4.7 - 1 / 20), 1e-9), "bruma solo si el pronóstico baja la visibilidad (Koschmieder)");
   const fc = { low: 0.3, mid: 0.07, high: 0.58, total: 0.72, code: 63, mm: 2.4, visKm: 4.7, wind: { low: [0, 0], mid: [0, 0], high: [0, 0] } };

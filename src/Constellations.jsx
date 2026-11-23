@@ -57,7 +57,7 @@ import { skyState, visibility, starsHidden, countVisibleNow, moonMagV, phaseAngl
 import { createAtmosphereLayer } from "./sky/atmosphereLayer.js";
 import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/cloudsLayer.js";
-import { rainLook, thickenForRain, weatherSky } from "./sky/rainLook.js";
+import { rainLook, thickenForRain, weatherSky, withPointRain } from "./sky/rainLook.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
 import { andeanLabels, TX_AND } from "./sky/andean.js";
 import { fetchNearTerrain, createNearTerrainLayer, SUMMIT_LIFT_M, reliefFromNear } from "./sky/terrain3d.js";
@@ -88,7 +88,7 @@ import IssSheet from "./sky/IssSheet.jsx";
 import PeakSheet from "./sky/PeakSheet.jsx";
 import { WxCard } from "./sky/WxCard.jsx";
 import { TOUR_STOPS, TOUR_T, CANDIDATES, pickVisible, sunsetAt, gizaView, KHUFU, VOLCANO_VIEW, SANGAY, bearing, deepKind, nameOf } from "./sky/tour.js";
-import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp, fmtWind, windText, windVector } from "./sky/nowWeather.js";
+import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp, fmtWind, windText, windVector, hourAt } from "./sky/nowWeather.js";
 import { fetchVolcanoes, matchVolcanoes, recentEruption, eruptingInView, volcanoesOnSkyline, VT as VOLC_T } from "./sky/volcanoes.js";
 import { angleOf as terrainAngleOf } from "./sky/terrainLayer.js";
 import { createPlumeLayer, veiColumnKm, plumeParams } from "./sky/plumeLayer.js";
@@ -2770,13 +2770,15 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // las nubes de un instante: el pronóstico y, cerca de la hora del barrido, el satélite (con su mapa en el cielo)
   // con lluvia (rainLook.js), las capas bajas y medias se engrosan y se cierran sobre ti antes de mezclarse con el satélite
   const cloudsFor = (d) => {
-    const s = d.getTime() / 1000, fc0 = wxData ? cloudsAt(wxData, d) : null, w = satWeight(satData, s);
+    const s = d.getTime() / 1000, w = satWeight(satData, s);
+    // nubosidad por capas y viento en altura: los de la zona; la lluvia y la visibilidad: las de tu punto (como la tarjeta)
+    const fc0 = wxData ? withPointRain(cloudsAt(wxData, d), wxNow ? hourAt(wxNow.hours, s) : null) : null;
     const look = rainLook(fc0, satData, w), fc = thickenForRain(fc0, look);
     const view = w > 0 ? fuseSat(satData, fc) : null, merged = mergeClouds(fc, view, w);
     return { clouds: merged, sat: view, w, off: w > 0 ? mapOffsets(merged, s, satData.t) : null, look };
   };
   const cfNow = useMemo(() => { try { return cloudsFor(new Date(whenStr)); } catch { return { clouds: null, sat: null, w: 0, off: null, look: null }; } },
-    [wxData, satData, whenStr]);   // eslint-disable-line react-hooks/exhaustive-deps
+    [wxData, satData, whenStr, wxNow]);   // eslint-disable-line react-hooks/exhaustive-deps
   // el cielo con el tiempo que hace (solo con las nubes encendidas): luz de día cubierto, bruma y lluvia
   const atmSky = useMemo(() => (cloudsOn && atmState && cfNow.clouds ? weatherSky(atmState, cfNow.clouds, cfNow.look) : atmState),
     [atmState, cloudsOn, cfNow]);
@@ -4217,7 +4219,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       on={cloudsOn} onToggle={() => { const nv = !cloudsOn; setCloudsOn(nv); track("sky_setting", { setting: "clouds", state: nv ? "on" : "off" }); }}
       fc={wxKey ? (wx.key === wxKey ? wx : { status: "loading" }) : null} onRetry={() => setWxRetry((n) => n + 1)}
       onMount={() => setWxWanted(true)} onSat={() => track("sky_setting", { setting: "satellite", state: "on" })}
-      when={new Date(whenStr)} isNow={!timeMoved} isNight={isNight} lat={lat} lon={lon}
+      when={new Date(whenStr)} isNow={!timeMoved} isNight={isNight} lat={lat} lon={lon} pointHours={wxNow ? wxNow.hours : null}
       placeName={placeKind === "me" ? (lang === "es" ? "Tu lugar" : "Your place") : placeKind === "custom" ? null : placeKind} />
   );
   const tonightGo = (it) => {
@@ -4350,6 +4352,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       {sky && !isWide && wxPill && <div className="sk-wx-float">{wxPill}</div>}
       {sky && wxPill && wxOpen && (
         <WxCard lang={lang} now={wxNow} fc={wxKey ? (wx.key === wxKey ? wx : { status: "loading" }) : null} sat={satData}
+          rainDrawn={!!(atmSky && atmSky.wx && atmSky.wx.rain > 0.02)}
           cloudsOn={cloudsOn} canDraw={localActive && !viewFrom && atmOn}
           onToggleClouds={() => { const nv = !cloudsOn; setCloudsOn(nv); track("sky_setting", { setting: "clouds", state: nv ? "on" : "off" }); }}
           isNight={isNight} tz={placeTz} skyT={new Date(whenStr).getTime() / 1000} skyIsNow={!timeMoved}

@@ -6,7 +6,10 @@
 // Props:
 //   lang · now: el tiempo de ahora (parseNow de nowWeather.js, con fetchedAt) · fc: { status, data } del pronóstico
 //   sat: las nubes del satélite (satClouds.js) o null: si su barrido es reciente, la nubosidad de ahora es la suya
+//   rainDrawn: el cielo dibuja ahora la lluvia prevista (rainLook.js)
 //   cloudsOn, canDraw (las nubes se dibujan con la Atmósfera), onToggleClouds
+// De dónde sale cada dato: nubosidad por capas, del pronóstico de la zona (weather.js, ~11 km); lo demás —también la
+// lluvia de la línea bajo las barras—, del pronóstico de tu punto exacto (nowWeather.js), el mismo que dibuja la lluvia.
 //   isNight(s) → bool · tz: zona horaria del lugar (para las horas) · skyT: hora del cielo (s) · skyIsNow: el cielo va en «ahora»
 //   onPickHour(s): llevar el cielo a esa hora · anchorRef: la pastilla · stageRef: el contenedor · onClose()
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -20,7 +23,7 @@ import "./weather.css";
 const pct = (f) => `${Math.round(f * 100)} %`;
 const fmtT = (t) => `${Math.round(t) === 0 ? 0 : Math.round(t)}`.replace("-", "−") + " °C";
 
-export function WxCard({ lang = "es", now, fc, sat, cloudsOn, canDraw, onToggleClouds, isNight, tz, skyT, skyIsNow, onPickHour, onNow, anchorRef, stageRef, onClose }) {
+export function WxCard({ lang = "es", now, fc, sat, rainDrawn = false, cloudsOn, canDraw, onToggleClouds, isNight, tz, skyT, skyIsNow, onPickHour, onNow, anchorRef, stageRef, onClose }) {
   const tw = (WX[lang] || WX.es).card;
   const cardRef = useRef(null);
   const [pos, setPos] = useState(null);
@@ -67,6 +70,8 @@ export function WxCard({ lang = "es", now, fc, sat, cloudsOn, canDraw, onToggleC
   const selIdx = series && !skyIsNow && Number.isFinite(skyT) ? series.findIndex((p) => skyT >= p.t && skyT < p.t + 3600) : -1;
   const sel = selIdx >= 0 ? series[selIdx] : null;
   const selC = sel && data ? cloudsAt(data, sel.t) : null;
+  const selH = sel && now ? hourAt(now.hours, sel.t) : null;   // la lluvia de esa hora en tu punto (como la casilla)
+  const selPop = selH && selH.pop != null ? selH.pop / 100 : selC ? selC.precip : null;
 
   if (!now) return null;
   // con otra hora en el cielo, la tarjeta entera pasa a esa hora (pronóstico del lugar); si no, ahora
@@ -98,7 +103,7 @@ export function WxCard({ lang = "es", now, fc, sat, cloudsOn, canDraw, onToggleC
           <button type="button" className="sk-wxc-now" onClick={onNow}>{tw.backNow}</button>
         </div>
       )}
-      <p className="sk-wxc-src">{!hr && satW > 0 ? tw.srcSat(sat.sat, tw.ago((Date.now() / 1000 - sat.t) / 60)) : tw.srcFc}</p>
+      <p className="sk-wxc-src">{!hr && satW > 0 ? tw.srcSat(sat.sat, tw.ago((Date.now() / 1000 - sat.t) / 60)) : tw.srcFc}{rainDrawn && cloudsOn ? ` ${tw.srcRain}` : ""}</p>
 
       <div className="sk-wxc-grid">
         <div className="sk-wxc-tile"><small><Icon name="thermo" size={14} />{tw.feels}</small><b>{v.feels != null ? fmtT(v.feels) : "—"}</b></div>
@@ -137,7 +142,7 @@ export function WxCard({ lang = "es", now, fc, sat, cloudsOn, canDraw, onToggleC
           </div>
           <div className="sk-wxc-ticks"><span>{hh(series[0].t)}</span><span>{hh(series[6].t)}</span><span>{hh(series[series.length - 1].t)}</span></div>
           <p className="sk-wxc-read" aria-live="polite">
-            {sel && selC ? tw.at(hh(sel.t), pct(selC.total), selC.precip != null ? pct(selC.precip) : null) : <><Icon name="hand" size={13} />{tw.tap}</>}
+            {sel && selC ? tw.at(hh(sel.t), pct(selC.total), selPop != null ? pct(selPop) : null) : <><Icon name="hand" size={13} />{tw.tap}</>}
           </p>
         </div>
       )}

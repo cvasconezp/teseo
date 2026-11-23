@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.68.1 — 2026-11-23
+
+- **Una sola lluvia en la tarjeta y en el cielo:** la línea bajo las barras decía «lluvia 52 %» y la casilla, 26 %, porque salían de dos consultas a Open-Meteo: la de las nubes (tu zona, redondeada a ~11 km y a la altura media del modelo) y la de tu punto exacto con su altitud. Ahora la probabilidad, el tipo de tiempo, los milímetros y la visibilidad salen siempre de tu punto exacto: la línea, la casilla, el panel «Nubes y clima» y la lluvia que dibuja el cielo. De la zona quedan solo la nubosidad por capas y el viento en altura, que es lo que existe por capas.
+- **De dónde sale cada dato:** la tarjeta dice que las nubes son del pronóstico de Open-Meteo para tu zona (o del satélite, con su nombre y hace cuánto), avisa cuando la lluvia de tu punto cierra las nubes sobre ti y, al pie, qué es de la zona y qué de tu punto. El panel «Nubes y clima» lo explica igual.
+
 ## 1.68.0 — 2026-11-23
 
 - **La lluvia se ve en el cielo:** cuando el pronóstico marca lluvia, chubascos o tormenta (por el tipo de tiempo y los milímetros, no solo la probabilidad), las nubes bajas y medias se engrosan y se cierran sobre ti, con la base gris y manchas más oscuras donde la nube es más gruesa. Antes, con 98 % de lluvia el cielo se veía casi despejado, porque las nubes se dibujaban solo con la nubosidad por capas.

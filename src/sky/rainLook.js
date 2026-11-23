@@ -7,7 +7,8 @@
 //     de él), porque si llueve en tu punto hay una nube encima;
 //   - el cielo pasa a la luz de un día cubierto (sin azul, más oscuro con lluvia fuerte; el Sol, tapado);
 //   - el aire se llena de bruma según la visibilidad (ley de Koschmieder: contraste 2 % a la visibilidad V).
-// Con el satélite reciente, la lluvia del pronóstico solo cuenta si el satélite ve nubes sobre ti.
+// Con el satélite reciente, la lluvia del pronóstico solo cuenta si el satélite ve nubes sobre ti. La lluvia es la del
+// pronóstico de tu punto exacto (withPointRain), la misma que muestra la tarjeta del tiempo.
 //
 // Puro; se prueba en scripts/test_weather.mjs. Aproximación visual.
 
@@ -37,6 +38,18 @@ export function rainAmount(c) {
   const byCode = RAIN_BY_CODE[c.code] || 0;
   if (!byCode) return mm != null && mm >= 0.3 ? byMm * 0.6 : 0;
   return Math.max(byCode, byMm);
+}
+
+/**
+ * La lluvia de TU punto en las nubes del instante: el pronóstico por capas (weather.js) es el de una zona de ~11 km a la
+ * altura media del modelo; la probabilidad, el tipo de tiempo, los milímetros y la visibilidad se toman del pronóstico
+ * del lugar exacto y su altitud (nowWeather.js, la misma consulta que la tarjeta del tiempo), para que el dibujo y la
+ * tarjeta digan lo mismo. hr: hourAt(...) o null (fuera de sus 26 h: se queda lo de la zona). `rainSrc`: "point" | "cell".
+ */
+export function withPointRain(fc, hr) {
+  if (!fc) return fc;
+  if (!hr) return { ...fc, rainSrc: "cell" };
+  return { ...fc, code: hr.code, mm: hr.mm, visKm: hr.visKm, precip: hr.pop != null ? hr.pop / 100 : fc.precip, rainSrc: "point" };
 }
 
 /** Coeficiente de extinción extra (1/km) por la visibilidad del pronóstico (0 si es buena o falta). */

@@ -6,7 +6,7 @@
 export const OPEN_METEO = "https://api.open-meteo.com/v1/forecast";
 
 /** URL de la consulta: lugar con 2 decimales (≈ 1 km) y, si se sabe, la altitud (m). */
-const NOW_VARS = "temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,apparent_temperature,relative_humidity_2m,precipitation_probability,uv_index,visibility,cloud_cover";
+const NOW_VARS = "temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,apparent_temperature,relative_humidity_2m,precipitation_probability,precipitation,uv_index,visibility,cloud_cover";
 export function nowUrl(lat, lon, elev) {
   // lo de ahora y, con la misma altura del lugar, las mismas variables hora a hora (de 1 h antes a 26 h después):
   // la tarjeta del tiempo las muestra cuando eliges otra hora
@@ -15,7 +15,7 @@ export function nowUrl(lat, lon, elev) {
   return `${OPEN_METEO}?${q}`;
 }
 
-/** Las horas del pronóstico del lugar: [{ t (s), temp, feels, rh, pop, uv, visKm, windKmh, windFrom, code, day, cloud }] (o []). */
+/** Las horas del pronóstico del lugar: [{ t (s), temp, feels, rh, pop, mm (lluvia en la hora), uv, visKm, windKmh, windFrom, code, day, cloud }] (o []). */
 function parseHours(h, n) {
   if (!h || !Array.isArray(h.time)) return [];
   const g = (k, i, lo, hi) => n(h[k] && h[k][i], lo, hi);
@@ -23,7 +23,7 @@ function parseHours(h, n) {
     const ws = g("wind_speed_10m", i, 0), wd = g("wind_direction_10m", i, -360, 720), vis = g("visibility", i, 0);
     return {
       t: Number(t), temp: g("temperature_2m", i, -90, 70), feels: g("apparent_temperature", i, -90, 70), rh: g("relative_humidity_2m", i, 0, 100),
-      pop: g("precipitation_probability", i, 0, 100), uv: g("uv_index", i, 0, 30), visKm: vis != null ? vis / 1000 : null, cloud: g("cloud_cover", i, 0, 100),
+      pop: g("precipitation_probability", i, 0, 100), mm: g("precipitation", i, 0, 500), uv: g("uv_index", i, 0, 30), visKm: vis != null ? vis / 1000 : null, cloud: g("cloud_cover", i, 0, 100),
       windKmh: ws, windFrom: ws != null && wd != null ? ((wd % 360) + 360) % 360 : null,
       code: Number.isFinite(h.weather_code && h.weather_code[i]) ? h.weather_code[i] : null, day: !(h.is_day && h.is_day[i] === 0),
     };

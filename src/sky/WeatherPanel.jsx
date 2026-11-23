@@ -9,22 +9,26 @@
 //   when      Date: la hora del cielo · isNow: si es «ahora»
 //   isNight   (s Unix) → bool: el Sol bajo −12° (para el gráfico y la mejor hora)
 //   lat, lon, placeName · onSat(): métricas al abrir el satélite · onMount(): pide el pronóstico al abrir el panel
+//   pointHours: las horas del pronóstico de tu punto exacto (nowWeather.js): la probabilidad de lluvia sale de ahí, como en la tarjeta
 import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { WX } from "./i18n-wx.js";
 import { cloudsAt, coverClass, nextChange, bestNightHour, hourlySeries } from "./weather.js";
+import { hourAt } from "./nowWeather.js";
 import { pickSource, globeBox, regionBox, wmsUrl, fetchLatestTime, paintGlobe, timeCandidates, dataFraction } from "./satellite.js";
 import "./weather.css";
 
 const hhmm = (s, lang) => new Date(s * 1000).toLocaleTimeString(lang === "es" ? "es-EC" : "en-US", { hour: "2-digit", minute: "2-digit" });
 
-export function WeatherPanel({ lang = "es", available = true, atmOn = true, on, onToggle, fc, onRetry, when, isNow, isNight, lat, lon, placeName, onSat, onMount }) {
+export function WeatherPanel({ lang = "es", available = true, atmOn = true, on, onToggle, fc, onRetry, when, isNow, isNight, lat, lon, placeName, onSat, onMount, pointHours = null }) {
   const tw = WX[lang] || WX.es;
   useEffect(() => { if (onMount) onMount(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const [satOpen, setSatOpen] = useState(false);
   const s = when ? when.getTime() / 1000 : Date.now() / 1000;
   const data = fc && fc.status === "ok" ? fc.data : null;
   const c = useMemo(() => (data ? cloudsAt(data, s) : null), [data, s]);
+  const ph = pointHours ? hourAt(pointHours, s) : null;
+  const pop = ph && ph.pop != null ? ph.pop / 100 : c ? c.precip : null;
   const change = useMemo(() => (data ? nextChange(data, s) : null), [data, s]);
   const best = useMemo(() => (data && isNight ? bestNightHour(data, s, isNight) : null), [data, s, isNight]);
   const series = useMemo(() => (data ? hourlySeries(data, s, 24) : null), [data, s]);
@@ -58,7 +62,7 @@ export function WeatherPanel({ lang = "es", available = true, atmOn = true, on, 
               </div>
               <dl className="sk-atm-stats">
                 <div><dt>{tw.layers(c.low || 0, c.mid || 0, c.high || 0)}</dt>
-                  {c.precip != null && <dd>{tw.rain(c.precip)}</dd>}
+                  {pop != null && <dd>{tw.rain(pop)}</dd>}
                   {change && <dd>{change.kind === "clears" ? tw.clears(hhmm(change.t, lang)) : tw.clouds(hhmm(change.t, lang))}</dd>}
                 </div>
                 {best && <div><dt>{tw.best(hhmm(best.t, lang), best.total)}</dt></div>}
