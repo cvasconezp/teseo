@@ -210,5 +210,18 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
   ok(near(off[0][0], 6, 1e-9) && near(off[1][1], -3, 1e-9), "la malla viaja con el viento de cada capa");
 }
 
+// la tarjeta del tiempo a otra hora: horas del pronóstico del lugar (nowWeather.js)
+{
+  const nw = await import("../src/sky/nowWeather.js");
+  const u = new URL(nw.nowUrl(0.07, -78.13, 2830));
+  ok(u.searchParams.get("hourly") === u.searchParams.get("current") && u.searchParams.get("forecast_hours") === "26" && u.searchParams.get("elevation") === "2830", "las horas se piden con las mismas variables y la altura del lugar");
+  const T0 = 1795420800;
+  const r = nw.parseNow({ current: { time: T0, temperature_2m: 13, weather_code: 3, is_day: 1, wind_speed_10m: 2, wind_direction_10m: 45, precipitation_probability: 0 },
+    hourly: { time: [T0, T0 + 3600, T0 + 7200], temperature_2m: [13, 14, 12], apparent_temperature: [12, 13, 11], relative_humidity_2m: [82, 90, 140], precipitation_probability: [0, 100, 60],
+      uv_index: [2, 3, 0], visibility: [2200, 900, null], wind_speed_10m: [2, 6, 0], wind_direction_10m: [45, 200, 10], weather_code: [3, 63, 61], is_day: [1, 1, 0], cloud_cover: [85, 100, 90] } });
+  ok(r.at === T0 * 1000 && r.hours.length === 3 && r.hours[1].pop === 100 && r.hours[1].code === 63 && near(r.hours[1].visKm, 0.9, 1e-9) && r.hours[2].rh === null && r.hours[2].day === false, "lee las horas (y descarta lo que no es creíble)");
+  ok(nw.hourAt(r.hours, T0 + 3600 + 600).t === T0 + 3600 && nw.hourAt(r.hours, T0 + 5 * 3600) === null && nw.hourAt([], T0) === null, "la hora que contiene un instante, o ninguna");
+}
+
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

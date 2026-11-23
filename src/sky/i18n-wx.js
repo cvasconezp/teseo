@@ -57,6 +57,8 @@ export const WX = {
       source: (ago) => `Open-Meteo · actualizado ${ago}`,
       ago: (min) => (min < 1 ? "ahora" : min < 90 ? `hace ${Math.round(min)} min` : `hace ${Math.round(min / 60)} h`),
       close: "Cerrar",
+      atHead: (h) => `A las ${h} · pronóstico`, backNow: "Volver a ahora",
+      sourceAt: (h) => `Open-Meteo · pronóstico para las ${h}`,
     },
   },
   en: {
@@ -114,6 +116,8 @@ export const WX = {
       source: (ago) => `Open-Meteo · updated ${ago}`,
       ago: (min) => (min < 1 ? "just now" : min < 90 ? `${Math.round(min)} min ago` : `${Math.round(min / 60)} h ago`),
       close: "Close",
+      atHead: (h) => `At ${h} · forecast`, backNow: "Back to now",
+      sourceAt: (h) => `Open-Meteo · forecast for ${h}`,
     },
   },
 };

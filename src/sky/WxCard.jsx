@@ -14,13 +14,13 @@ import Icon from "./icons.jsx";
 import { WX } from "./i18n-wx.js";
 import { cloudsAt, hourlySeries, bestWindow, coverClass } from "./weather.js";
 import { satWeight, mergeClouds, fuseSat } from "./satClouds.js";
-import { wxKind, WX_NAMES, compass8, fmtWind } from "./nowWeather.js";
+import { wxKind, WX_NAMES, compass8, fmtWind, hourAt } from "./nowWeather.js";
 import "./weather.css";
 
 const pct = (f) => `${Math.round(f * 100)} %`;
 const fmtT = (t) => `${Math.round(t) === 0 ? 0 : Math.round(t)}`.replace("-", "−") + " °C";
 
-export function WxCard({ lang = "es", now, fc, sat, cloudsOn, canDraw, onToggleClouds, isNight, tz, skyT, skyIsNow, onPickHour, anchorRef, stageRef, onClose }) {
+export function WxCard({ lang = "es", now, fc, sat, cloudsOn, canDraw, onToggleClouds, isNight, tz, skyT, skyIsNow, onPickHour, onNow, anchorRef, stageRef, onClose }) {
   const tw = (WX[lang] || WX.es).card;
   const cardRef = useRef(null);
   const [pos, setPos] = useState(null);
@@ -69,13 +69,17 @@ export function WxCard({ lang = "es", now, fc, sat, cloudsOn, canDraw, onToggleC
   const selC = sel && data ? cloudsAt(data, sel.t) : null;
 
   if (!now) return null;
-  const k = wxKind(now.code, now.day);
+  // con otra hora en el cielo, la tarjeta entera pasa a esa hora (pronóstico del lugar); si no, ahora
+  const hr = !skyIsNow && Number.isFinite(skyT) ? hourAt(now.hours, skyT) : null;
+  const v = hr || now;
+  const cc = hr ? (data ? cloudsAt(data, hr.t) : null) : c;
+  const k = wxKind(v.code, v.day);
   // con el satélite reciente, cuántas nubes hay lo dice él (octas de la OMM); lluvia, niebla, nieve o tormenta, el código
-  const name = satW > 0 && c && ["sun", "moon", "partly", "cloud"].includes(k) ? (WX[lang] || WX.es).cover[coverClass(c.total)] : (WX_NAMES[lang] || WX_NAMES.es)[k];
-  const windTxt = now.windKmh == null ? "—" : now.windKmh < 1 || now.windFrom == null ? tw.calm : `${fmtWind(now.windKmh)} ${compass8(now.windFrom, lang)}`;
-  const total = c ? c.total : now.cloud != null ? now.cloud / 100 : null;
-  const dec = (v) => (lang === "es" ? String(v).replace(".", ",") : String(v));
-  const vis = now.visKm == null ? "—" : now.visKm >= 10 ? `${Math.round(now.visKm)} km` : `${dec(Math.round(now.visKm * 10) / 10)} km`;
+  const name = !hr && satW > 0 && cc && ["sun", "moon", "partly", "cloud"].includes(k) ? (WX[lang] || WX.es).cover[coverClass(cc.total)] : (WX_NAMES[lang] || WX_NAMES.es)[k];
+  const windTxt = v.windKmh == null ? "—" : v.windKmh < 1 || v.windFrom == null ? tw.calm : `${fmtWind(v.windKmh)} ${compass8(v.windFrom, lang)}`;
+  const total = cc ? cc.total : v.cloud != null ? v.cloud / 100 : null;
+  const dec = (x) => (lang === "es" ? String(x).replace(".", ",") : String(x));
+  const vis = v.visKm == null ? "—" : v.visKm >= 10 ? `${Math.round(v.visKm)} km` : `${dec(Math.round(v.visKm * 10) / 10)} km`;
   const ago = now.fetchedAt ? tw.ago((Date.now() - now.fetchedAt) / 60000) : null;
 
   return (
@@ -88,19 +92,25 @@ export function WxCard({ lang = "es", now, fc, sat, cloudsOn, canDraw, onToggleC
         </button>
         <b className="sk-wxc-state">{name}</b>
       </div>
-      <p className="sk-wxc-src">{satW > 0 ? tw.srcSat(sat.sat, tw.ago((Date.now() / 1000 - sat.t) / 60)) : tw.srcFc}</p>
+      {hr && (
+        <div className="sk-wxc-at">
+          <span><Icon name="clock" size={14} />{tw.atHead(hh(hr.t))}</span>
+          <button type="button" className="sk-wxc-now" onClick={onNow}>{tw.backNow}</button>
+        </div>
+      )}
+      <p className="sk-wxc-src">{!hr && satW > 0 ? tw.srcSat(sat.sat, tw.ago((Date.now() / 1000 - sat.t) / 60)) : tw.srcFc}</p>
 
       <div className="sk-wxc-grid">
-        <div className="sk-wxc-tile"><small><Icon name="thermo" size={14} />{tw.feels}</small><b>{now.feels != null ? fmtT(now.feels) : "—"}</b></div>
+        <div className="sk-wxc-tile"><small><Icon name="thermo" size={14} />{tw.feels}</small><b>{v.feels != null ? fmtT(v.feels) : "—"}</b></div>
         <div className="sk-wxc-tile"><small><Icon name="wind" size={14} />{tw.wind}</small><b>{windTxt}</b></div>
       </div>
 
       <div className="sk-wxc-row"><small><Icon name="wx_cloud" size={14} />{tw.cover}</small><b>{total != null ? pct(total) : "—"}</b></div>
-      {c ? (
+      {cc ? (
         <div className="sk-wxc-grid three">
-          <div className="sk-wxc-tile"><small>{tw.high}</small><b>{c.high != null ? pct(c.high) : "—"}</b></div>
-          <div className="sk-wxc-tile"><small>{tw.mid}</small><b>{c.mid != null ? pct(c.mid) : "—"}</b></div>
-          <div className="sk-wxc-tile"><small>{tw.low}</small><b>{c.low != null ? pct(c.low) : "—"}</b></div>
+          <div className="sk-wxc-tile"><small>{tw.high}</small><b>{cc.high != null ? pct(cc.high) : "—"}</b></div>
+          <div className="sk-wxc-tile"><small>{tw.mid}</small><b>{cc.mid != null ? pct(cc.mid) : "—"}</b></div>
+          <div className="sk-wxc-tile"><small>{tw.low}</small><b>{cc.low != null ? pct(cc.low) : "—"}</b></div>
         </div>
       ) : (
         <p className="sk-wxc-fine" role="status">{fc && fc.status === "error" ? "—" : tw.loading}</p>
@@ -133,12 +143,12 @@ export function WxCard({ lang = "es", now, fc, sat, cloudsOn, canDraw, onToggleC
       )}
 
       <div className="sk-wxc-grid">
-        <div className="sk-wxc-tile"><small><Icon name="umbrella" size={14} />{tw.rain}</small><b>{now.pop != null ? `${Math.round(now.pop)} %` : "—"}</b></div>
-        <div className="sk-wxc-tile"><small><Icon name="droplet" size={14} />{tw.rh}</small><b>{now.rh != null ? `${Math.round(now.rh)} %` : "—"}</b></div>
-        <div className="sk-wxc-tile"><small><Icon name="sun" size={14} />{tw.uv}</small><b>{now.uv != null ? Math.round(now.uv) : "—"}{!now.day && <em>{tw.uvNight}</em>}</b></div>
+        <div className="sk-wxc-tile"><small><Icon name="umbrella" size={14} />{tw.rain}</small><b>{v.pop != null ? `${Math.round(v.pop)} %` : "—"}</b></div>
+        <div className="sk-wxc-tile"><small><Icon name="droplet" size={14} />{tw.rh}</small><b>{v.rh != null ? `${Math.round(v.rh)} %` : "—"}</b></div>
+        <div className="sk-wxc-tile"><small><Icon name="sun" size={14} />{tw.uv}</small><b>{v.uv != null ? Math.round(v.uv) : "—"}{!v.day && <em>{tw.uvNight}</em>}</b></div>
         <div className="sk-wxc-tile"><small><Icon name="eye" size={14} />{tw.vis}</small><b>{vis}</b></div>
       </div>
-      {ago && <p className="sk-wxc-fine">{tw.source(ago)}</p>}
+      {hr ? <p className="sk-wxc-fine">{tw.sourceAt(hh(hr.t))}</p> : ago && <p className="sk-wxc-fine">{tw.source(ago)}</p>}
     </div>
   );
 }

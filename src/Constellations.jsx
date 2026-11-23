@@ -4346,6 +4346,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           onToggleClouds={() => { const nv = !cloudsOn; setCloudsOn(nv); track("sky_setting", { setting: "clouds", state: nv ? "on" : "off" }); }}
           isNight={isNight} tz={placeTz} skyT={new Date(whenStr).getTime() / 1000} skyIsNow={!timeMoved}
           onPickHour={(t) => { track("sky_time", { kind: "weather_card" }); setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(new Date(t * 1000))); }}
+          onNow={tsNow}
           anchorRef={wxPillRef} stageRef={stageRef} onClose={() => setWxOpen(false)} />
       )}
       {sky && (

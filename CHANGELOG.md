@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.67.1 — 2026-11-23
+
+- **Tarjeta del tiempo a la hora elegida:** al tocar una hora del gráfico (o mover el cielo a otra hora), toda la tarjeta pasa a esa hora con el pronóstico del lugar: estado, sensación, viento, nubosidad y capas, probabilidad de lluvia, humedad, UV y visibilidad. Arriba dice «A las 15:00 · pronóstico», con un botón «Volver a ahora». Antes, la línea de la hora decía «lluvia 100 %» y la casilla seguía mostrando la de ahora (0 %).
+
 ## 1.67.0 — 2026-11-22
 
 - **Ruta: más allá del cinturón de asteroides.**

@@ -6,10 +6,36 @@
 export const OPEN_METEO = "https://api.open-meteo.com/v1/forecast";
 
 /** URL de la consulta: lugar con 2 decimales (≈ 1 km) y, si se sabe, la altitud (m). */
+const NOW_VARS = "temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,apparent_temperature,relative_humidity_2m,precipitation_probability,uv_index,visibility,cloud_cover";
 export function nowUrl(lat, lon, elev) {
-  const q = new URLSearchParams({ latitude: lat.toFixed(2), longitude: lon.toFixed(2), current: "temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,apparent_temperature,relative_humidity_2m,precipitation_probability,uv_index,visibility,cloud_cover", wind_speed_unit: "kmh", timezone: "GMT" });
+  // lo de ahora y, con la misma altura del lugar, las mismas variables hora a hora (de 1 h antes a 26 h después):
+  // la tarjeta del tiempo las muestra cuando eliges otra hora
+  const q = new URLSearchParams({ latitude: lat.toFixed(2), longitude: lon.toFixed(2), current: NOW_VARS, hourly: NOW_VARS, past_hours: "1", forecast_hours: "26", timeformat: "unixtime", wind_speed_unit: "kmh", timezone: "GMT" });
   if (Number.isFinite(elev)) q.set("elevation", String(Math.round(elev)));
   return `${OPEN_METEO}?${q}`;
+}
+
+/** Las horas del pronóstico del lugar: [{ t (s), temp, feels, rh, pop, uv, visKm, windKmh, windFrom, code, day, cloud }] (o []). */
+function parseHours(h, n) {
+  if (!h || !Array.isArray(h.time)) return [];
+  const g = (k, i, lo, hi) => n(h[k] && h[k][i], lo, hi);
+  return h.time.map((t, i) => {
+    const ws = g("wind_speed_10m", i, 0), wd = g("wind_direction_10m", i, -360, 720), vis = g("visibility", i, 0);
+    return {
+      t: Number(t), temp: g("temperature_2m", i, -90, 70), feels: g("apparent_temperature", i, -90, 70), rh: g("relative_humidity_2m", i, 0, 100),
+      pop: g("precipitation_probability", i, 0, 100), uv: g("uv_index", i, 0, 30), visKm: vis != null ? vis / 1000 : null, cloud: g("cloud_cover", i, 0, 100),
+      windKmh: ws, windFrom: ws != null && wd != null ? ((wd % 360) + 360) % 360 : null,
+      code: Number.isFinite(h.weather_code && h.weather_code[i]) ? h.weather_code[i] : null, day: !(h.is_day && h.is_day[i] === 0),
+    };
+  }).filter((x) => Number.isFinite(x.t));
+}
+
+/** La hora del pronóstico que corresponde a `s` (s Unix): la que la contiene (±30 min), o null. */
+export function hourAt(hours, s) {
+  if (!hours || !hours.length || !Number.isFinite(s)) return null;
+  let best = null, bd = Infinity;
+  for (const x of hours) { const d = Math.abs(x.t - s); if (d < bd) { bd = d; best = x; } }
+  return bd <= 1800 ? best : null;
 }
 
 /** Respuesta → { temp (°C), code (WMO), day (bool) } o null si no trae lo esperado. */
@@ -19,8 +45,8 @@ export function parseNow(json) {
   const ws = Number.isFinite(c.wind_speed_10m) && c.wind_speed_10m >= 0 ? c.wind_speed_10m : null;
   const wd = ws != null && Number.isFinite(c.wind_direction_10m) ? ((c.wind_direction_10m % 360) + 360) % 360 : null;
   const n = (v, lo = -Infinity, hi = Infinity) => (typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi ? v : null);
-  // la hora del dato (UTC, porque se pide con timezone GMT): «2026-11-23T01:45»
-  const at = typeof c.time === "string" ? Date.parse(c.time.length === 16 ? `${c.time}:00Z` : c.time) : NaN;
+  // la hora del dato (s Unix con timeformat=unixtime; texto UTC «2026-11-23T01:45» si se pidió sin él)
+  const at = typeof c.time === "number" ? c.time * 1000 : typeof c.time === "string" ? Date.parse(c.time.length === 16 ? `${c.time}:00Z` : c.time) : NaN;
   // windKmh: velocidad a 10 m del suelo; windFrom: de dónde viene (grados desde el norte hacia el este), como en meteorología.
   // Para la tarjeta: feels (sensación, °C), rh (humedad, %), pop (probabilidad de lluvia, %), uv, visKm, cloud (%)
   return {
@@ -28,6 +54,7 @@ export function parseNow(json) {
     feels: n(c.apparent_temperature, -90, 70), rh: n(c.relative_humidity_2m, 0, 100), pop: n(c.precipitation_probability, 0, 100),
     uv: n(c.uv_index, 0, 30), visKm: n(c.visibility, 0) != null ? c.visibility / 1000 : null, cloud: n(c.cloud_cover, 0, 100),
     at: Number.isFinite(at) ? at : null,
+    hours: parseHours(json.hourly, n),
   };
 }
 
