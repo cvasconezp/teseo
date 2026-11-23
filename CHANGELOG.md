@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.71.0 — 2026-11-23
+
+- **Foto 360° con el relieve en alta definición:** al tomarla, Teseo pide al servidor la imagen de satélite del relieve cercano con el doble de detalle por lado (4096 × 2048, un zoom más de Sentinel-2 cloudless en cada tramo; `/api/terrain/near_hd.jpg`). La usa con filtro anisotrópico y sin el promedio a lo ancho que la vista necesita cerca, así que los campos, caminos y laderas a pocos kilómetros salen con más detalle. La vista normal no cambia, y si la imagen no llega en 30 s se usa la de siempre.
+- **Estrellas nítidas en la foto 360°:** del mismo tamaño que en la vista, pero con un núcleo definido y un halo tenue, para que al hacer zoom en el visor se vean como puntos y no como manchas.
+- **JPEG de la foto a calidad 0,92** (antes 0,9).
+
 ## 1.70.9 — 2026-11-23
 
 - **Foto 360° con más resolución:** 8192 × 4096 en computadoras y celulares grandes (unos 23 px por grado; antes 11), y 5760 × 2880 en el resto, incluido iOS, donde Safari no deja lienzos de más de 16,7 Mpx. Los equipos con poca memoria siguen en 2048 × 1024. Al hacer zoom en el visor 360 se ven más nítidos las estrellas, los nombres, las nubes y el filo de las montañas. La textura de las laderas sigue limitada por la imagen del relieve (2048 px para los 360°).

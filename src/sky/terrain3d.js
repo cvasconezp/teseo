@@ -159,7 +159,7 @@ export function fetchNearTerrain(lat, lon, { api = "", fine = false, fetchImpl =
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = decodeNear(await r.json());
     if (!data) throw new Error("respuesta sin relieve");
-    return { data, texUrl: `${api}/api/terrain/near.jpg?${qs}` };
+    return { data, texUrl: `${api}/api/terrain/near.jpg?${qs}`, hdUrl: `${api}/api/terrain/near_hd.jpg?${qs}` };
   });
   nearMem.set(key, p);
   p.catch(() => nearMem.delete(key));
@@ -178,7 +178,7 @@ const FRAG = `
 precision highp float;
 uniform sampler2D map;
 uniform vec3 uSun, uHorizon, uNightNear, uNightFar, uSnow;
-uniform float uDay, uSunAlt, uHzSun, uH0, uSnowH, uOpaque, uGlow, uFadeLo, uFadeHi, uUnits, uOvc, uFogB;
+uniform float uDay, uSunAlt, uHzSun, uH0, uSnowH, uOpaque, uGlow, uFadeLo, uFadeHi, uUnits, uOvc, uFogB, uTexK;
 varying vec2 vUv; varying vec3 vN; varying vec3 vDir; varying float vH; varying float vD; varying vec3 vP;
 float th(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float tn(vec2 x) { vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
@@ -192,8 +192,12 @@ void main() {
   // radio: sin desenfocar, cada columna sería una raya. Se lee un nivel más borroso cuanto más cerca
   // (cada fila de la imagen polar mide ~2,7 veces lo que una columna: el desenfoque del mipmap alarga cada píxel
   // a lo largo del radio y salen rayas verticales; se compensa promediando también a lo ancho)
+  // (el tercer argumento es un sesgo sobre el nivel que elige la GPU: con la imagen de alta definición de la foto
+  // 360° el desenfoque cerca sale igual en metros, y lejos queda el detalle de más; du va en fracción de vuelta)
+  // (uTexK: 2 con la imagen de alta definición de la foto 360°; lejos, donde no hay rayas que tapar, el promedio a lo
+  // ancho se estrecha en la misma proporción para no borrar el detalle de más)
   float lod = clamp(log2(2600.0 / max(vD, 30.0)), 0.0, 6.5);
-  float du = exp2(lod) * 0.9 / 2048.0;
+  float du = exp2(lod) * 0.9 / (2048.0 * mix(uTexK, 1.0, clamp(lod, 0.0, 1.0)));
   vec3 c = (texture2D(map, vUv + vec2(-1.5 * du, 0.0), lod).rgb + texture2D(map, vUv + vec2(-0.5 * du, 0.0), lod).rgb
           + texture2D(map, vUv + vec2(0.5 * du, 0.0), lod).rgb + texture2D(map, vUv + vec2(1.5 * du, 0.0), lod).rgb) * 0.25;
   if (vD < 400.0) {
@@ -277,7 +281,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
     uNightNear: { value: new THREE.Vector3(0.05, 0.056, 0.085) }, uNightFar: { value: new THREE.Vector3(0.17, 0.185, 0.27) },
     uSnow: { value: new THREE.Vector3(0.9, 0.92, 0.95) }, uDay: { value: 0 }, uSunAlt: { value: -90 }, uHzSun: { value: 0 },
     uH0: { value: 0 }, uSnowH: { value: 4900 }, uOpaque: { value: 0 }, uGlow: { value: 0 }, uFadeLo: { value: -9 }, uFadeHi: { value: -2.5 },
-    uUnits: { value: UNITS_PER_M }, uOvc: { value: 0 }, uFogB: { value: 0 },
+    uUnits: { value: UNITS_PER_M }, uOvc: { value: 0 }, uFogB: { value: 0 }, uTexK: { value: 1 },
   };
   const clear = () => {
     if (mesh) { mesh.geometry.dispose(); if (uniforms.map.value) uniforms.map.value.dispose(); mesh.material.dispose(); group.remove(mesh); }
@@ -323,6 +327,27 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
         group.add(mesh); key = k; group.visible = enabled;
         if (onReady) onReady();
       }, undefined, () => { if (my === seq) { loading = false; if (onReady) onReady(); } /* sin imagen: quedan las franjas */ });
+    },
+    /**
+     * Pone por un rato la imagen de alta definición (para la foto 360°). Devuelve una promesa con la función que
+     * deja la de siempre; si no carga a tiempo (`ms`), se resuelve con null y no cambia nada.
+     */
+    withTexture(url, ms = 30000, aniso = ANISO) {
+      if (!mesh || !url) return Promise.resolve(null);
+      return new Promise((resolve) => {
+        let done = false;
+        const tm = setTimeout(() => { if (!done) { done = true; resolve(null); } }, ms);
+        new THREE.TextureLoader().setCrossOrigin("anonymous").load(url, (tex) => {
+          if (done || !mesh) { tex.dispose(); return; }
+          done = true; clearTimeout(tm);
+          tex.colorSpace = THREE.NoColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+          // (filtro anisotrópico: las laderas se ven de costado; sin él la GPU toma una versión borrosa de la imagen)
+          tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter; tex.anisotropy = aniso;
+          const prev = uniforms.map.value, k = (tex.image && tex.image.width ? tex.image.width : 2048) / 2048;
+          uniforms.map.value = tex; uniforms.uTexK.value = k;
+          resolve(() => { if (uniforms.map.value === tex) { uniforms.map.value = prev; uniforms.uTexK.value = 1; } tex.dispose(); });
+        }, undefined, () => { if (!done) { done = true; clearTimeout(tm); resolve(null); } });
+      });
     },
     /** st: skyState(...) o null; hz: el horizonte (para la sombra del valle); lat; floor: de pie en una cumbre. */
     setLook(st, { hz = null, lat = 0, floor = false, lowest = 0 } = {}) {

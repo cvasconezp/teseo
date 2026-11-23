@@ -267,6 +267,20 @@ def test_relieve_cercano_imagen(tiles, monkeypatch):
     assert t3.stats["computed"] == n
 
 
+def test_relieve_cercano_imagen_hd(tiles, monkeypatch):
+    import io
+    from PIL import Image
+    t3 = _near(tiles, monkeypatch)
+    r = client.get(f"/api/terrain/near_hd.jpg?lat={LAT0}&lon={LON0}")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg"
+    im = Image.open(io.BytesIO(r.content))
+    assert im.size == (t3.TEX_W_HD, t3.TEX_H_HD) == (2 * t3.TEX_W, 2 * t3.TEX_H)
+    px = im.convert("RGB").getpixel((1400, 1000))
+    assert abs(px[0] - 90) < 8 and abs(px[1] - 120) < 8 and abs(px[2] - 60) < 8
+    need = t3.tex_tiles(LAT0, LON0, t3.TEX_ZOOMS_HD)
+    assert max(z for z, _, _ in need) == 14 and len(need) < 400, len(need)
+
+
 def test_relieve_cercano_sin_satelite(tiles, monkeypatch):
     _near(tiles, monkeypatch, status=503)
     assert client.get(f"/api/terrain/near?lat={LAT0}&lon={LON0}").status_code == 502

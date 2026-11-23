@@ -3661,11 +3661,17 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const { W, H, face } = panoSize(navigator.deviceMemory, ref.renderer.capabilities.maxTextureSize || 4096, ios);
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(ref.camera.quaternion);
     const heading = altAzOf([fwd.x, fwd.y, fwd.z]).az;    // la foto abre hacia donde mirabas
-    const u = ref.points.material.uniforms, saved = [u.uScale.value, u.uPx.value, u.uDpr.value];
+    // el relieve cercano con su imagen de alta definición (el doble por lado), solo mientras se toma la foto
+    const hdUrl = near3 && near3.key === hzKey && near3.near ? near3.near.hdUrl : null;
+    const restoreHd = hdUrl && ref.near3d.ready && ref.near3d.group.visible ? await ref.near3d.withTexture(hdUrl, 30000, Math.min(8, ref.renderer.capabilities.getMaxAnisotropy())) : null;
+    if (!ref._sharpStar) ref._sharpStar = makeStarTexture(true);
+    const u = ref.points.material.uniforms, saved = [u.uScale.value, u.uPx.value, u.uDpr.value, u.map.value];
     const faces = captureFaces({ THREE, renderer: ref.renderer, scene: ref.scene, near: ref.camera.near, far: ref.camera.far, size: face,
       before: (cam) => {
         // estrellas del mismo tamaño aparente que en el teléfono; atmósfera y nubes centradas en el observador
-        u.uScale.value = starScaleFor(90); u.uPx.value = 1; u.uDpr.value = face / 1024;
+        // …pero con un núcleo nítido: al hacer zoom en el visor se ven como un punto con su halo y no como una mancha
+        // (la textura de la vista es un degradado suave de 64 px)
+        u.uScale.value = starScaleFor(90); u.uPx.value = 1; u.uDpr.value = face / 1024; u.map.value = ref._sharpStar;
         // las caras miran justo al horizonte: el centro del suelo (bajo el observador) caería en su plano (w = 0)
         // y la GPU descartaría sus triángulos; 3 mm de corrimiento lo evitan sin que se note
         ref.horizon.position.set(0.003, 0, 0.003);
@@ -3673,7 +3679,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         if (ref.clouds.visible) ref.clouds.follow(cam);
       },
       after: () => {
-        [u.uScale.value, u.uPx.value, u.uDpr.value] = saved;
+        [u.uScale.value, u.uPx.value, u.uDpr.value, u.map.value] = saved;
+        if (restoreHd) restoreHd();
         ref.horizon.position.set(0, 0, 0);
         if (ref.atm.visible) ref.atm.follow(ref.camera);
         if (ref.clouds.visible) ref.clouds.follow(ref.camera);
@@ -3692,12 +3699,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const stamp = when.toLocaleString(lang === "es" ? "es-EC" : "en-US", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...tzo });
     const credits = panoCredits({ terrain: !!(ref.hzData && ref.terrain.group.visible), landsat: !!(ref.hzData && ref.terrain.group.visible && landData), peaks: !!(ref.peakLabels && ref.peakLabels.length), clouds: !!ref.clouds.visible, sat: ref.clouds.visible && satWeight(satData, new Date(whenStr).getTime() / 1000) > 0 ? satCredit(satData) : "", planets: !!ref.showSolar, andean: !!(ref.andLabels && ref.andLabels.some((p) => p.cls === "andsite")) }, lang);
     drawNadirStamp(g, { W, H, f: (W / 4096) * 1.7, lines: ["Teseo · teseo.yachaydeep.com", place, stamp], small: credits });
-    const blob0 = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.9));
+    const blob0 = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.92));
     if (!blob0) throw new Error("sin JPEG");
     const bytes = withGPano(new Uint8Array(await blob0.arrayBuffer()), { W, H, heading, title: `${lang === "es" ? "Cielo de" : "Sky from"} ${place} · ${stamp}`, credits });
     const p = tzParts(when, placeTz);
     return { blob: new Blob([bytes], { type: "image/jpeg" }), type: "image/jpeg", width: W, height: H, fileName: panoFileName(place, p) };
-  }, [whenStr, placeTz, placeKind, lat, lon, lang, panoLabels, landData, satData]);
+  }, [whenStr, placeTz, placeKind, lat, lon, lang, panoLabels, landData, satData, near3, hzKey]);
 
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) { setGeo("unsupported"); return; }
@@ -4756,15 +4763,26 @@ function constellationStats(c, sky) {
   }));
   return { near, far };
 }
-function makeStarTexture() {
-  const c = document.createElement("canvas"); c.width = c.height = 64;
+// sharp: para la foto 360° (más grande y con el núcleo más definido: un punto con un halo tenue)
+function makeStarTexture(sharp = false) {
+  const S = sharp ? 256 : 64, h = S / 2;
+  const c = document.createElement("canvas"); c.width = c.height = S;
   const ctx = c.getContext("2d");
-  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  g.addColorStop(0, "rgba(255,255,255,1)");
-  g.addColorStop(0.25, "rgba(255,255,255,0.85)");
-  g.addColorStop(0.5, "rgba(255,255,255,0.25)");
-  g.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+  const g = ctx.createRadialGradient(h, h, 0, h, h, h);
+  if (sharp) {
+    g.addColorStop(0, "rgba(255,255,255,1)");
+    g.addColorStop(0.13, "rgba(255,255,255,1)");
+    g.addColorStop(0.24, "rgba(255,255,255,0.8)");
+    g.addColorStop(0.4, "rgba(255,255,255,0.32)");
+    g.addColorStop(0.62, "rgba(255,255,255,0.1)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+  } else {
+    g.addColorStop(0, "rgba(255,255,255,1)");
+    g.addColorStop(0.25, "rgba(255,255,255,0.85)");
+    g.addColorStop(0.5, "rgba(255,255,255,0.25)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+  }
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
   const tex = new THREE.Texture(c); tex.needsUpdate = true;
   return tex;
 }

@@ -33,6 +33,11 @@ N_R = 284                    # … y 284 anillos (≈ 3,1 % entre uno y otro)
 TEX_W, TEX_H = 2048, 1024    # imagen: 0,18° de acimut × 0,59 % de distancia por píxel
 # zoom de las teselas del satélite según la distancia (m): el píxel de la imagen pisa ≈ lo que mide el de la tesela
 TEX_ZOOMS = ((2500.0, 14), (6000.0, 13), (13000.0, 12), (26000.0, 11), (55000.0, 10), (150000.0, 9), (D_MAX + 1.0, 8))
+# alta definición, solo para la foto 360° (/api/terrain/near_hd.jpg): el doble por lado (0,09° × 0,29 % por píxel)
+# y un zoom más de satélite en cada tramo; el píxel de 10 m de Sentinel-2 manda cerca (zoom 14 como tope)
+TEX_W_HD, TEX_H_HD = 4096, 2048
+TEX_ZOOMS_HD = ((2500.0, 14), (6000.0, 14), (13000.0, 13), (26000.0, 12), (55000.0, 11), (150000.0, 10), (D_MAX + 1.0, 9))
+HD_CACHE_MAX = 4
 SUB_AZ, SUB_R = 0.17, 0.2   # submuestreo de cada celda: ±0,17° de acimut y ±0,2 y ±0,4 de paso de anillo
 H_OFF, H_SCALE = 500.0, 4.0  # uint16 = (altura + 500 m) × 4  → pasos de 25 cm, hasta 15,8 km
 NEUTRAL = (96, 102, 84)      # donde falte una tesela
@@ -47,7 +52,7 @@ stats = {"computed": 0, "last_ms": None, "last_error": None}
 
 
 def reset_cache() -> None:
-    _results.clear(); _inflight.clear()
+    _results.clear(); _inflight.clear(); _hd.clear(); _hd_inflight.clear()
 
 
 def ring_dist(n: int) -> np.ndarray:
@@ -85,23 +90,23 @@ def encode_heights(h: np.ndarray) -> str:
     return base64.b64encode(q.tobytes()).decode()
 
 
-def tex_tiles(lat0: float, lon0: float) -> set:
+def tex_tiles(lat0: float, lon0: float, zooms=TEX_ZOOMS) -> set:
     """Teselas (z, x, y) del satélite que hacen falta: por tramo de distancia, las que cubren su círculo."""
     need = set()
-    for rad, z in TEX_ZOOMS:
+    for rad, z in zooms:
         need.update((z, x, y) for (x, y) in hz.tiles_for(lat0, lon0, z, min(rad, D_MAX)))
     return need
 
 
-def polar_texture(lat0: float, lon0: float, tiles: dict) -> np.ndarray:
-    """La imagen polar (TEX_H × TEX_W × 3, uint8): fila 0 = D_MIN, última = D_MAX; columna 0 = norte."""
-    az = (np.arange(TEX_W) + 0.5) * (360.0 / TEX_W)
-    d = D_MIN * (D_MAX / D_MIN) ** (np.arange(TEX_H) / (TEX_H - 1))
-    lat, lon = hz.destination(lat0, lon0, az, d)                 # (TEX_W, TEX_H)
-    out = np.empty((TEX_H, TEX_W, 3), dtype=np.uint8)
+def polar_texture(lat0: float, lon0: float, tiles: dict, tex_w: int = TEX_W, tex_h: int = TEX_H, zooms=TEX_ZOOMS) -> np.ndarray:
+    """La imagen polar (tex_h × tex_w × 3, uint8): fila 0 = D_MIN, última = D_MAX; columna 0 = norte."""
+    az = (np.arange(tex_w) + 0.5) * (360.0 / tex_w)
+    d = D_MIN * (D_MAX / D_MIN) ** (np.arange(tex_h) / (tex_h - 1))
+    lat, lon = hz.destination(lat0, lon0, az, d)                 # (tex_w, tex_h)
+    out = np.empty((tex_h, tex_w, 3), dtype=np.uint8)
     out[:] = NEUTRAL
     lo = 0.0
-    for rad, z in TEX_ZOOMS:
+    for rad, z in zooms:
         rows = np.flatnonzero((d > lo) & (d <= rad)) if lo else np.flatnonzero(d <= rad)
         lo = rad
         if not len(rows):
@@ -130,10 +135,10 @@ def polar_texture(lat0: float, lon0: float, tiles: dict) -> np.ndarray:
     return out
 
 
-def to_jpeg(img: np.ndarray) -> bytes:
+def to_jpeg(img: np.ndarray, quality: int = JPEG_Q) -> bytes:
     from PIL import Image
     buf = io.BytesIO()
-    Image.fromarray(img, "RGB").save(buf, "JPEG", quality=JPEG_Q)
+    Image.fromarray(img, "RGB").save(buf, "JPEG", quality=quality)
     return buf.getvalue()
 
 
@@ -191,6 +196,46 @@ async def near_terrain(lat: float, lon: float, fine: bool = False) -> dict:
         _inflight.pop(key, None)
 
 
+_hd: "OrderedDict[tuple, bytes]" = OrderedDict()
+_hd_inflight: dict = {}
+
+
+async def near_texture_hd(lat: float, lon: float, fine: bool = False) -> bytes:
+    """La imagen del relieve cercano en alta definición (TEX_W_HD × TEX_H_HD), para la foto 360°: misma rejilla
+    polar y mismo lugar que /api/terrain/near (la malla de alturas no cambia), con un zoom más de satélite."""
+    prof = await hz.get_horizon(lat, lon, fine)
+    key = (prof["lat"], prof["lon"])
+    if key in _hd:
+        _hd.move_to_end(key)
+        return _hd[key]
+    fut = _hd_inflight.get(key)
+    if fut is not None:
+        return await asyncio.shield(fut)
+    fut = asyncio.get_running_loop().create_future(); _hd_inflight[key] = fut
+    try:
+        la, lo = key
+        need = tex_tiles(la, lo, TEX_ZOOMS_HD)
+        async with httpx.AsyncClient(timeout=lc.TIMEOUT_S, transport=lc._transport, headers=provider_headers()) as client:
+            sem = asyncio.Semaphore(lc.CONCURRENCY)
+            got = await asyncio.gather(*[lc._tile(client, z, x, y, sem) for (z, x, y) in need])
+        tiles = {k: v for k, v in got if v is not None}
+        if not tiles:
+            raise RuntimeError("no respondió el servidor de teselas de satélite")
+        img = await run_in_threadpool(polar_texture, la, lo, tiles, TEX_W_HD, TEX_H_HD, TEX_ZOOMS_HD)
+        jpg = await run_in_threadpool(to_jpeg, img, 85)
+        _hd[key] = jpg
+        while len(_hd) > HD_CACHE_MAX:
+            _hd.popitem(last=False)
+        fut.set_result(jpg)
+        return jpg
+    except Exception as e:
+        fut.set_exception(e)
+        fut.exception()
+        raise
+    finally:
+        _hd_inflight.pop(key, None)
+
+
 _Q_LAT = Query(..., ge=-85.0, le=85.0)
 _Q_LON = Query(..., ge=-180.0, le=180.0)
 
@@ -216,4 +261,15 @@ async def terrain_near_jpg(lat: float = _Q_LAT, lon: float = _Q_LON, fine: bool 
     except Exception as e:                                       # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"No se pudo preparar el relieve cercano: {e}")
     return Response(content=data["jpg"], media_type="image/jpeg",
+                    headers={"Cache-Control": f"public, max-age={CACHE_SECONDS}"})
+
+
+@router.get("/terrain/near_hd.jpg")
+async def terrain_near_hd_jpg(lat: float = _Q_LAT, lon: float = _Q_LON, fine: bool = Query(False)):
+    """La misma imagen que /api/terrain/near.jpg en alta definición (4096 × 2048), para la foto 360°."""
+    try:
+        jpg = await near_texture_hd(lat, lon, fine)
+    except Exception as e:                                       # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"No se pudo preparar el relieve en alta definición: {e}")
+    return Response(content=jpg, media_type="image/jpeg",
                     headers={"Cache-Control": f"public, max-age={CACHE_SECONDS}"})
