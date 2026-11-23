@@ -12,7 +12,7 @@ import Icon from "./icons.jsx";
 import { MT } from "./i18n-mount.js";
 import { compassPoint8 } from "./deviceOrientation.js";
 import {
-  methodsFor, METHOD_ACC, accClass, poleStar, shadowPlan, noonShadow, groundShadow, groundLines, nextEquinox,
+  methodsFor, METHOD_ACC, accClass, poleStar, shadowPlan, noonShadow, groundShadow, groundLines, groundLinesReal, nextEquinox,
   equinoxToday, sunAltAz, compassStatus,
 } from "./mountAlign.js";
 import { loadPublicKey, addReminder } from "../now/calendar/push.js";
@@ -383,7 +383,7 @@ function useFlatSensors(active) {
   return s;
 }
 
-export function FlatPhone({ lang = "es", mode = "sun", lat, lon, tz, decl = 0, onClose }) {
+export function FlatPhone({ lang = "es", mode = "sun", lat, lon, tz, decl = 0, hz = null, onClose }) {
   const T = MT[lang] || MT.es;
   const [now, setNow] = useState(() => Date.now());
   const [asked, setAsked] = useState(() => !(typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function"));
@@ -401,7 +401,9 @@ export function FlatPhone({ lang = "es", mode = "sun", lat, lon, tz, decl = 0, o
   };
   const useLat = gps && Number.isFinite(gps.lat) ? gps.lat : lat, useLon = gps && Number.isFinite(gps.lon) ? gps.lon : lon;
   const gs = groundShadow(useLat, useLon, now);
-  const lines = groundLines(useLat);
+  // con el horizonte real (si es de aquí: con GPS, a menos de 3 km del lugar), los solsticios donde asoma el Sol
+  const hzHere = hz && hz.alt && (!gps || !Number.isFinite(gps.lat) || !Number.isFinite(hz.lat) || Math.hypot(gps.lat - hz.lat, (gps.lon - hz.lon) * Math.cos((gps.lat * Math.PI) / 180)) * 111.2 < 3) ? hz : null;
+  const lines = useMemo(() => (hzHere ? groundLinesReal(useLat, hzHere, hzHere.ground_m || 0) : groundLines(useLat)), [hzHere, useLat]);
   const ask = async () => {
     try { if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch { /* sin permiso */ }
     setAsked(true); startGps();
@@ -462,7 +464,8 @@ export function FlatPhone({ lang = "es", mode = "sun", lat, lon, tz, decl = 0, o
         <text x={200 + 10 * LV + 4} y="196" className="sk-flat-ring">10°</text>
         <g transform={`rotate(${rot} 200 200)`}>
           {dial}
-          {lines.map((l) => {
+          {lines.filter((l) => l.kind === "eqR").map((l) => { const [x, y] = ray(l.az, R - 2); return <circle key={l.key} cx={x} cy={y} r="4" fill="#f2b35b" stroke="#070912" strokeWidth="1.5" />; })}
+          {lines.filter((l) => l.kind !== "eqR").map((l) => {
             const [x, y] = ray(l.az);
             return <line key={l.key} x1="200" y1="200" x2={x} y2={y} strokeLinecap="round"
               stroke={l.kind === "ns" ? "#eceaff" : l.kind === "eq" ? "#f2b35b" : "#f0997b"}
@@ -503,7 +506,8 @@ export function FlatPhone({ lang = "es", mode = "sun", lat, lon, tz, decl = 0, o
         ) : (
           trueHeading != null ? <p>{T.flatCompassTip}{sens.acc != null && sens.acc > 15 ? ` · ${T.chipStatus.calibrate}` : ""}</p> : <p>{asked ? T.flatNoCompass : ""}</p>
         )}
-        <small className="sk-flat-legend"><span><i className="is-eq" />{T.flatLegEq}</span><span><i className="is-sol" />{T.flatLegSol}</span></small>
+        <small className="sk-flat-legend"><span><i className="is-eq" />{T.flatLegEq}</span><span><i className="is-sol" />{T.flatLegSol}</span>
+          <span className="is-src">{hzHere ? T.flatLegReal : T.flatLegFlat}</span></small>
         <small className="sk-flat-gpsnote">{T.flatGpsNote}</small>
         {(!asked || !gps) && <button type="button" className="sk-mnt-primary" onClick={ask}>{T.flatSensors}</button>}
       </div>

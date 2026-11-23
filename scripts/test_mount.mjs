@@ -41,6 +41,16 @@ const gl = m.groundLines(0.045);
 const jr = gl.find((l) => l.key === "junRise"), dr = gl.find((l) => l.key === "decRise");
 ok(gl.length === 8 && near(jr.az, 90 - 23.44, 0.05) && near(dr.az, 90 + 23.44, 0.05), "en el ecuador los solsticios salen a 23,4° del este");
 ok(m.groundLines(70).length === 4, "más allá del círculo polar no hay líneas de solsticio");
+{
+  const N = 1800, flat = { step_deg: 0.2, alt: new Array(N).fill(0) }, hill = { step_deg: 0.2, alt: new Array(N).fill(5) };
+  const g0 = m.groundLines(0.045), az = (ls, k) => ls.find((l) => l.key === k).az;
+  const r0 = m.groundLinesReal(0.045, flat, 2830), r5 = m.groundLinesReal(0.045, hill, 2830);
+  ok(Math.abs(az(r0, "junRise") - az(g0, "junRise")) < 0.5 && Math.abs(az(r5, "junRise") - az(g0, "junRise")) < 0.5, "en el ecuador el Sol sube casi en vertical: un horizonte de 5° apenas corre el amanecer del solsticio");
+  const m40 = m.groundLines(40.4), r40 = m.groundLinesReal(40.4, hill, 650);
+  ok(az(r40, "junRise") - az(m40, "junRise") > 4 && az(m40, "junSet") - az(r40, "junSet") > 4, "a 40° de latitud, detrás de 5° de montaña el Sol del solsticio asoma varios grados más al este (y se oculta más al oeste)");
+  ok(r40.some((l) => l.key === "eqRiseR") && Math.abs(az(r40, "eqRiseR") - 90) > 3 && m.groundLinesReal(10, null).length === m.groundLines(10).length, "los equinoccios con relieve como marcas; sin horizonte, las líneas planas de siempre");
+  ok(Math.abs(m.refractionAt(0) - 0.575) < 0.02 && m.refractionAt(0, 0.71) < m.refractionAt(0), "refracción en el horizonte ≈ 34′ (menos en la altura)");
+}
 const hz = { step_deg: 1, alt: Array.from({ length: 360 }, (_, i) => (i === 0 ? 2 : 0.1)), bands: [
   { max_km: 20, alt: Array.from({ length: 360 }, (_, i) => (i === 0 ? 2 : 0.1)), dist_km: Array.from({ length: 360 }, () => 12) },
   { max_km: 100, alt: Array.from({ length: 360 }, () => 0.05), dist_km: Array.from({ length: 360 }, () => 80) }] };

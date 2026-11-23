@@ -4492,7 +4492,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           onGround={(m) => { setFlatMode(m); track("sky_mount", { kind: `ground_${m}` }); }}
           anchorRef={compassChipRef} stageRef={stageRef} onClose={() => { setMountOpen(false); setMountPeek(false); }} />
       )}
-      {sky && flatMode && <FlatPhone lang={lang} mode={flatMode} lat={lat} lon={lon} tz={placeTz} decl={decl && decl.valid ? decl.decl : 0} onClose={() => setFlatMode(null)} />}
+      {sky && flatMode && <FlatPhone lang={lang} mode={flatMode} lat={lat} lon={lon} tz={placeTz} decl={decl && decl.valid ? decl.decl : 0} hz={hzData} onClose={() => setFlatMode(null)} />}
       {sky && wxPill && wxOpen && (
         <WxCard lang={lang} now={wxNow} fc={wxKey ? (wx.key === wxKey ? wx : { status: "loading" }) : null} sat={satData}
           rainDrawn={!!(atmSky && atmSky.wx && atmSky.wx.rain > 0.02)}

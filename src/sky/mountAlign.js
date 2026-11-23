@@ -129,6 +129,46 @@ export function groundLines(lat, eps = 23.436) {
   return out;
 }
 
+/** Refracción (grados) a una altura aparente `h` (Bennett 1982), escalada por la presión relativa `pf`. */
+export function refractionAt(h, pf = 1) {
+  return pf * (1 / Math.tan((h + 7.31 / (h + 4.4)) * D)) / 60;
+}
+
+/**
+ * Las líneas del suelo con el relieve real: dónde ASOMA y se OCULTA el Sol (el borde de arriba) en los solsticios y
+ * equinoccios detrás de las montañas de /api/horizon (`hz`, con su altura aparente por acimut). Para cada día se busca
+ * el acimut en que la trayectoria del Sol corta el horizonte: cos A = (sen δ − sen φ sen h) / (cos φ cos h), con h la
+ * altura verdadera del centro = horizonte − refracción (menor en la altura: presión ≈ e^(−z/8400)) − 0,267°.
+ * Devuelve las de groundLines (N–S y E–O quedan fijas) más las de los solsticios corridas (`hor`: altura del horizonte
+ * en ese punto) y, con kind "eqR", las de los equinoccios con relieve. Sin horizonte, groundLines tal cual.
+ */
+export function groundLinesReal(lat, hz, elevM = 0, eps = 23.436) {
+  if (!hz || !hz.alt || !hz.alt.length) return groundLines(lat, eps);
+  const pf = Math.exp(-Math.max(0, elevM || 0) / 8400), sp = Math.sin(lat * D), cp = Math.cos(lat * D);
+  const cross = (dec, east) => {
+    let A = null, ca = Math.sin(dec * D) / cp;
+    if (Math.abs(ca) >= 1) return null;
+    A = Math.acos(ca) / D; if (!east) A = 360 - A;
+    let hApp = 0;
+    for (let k = 0; k < 8; k++) {
+      hApp = horizonAltAt(hz, A);
+      const h = (hApp - refractionAt(hApp, pf) - 0.267) * D;
+      ca = (Math.sin(dec * D) - sp * Math.sin(h)) / (cp * Math.cos(h));
+      if (Math.abs(ca) >= 1) return null;
+      const An = Math.acos(ca) / D, Ab = east ? An : 360 - An;
+      if (Math.abs(Ab - A) < 0.01) { A = Ab; break; }
+      A = Ab;
+    }
+    return { az: A, hor: hApp };
+  };
+  const out = groundLines(lat, eps).filter((l) => l.kind !== "sol");
+  for (const [key, dec, east, kind] of [["junRise", eps, true, "sol"], ["junSet", eps, false, "sol"], ["decRise", -eps, true, "sol"], ["decSet", -eps, false, "sol"], ["eqRiseR", 0, true, "eqR"], ["eqSetR", 0, false, "eqR"]]) {
+    const c = cross(dec, east);
+    if (c) out.push({ key, az: c.az, kind, hor: c.hor, real: true });
+  }
+  return out;
+}
+
 /**
  * El punto del horizonte justo al norte (az 0) o al sur (180) verdadero con el relieve real (hz de /api/horizon):
  * { az, alt (grados), distKm (a qué distancia está ese filo), clear (si hay relieve marcado: más de 0,4° de alto y

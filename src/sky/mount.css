@@ -105,3 +105,4 @@
 .sk-stage .sk-flat-legend i { display: inline-block; width: 16px; height: 0; margin: 0 5px 3px 0; vertical-align: middle; border-top: 2px solid #f2b35b; }
 .sk-stage .sk-flat-legend i.is-sol { border-top: 2px dashed #f0997b; }
 .sk-stage .sk-flat-legend span { display: block; }
+.sk-stage .sk-flat-legend span.is-src { color: #8d93c4; font-size: 11px; }

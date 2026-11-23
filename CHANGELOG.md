@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.70.8 — 2026-11-23
+
+- **Celular en el suelo con las montañas reales:** las punteadas de los solsticios marcan dónde **asoma y se oculta** el Sol detrás del horizonte real del lugar (el de «Montañas»), y unos puntos en el borde hacen lo mismo con los equinoccios. Se calcula el corte de la trayectoria del Sol con la altura de las montañas en cada acimut, con el borde de arriba del disco y la refracción del aire, menor en la altura.
+  - En el ecuador casi no cambia nada, porque el Sol sube casi en vertical: detrás de 5° de montaña se corre una décima de grado.
+  - A 40° de latitud el cambio es grande: detrás de 5° de montaña el Sol del solsticio asoma unos 4° más al este.
+  - Sin horizonte, o con el GPS a más de 3 km del lugar elegido, quedan las líneas de horizonte plano, y la leyenda lo dice.
+
 ## 1.70.7 — 2026-11-23
 
 - **Celular en el suelo: puntos cardinales y solsticios rotulados.** La línea este–oeste lleva E y O en sus extremos, la N–S lleva N y S, y las punteadas indican su mes (jun, dic): son las direcciones por donde sale y se pone el Sol en los solsticios. Debajo, una leyenda explica la línea de los equinoccios y las punteadas. Los rótulos quedan de pie aunque el dibujo gire con la brújula.
