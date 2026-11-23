@@ -802,7 +802,7 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-stage .sk-wx-float .sk-wx-pill { display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 6px; row-gap: 0; padding: 3px 12px 3px 10px; line-height: 1.15; }
 .sk-stage .sk-wx-float .sk-wx-pill .sk-wx-wind { grid-column: 1 / -1; justify-content: center; padding-left: 0; border-left: 0; font-size: 11px; gap: 4px; }
 .sk-stage .sk-wx-float .sk-wx-pill .sk-wx-wind svg { width: 11px; height: 11px; }
-.sk-stage .sk-top:focus-within ~ .sk-wx-float, .sk-stage.is-covered .sk-wx-float, .sk-stage.has-panel .sk-wx-float, .sk-stage.is-immersive .sk-wx-float { display: none; }
+.sk-stage .sk-top:focus-within ~ .sk-wx-float, .sk-stage.is-covered .sk-wx-float, .sk-stage.has-panel .sk-wx-float { display: none; }
 
 /* profundidad real (src/sky/depthView.js): ángulo de vista, opciones y nota de escala */
 .sk-depth-angle { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; font-size: 13px; color: var(--mute); }
@@ -813,3 +813,28 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-depth-opts button[aria-pressed="true"] { background: var(--violet-strong, #6d28d9); color: #fff; }
 .sk-depth-note { margin: 2px 0 6px; font-size: 11.5px; color: var(--mute); line-height: 1.35; }
 @media (max-width: 520px) { .sk-depth-opts { grid-template-columns: 1fr; } }
+
+/* «Apuntar al cielo»: arriba quedan el menú y la temperatura; la brújula va en la pastilla (punto de estado) */
+.sk-stage.is-ar .sk-wx-float .sk-compass { display: none; }
+.sk-arpill-ico { position: relative; display: inline-grid; place-items: center; }
+.sk-arpill-ico > i { display: none; position: absolute; top: -3px; right: -4px; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(8, 12, 24, 0.9); }
+.sk-arpill-ico[data-cmp="ok"] > i { display: block; background: #5DCAA5; }
+.sk-arpill-ico[data-cmp="calibrate"] > i { display: block; background: #EF9F27; animation: sk-cmp-blink 1.2s ease-in-out infinite; }
+.sk-arpill-ico[data-cmp="none"] > i { display: block; background: #E24B4A; }
+@keyframes sk-cmp-blink { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .sk-arpill-ico[data-cmp="calibrate"] > i { animation: none; } }
+.sk-artray-cmp { display: flex; align-items: flex-start; gap: 8px; }
+.sk-artray-cmp > i { flex: none; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: #5DCAA5; }
+.sk-artray-cmp[data-cmp="calibrate"] > i { background: #EF9F27; }
+.sk-artray-cmp[data-cmp="none"] > i { background: #E24B4A; }
+
+/* escritorio: el lugar, la brújula y la temperatura en la misma fila del buscador (bajan solo si no caben) */
+@media (min-width: 900px) {
+  .sk-top { flex-direction: row; flex-wrap: wrap; align-items: flex-start; width: auto; max-width: calc(100% - 150px); }
+  .sk-top > .sk-search { width: 380px; flex: none; }
+  .sk-top > .sk-chips { min-height: 48px; align-items: center; }
+  .sk-top > :not(.sk-search):not(.sk-chips) { flex-basis: 100%; order: 2; }
+  .sk-stage.has-sheet .sk-top { max-width: calc(100% - 416px - 110px); }
+}
+/* «Apuntar al cielo» en el celular: créditos más discretos, para que no compitan con el cielo */
+@media (max-width: 899px) { .sk-stage.is-immersive .sk-credit { font-size: 8.5px; opacity: 0.6; max-width: 58%; } .sk-stage.is-immersive .sk-credit small { font-size: 8px; } }

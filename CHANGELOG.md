@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.70.1 — 2026-11-23
+
+- **«Apuntar al cielo» con lo necesario arriba:** se ven el menú y la temperatura. La pastilla de abajo lleva un punto con el estado de la brújula: verde si va bien, ámbar parpadeando si hay que calibrarla y rojo si el celular no da norte. En «Controles» se explica qué hacer en cada caso. Los créditos se ven más pequeños.
+- **En el navegador, una sola fila arriba:** el lugar, la brújula y la temperatura van junto al buscador y solo bajan si no caben. El aviso de día va debajo.
+
 ## 1.70.0 — 2026-11-23
 
 - **Constelaciones en profundidad real, rehechas:** la constelación queda sola, sin el fondo de estrellas ni nombres ajenos, y la barra ahora gira la vista: de 0° (desde la Tierra, con la figura completa; en Orión, con la cabeza, el brazo y el escudo) a 90° (de costado).

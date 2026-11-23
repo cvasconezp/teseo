@@ -16,6 +16,8 @@ export const TX = {
     pointPill: (p, a) => `${cap(DIRS.es[p])} · ${a < 0 ? "−" : ""}${Math.abs(a)}°`,
     pointPillAria: (p, a) => (a < 0 ? `Mirando al ${DIRS.es[p]}, ${-a} grados bajo el horizonte` : `Mirando al ${DIRS.es[p]}, ${a} grados sobre el horizonte`),
     pointPillZenith: "Cenit", pointPillNadir: "Suelo", pointPillWait: "Activando…",
+    pointCmp: { ok: "brújula bien", calibrate: "calibra la brújula", none: "sin norte de la brújula" },
+    pointCmpHow: { ok: "Brújula bien: el norte viene de la brújula del celular.", calibrate: "Calibra la brújula: mueve el celular dibujando un 8 en el aire y aléjate de metales y parlantes.", none: "Sin norte de la brújula: este celular solo da giros relativos; alinea con una estrella conocida." },
     pointControls: "Controles", pointControlsHide: "Ocultar controles", pointTray: "Controles de Apuntar al cielo",
     pointShort: "Apuntar", pointBelowTag: "bajo el horizonte",
     // ── esta noche ──
@@ -214,6 +216,8 @@ export const TX = {
     pointPill: (p, a) => `${cap(DIRS.en[p])} · ${a < 0 ? "−" : ""}${Math.abs(a)}°`,
     pointPillAria: (p, a) => (a < 0 ? `Looking ${DIRS.en[p]}, ${-a} degrees below the horizon` : `Looking ${DIRS.en[p]}, ${a} degrees above the horizon`),
     pointPillZenith: "Zenith", pointPillNadir: "Ground", pointPillWait: "Starting…",
+    pointCmp: { ok: "compass OK", calibrate: "calibrate the compass", none: "no compass north" },
+    pointCmpHow: { ok: "Compass OK: north comes from the phone's compass.", calibrate: "Calibrate the compass: move the phone in a figure 8 and keep away from metal and speakers.", none: "No compass north: this phone only gives relative turns; align with a star you know." },
     pointControls: "Controls", pointControlsHide: "Hide controls", pointTray: "Point at the sky controls",
     pointShort: "Point", pointBelowTag: "below the horizon",
     tonight: "Tonight", tonightTitle: "Tonight in your sky",

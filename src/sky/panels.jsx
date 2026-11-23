@@ -1,6 +1,7 @@
 // Paneles de la vista Cielo: etiquetas, buscador, dock, capas, ubicación, tiempo,
 // tour y primeros pasos. Componentes de presentación: el estado vive en
 // Constellations.jsx y los textos llegan por `t` (diccionario TC).
+import { compassStatus } from "./mountAlign.js";
 import { LAYER_PRESETS, PRESET_T } from "./layerPresets.js";
 import { lazy, memo, Suspense, useEffect, useRef, useState } from "react";
 import Icon from "./icons.jsx";
@@ -384,14 +385,14 @@ export function SkyActions({ t, onTonight, onPoint }) {
 
 export const PointingBar = memo(function PointingBar({ t, mode, source, error, aligned, apiRef, onStart, onExit, onReset, onNudge, onResume, onDismiss, canRetry,
   ctl, onCtl, help, onZoom, onLayers, onTonight, onSearch, north }) {
-  const [look, setLook] = useState(null);   // { p: punto cardinal 0-7, a: altitud en grados enteros }
+  const [look, setLook] = useState(null);   // { p: punto cardinal 0-7, a: altitud en grados enteros, c: estado de la brújula }
   useEffect(() => {
-    apiRef.current = (az, alt) => {
-      const a = Math.round(alt), p = compassPoint8(az);
-      setLook((l) => (l && l.a === a && l.p === p ? l : { a, p }));
+    apiRef.current = (az, alt, acc) => {
+      const a = Math.round(alt), p = compassPoint8(az), c = compassStatus(source, acc);
+      setLook((l) => (l && l.a === a && l.p === p && l.c === c ? l : { a, p, c }));
     };
     return () => { apiRef.current = null; };
-  }, [apiRef]);
+  }, [apiRef, source]);
   useEffect(() => { if (mode !== "on") setLook(null); }, [mode]);
 
   if (mode === "error") {
@@ -429,6 +430,8 @@ export const PointingBar = memo(function PointingBar({ t, mode, source, error, a
   const hint = source === "relative" ? t.pointHintRel : t.pointHint;
   // norte geográfico: la declinación magnética solo se aplica cuando el norte viene de la brújula
   const northLine = source === "absolute" && north ? north : null;
+  // estado de la brújula: punto en la pastilla (verde bien, ámbar calibrar, rojo sin norte) y su explicación en «Controles»
+  const cmp = waiting ? null : look.c;
   return (
     <>
       {/* ayuda de alineación: sola los primeros segundos; después, dentro de "Controles" */}
@@ -443,6 +446,7 @@ export const PointingBar = memo(function PointingBar({ t, mode, source, error, a
             <button type="button" className="sk-artray-btn is-icon" onClick={() => onZoom(0.8)} aria-label={t.zoomIn}><Icon name="plus" size={20} /></button>
           </div>
           <div className="sk-artray-help">
+            {cmp && <p className="sk-artray-cmp" data-cmp={cmp}><i aria-hidden="true" />{t.pointCmpHow[cmp]}</p>}
             {source === "relative" && <p>{hint}</p>}
             {northLine && <p className="sk-artray-north" title={t.declWhy}><Icon name="target" size={14} />{northLine}</p>}
             {onNudge && (
@@ -457,8 +461,8 @@ export const PointingBar = memo(function PointingBar({ t, mode, source, error, a
         </div>
       )}
       <section className={`sk-arpill${below ? " is-below" : ""}`} aria-label={t.pointActive}>
-        <span className="sk-arpill-read" role="img" aria-label={aria}>
-          {waiting ? <i className="sk-spin" /> : <Icon name="point" size={19} />}
+        <span className="sk-arpill-read" role="img" aria-label={cmp ? `${aria} · ${t.pointCmp[cmp]}` : aria}>
+          {waiting ? <i className="sk-spin" /> : <span className="sk-arpill-ico" data-cmp={cmp || undefined}><Icon name="point" size={19} /><i aria-hidden="true" /></span>}
           <strong>{text}</strong>
         </span>
         <button type="button" className="sk-arpill-more" onClick={onCtl} aria-expanded={!!ctl} aria-label={ctl ? t.pointControlsHide : t.pointControls} title={t.pointControls}>

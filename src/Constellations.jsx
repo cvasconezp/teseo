@@ -1901,7 +1901,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         if (ar.has && (ar.n++ % 6 === 0)) {
           lookFromQuat(ar.cur.x, ar.cur.y, ar.cur.z, ar.cur.w, ar.look);
           ar.alt = ar.look.alt;
-          if (arHudRef.current) arHudRef.current(ar.look.az, ar.look.alt);
+          if (arHudRef.current) arHudRef.current(ar.look.az, ar.look.alt, pointRef.current && pointRef.current.pose ? pointRef.current.pose.acc : null);
         }
       } else if (ref.mode === "in") {
         // desde dentro: la cámara en el centro, orientada por la mirada (yaw/pitch en su marco)
@@ -4419,7 +4419,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         {failedLayers.length > 0 ? `${t.layersError} ${failedLayers.map(c => c[lang] || c.es).join(", ")}.` : ""}
       </p>
 
-      {sky && onMenu && !isWide && !arOn && ar !== "paused" && (
+      {sky && onMenu && !isWide && (
         <button type="button" className="sk-menu-btn" onClick={onMenu} aria-label={TC[lang].menuOpen || "Menú"} title={TC[lang].menuOpen || "Menú"}>
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
         </button>
