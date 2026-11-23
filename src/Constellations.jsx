@@ -1502,8 +1502,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       }
     };
     // con poco zoom los planetas son marcadores de tamaño fijo; cuando su disco real es mayor, se dibujan a su tamaño
-    const sizeSolar = () => {
-      const k = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / (mount.clientHeight || 1);
+    // view: { fov, h } para medir como en otra vista (la foto 360°: siempre el mismo tamaño, no el del zoom de ahora)
+    const sizeSolar = (view = null) => {
+      const fovNow = view ? view.fov : camera.fov;
+      const k = 2 * Math.tan(THREE.MathUtils.degToRad(fovNow / 2)) / ((view ? view.h : mount.clientHeight) || 1);
       const bs = (sceneRef.current && sceneRef.current.bodies) || [];
       for (const nm in solarSprites) {
         const sp = solarSprites[nm], b = BODIES[nm], bb = bs.find((x) => x.name === nm);
@@ -1516,10 +1518,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         sp.userData.discPx = px * (b.ring ? 21 : b.id === "sun" ? 26 : 28) / SPRITE_PX;
         sp.scale.set(px * k, px * k, 1);
       }
-      moonGroup.visible = camera.fov < 7;                                  // se separan del planeta a partir de ~10° de campo
+      moonGroup.visible = fovNow < 7;                                      // se separan del planeta a partir de ~10° de campo
       // de 7° a 2° de campo el planeta encoge del tamaño del marcador a algo menos de la mitad; cuando su disco
       // real es mayor que eso, manda el real
-      const shrink = camera.fov >= 7 ? 1 : camera.fov <= 2 ? 0.45 : 0.45 + 0.55 * (camera.fov - 2) / 5;
+      const shrink = fovNow >= 7 ? 1 : fovNow <= 2 ? 0.45 : 0.45 + 0.55 * (fovNow - 2) / 5;
       for (const nm of REAL) {
         const rs = realSprites[nm], bb = bs.find((x) => x.name === nm), mk = solarSprites[nm];
         const have = !!bb && !!bb.dist_au && !!solarImg[nm] && rs.B != null;
@@ -3666,6 +3668,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const restoreHd = hdUrl && ref.near3d.ready && ref.near3d.group.visible ? await ref.near3d.withTexture(hdUrl, 30000, Math.min(8, ref.renderer.capabilities.getMaxAnisotropy())) : null;
     if (!ref._sharpStar) ref._sharpStar = makeStarTexture(true);
     const u = ref.points.material.uniforms, saved = [u.uScale.value, u.uPx.value, u.uDpr.value, u.map.value];
+    // un planeta, la Luna o el Sol en la costura entre dos caras (p. ej. a 45° de altura, entre una lateral y la de
+    // arriba) quedaba cortado: la cara que no contiene su centro lo descartaba entero. Durante la foto, nada se descarta.
+    const culled = [];
+    ref.scene.traverse((o) => { if ((o.isSprite || o.isPoints || o.isMesh || o.isLine) && o.frustumCulled) { culled.push(o); o.frustumCulled = false; } });
+    // planetas, Sol y Luna del tamaño de una vista de 90° en un teléfono (~800 px de alto), con el zoom que haya
+    if (ref.sizeSolar) ref.sizeSolar({ fov: 90, h: 800 });
     const faces = captureFaces({ THREE, renderer: ref.renderer, scene: ref.scene, near: ref.camera.near, far: ref.camera.far, size: face,
       before: (cam) => {
         // estrellas del mismo tamaño aparente que en el teléfono; atmósfera y nubes centradas en el observador
@@ -3680,6 +3688,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       },
       after: () => {
         [u.uScale.value, u.uPx.value, u.uDpr.value, u.map.value] = saved;
+        for (const o of culled) o.frustumCulled = true;
+        if (ref.sizeSolar) ref.sizeSolar();
         if (restoreHd) restoreHd();
         ref.horizon.position.set(0, 0, 0);
         if (ref.atm.visible) ref.atm.follow(ref.camera);

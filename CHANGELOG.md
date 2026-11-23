@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.71.1 — 2026-11-23
+
+- **Foto 360°: los planetas ya no salen cortados.** Un planeta, el Sol o la Luna justo en la costura entre dos de las seis fotos que forman la 360° (por ejemplo a 45° de altura, entre una lateral y la de arriba) se perdía en una de ellas y quedaba recortado en rectángulo. Mientras se toma la foto ya no se descarta nada fuera de cada cara.
+- **Foto 360°: los planetas siempre del mismo tamaño,** el de una vista de 90° en un teléfono, tengas el zoom que tengas. Antes dependía del zoom del momento y podían salir enormes.
+
 ## 1.71.0 — 2026-11-23
 
 - **Foto 360° con el relieve en alta definición:** al tomarla, Teseo pide al servidor la imagen de satélite del relieve cercano con el doble de detalle por lado (4096 × 2048, un zoom más de Sentinel-2 cloudless en cada tramo; `/api/terrain/near_hd.jpg`). La usa con filtro anisotrópico y sin el promedio a lo ancho que la vista necesita cerca, así que los campos, caminos y laderas a pocos kilómetros salen con más detalle. La vista normal no cambia, y si la imagen no llega en 30 s se usa la de siempre.
