@@ -41,7 +41,7 @@ console.log("Planetas");
 ok(SPRITE_RES === 2 * SPRITE_PX, "los marcadores se dibujan al doble de resolución");
 ok(/b\.id === "moon" \? \(Math\.min/.test(sky) && /drawSphere\(off\.getContext\("2d"\), img\._teseoData/.test(read("../src/sky/bodies.js")), "la Luna se dibuja como esfera en un lienzo grande, para verla de cerca");
 ok(SPAN_MIN <= 0.06, "el zoom máximo llega a unos 3,6 minutos de arco");
-ok(/const shrink = camera\.fov >= 7 \? 1 : camera\.fov <= 2 \? 0\.45/.test(sky) && /const rPx = Math\.max\(real, mark \* shrink\)/.test(sky), "al acercarse el planeta encoge poco a poco hasta su tamaño real, sin saltos");
+ok(/const shrink = fovNow >= 7 \? 1 : fovNow <= 2 \? 0\.45/.test(sky) && /const rPx = Math\.max\(real, mark \* shrink\)/.test(sky), "al acercarse el planeta encoge poco a poco hasta su tamaño real, sin saltos");
 ok(/if \(ref\.updateRealPlanets\) ref\.updateRealPlanets\(\);/.test(sky), "el eje y los anillos llevan su orientación real a cualquier zoom");
 for (const n of ["sun", "venus", "earth", "moon", "mars", "jupiter", "saturn", "uranus", "neptune"]) {
   const b = fs.readFileSync(new URL(`../public/textures/${n}.jpg`, import.meta.url));
