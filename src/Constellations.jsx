@@ -21,7 +21,7 @@ function moonObjFrom(bodies, key, date = new Date()) {
   return { nx: dir[0], ny: dir[1], nz: dir[2], ra: b.ra, dec: b.dec, eqDate: b.eqDate, dist_au: b.dist_au, r_au: b.r_au, layer: "moon", name: key, parent: o.parent, aArcsec };
 }
 const foldTxt = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-import { fmtDist, fmtYears, fmtWhenShort, fmtKm, fmtDuration } from "./sky/format.js";
+import { fmtDist, fmtYears, fmtWhenShort, fmtKm, fmtDuration, num } from "./sky/format.js";
 import Icon from "./sky/icons.jsx";
 import { PerfMeter, SkyLabels, SearchBox, Dock, LayersPanel, LocationPanel, TourCard, Onboarding, PointingBar, SkyActions, GuideHud, TonightPanel } from "./sky/panels.jsx";
 import { cameraQuat, lookFromQuat } from "./sky/deviceOrientation.js";
@@ -34,7 +34,7 @@ import { caldwellMatch } from "./sky/caldwell.js";
 import { TX } from "./sky/i18n.js";
 import { createPointing, pointingSupported } from "./sky/pointing.js";
 import ObjectSheet, { describeObject, visibilityOf } from "./sky/ObjectSheet.jsx";
-import ConstellationSheet from "./sky/ConstellationSheet.jsx";
+import ConstellationSheet, { DepthBar } from "./sky/ConstellationSheet.jsx";
 import ShareDialog from "./sky/ShareDialog.jsx";
 import TimeSheet, { ArRail } from "./sky/TimeSheet.jsx";
 import { RATES, REAL } from "./sky/timeDial.js";
@@ -4215,6 +4215,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
 
   const selMeta = sky && sel ? sky.constellations.find(c => c.ab === sel) : null;
   const stats = selMeta ? constellationStats(selMeta, sky) : null;
+  // la barra de distancias de la ficha, también en «profundidad real»
+  const dvBar = useMemo(() => (selMeta && sky ? constellationData(selMeta, sky.stars) : null), [selMeta, sky]);
   const selStarN = selMeta ? new Set(selMeta.lines.flat()).size : 0;
   const sortedCons = useMemo(() => (sky ? [...sky.constellations].sort((a, b) => a.la.localeCompare(b.la)) : []), [sky]);
   const failedLayers = LAYERS.filter(c => layerError[c.key]);
@@ -4539,10 +4541,17 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             </div>
           </div>
           {depth > 0.3 && <p className="sk-depth-note">{dvReal ? t.dvScaleNote.real : t.dvScaleNote.comp(dvAutoK)} {t.dvErr}</p>}
-          {stats && stats.far.d > 0 && (
+          {stats && stats.far.d > 0 && !(dvBar && dvBar.near && dvBar.far && dvBar.far.dist > dvBar.near.dist) && (
             <div className="sk-depth-stats">
               <span>{t.nearest}: <b>{stats.near.name || "—"}</b> {stats.near.d.toLocaleString(lang === "es" ? "es" : "en-US")} {t.lightyears}</span>
               <span>{t.farthest}: <b>{stats.far.name || "—"}</b> {stats.far.d.toLocaleString(lang === "es" ? "es" : "en-US")} {t.lightyears}</span>
+            </div>
+          )}
+          {dvBar && dvBar.near && dvBar.far && dvBar.far.dist > dvBar.near.dist && (
+            <div className="sk-depth-bar">
+              <div className="sk-depth-bar-ends"><span>{t.nearest}</span><span>{t.farthest}</span></div>
+              <DepthBar stars={dvBar.stars} near={dvBar.near} far={dvBar.far} lang={lang} named />
+              {dvBar.ratio >= 1.5 && <p>{t.conRatio(num(dvBar.ratio, lang, dvBar.ratio < 10 ? 1 : 0))}</p>}
             </div>
           )}
         </section>

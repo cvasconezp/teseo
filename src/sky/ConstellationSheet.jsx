@@ -10,7 +10,7 @@ import { conNameEs, conOrigin, CON_SOURCE } from "./constellations.js";
 import { fmtDist, num } from "./format.js";
 
 // barra de distancias en escala logarítmica: de la más cercana a la más lejana
-function DepthBar({ stars, near, far, lang }) {
+export function DepthBar({ stars, near, far, lang, named = false }) {
   if (!near || !far || far.dist <= near.dist) return null;
   const a = Math.log10(near.dist), b = Math.log10(far.dist);
   return (
@@ -19,7 +19,8 @@ function DepthBar({ stars, near, far, lang }) {
       {stars.filter((s) => s.dist != null).map((s) => (
         <span key={s.hip} style={{ left: `${6 + 90 * (Math.log10(s.dist) - a) / (b - a || 1)}%`, background: s.hex || "#fff" }} />
       ))}
-      <em className="is-a">{fmtDist(near.dist, lang)}</em><em className="is-b">{fmtDist(far.dist, lang)}</em>
+      <em className="is-a">{named && near.name ? <><b>{near.name}</b> · </> : null}{fmtDist(near.dist, lang)}</em>
+      <em className="is-b">{named && far.name ? <><b>{far.name}</b> · </> : null}{fmtDist(far.dist, lang)}</em>
     </div>
   );
 }

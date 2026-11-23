@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.70.3 — 2026-11-23
+
+- **La barra de distancias, también en «profundidad real»:** la misma de la ficha de la constelación, con cada estrella de la figura en su color, de la más cercana a la más lejana (escala logarítmica), y la frase «la más lejana está N veces más lejos que la más cercana». Sustituye a la línea de «Más cercana / Más lejana»: los nombres y las distancias van en los extremos de la barra.
+
 ## 1.70.2 — 2026-11-23
 
 - **La nubosidad de la tarjeta, como la ves tú:** con el satélite, la tarjeta del tiempo promediaba 150 km a la redonda como si todo pesara igual, y una nube encima contaba lo mismo que una a 140 km. Ahora cada zona cuenta por cuánto cielo tapa vista desde tu sitio, como se estiman las octas de la OMM. En Praga, con nubes bajas en 20 km a la redonda, decía «Parcialmente nublado» (53 %) y ahora dice «Cubierto» (99 %). El dibujo de las nubes no cambia: ya las ponía donde el satélite las ve.

@@ -838,3 +838,9 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 }
 /* «Apuntar al cielo» en el celular: créditos más discretos, para que no compitan con el cielo */
 @media (max-width: 899px) { .sk-stage.is-immersive .sk-credit { font-size: 8.5px; opacity: 0.6; max-width: 58%; } .sk-stage.is-immersive .sk-credit small { font-size: 8px; } }
+/* «profundidad real»: la misma barra de distancias de la ficha (de la más cercana a la más lejana) */
+.sk-depth-bar { margin-top: 4px; }
+.sk-depth-bar .sk-con-bar { margin: 0; border-bottom: 0; height: 44px; }
+.sk-depth-bar .sk-con-bar em b { color: var(--text); font-weight: 500; }
+.sk-depth-bar-ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--mute); margin-bottom: -2px; }
+.sk-depth-bar p { margin: 0; padding-left: 10px; border-left: 2px solid var(--violet, #a78bfa); font-size: 13px; line-height: 1.4; color: var(--text); }
