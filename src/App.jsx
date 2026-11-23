@@ -550,12 +550,12 @@ const reducedMotion = () => {
 const META = {
   es: {
     title: "Teseo — Planetario y navegación interplanetaria",
-    description: "App gratuita de divulgación astronómica: tu cielo en vivo, fichas de estrellas y planetas, viajes reales a otros planetas y grandes preguntas con datos reales.",
+    description: "App gratuita de divulgación astronómica: tu cielo con montañas, clima y monumentos reales, viajes a otros planetas, calendario y un laboratorio de preguntas.",
     locale: "es_EC",
   },
   en: {
     title: "Teseo — Planetarium and interplanetary navigation",
-    description: "Free astronomy outreach app: your live sky, a profile for every star and planet, real trips to other planets and big questions explored with real data.",
+    description: "Free astronomy outreach app: your sky with real mountains, weather and monuments, trips to other planets, a sky calendar and a lab of big questions.",
     locale: "en_US",
   },
 };

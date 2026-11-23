@@ -1,7 +1,7 @@
 {
   "name": "Teseo — Navegación Interplanetaria",
   "short_name": "Teseo",
-  "description": "App gratuita de divulgación astronómica: tu cielo en vivo, fichas de estrellas y planetas, viajes reales a otros planetas y grandes preguntas con datos reales.",
+  "description": "App gratuita de divulgación astronómica: tu cielo con montañas, clima y monumentos reales, viajes a otros planetas, calendario y un laboratorio de preguntas.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.63.1 — 2026-11-22
+
+- **Textos de la web con todo lo que hace Teseo hoy:** la descripción para buscadores y redes, la portada estática, los datos estructurados (lista de funciones), el manifiesto de la app, `llms.txt` y las páginas «Acerca de» (español e inglés) ya no presentan a Teseo solo como mapa estelar: nombran el horizonte real en 3D (montañas, volcanes en erupción y sitios arqueológicos), el tiempo y las nubes del lugar, las capas del vecindario y del cielo profundo, la contaminación lumínica, las fichas que se escuchan, los cálculos, el calendario, los viajes, el laboratorio de preguntas, las postales, la foto 360° y la ciencia ciudadana.
+
 ## 1.63.0 — 2026-11-22
 
 - **Tarjeta del tiempo:** al tocar la pastilla de la temperatura se abre una tarjeta con el interruptor de las nubes, el estado del cielo, la sensación térmica, el viento (velocidad y de dónde viene), la nubosidad total y por capas (altas, medias y bajas), la nubosidad de las próximas 12 horas, la probabilidad de lluvia, la humedad, el índice UV y la visibilidad. Datos de Open-Meteo.
