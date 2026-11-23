@@ -85,7 +85,7 @@ ok(shortCredits({}) === "Datos: HYG · Stellarium" && shortCredits({ terrain: tr
 
 // archivo y tamaño
 ok(panoFileName("Pirámides de Guiza", { y: 2026, m: 11, d: 18, h: 6, mi: 5 }) === "teseo-360-piramides-de-guiza-2026-11-18-0605.jpg", "nombre del archivo sin tildes ni espacios");
-ok(panoSize(8).W === 4096 && panoSize(8).face === 1024 && panoSize(2).W === 2048 && panoSize(undefined).W === 4096 && panoSize(8, 1024).W === 2048, "4096 × 2048 salvo equipos con poca memoria");
+ok(panoSize(8, 16384).W === 8192 && panoSize(8, 16384).face === 2048 && panoSize(8, 16384, true).W === 5760 && panoSize(undefined, 16384).W === 5760 && panoSize(4, 16384).face === 1440 && panoSize(2).W === 2048 && panoSize(8, 1024).W === 2048 && 5760 * 2880 < 16777216, "8192 × 4096 en equipos grandes, 5760 × 2880 en el resto (y en iOS, bajo su tope de 16,7 Mpx), 2048 × 1024 con poca memoria");
 
 // cableado en la interfaz
 const cons = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");

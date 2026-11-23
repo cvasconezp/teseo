@@ -3657,7 +3657,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const buildPano = useCallback(async () => {
     const ref = sceneRef.current; if (!ref) throw new Error("sin escena");
     await new Promise((r) => setTimeout(r, 60));          // que se vea «Tomando la foto…» antes del trabajo
-    const { W, H, face } = panoSize(navigator.deviceMemory, ref.renderer.capabilities.maxTextureSize || 4096);
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const { W, H, face } = panoSize(navigator.deviceMemory, ref.renderer.capabilities.maxTextureSize || 4096, ios);
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(ref.camera.quaternion);
     const heading = altAzOf([fwd.x, fwd.y, fwd.z]).az;    // la foto abre hacia donde mirabas
     const u = ref.points.material.uniforms, saved = [u.uScale.value, u.uPx.value, u.uDpr.value];

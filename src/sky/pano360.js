@@ -323,8 +323,16 @@ export function panoFileName(place, parts) {
   return `teseo-360-${slug}-${parts.y}-${z(parts.m)}-${z(parts.d)}-${z(parts.h)}${z(parts.mi)}.jpg`;
 }
 
-/** Tamaño según la memoria del equipo: 4096 × 2048 (caras de 1024) o 2048 × 1024 en equipos modestos. */
-export function panoSize(deviceMemoryGb, maxTexture = 4096) {
-  const big = !(Number.isFinite(deviceMemoryGb) && deviceMemoryGb < 4) && maxTexture >= 2048;
-  return big ? { W: 4096, H: 2048, face: 1024 } : { W: 2048, H: 1024, face: 512 };
+/**
+ * Tamaño según el equipo, para que al hacer zoom en el visor 360 se vean los detalles (píxeles por grado = W / 360):
+ *  · 8192 × 4096 (caras de 2048, ~23 px/°) con 8 GB o más y texturas de 8192 (computadoras y celulares grandes, no iOS);
+ *  · 5760 × 2880 (caras de 1440, 16 px/°) en el resto, y siempre en iOS: Safari no deja lienzos de más de 16,7 Mpx;
+ *  · 2048 × 1024 (caras de 512) con menos de 4 GB o texturas pequeñas.
+ * `deviceMemoryGb` puede faltar (Safari, Firefox): se toma como equipo normal.
+ */
+export function panoSize(deviceMemoryGb, maxTexture = 4096, ios = false) {
+  const mem = Number.isFinite(deviceMemoryGb) ? deviceMemoryGb : null;
+  if ((mem != null && mem < 4) || maxTexture < 2048) return { W: 2048, H: 1024, face: 512 };
+  if (!ios && mem != null && mem >= 8 && maxTexture >= 8192) return { W: 8192, H: 4096, face: 2048 };
+  return { W: 5760, H: 2880, face: 1440 };
 }

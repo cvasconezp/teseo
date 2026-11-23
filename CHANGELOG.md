@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.70.9 — 2026-11-23
+
+- **Foto 360° con más resolución:** 8192 × 4096 en computadoras y celulares grandes (unos 23 px por grado; antes 11), y 5760 × 2880 en el resto, incluido iOS, donde Safari no deja lienzos de más de 16,7 Mpx. Los equipos con poca memoria siguen en 2048 × 1024. Al hacer zoom en el visor 360 se ven más nítidos las estrellas, los nombres, las nubes y el filo de las montañas. La textura de las laderas sigue limitada por la imagen del relieve (2048 px para los 360°).
+
 ## 1.70.8 — 2026-11-23
 
 - **Celular en el suelo con las montañas reales:** las punteadas de los solsticios marcan dónde **asoma y se oculta** el Sol detrás del horizonte real del lugar (el de «Montañas»), y unos puntos en el borde hacen lo mismo con los equinoccios. Se calcula el corte de la trayectoria del Sol con la altura de las montañas en cada acimut, con el borde de arriba del disco y la refracción del aire, menor en la altura.
