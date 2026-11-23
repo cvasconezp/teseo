@@ -162,7 +162,7 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
   const cl = readFileSync(new URL("../src/sky/cloudsLayer.js", import.meta.url), "utf8");
   ok(/float terrainFront\(/.test(cl) && /below\.renderOrder = 2\.8/.test(cl) && /uSide/.test(cl), "las de abajo se dibujan tras las montañas, que las tapan donde asoman");
   const cj = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
-  ok(/ref\.clouds\.setView\(cloudLiftKm, hzData\)/.test(cj) && /cloudLiftKm\) : null/.test(cj), "la vista y las estrellas tapadas usan la misma altura de las capas");
+  ok(/ref\.clouds\.setView\(cloudLiftKm, hzData\)/.test(cj) && /makeOccluder\(cf\.clouds, d\.getTime\(\) \/ 1000, cloudLiftKm, map\)/.test(cj), "la vista y las estrellas tapadas usan la misma altura de las capas (y el mismo mapa del satélite)");
 }
 
 // mejor ventana para observar (tarjeta del clima)
@@ -181,6 +181,33 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
   ok(r.feels === 13.4 && r.rh === 94 && r.pop === 75 && r.uv === 0 && near(r.visKm, 11.32, 1e-9) && r.cloud === 100 && r.at === Date.UTC(2026, 10, 23, 1, 45), "lee sensación, humedad, lluvia, UV, visibilidad y la hora del dato");
   const r2 = pn({ current: { temperature_2m: 10, relative_humidity_2m: 140 } });
   ok(r2.rh === null && r2.feels === null && r2.at === null, "lo que falta o no es creíble queda en null");
+}
+
+// nubes del satélite (satClouds.js)
+{
+  const sc = await import("../src/sky/satClouds.js");
+  const n = 5, b64 = (arr) => Buffer.from(Uint8Array.from(arr)).toString("base64");
+  const fill = (v) => new Array(n * n).fill(v);
+  const high = fill(0); for (let i = 0; i < 10; i++) high[i] = 100;      // las dos filas del sur, nubes altas
+  const low = fill(0); low[24] = 255;                                     // la celda del extremo noreste, sin dato
+  const j = { time: "2026-11-23T02:10:21Z", sat: "GOES-19", by: "NOAA", source: "goes-east", n, res_km: 3, radius_km: 6, cover: 0.4,
+    layers: { low: { cover: 0, grid: b64(low) }, mid: { cover: 0, grid: b64(fill(0)) }, high: { cover: 0.4, grid: b64(high) } } };
+  const sat = sc.parseSatClouds(j);
+  ok(sat && sat.n === 5 && sat.half === 7.5 && sat.layers.high[0] === 100 && sat.layers.low[24] === 255 && sat.t === Date.UTC(2026, 10, 23, 2, 10, 21) / 1000, "lee la malla del satélite");
+  ok(sc.parseSatClouds({ ...j, layers: { ...j.layers, low: { cover: 0, grid: "AAAA" } } }) === null, "rechaza una malla de tamaño equivocado");
+  ok(sc.satWeight(sat, sat.t + 30 * 60) === 1 && sc.satWeight(sat, sat.t - 200 * 60) === 0 && sc.satWeight(sat, sat.t + 80 * 60) > 0 && sc.satWeight(sat, sat.t + 80 * 60) < 1, "el satélite manda cerca del barrido y se apaga lejos");
+  const f = sc.fuseSat(sat, { low: 0.5, mid: 1, high: 0 });
+  ok(f.layers.high[0] === 100 && f.layers.mid[0] === 100 && f.layers.low[0] === 50 && f.layers.mid[12] === 0 && f.layers.low[24] === 255, "bajo un tope alto se completan medias y bajas con el pronóstico; donde se ve el suelo, nada");
+  ok(sc.fuseSat(sat, { low: 0.5, mid: 1, high: 0 }) === f, "la fusión se recuerda mientras no cambie el pronóstico");
+  const m = sc.mergeClouds({ low: 0.9, mid: 0.9, high: 0.9, total: 1, wind: { low: [1, 0], mid: [0, 0], high: [0, 0] } }, f, 1);
+  ok(near(m.high, f.mean.high, 1e-9) && m.wind.low[0] === 1 && m.sat === true, "con peso 1, la media de cada capa es la del satélite y el viento el del pronóstico");
+  const tex = sc.thresholdTexture(f);
+  ok(tex.length === n * n * 4 && tex[3] === 255 && tex[24 * 4 + 3] === 0, "textura de umbrales con la validez en el canal alfa");
+  ok(near(sc.decTh(tex[2]), threshold("high", 1), 0.01) && near(sc.decTh(tex[12 * 4 + 2]), threshold("high", 0), 0.01), "los umbrales codificados son los del ruido para esa cobertura");
+  const cen = sc.sampleThreshold(tex, n, f.half, 2, 0, -4.5), out = sc.sampleThreshold(tex, n, f.half, 2, 50, 0);
+  ok(cen && near(cen.th, threshold("high", 1), 0.02) && cen.w > 0.9 && out === null, "se lee el umbral local como la GPU, y nada fuera de la malla");
+  const off = sc.mapOffsets({ wind: { low: [10, 0], mid: [0, -5], high: [0, 0] } }, sat.t + 600, sat.t);
+  ok(near(off[0][0], 6, 1e-9) && near(off[1][1], -3, 1e-9), "la malla viaja con el viento de cada capa");
 }
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);

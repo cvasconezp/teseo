@@ -27,6 +27,9 @@ sgp4==2.27
 # Horizonte real (app/horizon.py): decodifica las teselas PNG de elevación. Rueda binaria para Python 3.11;
 # no toca numpy==1.26.4 ni astropy==5.3.4.
 pillow==12.3.0
+# Nubes del satélite (app/cloudsat.py): lee por partes los archivos NetCDF4/HDF5 de la NOAA (GOES, Himawari).
+# Rueda binaria para Python 3.11 con HDF5 incluido; comprobado con numpy==1.26.4 y astropy==5.3.4.
+h5py==3.12.1
 
 pywebpush==2.5.0
 py-vapid==1.9.6

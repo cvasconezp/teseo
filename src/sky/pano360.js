@@ -245,6 +245,7 @@ export function panoCredits(f = {}, lang = "es") {
   if (f.landsat) more.push(es ? "Colores: Sentinel-2 cloudless – s2maps.eu, EOX (datos Copernicus 2016–2017, CC BY 4.0)" : "Colours: Sentinel-2 cloudless – s2maps.eu, EOX (Copernicus data 2016–2017, CC BY 4.0)");
   if (f.peaks) more.push(es ? "Montañas: Wikidata, © colaboradores de OpenStreetMap (ODbL)" : "Peaks: Wikidata, © OpenStreetMap contributors (ODbL)");
   if (f.clouds) more.push(es ? "Nubes: Open-Meteo.com (CC BY 4.0)" : "Clouds: Open-Meteo.com (CC BY 4.0)");
+  if (f.sat) more.push(es ? `Nubes de ahora: ${f.sat}` : `Clouds now: ${f.sat}`);
   if (f.planets) more.push(es ? "Planetas: Solar System Scope (CC BY 4.0)" : "Planets: Solar System Scope (CC BY 4.0)");
   if (f.andean) more.push(es ? "Sitios andinos: Cobo, «Astronomía Quitu-Caranqui» (2012), y Wikipedia" : "Andean sites: Cobo, “Astronomía Quitu-Caranqui” (2012), and Wikipedia");
   // de dos en dos por línea, para que el sello no crezca demasiado
@@ -259,6 +260,7 @@ export function shortCredits(f = {}, lang = "es") {
   if (f.landsat) parts.push("Sentinel-2 cloudless (EOX)");
   if (f.peaks) parts.push("© OpenStreetMap", "Wikidata");
   if (f.clouds) parts.push("Open-Meteo");
+  if (f.sat) parts.push(f.sat);
   if (f.planets) parts.push("Solar System Scope");
   if (f.andean) parts.push("Cobo (2012)");
   return `${lang === "en" ? "Data" : "Datos"}: ${parts.join(" · ")}`;

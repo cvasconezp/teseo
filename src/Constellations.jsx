@@ -75,6 +75,7 @@ import { createHipsLayer, HIPS_FINE, setHipsMasks } from "./sky/hipsLayer.js";
 import { TerrainControl } from "./sky/TerrainControl.jsx";
 import { WeatherPanel } from "./sky/WeatherPanel.jsx";
 import { fetchForecast, cloudsAt } from "./sky/weather.js";
+import { fetchSatClouds, satWeight, mergeClouds, mapOffsets, fuseSat, satCredit } from "./sky/satClouds.js";
 import { clampBortle, BORTLE_DEFAULT, fetchBortleEstimate, bortleCell, BORTLE_EST_T } from "./sky/lightPollution.js";
 import { bodyMagnitude, SUN_MAG_V } from "./sky/planetMag.js";
 import { track } from "./ui/track.js";
@@ -675,6 +676,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [wx, setWx] = useState({ status: "idle", data: null, key: null });   // pronóstico de nubes (Open-Meteo)
   const [wxWanted, setWxWanted] = useState(false);                             // el panel de Nubes y clima se abrió
   const [wxRetry, setWxRetry] = useState(0);
+  const [satCl, setSatCl] = useState({ key: null, data: null });             // nubes de ahora vistas por el satélite (/api/clouds-sat)
   const [terrainOn, setTerrainOn] = useState(() => { try { return localStorage.getItem(TERRAIN_KEY) !== "0"; } catch { return true; } });
   const [hz, setHz] = useState({ status: "idle", data: null, key: null });   // horizonte real (/api/horizon)
   const [hzRetry, setHzRetry] = useState(0);
@@ -2907,6 +2909,27 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     return () => { alive = false; };
   }, [wxKey, cloudsOn, wxWanted, wxRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
   const wxData = wx.status === "ok" && wx.key === wxKey ? wx.data : null;
+  // nubes de AHORA del satélite (GOES, Meteosat o Himawari): dónde están y a qué altura, en 150 km. Se piden con las
+  // nubes encendidas o la tarjeta del tiempo abierta, cada 10 minutos. El suelo para repartirlas en capas es el del
+  // pronóstico (el mismo desde el que se miden sus capas); sin él, el del relieve
+  const satGround = wxData && Number.isFinite(wxData.elevation) ? wxData.elevation : hzData && Number.isFinite(hzData.ground_m) ? hzData.ground_m : null;
+  const satKey = wxKey && (cloudsOn || wxOpen) && satGround != null ? `${lat.toFixed(2)},${lon.toFixed(2)},${Math.round(satGround / 100)}` : null;
+  useEffect(() => {
+    if (!satKey) return undefined;
+    let alive = true;
+    const ask = () => fetchSatClouds(lat, lon, satGround, { api: API })
+      .then((data) => { if (alive) setSatCl({ key: satKey, data }); }, () => { if (alive) setSatCl((s0) => (s0.key === satKey ? s0 : { key: satKey, data: null })); });
+    ask();
+    const id = setInterval(ask, 10 * 60 * 1000);
+    return () => { alive = false; clearInterval(id); };
+  }, [satKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const satData = satCl.key === satKey ? satCl.data : null;
+  // las nubes de un instante: el pronóstico y, cerca de la hora del barrido, el satélite (con su mapa en el cielo)
+  const cloudsFor = (d) => {
+    const s = d.getTime() / 1000, fc = wxData ? cloudsAt(wxData, d) : null, w = satWeight(satData, s);
+    const view = w > 0 ? fuseSat(satData, fc) : null, merged = mergeClouds(fc, view, w);
+    return { clouds: merged, sat: view, w, off: w > 0 ? mapOffsets(merged, s, satData.t) : null };
+  };
   // tu altura sobre el suelo del pronóstico (km): el horizonte real la da exacta; si no, la altitud del lugar
   const obsM = hzData ? (hzData.ground_m || 0) + (hzData.eye_m || 1.7) : (Number.isFinite(elev) ? elev : null);
   const cloudLiftKm = useMemo(() => cloudLift(obsM, wxData ? wxData.elevation : null), [obsM, wxData]);
@@ -2939,25 +2962,30 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (!atmState && !hzData && !ref.atmOn && !ref._atmTouched) return;          // sin atmósfera ni montañas y nada que deshacer
     ref.hzData = hzEff;
     ref._atmTouched = true;
-    try { const d = new Date(whenStr); ref.cloudOcc = cloudsOn && atmState && wxData ? makeOccluder(cloudsAt(wxData, d), d.getTime() / 1000, cloudLiftKm) : null; }
-    catch { ref.cloudOcc = null; }
+    try {
+      const d = new Date(whenStr), cf = cloudsFor(d);
+      const map = ref.clouds ? ref.clouds.setMap(cf.sat, cf.w, cf.off) : null;
+      ref.cloudOcc = cloudsOn && atmState && cf.clouds ? makeOccluder(cf.clouds, d.getTime() / 1000, cloudLiftKm, map) : null;
+    } catch { ref.cloudOcc = null; }
     let c;
     try { c = ref.applyAtm(atmState); } catch (e) { try { c = ref.applyAtm(null); } catch { /* no-op */ } }
     if (c) setAtmInfo((p) => (p.stars === c.stars && p.deep === c.deep && p.deepTot === c.deepTot ? p : { stars: c.stars, deep: c.deep, deepTot: c.deepTot }));
-  }, [atmState, ready, datasets, enabled, bodies, showSolar, localActive, viewFrom, cloudsOn, wxData, hzData, hzEff, cloudLiftKm]);
+  }, [atmState, ready, datasets, enabled, bodies, showSolar, localActive, viewFrom, cloudsOn, wxData, satData, hzData, hzEff, cloudLiftKm]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // nubes: la capa del cielo (el pronóstico se lee más arriba). Desde una cumbre, las capas se acercan o quedan
   // por debajo (cloudLift) y las montañas que asoman las tapan (las bandas del horizonte real)
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.clouds) return;
-    const show = !!(cloudsOn && atmState && wxData);
+    let show = false;
     try {
-      const d = new Date(whenStr);
+      const d = new Date(whenStr), cf = cloudsFor(d);
+      show = !!(cloudsOn && atmState && cf.clouds);
       ref.clouds.setView(cloudLiftKm, hzData);
-      ref.clouds.update(show ? cloudsAt(wxData, d) : null, atmState, d.getTime() / 1000);
+      ref.clouds.setMap(show ? cf.sat : null, cf.w, cf.off);
+      ref.clouds.update(show ? cf.clouds : null, atmState, d.getTime() / 1000);
     } catch { ref.clouds.update(null, null, 0); }   // nunca debe romper la vista
     ref.clouds.setEnabled(show);
-  }, [cloudsOn, atmState, wxData, whenStr, ready, cloudLiftKm, hzData]);
+  }, [cloudsOn, atmState, wxData, satData, whenStr, ready, cloudLiftKm, hzData]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // animar el tiempo (play)
   // (con una pasada de la ISS en el cielo, el tiempo lo lleva su reloj, al segundo y a ×1/×10/×60: ver el bucle)
@@ -3356,10 +3384,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (view && hzData && landData) vc.push(es ? "colores Sentinel-2 cloudless (EOX, CC BY 4.0)" : "colours Sentinel-2 cloudless (EOX, CC BY 4.0)");
     if (view && peakList && peakList.length) vc.push(es ? "nombres de montañas Wikidata y © OpenStreetMap" : "mountain names Wikidata and © OpenStreetMap");
     if (view && cloudsOn && wxData) vc.push(es ? "nubes Open-Meteo" : "clouds Open-Meteo");
+    if (view && cloudsOn && satWeight(satData, new Date(whenStr).getTime() / 1000) > 0) vc.push(es ? `nubes de ahora ${satCredit(satData)}` : `clouds now ${satCredit(satData)}`);
     const out = buildPostcard({ ...base, center, view, viewCredit: vc.join(" · ") });
     if (E2E) out.then((r) => { window.__teseoPostcard = r && r.report; }).catch(() => {});
     return out;
-  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars, hzData, peakList, cloudsOn, wxData, placeTz, landData]);
+  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars, hzData, peakList, cloudsOn, wxData, placeTz, landData, satData]);
   const openShare = useCallback(() => { setShareState(null); setShare(true); }, []);
   // «atrás» del teléfono (src/ui/backGuard.js): cierra lo que esté abierto, de lo más encima a lo más abajo
   const backRef = useRef({});
@@ -3427,14 +3456,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const when = new Date(whenStr), tzo = placeTz ? { timeZone: placeTz } : {};
     const place = placeKind === "me" ? (lang === "es" ? "Mi ubicación" : "My location") : placeKind === "custom" ? `${lat.toFixed(2)}°, ${lon.toFixed(2)}°` : placeKind;
     const stamp = when.toLocaleString(lang === "es" ? "es-EC" : "en-US", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...tzo });
-    const credits = panoCredits({ terrain: !!(ref.hzData && ref.terrain.group.visible), landsat: !!(ref.hzData && ref.terrain.group.visible && landData), peaks: !!(ref.peakLabels && ref.peakLabels.length), clouds: !!ref.clouds.visible, planets: !!ref.showSolar, andean: !!(ref.andLabels && ref.andLabels.some((p) => p.cls === "andsite")) }, lang);
+    const credits = panoCredits({ terrain: !!(ref.hzData && ref.terrain.group.visible), landsat: !!(ref.hzData && ref.terrain.group.visible && landData), peaks: !!(ref.peakLabels && ref.peakLabels.length), clouds: !!ref.clouds.visible, sat: ref.clouds.visible && satWeight(satData, new Date(whenStr).getTime() / 1000) > 0 ? satCredit(satData) : "", planets: !!ref.showSolar, andean: !!(ref.andLabels && ref.andLabels.some((p) => p.cls === "andsite")) }, lang);
     drawNadirStamp(g, { W, H, f: (W / 4096) * 1.7, lines: ["Teseo · teseo.yachaydeep.com", place, stamp], small: credits });
     const blob0 = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.9));
     if (!blob0) throw new Error("sin JPEG");
     const bytes = withGPano(new Uint8Array(await blob0.arrayBuffer()), { W, H, heading, title: `${lang === "es" ? "Cielo de" : "Sky from"} ${place} · ${stamp}`, credits });
     const p = tzParts(when, placeTz);
     return { blob: new Blob([bytes], { type: "image/jpeg" }), type: "image/jpeg", width: W, height: H, fileName: panoFileName(place, p) };
-  }, [whenStr, placeTz, placeKind, lat, lon, lang, panoLabels, landData]);
+  }, [whenStr, placeTz, placeKind, lat, lon, lang, panoLabels, landData, satData]);
 
   const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) { setGeo("unsupported"); return; }
@@ -4132,7 +4161,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       {sky && (
         <p className="sk-credit" aria-hidden="true">
           <b>Teseo</b> · teseo.yachaydeep.com
-          <small>{shortCredits({ terrain: !!(inMySky && hzData), landsat: !!(inMySky && hzData && landData), peaks: !!(peakList && peakList.length), clouds: !!(inMySky && cloudsOn && wxData), planets: showSolar, andean: !!(inMySky && andean && andean.sites.length) }, lang)}</small>
+          <small>{shortCredits({ terrain: !!(inMySky && hzData), landsat: !!(inMySky && hzData && landData), peaks: !!(peakList && peakList.length), clouds: !!(inMySky && cloudsOn && wxData), sat: inMySky && cloudsOn && satWeight(satData, new Date(whenStr).getTime() / 1000) > 0 ? satCredit(satData) : "", planets: showSolar, andean: !!(inMySky && andean && andean.sites.length) }, lang)}</small>
         </p>
       )}
       {PERF_ON && <PerfMeter t={t} lang={lang} apiRef={perfApiRef} />}
@@ -4206,7 +4235,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       {/* en el teléfono, el tiempo de ahora va arriba, entre el buscador y el botón «…» (solo icono y temperatura) */}
       {sky && !isWide && wxPill && <div className="sk-wx-float">{wxPill}</div>}
       {sky && wxPill && wxOpen && (
-        <WxCard lang={lang} now={wxNow} fc={wxKey ? (wx.key === wxKey ? wx : { status: "loading" }) : null}
+        <WxCard lang={lang} now={wxNow} fc={wxKey ? (wx.key === wxKey ? wx : { status: "loading" }) : null} sat={satData}
           cloudsOn={cloudsOn} canDraw={localActive && !viewFrom && atmOn}
           onToggleClouds={() => { const nv = !cloudsOn; setCloudsOn(nv); track("sky_setting", { setting: "clouds", state: nv ? "on" : "off" }); }}
           isNight={isNight} tz={placeTz} skyT={new Date(whenStr).getTime() / 1000} skyIsNow={!timeMoved}

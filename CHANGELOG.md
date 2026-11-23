@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.64.0 — 2026-11-22
+
+- **Nubes reales de ahora, del satélite, en todo el mundo:** cerca de la hora presente, las nubes del cielo salen de los satélites geoestacionarios: dónde hay nubes en 150 km a la redonda y a qué altura está su tope, repartidas en capas bajas, medias y altas. GOES-19 y GOES-18 para América y el Pacífico, Meteosat para Europa, África y el océano Índico, e Himawari-9 para Asia y Oceanía. Se actualizan cada 10 minutos y viajan con el viento si mueves la hora; lejos del presente (más de 2 horas) vuelve el pronóstico.
+  - Bajo cada tope, las capas inferiores se completan con el pronóstico (un cumulonimbo es opaco hasta abajo); donde el satélite ve el suelo, no hay nubes.
+  - La tarjeta del tiempo dice de dónde salen las nubes (satélite y hace cuánto, o pronóstico), y la nubosidad de ahora es la del satélite.
+  - Las estrellas y los objetos tapados por esas nubes pierden su nombre, como con las del pronóstico.
+
 ## 1.63.1 — 2026-11-22
 
 - **Textos de la web con todo lo que hace Teseo hoy:** la descripción para buscadores y redes, la portada estática, los datos estructurados (lista de funciones), el manifiesto de la app, `llms.txt` y las páginas «Acerca de» (español e inglés) ya no presentan a Teseo solo como mapa estelar: nombran el horizonte real en 3D (montañas, volcanes en erupción y sitios arqueológicos), el tiempo y las nubes del lugar, las capas del vecindario y del cielo profundo, la contaminación lumínica, las fichas que se escuchan, los cálculos, el calendario, los viajes, el laboratorio de preguntas, las postales, la foto 360° y la ciencia ciudadana.

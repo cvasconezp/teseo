@@ -26,6 +26,7 @@ Endpoints:
   GET  /api/summit?lat&lon&r[&strict]  → la cumbre más cercana (para situarse en lo alto de una montaña)
   GET  /api/volcanoes?lat&lon[&r_km]   → volcanes del Holoceno cercanos (Smithsonian, Global Volcanism Program)
   GET  /api/peaks?lat&lon              → nombres de las cumbres que forman esa silueta (Wikidata, OpenStreetMap)
+  GET  /api/clouds-sat?lat&lon[&ground] → nubes de ahora en 150 km, por capas (GOES, Meteosat, Himawari)
   GET  /api/elevation?pts=lat,lon;…    → altura del terreno en puntos sueltos (para asentar los monumentos)
   GET  /api/img?u=<url>               → proxy de imágenes con CORS para las imágenes para compartir (lista blanca de hosts)
   POST /api/m  (= /api/metrics/event) → métricas de uso anónimas y agregadas (204 siempre)
@@ -69,12 +70,13 @@ from app import img_proxy
 from app import horizon
 from app import peaks
 from app import volcanoes
+from app import cloudsat
 from app import landcolor
 from app import terrain3d
 from app import lightpollution
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.63.0"
+VERSION = "1.64.0"
 _STARTED = time.time()
 
 app = FastAPI(
@@ -374,6 +376,7 @@ app.include_router(terrain3d.router)  # relieve cercano en 3D con la imagen de s
 app.include_router(landcolor.router)  # color real de las laderas: /api/horizon/colors (app/landcolor.py, Sentinel-2 cloudless)
 app.include_router(horizon.router)  # horizonte real: /api/horizon (app/horizon.py, relieve de AWS Terrain Tiles)
 app.include_router(peaks.router)    # nombres de las montañas del horizonte: /api/peaks (app/peaks.py, OpenStreetMap)
+app.include_router(cloudsat.router)  # nubes de ahora vistas por los satélites geoestacionarios: /api/clouds-sat
 app.include_router(volcanoes.router)  # volcanes del Holoceno: /api/volcanoes (app/volcanoes.py, Smithsonian GVP)
 app.include_router(img_proxy.router)  # imágenes para compartir: /api/img (app/img_proxy.py, lista blanca de hosts)
 

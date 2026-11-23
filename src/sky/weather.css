@@ -69,3 +69,4 @@
 .sk-stage .sk-wx-pill .sk-wx-chev { transition: transform 0.2s; opacity: 0.8; }
 .sk-stage .sk-wx-pill[aria-expanded="true"] .sk-wx-chev { transform: rotate(180deg); }
 .sk-stage .sk-wx-float .sk-wx-pill .sk-wx-chev { display: none; }
+.sk-stage .sk-wxc-src { margin: 6px 0 0; color: #9aa1c6; font-size: 11.5px; line-height: 1.35; }

@@ -20,6 +20,7 @@
 import * as THREE from "three";
 import { GLSL_NOISE, LAYER_STYLE, threshold, fbm } from "./cloudNoise.js";
 import { LAYERS, LAYER_KM } from "./weather.js";
+import { TH_LO, TH_HI, thresholdTexture, sampleThreshold } from "./satClouds.js";
 
 const f1 = (v) => (Number.isInteger(v) ? `${v}.0` : String(v));
 const NB = 6;                 // bandas del horizonte (backend/app/horizon.py, BANDS_KM)
@@ -34,7 +35,7 @@ void main() {
 }`;
 
 function layerGlsl(l, k) {
-  const s = LAYER_STYLE[l];
+  const s = LAYER_STYLE[l], ch = "rgb"[k];
   // uH: altura de la capa respecto a ti (km): por encima, se ve mirando arriba; por debajo (desde una cumbre),
   // mirando abajo, y ahí la tapan las montañas que asoman sobre ella (terrainFront)
   return `
@@ -46,7 +47,18 @@ function layerGlsl(l, k) {
     vec2 w = uDir[${k}];
     vec2 q = vec2(dot(pe, w) / ${f1(s.scaleKm * s.stretch)}, (-pe.x * w.y + pe.y * w.x) / ${f1(s.scaleKm)});
     float n = fbm(q, ${s.octaves});
-    float t = clamp((n - (uTh[${k}] - ${f1(s.edge / 2)})) / ${f1(s.edge * 2)}, 0.0, 1.0);
+    // nubes del satélite: el umbral de la celda donde cae este punto (la malla viaja con el viento de la capa)
+    float th = uTh[${k}];
+    if (uMapOn > 0.5) {
+      vec2 uv = (vec2(d.x, -d.z) * dist - uMapOff[${k}] + uMapHalf) / (2.0 * uMapHalf);
+      float e = min(min(uv.x, uv.y), min(1.0 - uv.x, 1.0 - uv.y));
+      if (e > 0.0) {
+        vec4 m = texture2D(uMap, uv);
+        float f = clamp(e / 0.08, 0.0, 1.0); f = f * f * (3.0 - 2.0 * f);
+        th = mix(th, ${f1(TH_LO)} + m.${ch} * ${f1(TH_HI - TH_LO)}, m.a * f * uMapW);
+      }
+    }
+    float t = clamp((n - (th - ${f1(s.edge / 2)})) / ${f1(s.edge * 2)}, 0.0, 1.0);
     t = t * t * (3.0 - 2.0 * t);
     float a = t * ${f1(s.maxAlpha)} * horizonFade;
     vec3 col = mix(lit, uShade, pow(t, 1.5) * (uH[${k}] > 0.0 ? ${f1(THICK[l])} : 0.12));   // desde arriba, la cima de la nube, al sol
@@ -75,6 +87,11 @@ uniform vec3 uHorizon;
 uniform vec3 uSun;
 uniform float uRim;
 uniform float uHaze;
+uniform float uMapOn;
+uniform float uMapW;
+uniform float uMapHalf;
+uniform vec2 uMapOff[3];
+uniform sampler2D uMap;
 varying vec3 vWorld;
 ${GLSL_NOISE}
 // ¿hay montaña delante de la nube en esta dirección? La franja que se ve es la más cercana cuyo filo queda por
@@ -174,7 +191,7 @@ export function layerParams(clouds, tSec, lift = 0) {
  * Cuánto tapan las nubes una dirección del cielo local (opacidad 0–1), con la MISMA cuenta que el sombreador:
  * para decidir qué estrellas, planetas y objetos llevan nombre y entran en «se ven ahora». d = [x, y, z], Y = cenit.
  */
-export function makeOccluder(clouds, tSec, lift = 0) {
+export function makeOccluder(clouds, tSec, lift = 0, map = null) {
   if (!clouds) return null;
   const P = layerParams(clouds, tSec, lift).filter((p) => p.on && p.h > 0);   // las de abajo no tapan el cielo
   if (!P.length) return null;
@@ -186,7 +203,13 @@ export function makeOccluder(clouds, tSec, lift = 0) {
       const st = LAYER_STYLE[p.layer], dist = Math.min(p.h / d[1], 240);
       const ex = d[0] * dist - p.off[0], ny = -d[2] * dist - p.off[1], w = p.dir;
       const n = fbm((ex * w[0] + ny * w[1]) / (st.scaleKm * st.stretch), (-ex * w[1] + ny * w[0]) / st.scaleKm, st.octaves);
-      let t = Math.min(1, Math.max(0, (n - (p.th - st.edge / 2)) / (st.edge * 2)));
+      let th = p.th;
+      if (map && map.w > 0) {   // el mismo umbral local del satélite que lee el sombreador
+        const k = LAYERS.indexOf(p.layer), o = map.off[k] || [0, 0];
+        const m = sampleThreshold(map.tex, map.n, map.half, k, d[0] * dist - o[0], -d[2] * dist - o[1]);
+        if (m) th += (m.th - th) * m.w * map.w;
+      }
+      let t = Math.min(1, Math.max(0, (n - (th - st.edge / 2)) / (st.edge * 2)));
       t = t * t * (3 - 2 * t);
       const al = t * st.maxAlpha * hf;
       a += (1 - a) * al;
@@ -208,7 +231,10 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
     uLit: { value: new THREE.Color(1, 1, 1) }, uLitAnti: { value: new THREE.Color(1, 1, 1) }, uShade: { value: new THREE.Color(0.5, 0.5, 0.5) },
     uSunGlow: { value: new THREE.Color(1, 0.6, 0.3) }, uHorizon: { value: new THREE.Color(1, 1, 1) },
     uSun: { value: new THREE.Vector3(0, 1, 0) }, uRim: { value: 0 }, uHaze: { value: 0 },
+    uMapOn: { value: 0 }, uMapW: { value: 0 }, uMapHalf: { value: 151.5 }, uMap: { value: null },
+    uMapOff: { value: [new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2()] },
   };
+  let mapTex = null, mapSat = null;
   const mat = (side) => new THREE.ShaderMaterial({
     uniforms: { ...uniforms, uSide: { value: side } }, vertexShader: VERT, fragmentShader: FRAG,
     side: THREE.BackSide, transparent: true, depthWrite: false, depthTest: false, fog: false,
@@ -280,6 +306,26 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
         terrTex.needsUpdate = true;
       }
     },
+    /**
+     * Nubes del satélite (satClouds.js): sat = parseSatClouds(...) o null, w = peso (satWeight), off = mapOffsets(...).
+     * Devuelve el mapa para makeOccluder ({ tex, n, half, w, off }) o null.
+     */
+    setMap(sat, w = 0, off = null) {
+      if (!sat || !(w > 0)) { uniforms.uMapOn.value = 0; return null; }
+      if (!mapSat || sat.key !== mapSat.key || sat.t !== mapSat.t) {
+        const data = thresholdTexture(sat);
+        if (mapTex) mapTex.dispose();
+        mapTex = new THREE.DataTexture(data, sat.n, sat.n, THREE.RGBAFormat, THREE.UnsignedByteType);
+        mapTex.minFilter = THREE.LinearFilter; mapTex.magFilter = THREE.LinearFilter;
+        mapTex.wrapS = mapTex.wrapT = THREE.ClampToEdgeWrapping; mapTex.generateMipmaps = false; mapTex.needsUpdate = true;
+        mapSat = sat; mapSat._tex = data;
+        uniforms.uMap.value = mapTex;
+      }
+      uniforms.uMapOn.value = 1; uniforms.uMapW.value = w; uniforms.uMapHalf.value = sat.half;
+      const o = off || [[0, 0], [0, 0], [0, 0]];
+      for (let k = 0; k < 3; k++) uniforms.uMapOff.value[k].set(o[k][0], o[k][1]);
+      return { tex: mapSat._tex, n: sat.n, half: sat.half, w, off: o };
+    },
     follow(camera) {
       if (!mesh.visible) return;
       mesh.position.copy(camera.position);
@@ -288,6 +334,6 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
     setEnabled(b) { enabled = !!b; mesh.visible = enabled && any; },
     get visible() { return mesh.visible; },
     get clouds() { return last; },
-    dispose() { geo.dispose(); material.dispose(); matBelow.dispose(); terrTex.dispose(); if (mesh.parent) mesh.parent.remove(mesh); },
+    dispose() { geo.dispose(); material.dispose(); matBelow.dispose(); terrTex.dispose(); if (mapTex) mapTex.dispose(); if (mesh.parent) mesh.parent.remove(mesh); },
   };
 }

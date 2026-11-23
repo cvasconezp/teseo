@@ -5,20 +5,22 @@
 //
 // Props:
 //   lang · now: el tiempo de ahora (parseNow de nowWeather.js, con fetchedAt) · fc: { status, data } del pronóstico
+//   sat: las nubes del satélite (satClouds.js) o null: si su barrido es reciente, la nubosidad de ahora es la suya
 //   cloudsOn, canDraw (las nubes se dibujan con la Atmósfera), onToggleClouds
 //   isNight(s) → bool · tz: zona horaria del lugar (para las horas) · skyT: hora del cielo (s) · skyIsNow: el cielo va en «ahora»
 //   onPickHour(s): llevar el cielo a esa hora · anchorRef: la pastilla · stageRef: el contenedor · onClose()
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { WX } from "./i18n-wx.js";
-import { cloudsAt, hourlySeries, bestWindow } from "./weather.js";
+import { cloudsAt, hourlySeries, bestWindow, coverClass } from "./weather.js";
+import { satWeight, mergeClouds, fuseSat } from "./satClouds.js";
 import { wxKind, WX_NAMES, compass8, fmtWind } from "./nowWeather.js";
 import "./weather.css";
 
 const pct = (f) => `${Math.round(f * 100)} %`;
 const fmtT = (t) => `${Math.round(t) === 0 ? 0 : Math.round(t)}`.replace("-", "−") + " °C";
 
-export function WxCard({ lang = "es", now, fc, cloudsOn, canDraw, onToggleClouds, isNight, tz, skyT, skyIsNow, onPickHour, anchorRef, stageRef, onClose }) {
+export function WxCard({ lang = "es", now, fc, sat, cloudsOn, canDraw, onToggleClouds, isNight, tz, skyT, skyIsNow, onPickHour, anchorRef, stageRef, onClose }) {
   const tw = (WX[lang] || WX.es).card;
   const cardRef = useRef(null);
   const [pos, setPos] = useState(null);
@@ -54,7 +56,9 @@ export function WxCard({ lang = "es", now, fc, cloudsOn, canDraw, onToggleClouds
   }, [onClose, anchorRef]);
 
   const data = fc && fc.status === "ok" ? fc.data : null;
-  const c = useMemo(() => (data ? cloudsAt(data, nowS) : null), [data, nowS]);
+  // ahora: el satélite si su barrido es reciente (dónde están de verdad las nubes); si no, el pronóstico
+  const satW = satWeight(sat, nowS);
+  const c = useMemo(() => { const f = data ? cloudsAt(data, nowS) : null; return satW > 0 ? mergeClouds(f, fuseSat(sat, f), 1) : f; }, [data, nowS, sat, satW]);
   const series = useMemo(() => (data ? hourlySeries(data, nowS, 12) : null), [data, nowS]);
   const win = useMemo(() => (series ? bestWindow(series, isNight) : null), [series, isNight]);
   const anyNight = !!(series && isNight && series.some((p) => isNight(p.t)));
@@ -65,7 +69,9 @@ export function WxCard({ lang = "es", now, fc, cloudsOn, canDraw, onToggleClouds
   const selC = sel && data ? cloudsAt(data, sel.t) : null;
 
   if (!now) return null;
-  const k = wxKind(now.code, now.day), name = (WX_NAMES[lang] || WX_NAMES.es)[k];
+  const k = wxKind(now.code, now.day);
+  // con el satélite reciente, cuántas nubes hay lo dice él (octas de la OMM); lluvia, niebla, nieve o tormenta, el código
+  const name = satW > 0 && c && ["sun", "moon", "partly", "cloud"].includes(k) ? (WX[lang] || WX.es).cover[coverClass(c.total)] : (WX_NAMES[lang] || WX_NAMES.es)[k];
   const windTxt = now.windKmh == null ? "—" : now.windKmh < 1 || now.windFrom == null ? tw.calm : `${fmtWind(now.windKmh)} ${compass8(now.windFrom, lang)}`;
   const total = c ? c.total : now.cloud != null ? now.cloud / 100 : null;
   const dec = (v) => (lang === "es" ? String(v).replace(".", ",") : String(v));
@@ -82,6 +88,7 @@ export function WxCard({ lang = "es", now, fc, cloudsOn, canDraw, onToggleClouds
         </button>
         <b className="sk-wxc-state">{name}</b>
       </div>
+      <p className="sk-wxc-src">{satW > 0 ? tw.srcSat(sat.sat, tw.ago((Date.now() / 1000 - sat.t) / 60)) : tw.srcFc}</p>
 
       <div className="sk-wxc-grid">
         <div className="sk-wxc-tile"><small><Icon name="thermo" size={14} />{tw.feels}</small><b>{now.feels != null ? fmtT(now.feels) : "—"}</b></div>
