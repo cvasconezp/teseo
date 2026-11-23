@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.70.4 — 2026-11-23
+
+- **Tiempo: la flecha de abajo avanza y la de arriba retrocede**, en el año, el mes, el día, la hora y los minutos, como al bajar por un calendario. Los nombres para lectores de pantalla dicen «Avanzar» y «Retroceder».
+- **La franja del día con los colores de Teseo:** violeta con el Sol bajo (amanecer, atardecer y crepúsculo) y azul con el Sol alto, los dos colores de la palabra Teseo. El botón de la franja y la barra de velocidad también los usan.
+- **«Profundidad real» en el escritorio:** la tarjeta va a la izquierda, debajo del buscador, y la constelación se encuadra en el espacio que queda libre, así que la tarjeta ya no la tapa.
+
 ## 1.70.3 — 2026-11-23
 
 - **La barra de distancias, también en «profundidad real»:** la misma de la ficha de la constelación, con cada estrella de la figura en su color, de la más cercana a la más lejana (escala logarítmica), y la frase «la más lejana está N veces más lejos que la más cercana». Sustituye a la línea de «Más cercana / Más lejana»: los nombres y las distancias van en los extremos de la barra.

@@ -685,14 +685,14 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-stage .sk-ts-row { display: flex; align-items: center; gap: 10px; }
 .sk-stage .sk-ts-btn { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 50%; color: #fff; }
 .sk-stage .sk-ts-btn:active { background: rgba(255, 255, 255, 0.1); }
-.sk-stage .sk-ts-slider { flex: 1; accent-color: #8db2ff; height: 28px; }
+.sk-stage .sk-ts-slider { flex: 1; accent-color: #A78BFA; height: 28px; }
 .sk-stage .sk-ts-jumps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0 10px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 8px; }
 .sk-stage .sk-ts-jumps button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px; border-radius: 12px; color: rgba(255, 255, 255, 0.85); font-size: 12.5px; }
 .sk-stage .sk-ts-jumps button:active { background: rgba(255, 255, 255, 0.08); }
 .sk-stage .sk-ts-day { position: relative; padding-bottom: 20px; }
 .sk-stage .sk-ts-dayrange { -webkit-appearance: none; appearance: none; width: 100%; height: 26px; border-radius: 13px; outline: none; }
-.sk-stage .sk-ts-dayrange::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; border-radius: 50%; background: #8db2ff; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
-.sk-stage .sk-ts-dayrange::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: #8db2ff; border: 2px solid #fff; }
+.sk-stage .sk-ts-dayrange::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #A78BFA, #60A5FA); border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
+.sk-stage .sk-ts-dayrange::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #A78BFA, #60A5FA); border: 2px solid #fff; }
 .sk-stage .sk-ts-phase { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 12.5px; color: rgba(255, 255, 255, 0.75); white-space: nowrap; pointer-events: none; }
 @media (max-width: 899.98px) { .sk-stage .sk-ts .sk-ts-phase { max-width: 40%; } }
 /* Control de tiempo más compacto (1.20.2): mismos controles, ~100 px menos de alto.
@@ -844,3 +844,9 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-depth-bar .sk-con-bar em b { color: var(--text); font-weight: 500; }
 .sk-depth-bar-ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--mute); margin-bottom: -2px; }
 .sk-depth-bar p { margin: 0; padding-left: 10px; border-left: 2px solid var(--violet, #a78bfa); font-size: 13px; line-height: 1.4; color: var(--text); }
+
+/* escritorio: la tarjeta de «profundidad real» a la izquierda, para que no tape la constelación (la vista se corre a la derecha) */
+@media (min-width: 900px) {
+  .sk-depth { left: 32px; right: auto; top: 158px; bottom: auto; transform: none; width: 440px; max-height: calc(100% - 190px); overflow-y: auto; animation-name: sk-fade; }
+  .sk-depth .sk-depth-opts { grid-template-columns: 1fr; }
+}

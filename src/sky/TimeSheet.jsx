@@ -10,14 +10,14 @@ import { RATES, REAL, rateLabel, dayProfile, dayGradient, phaseName } from "./ti
 import { tzParts, minuteOfDay, tzCaption } from "./placeTime.js";
 
 const TX = {
-  es: { title: "Tiempo", up: (f) => `Subir ${f}`, down: (f) => `Bajar ${f}`, fields: { year: "el año", month: "el mes", day: "el día", hour: "la hora", minute: "los minutos" },
+  es: { title: "Tiempo", up: (f) => `Avanzar ${f}`, down: (f) => `Retroceder ${f}`, fields: { year: "el año", month: "el mes", day: "el día", hour: "la hora", minute: "los minutos" },
     speed: "Velocidad del tiempo", pause: "Pausa", play: "Reanudar", now: "Ahora", prevNight: "Noche anterior", nextNight: "Noche siguiente", close: "Cerrar", dayBar: "Hora del día (arrastra)" },
-  en: { title: "Time", up: (f) => `Increase ${f}`, down: (f) => `Decrease ${f}`, fields: { year: "year", month: "month", day: "day", hour: "hour", minute: "minutes" },
+  en: { title: "Time", up: (f) => `Move ${f} forward`, down: (f) => `Move ${f} back`, fields: { year: "year", month: "month", day: "day", hour: "hour", minute: "minutes" },
     speed: "Time speed", pause: "Pause", play: "Resume", now: "Now", prevNight: "Previous night", nextNight: "Next night", close: "Close", dayBar: "Time of day (drag)" },
 };
 
 /** Flecha que repite mientras se mantiene pulsada (primero a los 380 ms, luego cada 90 ms). */
-function HoldArrow({ dir, label, onStep }) {
+function HoldArrow({ dir, shape, label, onStep }) {
   const tm = useRef(null), iv = useRef(null);
   const stop = () => { clearTimeout(tm.current); clearInterval(iv.current); tm.current = iv.current = null; };
   useEffect(() => stop, []);
@@ -26,7 +26,7 @@ function HoldArrow({ dir, label, onStep }) {
       onPointerDown={(e) => { e.preventDefault(); onStep(dir); tm.current = setTimeout(() => { iv.current = setInterval(() => onStep(dir), 90); }, 380); }}
       onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onStep(dir); } }}>
-      <span className={dir > 0 ? "up" : "down"} aria-hidden="true" />
+      <span className={shape || (dir > 0 ? "up" : "down")} aria-hidden="true" />
     </button>
   );
 }
@@ -51,9 +51,10 @@ export default function TimeSheet({ lang = "es", date, lat, lon, tz = null, plac
       <div className="sk-ts-clock">
         {fields.map(([f, v], i) => (
           <div key={f} className={`sk-ts-field is-${f}`}>
-            <HoldArrow dir={1} label={tx.up(tx.fields[f])} onStep={(d) => onStep(f, d)} />
+            {/* arriba retrocede y abajo avanza, como al bajar por un calendario */}
+            <HoldArrow dir={-1} shape="up" label={tx.down(tx.fields[f])} onStep={(d) => onStep(f, d)} />
             <strong>{v}</strong>
-            <HoldArrow dir={-1} label={tx.down(tx.fields[f])} onStep={(d) => onStep(f, d)} />
+            <HoldArrow dir={1} shape="down" label={tx.up(tx.fields[f])} onStep={(d) => onStep(f, d)} />
             {i < 2 && <em aria-hidden="true">/</em>}
             {i === 3 && <em aria-hidden="true">:</em>}
           </div>

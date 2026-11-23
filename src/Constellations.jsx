@@ -2373,10 +2373,13 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       const side = new THREE.Vector3().crossVectors(c, up0).normalize();
       const T = S.clone().lerp(new THREE.Vector3(fr.center[0], fr.center[1], fr.center[2]), sa);
       // (en vertical, la profundidad va a lo ancho, que es lo estrecho: más lejos, y algo más por la columna de botones)
-      const fit = fr.radius / Math.tan(THREE.MathUtils.degToRad(ref.camera.fov / 2)) * 1.15 / Math.min(1, ref.camera.aspect) * (ref.camera.aspect < 1 ? 1.45 : 1.08);
+      // en escritorio la tarjeta ocupa la izquierda: se encuadra en lo que queda libre (≈ ancho − 600 px)
+      const cvs = ref.renderer.domElement, wideNow = isWideRef.current && cvs.clientHeight > 0;
+      const effA = wideNow ? Math.max(0.7, (cvs.clientWidth - 600) / cvs.clientHeight) : ref.camera.aspect;
+      const fit = fr.radius / Math.tan(THREE.MathUtils.degToRad(ref.camera.fov / 2)) * 1.15 / Math.min(1, effA) * (wideNow ? 1.32 : effA < 1 ? 1.45 : 1.08);
       const dist = S.length() + (fit - S.length()) * sa;
       // de costado, un poco hacia el Sol: a su izquierda va «Tú (Sol)» (sin tapar las líneas)
-      const hw = fit * Math.tan(THREE.MathUtils.degToRad(ref.camera.fov / 2)) * ref.camera.aspect;
+      const hw = fit * Math.tan(THREE.MathUtils.degToRad(ref.camera.fov / 2)) * effA;
       T.addScaledVector(c, -0.12 * hw * sa);
       const dir = c.clone().multiplyScalar(-Math.cos(a)).add(side.multiplyScalar(sa)).normalize();
       ref.camera.position.copy(T).add(dir.multiplyScalar(dist));
@@ -4188,7 +4191,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const ref = sceneRef.current; if (!ref) return;
     let x = 0, yf = 0;
     const sheet = !!selObj || issSheet || !!peakSheet;
-    if (isWide) { if (sheet) x += 208; if (panel) x -= 198; if (!sheet && !panel && sel && !localMode) yf = 0.16; }
+    if (isWide) { if (sheet) x += 208; if (panel) x -= 198; if (!sheet && !panel && sel && !localMode) x -= 196; }   // la tarjeta de profundidad va a la izquierda
     else if (sheet) yf = 0.24;
     else if (panel) yf = 0.3;
     else if (tourActive) yf = 0.14;

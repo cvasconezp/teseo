@@ -68,16 +68,18 @@ export function dayProfile(lat, lon, date, n = 48, tz = null) {
 }
 
 /** Color de la barra para una altura del Sol (día azul verdoso, crepúsculo de azul a negro, noche negra). */
+// los colores de la palabra Teseo (#A78BFA → #60A5FA), al 70 % para que el control se lea encima:
+// violeta con el Sol bajo (crepúsculo, amanecer, atardecer) y azul con el Sol alto
+const PH_NIGHT = [6, 8, 12], PH_LOW = [117, 97, 175], PH_HIGH = [67, 115, 175];
 export function phaseColor(alt) {
-  const day = [44, 111, 138], night = [6, 8, 12];
-  const f = alt >= 0 ? 1 : alt <= -18 ? 0 : Math.pow((alt + 18) / 18, 1.6);
-  const c = day.map((x, i) => Math.round(night[i] + (x - night[i]) * f));
+  const mix = (a, b, f) => a.map((x, i) => Math.round(x + (b[i] - x) * f));
+  const c = alt <= -18 ? PH_NIGHT : alt < 0 ? mix(PH_NIGHT, PH_LOW, Math.pow((alt + 18) / 18, 1.6)) : mix(PH_LOW, PH_HIGH, Math.min(1, alt / 20));
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
 /** Degradado CSS de la barra del día. */
 export function dayGradient(profile) {
-  if (!profile) return "linear-gradient(90deg,#06080c 0%,#2c6f8a 30%,#2c6f8a 70%,#06080c 100%)";
+  if (!profile) return "linear-gradient(90deg,#06080c 0%,#7561af 22%,#4373af 40%,#4373af 60%,#7561af 78%,#06080c 100%)";
   return `linear-gradient(90deg,${profile.map((p) => `${phaseColor(p.alt)} ${((p.min / 1440) * 100).toFixed(1)}%`).join(",")})`;
 }
 
