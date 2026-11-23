@@ -803,3 +803,13 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-stage .sk-wx-float .sk-wx-pill .sk-wx-wind { grid-column: 1 / -1; justify-content: center; padding-left: 0; border-left: 0; font-size: 11px; gap: 4px; }
 .sk-stage .sk-wx-float .sk-wx-pill .sk-wx-wind svg { width: 11px; height: 11px; }
 .sk-stage .sk-top:focus-within ~ .sk-wx-float, .sk-stage.is-covered .sk-wx-float, .sk-stage.has-panel .sk-wx-float, .sk-stage.is-immersive .sk-wx-float { display: none; }
+
+/* profundidad real (src/sky/depthView.js): ángulo de vista, opciones y nota de escala */
+.sk-depth-angle { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; font-size: 13px; color: var(--mute); }
+.sk-depth-angle b { color: #d6caff; font-size: 15px; font-variant-numeric: tabular-nums; }
+.sk-depth-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 6px; }
+.sk-depth-opts > div { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; border-radius: 12px; background: rgba(0, 0, 0, 0.28); }
+.sk-depth-opts button { min-height: 32px; padding: 0 6px; border-radius: 9px; background: none; border: 0; color: var(--mute); font: inherit; font-size: 12px; line-height: 1.15; cursor: pointer; }
+.sk-depth-opts button[aria-pressed="true"] { background: var(--violet-strong, #6d28d9); color: #fff; }
+.sk-depth-note { margin: 2px 0 6px; font-size: 11.5px; color: var(--mute); line-height: 1.35; }
+@media (max-width: 520px) { .sk-depth-opts { grid-template-columns: 1fr; } }

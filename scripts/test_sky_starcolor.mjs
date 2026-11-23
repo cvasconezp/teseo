@@ -99,9 +99,9 @@ console.log("Tipo espectral");
 
 console.log("sky.json (esquema 2)");
 {
-  ok(sky.meta.schema === 2 && Array.isArray(sky.meta.star_fields) && sky.meta.star_fields.join() === "hip,x,y,z,mag,color,dist_ly,name,bv,spect" && /Ballesteros/.test(sky.meta.star_fields_note) && sky.meta.generator === "scripts/build_sky.py", "meta documenta el esquema, la fórmula y el generador");
+  ok(sky.meta.schema === 3 && Array.isArray(sky.meta.star_fields) && sky.meta.star_fields.join() === "hip,x,y,z,mag,color,dist_ly,name,bv,spect,e_plx_mas" && /Ballesteros/.test(sky.meta.star_fields_note) && sky.meta.generator === "scripts/build_sky.py", "meta documenta el esquema, la fórmula y el generador");
   ok(sky.stars.length === 5044 && sky.constellations.length === 88, `5.044 estrellas y 88 constelaciones (${sky.stars.length}, ${sky.constellations.length})`);
-  const shape = sky.stars.every((s) => s.length === 10 && Number.isInteger(s[0]) && [1, 2, 3, 4, 6].every((i) => typeof s[i] === "number") && /^#[0-9a-f]{6}$/.test(s[5]) && typeof s[7] === "string" && (s[8] === null || typeof s[8] === "number") && typeof s[9] === "string");
+  const shape = sky.stars.every((s) => s.length === 11 && Number.isInteger(s[0]) && [1, 2, 3, 4, 6].every((i) => typeof s[i] === "number") && /^#[0-9a-f]{6}$/.test(s[5]) && typeof s[7] === "string" && (s[8] === null || typeof s[8] === "number") && typeof s[9] === "string");
   ok(shape, "cada estrella: [hip, x, y, z, mag, color, dist_ly, nombre, B−V|null, espectro]");
   ok(sky.stars.every((s) => Math.abs(Math.hypot(s[1], s[2], s[3]) - 1) < 2e-5), "las direcciones siguen siendo vectores unitarios");
   ok(new Set(sky.stars.map((s) => s[0])).size === sky.stars.length, "sin HIP repetidos");

@@ -143,6 +143,11 @@ def build(csv_path, check=False):
                 ci, " ".join(r["spect"].split()),
             ])
 
+    # [10] error de la paralaje (mas): lo añade scripts/build_sky_plx.py; aquí se conserva el que ya había
+    old_e = {o[0]: (o[10] if len(o) > 10 else None) for o in old["stars"]}
+    for st in stars:
+        st.append(old_e.get(st[0]))
+
     missing = line_hips - seen
     if missing:
         raise SystemExit(f"Faltan en HYG estrellas usadas por las líneas: {sorted(missing)[:10]}")
@@ -163,8 +168,8 @@ def build(csv_path, check=False):
 
     meta = dict(old.get("meta", {}))
     meta["stars_source"] = "HYG Database v4.1 (Hipparcos/Yale/Gliese) — astronexus, CC BY-SA 4.0"
-    meta["schema"] = 2
-    meta["star_fields"] = ["hip", "x", "y", "z", "mag", "color", "dist_ly", "name", "bv", "spect"]
+    meta["schema"] = 3
+    meta["star_fields"] = ["hip", "x", "y", "z", "mag", "color", "dist_ly", "name", "bv", "spect", "e_plx_mas"]
     meta["star_fields_note"] = (
         "x,y,z: vector unitario ecuatorial J2000. mag: magnitud visual. dist_ly: años luz "
         "(326156.4 = sin paralaje fiable en Hipparcos). bv: índice de color B−V de HYG ('ci'), "

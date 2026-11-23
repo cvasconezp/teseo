@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.70.0 — 2026-11-23
+
+- **Constelaciones en profundidad real, rehechas:** la constelación queda sola, sin el fondo de estrellas ni nombres ajenos, y la barra ahora gira la vista: de 0° (desde la Tierra, con la figura completa; en Orión, con la cabeza, el brazo y el escudo) a 90° (de costado).
+  - **Tú (Sol)** en el dibujo, con su nombre a la izquierda, y una línea de visión hasta cada estrella con su distancia.
+  - **Barras de error** en dorado sobre cada línea: el rango de la distancia según el error de la paralaje de Hipparcos (1σ). Alnilam, por ejemplo, queda entre 1.553 y 2.718 años luz.
+  - **Eje de años luz** con marcas, y los objetos Messier de la constelación con distancia (la nebulosa de Orión, M78).
+  - **Solo principales / Todas:** de costado, con nombre y línea solo las más brillantes de la figura, o todas.
+  - **Escala real o profundidad comprimida:** comprimida, el fondo se divide para que se vea la forma (en Orión, ×3) y los anchos siguen siendo reales; la tarjeta dice cuál está activa.
+- **Error de la paralaje en el catálogo:** `public/sky.json` añade a cada estrella el error de su paralaje (Hipparcos, nueva reducción de van Leeuwen 2007, vía HEASARC); lo genera `scripts/build_sky_plx.py`.
+- **Celular en el suelo, en vivo:** hora al segundo, rumbo de la brújula y su precisión, inclinación y ladeo con un nivel de burbuja, altura y acimut del Sol, y precisión del GPS. Con el palillo, «Brújula vs. Sol» muestra el error de la brújula cuando la sombra cae en su línea. La sombra se recalcula cada segundo y, con GPS, en tu punto exacto.
+
 ## 1.69.0 — 2026-11-23
 
 - **Brújula junto a la temperatura:** una aguja que apunta al norte verdadero y el rumbo hacia donde miras («O 250°»). Con «Apuntar al cielo» muestra la brújula del celular, ya corregida por la declinación magnética (WMM2025), y se pone en ámbar si hay que calibrarla.

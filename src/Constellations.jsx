@@ -60,6 +60,7 @@ import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/clou
 import { rainLook, thickenForRain, weatherSky, withPointRain } from "./sky/rainLook.js";
 import { CompassChip, MountSheet, FlatPhone } from "./sky/MountSheet.jsx";
 import { createMountLines } from "./sky/mountLinesLayer.js";
+import { createDepthView } from "./sky/depthView.js";
 import { groundLines, horizonMark } from "./sky/mountAlign.js";
 import { MT } from "./sky/i18n-mount.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
@@ -126,7 +127,7 @@ const LAYERS = [
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", mount:"#f4f1ff", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_deepfields:"#ffe08a", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_minor:"#e6b877", obj_ngc:"#7fd3c0", obj_oddities:"#ff9e6b", obj_specialstars:"#ffe9a8", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
+const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", mount:"#f4f1ff", dvtick:"#8f96b8", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_deepfields:"#ffe08a", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_minor:"#e6b877", obj_ngc:"#7fd3c0", obj_oddities:"#ff9e6b", obj_specialstars:"#ffe9a8", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
 // Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
 // de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
 // en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
@@ -316,6 +317,9 @@ const TC = {
     pick: "Constellation",
     all: "Whole sky",
     flat: "As seen from Earth",
+    dvAngle: "Viewing angle", dvSide: "From the side", dvMain: "Main stars", dvAll: (n) => `All (${n})`, dvReal: "Real scale", dvComp: (k) => `Depth ×${k}`,
+    dvYou: "You (Sun)", dvLy: (d) => `${Math.round(d).toLocaleString("en-US")} ly`, dvRange: (a, b) => (b == null ? `(over ${Math.round(a).toLocaleString("en-US")})` : `(${Math.round(a).toLocaleString("en-US")}–${Math.round(b).toLocaleString("en-US")})`), dvTick: (d) => `${d.toLocaleString("en-US")} ly`,
+    dvScaleNote: { real: "Real scale: depth and width at the same scale.", comp: (k) => `Depth compressed ×${k} so the shape fits; widths are real.` }, dvErr: "Gold: distance range from the Hipparcos parallax error (1σ).",
     depth: "Real depth",
     lightyears: "light-years",
     away: "away",
@@ -462,6 +466,9 @@ const TC = {
     pick: "Constelación",
     all: "Todo el cielo",
     flat: "Como se ve desde la Tierra",
+    dvAngle: "Ángulo de vista", dvSide: "De costado", dvMain: "Solo principales", dvAll: (n) => `Todas (${n})`, dvReal: "Escala real", dvComp: (k) => `Profundidad ×${k}`,
+    dvYou: "Tú (Sol)", dvLy: (d) => `${Math.round(d).toLocaleString("es", { useGrouping: "always" })} años luz`, dvRange: (a, b) => (b == null ? `(más de ${Math.round(a).toLocaleString("es", { useGrouping: "always" })})` : `(${Math.round(a).toLocaleString("es", { useGrouping: "always" })}–${Math.round(b).toLocaleString("es", { useGrouping: "always" })})`), dvTick: (d) => `${d.toLocaleString("es", { useGrouping: "always" })} a. l.`,
+    dvScaleNote: { real: "Escala real: fondo y ancho a la misma escala.", comp: (k) => `Profundidad comprimida ×${k} para que se vea la forma; los anchos son reales.` }, dvErr: "En dorado: el rango de la distancia según el error de la paralaje de Hipparcos (1σ).",
     depth: "Profundidad real",
     lightyears: "años luz",
     away: "de distancia",
@@ -634,6 +641,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   useEffect(() => { if (sky && sky.stars) setHipsMasks(sky.stars.map((st) => [st[1], st[2], st[3], st[4]])); }, [sky]);
   const [sel, setSel] = useState(null);      // abbr or null
   const [depth, setDepth] = useState(0);     // 0..1
+  const [dvReal, setDvReal] = useState(false); // de costado: escala real o profundidad comprimida (autoK de depthView.js)
+  const [dvAutoK, setDvAutoK] = useState(7);
+  const [dvMain, setDvMain] = useState(true); // de costado, solo las estrellas principales con nombre y línea
   const wrapRef = useRef(null);          // hueco en el flujo de la página; el visor se ensancha desde él
   const labelsApiRef = useRef(null);     // setter de etiquetas (viven en <SkyLabels>)
   const perfApiRef = useRef(null);       // setter del medidor de rendimiento (vive en <PerfMeter>)
@@ -1350,6 +1360,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // «Estacionar montura» (src/sky/mountLinesLayer.js): norte–sur, este–oeste y solsticios pintados en el suelo
     const mountLines = createMountLines();
     horizon.add(mountLines.group);
+    // «Constelaciones en profundidad real» (src/sky/depthView.js): escena propia, se dibuja en lugar del cielo
+    const depthView = createDepthView();
     horizon.visible = false; scene.add(horizon);
     // líneas guía (src/sky/guidesLayer.js): eclíptica, ecuador, Vía Láctea, cuadrículas… Todas apagadas al
     // empezar; se dibujan antes que estrellas y figuras (renderOrder −1) y el suelo las atenúa bajo el horizonte
@@ -1614,7 +1626,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, plume, mountLines, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat, groundMesh: ground, horizonLine, near3d,
+      atm, clouds, terrain, monuments, plume, mountLines, depthView, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat, groundMesh: ground, horizonLine, near3d,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1991,7 +2003,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         if (ref.atm.visible) ref.atm.follow(ref.camera);
         if (ref.clouds.visible) ref.clouds.follow(ref.camera);
         if (ref.updateRealPlanets) ref.updateRealPlanets();      // el eje de cada planeta, como se ve en el cielo (a cualquier zoom)
-        ref.renderer.render(ref.scene, ref.camera);
+        ref.renderer.render(ref.depthView && ref.depthView.active && ref.mode === "depth" ? ref.depthView.scene : ref.scene, ref.camera);
         drawnN++;
       }
       ref.perf.idle = !moved;
@@ -2129,9 +2141,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             boxes.push(sx - w / 2, sy - 54, sx + w / 2, sy - 8);
           } else {
             const w = String(name).length * (cls === "con" ? CH * 1.6 : cls === "solar" ? CH * 1.15 : CH) + (dx || 8) + 4;
-            const h = sub == null ? 9 : 24;
+            const h = sub == null && !(extra && extra.subText) ? 9 : 24;
             // junto a un borde o a la ficha, el nombre pasa al otro lado del punto; si tampoco cabe, no se dibuja
-            if (!free(sx, sy - 10, sx + w, sy + h)) { if (!free(sx - w, sy - 10, sx, sy + h)) return; flip = true; }
+            if (extra && extra.left && free(sx - w, sy - 10, sx, sy + h)) flip = true;   // «Tú (Sol)»: a la izquierda, lejos de las líneas
+            else if (!free(sx, sy - 10, sx + w, sy + h)) { if (!free(sx - w, sy - 10, sx, sy + h)) return; flip = true; }
             const x0 = flip ? sx - w : sx;
             if (!clear(x0, sy - 9, x0 + w, sy + h)) return;
             // el nombre de una constelación es ancho: si su texto se metería en una montaña o un monumento, no va
@@ -2142,6 +2155,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         };
         const hzV = new THREE.Vector3();
         const push = (x, y, z, name, cls, sub, dx, extra) => { if (proj(x, y, z, cls)) place(psx, psy, name, cls, sub, dx, extra); };
+        // profundidad real: solo los nombres de la escena propia (estrellas con su distancia, el Sol, el eje)
+        const dvOn = !!(ref.depthView && ref.depthView.active && ref.mode === "depth");
+        if (dvOn) for (const l of ref.depthView.labels(ref.camera, W, H, ref.dvText || {})) place(l.x, l.y, l.name, l.cls, null, l.cls === "dvtick" ? 0 : 9, { key: l.key, ...(l.left ? { left: true } : {}), ...(l.sub ? { subText: l.sub } : {}), ...(l.si != null ? { pk: { si: l.si } } : {}) });
+        if (!dvOn) {
         // naves y cometas que caen casi en el mismo punto se agrupan en un solo nombre ("Juno +2");
         // si el grupo coincide con un planeta (sus orbitadores), el "+N" va en el nombre del planeta
         const groups = [];
@@ -2297,6 +2314,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             if (out.length === n0 && g.alts) for (const a of g.alts) { place(a.x, a.y, g.name, g.cls, null, dxg); if (out.length > n0) break; }
           }
         }
+        }
         const dens2 = ref.labelDensity || "normal";
         const shown = out.slice(0, dens2 === "pocas" ? 26 : dens2 === "muchas" ? 110 : 64);
         ref._labels = shown;                       // el toque sobre el nombre de una constelación abre su ficha
@@ -2343,6 +2361,31 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const positionCamera = useCallback((dpt) => {
     const ref = sceneRef.current;
     if (!ref || !ref.selCentroidDir || ref.localModeOn || ref.mode !== "depth") return;
+    // la vista nueva (src/sky/depthView.js): de frente desde el Sol (0°) a de costado (90°)
+    const dv = ref.depthView;
+    if (dv && dv.active) {
+      const o = ref.dvOpts || { k: 7, mainOnly: true };
+      dv.setView({ a: dpt, k: o.k, mainOnly: o.mainOnly });
+      const fr = dv.frame(); if (!fr) return;
+      const a = dpt * Math.PI / 2, sa = Math.sin(a);
+      const S = new THREE.Vector3(fr.stars[0], fr.stars[1], fr.stars[2]), c = S.clone().normalize();
+      const up0 = Math.abs(c.z) < 0.85 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+      const side = new THREE.Vector3().crossVectors(c, up0).normalize();
+      const T = S.clone().lerp(new THREE.Vector3(fr.center[0], fr.center[1], fr.center[2]), sa);
+      // (en vertical, la profundidad va a lo ancho, que es lo estrecho: más lejos, y algo más por la columna de botones)
+      const fit = fr.radius / Math.tan(THREE.MathUtils.degToRad(ref.camera.fov / 2)) * 1.15 / Math.min(1, ref.camera.aspect) * (ref.camera.aspect < 1 ? 1.45 : 1.08);
+      const dist = S.length() + (fit - S.length()) * sa;
+      // de costado, un poco hacia el Sol: a su izquierda va «Tú (Sol)» (sin tapar las líneas)
+      const hw = fit * Math.tan(THREE.MathUtils.degToRad(ref.camera.fov / 2)) * ref.camera.aspect;
+      T.addScaledVector(c, -0.12 * hw * sa);
+      const dir = c.clone().multiplyScalar(-Math.cos(a)).add(side.multiplyScalar(sa)).normalize();
+      ref.camera.position.copy(T).add(dir.multiplyScalar(dist));
+      ref.controls.target.copy(T);
+      ref.camera.up.copy(up0);
+      ref.controls.update();
+      ref._dirty = true;
+      return;
+    }
     const v = ref.selCentroidDir;
     const targetR = FLAT_R + (ref.selAvgR - FLAT_R) * dpt;
     const target = v.clone().multiplyScalar(targetR);
@@ -2374,6 +2417,33 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.lastSelAb = sel;
     if (ref.mode === "depth") positionCamera(depthRef.current);   // de una constelación a otra sin salir del modo
   }, [sel, positionCamera, ready]);
+
+  // la escena de profundidad: las estrellas de la figura con su distancia y su error, y el cielo profundo con distancia
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref || !ref.depthView) return;
+    const dv = ref.depthView;
+    const on = !!(sel && !(localMode && lat != null && lon != null) && ref.conMeta && ref.conMeta[sel]);   // (localActive se define más abajo)
+    dv.active = on;
+    if (!on) return;
+    const c = ref.conMeta[sel], hips = [], at = new Map();
+    c.lines.forEach((pl) => pl.forEach((h) => { if (!at.has(h) && ref.byHip.get(h)) { at.set(h, hips.length); hips.push(h); } }));
+    const hex = (hx) => { const n = parseInt(String(hx || "#ffffff").slice(1), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+    const stars = hips.map((h) => { const st = ref.byHip.get(h); return { key: h, name: st[7] || "", dir: [st[1], st[2], st[3]], d: st[6], mag: st[4], color: hex(st[5]), ePlx: st[10] != null ? st[10] : null, si: ref.hipIndex.get(h) }; });
+    const lines = [];
+    c.lines.forEach((pl) => { for (let i = 1; i < pl.length; i++) if (at.has(pl[i - 1]) && at.has(pl[i])) lines.push([at.get(pl[i - 1]), at.get(pl[i])]); });
+    const ms = datasets && datasets.messier && datasets.messier.objects ? datasets.messier.objects : [];
+    const dso = ms.filter((o) => o.const === sel && Number.isFinite(o.dist_ly)).map((o) => ({ name: labelForObj("messier", o, lang), dir: [o.nx, o.ny, o.nz], d: o.dist_ly }));
+    dv.setData({ stars, lines, dso, px: ref.renderer ? ref.renderer.getPixelRatio() : 1 });
+    setDvAutoK(dv.autoK);
+    ref.dvText = { you: t.dvYou, ly: t.dvLy, range: t.dvRange, tick: t.dvTick };
+    if (ref.mode === "depth") positionCamera(depthRef.current);
+    ref._dirty = true;
+  }, [sel, localMode, lat, lon, ready, datasets, lang, positionCamera]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref) return;
+    ref.dvOpts = { k: dvReal ? 1 : (ref.depthView ? ref.depthView.autoK : 7), mainOnly: dvMain };
+    if (sel && ref.mode === "depth") positionCamera(depthRef.current);
+  }, [dvReal, dvMain, dvAutoK, sel, positionCamera]);
 
   // al mover el slider de profundidad, gira la cámara para revelarla
   useEffect(() => {
@@ -4118,11 +4188,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const ref = sceneRef.current; if (!ref) return;
     let x = 0, yf = 0;
     const sheet = !!selObj || issSheet || !!peakSheet;
-    if (isWide) { if (sheet) x += 208; if (panel) x -= 198; }
+    if (isWide) { if (sheet) x += 208; if (panel) x -= 198; if (!sheet && !panel && sel && !localMode) yf = 0.16; }
     else if (sheet) yf = 0.24;
     else if (panel) yf = 0.3;
     else if (tourActive) yf = 0.14;
-    else if (sel && !localMode) yf = 0.12;      // tarjeta de profundidad sobre el dock
+    else if (sel && !localMode) yf = 0.21;      // tarjeta de profundidad sobre el dock (con sus opciones)
     ref.viewShift.x = x; ref.viewShift.yf = yf;
   }, [selObj, panel, tourActive, isWide, ready, sel, localMode, issSheet, peakSheet]);
 
@@ -4145,6 +4215,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
 
   const selMeta = sky && sel ? sky.constellations.find(c => c.ab === sel) : null;
   const stats = selMeta ? constellationStats(selMeta, sky) : null;
+  const selStarN = selMeta ? new Set(selMeta.lines.flat()).size : 0;
   const sortedCons = useMemo(() => (sky ? [...sky.constellations].sort((a, b) => a.la.localeCompare(b.la)) : []), [sky]);
   const failedLayers = LAYERS.filter(c => layerError[c.key]);
   const layersOn = LAYERS.filter(c => enabled[c.key]).length;
@@ -4449,13 +4520,25 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             <button type="button" className="sk-iconbtn" onClick={() => { const co = conObj(sel); setSel(null); setDepth(0); if (co) setSelObj(co); }} aria-label={t.conSheet} title={t.conSheet}><Icon name="info" size={18} /></button>
             <button type="button" className="sk-iconbtn" onClick={() => { setSel(null); setDepth(0); }} aria-label={t.wholeSky} title={t.wholeSky}><Icon name="close" size={18} /></button>
           </div>
+          <div className="sk-depth-angle"><span>{t.dvAngle}</span><b>{Math.round(depth * 90)}°</b></div>
           <input type="range" min="0" max="1" step="0.01" value={depth}
             onChange={e => setDepth(parseFloat(e.target.value))}
-            aria-label={t.depthAria} aria-valuetext={depth < 0.5 ? t.flat : t.depth} />
+            aria-label={t.depthAria} aria-valuetext={`${t.dvAngle} ${Math.round(depth * 90)}°`} />
           <div className="sk-depth-ends">
             <span className={depth < 0.5 ? "on" : ""}>{t.flat}</span>
-            <span className={depth >= 0.5 ? "on" : ""}>{t.depth}</span>
+            <span className={depth >= 0.5 ? "on" : ""}>{t.dvSide} 90°</span>
           </div>
+          <div className="sk-depth-opts">
+            <div role="group" aria-label={t.dvMain}>
+              <button type="button" aria-pressed={dvMain} onClick={() => setDvMain(true)}>{t.dvMain}</button>
+              <button type="button" aria-pressed={!dvMain} onClick={() => setDvMain(false)}>{t.dvAll(selStarN)}</button>
+            </div>
+            <div role="group" aria-label={t.dvReal}>
+              <button type="button" aria-pressed={dvReal} onClick={() => setDvReal(true)}>{t.dvReal}</button>
+              <button type="button" aria-pressed={!dvReal} onClick={() => setDvReal(false)}>{t.dvComp(dvAutoK)}</button>
+            </div>
+          </div>
+          {depth > 0.3 && <p className="sk-depth-note">{dvReal ? t.dvScaleNote.real : t.dvScaleNote.comp(dvAutoK)} {t.dvErr}</p>}
           {stats && stats.far.d > 0 && (
             <div className="sk-depth-stats">
               <span>{t.nearest}: <b>{stats.near.name || "—"}</b> {stats.near.d.toLocaleString(lang === "es" ? "es" : "en-US")} {t.lightyears}</span>

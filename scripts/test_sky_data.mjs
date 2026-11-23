@@ -243,8 +243,8 @@ console.log("sky.json: esquema");
 {
   // esquema 2: [hip, x, y, z, mag, color, dist_ly, nombre, B−V|null, espectro]. Los 8 primeros no cambian de
   // posición ni de significado: el código antiguo (y un sky.json antiguo en caché) siguen funcionando.
-  ok(sky.meta && sky.meta.schema === 2 && sky.meta.star_fields.slice(0, 8).join() === "hip,x,y,z,mag,color,dist_ly,name", "meta.schema = 2 y los 8 primeros campos de siempre", JSON.stringify(sky.meta && sky.meta.star_fields));
-  ok(sky.stars.length === 5044 && sky.stars.every((s) => s.length === 10), "5.044 estrellas de 10 campos");
+  ok(sky.meta && sky.meta.schema >= 2 && sky.meta.star_fields.slice(0, 8).join() === "hip,x,y,z,mag,color,dist_ly,name", "meta.schema = 2 y los 8 primeros campos de siempre", JSON.stringify(sky.meta && sky.meta.star_fields));
+  ok(sky.stars.length === 5044 && sky.stars.every((s) => s.length === 11 && (s[10] === null || s[10] > 0)), "5.044 estrellas de 11 campos (el último, el error de la paralaje)");
   ok(sky.stars.every((s) => Number.isInteger(s[0]) && s[0] > 0 && typeof s[4] === "number" && typeof s[6] === "number" && s[6] > 0 && typeof s[7] === "string"), "HIP, magnitud, distancia y nombre con su tipo");
   ok(sky.stars.filter((s) => s[8] != null).length >= 5040 && sky.stars.filter((s) => s[9]).length === sky.stars.length, "casi todas con B−V y todas con tipo espectral (HYG v4.1)");
   ok(/build_sky\.py/.test(sky.meta.generator) && /CC BY-SA 4\.0/.test(sky.meta.stars_source), "generador y licencia declarados");

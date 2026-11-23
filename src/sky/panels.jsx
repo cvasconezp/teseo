@@ -65,7 +65,7 @@ export const SkyLabels = memo(function SkyLabels({ apiRef, colors, unit, locale,
         <div key={l.key} aria-hidden="true" className={`sk-label sk-label-${l.cls.startsWith("obj_") ? "obj" : l.cls}${l.flip ? " is-flip" : ""}${l.hot ? " is-hot" : ""}`}
           style={{ transform: `translate(${Math.round(l.x)}px,${Math.round(l.y)}px)`, color: colors[l.cls] || "#fff" }}>
           <span style={l.dx ? { transform: l.flip ? `translate(calc(-100% - ${l.dx}px),-50%)` : `translate(${l.dx}px,-50%)` } : undefined}>{l.name}</span>
-          {l.sub != null && <small>{l.sub.toLocaleString(locale)} {unit}</small>}
+          {l.sub != null ? <small>{l.sub.toLocaleString(locale)} {unit}</small> : l.subText != null && <small>{l.subText}</small>}
         </div>
       ))}
     </div>

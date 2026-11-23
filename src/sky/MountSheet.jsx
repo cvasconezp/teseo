@@ -387,27 +387,58 @@ export function FlatPhone({ lang = "es", mode = "sun", lat, lon, tz, decl = 0, o
   const T = MT[lang] || MT.es;
   const [now, setNow] = useState(() => Date.now());
   const [asked, setAsked] = useState(() => !(typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function"));
-  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(id); }, []);
+  const [gps, setGps] = useState(null);          // { lat, lon, acc (m) } o { err }
+  // en vivo: la hora al segundo, y con ella el Sol y la sombra
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
   const sens = useFlatSensors(asked);
-  const gs = groundShadow(lat, lon, now);
-  const lines = groundLines(lat);
-  const ask = async () => {
-    try { if (DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch { /* sin permiso */ }
-    setAsked(true);
+  // el GPS del celular: solo su precisión y su punto (los navegadores no dicen cuántos satélites usa)
+  const watch = useRef(null);
+  useEffect(() => () => { if (watch.current != null && navigator.geolocation) navigator.geolocation.clearWatch(watch.current); }, []);
+  const startGps = () => {
+    if (!navigator.geolocation || watch.current != null) return;
+    watch.current = navigator.geolocation.watchPosition((p) => setGps({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }),
+      () => setGps({ err: true }), { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
   };
+  const useLat = gps && Number.isFinite(gps.lat) ? gps.lat : lat, useLon = gps && Number.isFinite(gps.lon) ? gps.lon : lon;
+  const gs = groundShadow(useLat, useLon, now);
+  const lines = groundLines(useLat);
+  const ask = async () => {
+    try { if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch { /* sin permiso */ }
+    setAsked(true); startGps();
+  };
+  useEffect(() => { if (asked) startGps(); }, [asked]);   // eslint-disable-line react-hooks/exhaustive-deps
   // con el Sol: la pantalla está fija (arriba = norte verdadero cuando la sombra cae en su línea);
   // con la brújula: todo gira con el rumbo verdadero del celular
   const trueHeading = sens.heading != null ? (sens.heading + (decl || 0) + 360) % 360 : null;
   const rot = mode === "compass" ? (trueHeading != null ? -trueHeading : 0) : 0;
-  const level = sens.beta == null ? "unknown" : Math.abs(sens.beta) < 3 && Math.abs(sens.gamma) < 3 ? "ok" : "tilt";
-  const R = 180;
+  const tilt = sens.beta == null ? null : { b: sens.beta, g: sens.gamma };
+  const level = !tilt ? "unknown" : Math.abs(tilt.b) < 2 && Math.abs(tilt.g) < 2 ? "ok" : "tilt";
+  const R = 175;
   const ray = (az, len = R) => [200 + len * Math.sin((az * Math.PI) / 180), 200 - len * Math.cos((az * Math.PI) / 180)];
+  const nf = (x, d = 0) => Number(x).toLocaleString(lang === "es" ? "es" : "en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const clock = new Date(now).toLocaleTimeString(lang === "es" ? "es-EC" : "en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23", ...(tz ? { timeZone: tz } : {}) });
+  const hd = trueHeading != null ? Math.round(trueHeading) % 360 : null;
+  const dirTxt = hd != null ? `${(ROSE[lang] || ROSE.es)[compassPoint8(hd)]} ${hd}°` : "—";
+  // con el Sol, la brújula sirve de control: si la sombra está en su línea, el borde de arriba apunta al norte verdadero
+  const cmpOff = mode === "sun" && hd != null ? ((hd + 540) % 360) - 180 : null;
+  // burbuja: el ladeo mueve la bola a los lados y la inclinación arriba y abajo (hasta 10°)
+  const bx = tilt ? Math.max(-1, Math.min(1, tilt.g / 10)) * 18 : 0, by = tilt ? Math.max(-1, Math.min(1, tilt.b / 10)) * 18 : 0;
   return (
     <div className="sk-flat" role="dialog" aria-label={T.grHead}>
       <div className="sk-flat-top">
         <b>{mode === "sun" ? T.grSun : T.grCompass}</b>
         <span className={`sk-flat-level lv-${level}`}>{T.flatLevel[level]}</span>
         <button type="button" className="sk-mnt-x" aria-label={T.close} onClick={onClose}><Icon name="close" size={18} /></button>
+      </div>
+      <div className="sk-flat-stats">
+        <div><small>{T.flatClock}</small><b>{clock}</b></div>
+        <div><small>{T.flatHeading}</small><b>{dirTxt}</b>{sens.acc != null && sens.acc >= 0 && <em>±{nf(sens.acc)}°</em>}</div>
+        <div className="sk-flat-bubble"><small>{T.flatTilt}</small>
+          <span><svg viewBox="0 0 48 48" width="40" height="40" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="#5a6390" /><circle cx="24" cy="24" r="6" fill="none" stroke="#5a6390" /><circle cx={24 + bx} cy={24 + by} r="5" fill={level === "ok" ? "#5DCAA5" : "#EF9F27"} /></svg>
+            <b>{tilt ? `${nf(tilt.b)}° / ${nf(tilt.g)}°` : "—"}</b></span></div>
+        <div><small>{T.flatSun}</small><b>{`${nf(gs.alt)}° · ${nf(gs.sunAz)}°`}</b></div>
+        <div><small>{T.flatGps}</small><b>{gps && gps.acc != null ? `±${nf(gps.acc)} m` : gps && gps.err ? "—" : "…"}</b>{gps && gps.acc != null && <em>{`${nf(gps.lat, 5)}, ${nf(gps.lon, 5)}`}</em>}</div>
+        {mode === "sun" && <div><small>{T.flatCheck}</small><b>{cmpOff != null ? `${cmpOff > 0 ? "+" : ""}${nf(cmpOff)}°` : "—"}</b></div>}
       </div>
       <svg viewBox="0 0 400 400" className="sk-flat-svg" role="img" aria-label={mode === "sun" ? T.flatTurn : T.flatCompassTip}>
         <g transform={`rotate(${rot} 200 200)`}>
@@ -416,22 +447,25 @@ export function FlatPhone({ lang = "es", mode = "sun", lat, lon, tz, decl = 0, o
             return <line key={l.key} x1="200" y1="200" x2={x} y2={y} stroke={l.kind === "ns" ? "#ffffff" : l.kind === "eq" ? "#EF9F27" : "#F0997B"}
               strokeWidth={l.kind === "ns" ? 4 : l.kind === "eq" ? 3 : 2} strokeDasharray={l.kind === "sol" ? "10 8" : undefined} />;
           })}
-          {(() => { const [x, y] = ray(0, R + 8); return <text x={x} y={y} textAnchor="middle" className="sk-flat-n">{T.markN}</text>; })()}
+          {(() => { const [x, y] = ray(0, R + 12); return <text x={x} y={y + 6} textAnchor="middle" className="sk-flat-n">{T.markN}</text>; })()}
           {mode === "sun" && gs.usable && (() => { const [x, y] = ray(gs.shadowAz, R - 10); return (
             <><line x1="200" y1="200" x2={x} y2={y} stroke="#ff8a3d" strokeWidth="7" strokeLinecap="round" opacity="0.9" />
               <text x={ray(gs.shadowAz, R - 40)[0]} y={ray(gs.shadowAz, R - 40)[1] - 10} textAnchor="middle" className="sk-flat-s">{T.flatShadow}</text></>
           ); })()}
         </g>
+        {/* el borde de arriba del celular: hacia dónde apunta */}
+        {mode === "compass" && <polygon points="200,8 192,24 208,24" fill="#a78bfa" />}
         <circle cx="200" cy="200" r="9" fill="#141a33" stroke="#fff" strokeWidth="2" />
         <circle cx="200" cy="200" r="2.5" fill="#fff" />
       </svg>
       <div className="sk-flat-bot">
         {mode === "sun" ? (
-          gs.usable ? <><p><b>{T.flatSunTip}</b> · {T.flatTurn}</p><small>{T.flatUpdated(fmtTime(now, lang, tz))}</small></> : <p>{T.grNoSun}</p>
+          gs.usable ? <><p><b>{T.flatSunTip}</b> · {T.flatTurn}</p><small>{T.flatCheckHow}</small></> : <p>{T.grNoSun}</p>
         ) : (
           trueHeading != null ? <p>{T.flatCompassTip}{sens.acc != null && sens.acc > 15 ? ` · ${T.chipStatus.calibrate}` : ""}</p> : <p>{asked ? T.flatNoCompass : ""}</p>
         )}
-        {!asked && <button type="button" className="sk-mnt-primary" onClick={ask}>{T.flatSensors}</button>}
+        <small className="sk-flat-gpsnote">{T.flatGpsNote}</small>
+        {(!asked || !gps) && <button type="button" className="sk-mnt-primary" onClick={ask}>{T.flatSensors}</button>}
       </div>
     </div>
   );
