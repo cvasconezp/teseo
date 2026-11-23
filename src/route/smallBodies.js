@@ -59,3 +59,80 @@ export function freestAngle(angles, step = Math.PI / 24) {
   }
   return best;
 }
+
+// ── más allá de Neptuno, sondas, cometas y troyanos ──────────────────────────────────────────────────────────
+/** 134340 Plutón, JPL SBDB (época JD 2457588,5 TDB, eclíptica J2000). */
+export const PLUTO = { epochJD: 2457588.5, a: 39.58862938517124, e: 0.2518378778576892, i: 17.14771140999114, om: 110.2923840543057, w: 113.7090015158565, ma: 38.68366347318184, n: 0.003956838955553025 };
+
+/**
+ * El cinturón de Kuiper (30–50 UA) no cabe con la escala del mapa: va como una franja fina pegada al borde, entre los
+ * radios r0 y r1 del mapa, con la distancia real llevada dentro de ella de forma lineal (kuiperR).
+ */
+export const KUIPER = { au0: 30, au1: 50, r0: 46.6, r1: 49.4 };
+export const kuiperR = (au) => KUIPER.r0 + (Math.min(KUIPER.au1, Math.max(KUIPER.au0, au)) - KUIPER.au0) / (KUIPER.au1 - KUIPER.au0) * (KUIPER.r1 - KUIPER.r0);
+/** Puntos del cinturón de Kuiper: [{ au, ang, s }], más densos en el «cinturón clásico» (42–48 UA). */
+export function kuiperPoints(count = 420, seed = 11) {
+  const rnd = rng(seed), out = [];
+  for (let k = 0; k < count; k++) {
+    const au = rnd() < 0.6 ? 42 + rnd() * 6 : 30 + rnd() * 20;
+    out.push({ au, ang: rnd() * Math.PI * 2, s: 0.5 + rnd() });
+  }
+  return out;
+}
+
+/**
+ * Troyanos de Júpiter: dos nubes que comparten su órbita 60° por delante (L4) y 60° por detrás (L5). jupAng: ángulo
+ * de Júpiter (rad, el del mapa). Devuelve [{ ang, dr (desvío radial, unidades del mapa), s, l4 }].
+ */
+export function trojanPoints(jupAng, count = 220, seed = 5) {
+  const rnd = rng(seed), out = [];
+  const gauss = () => { let u = 0; for (let k = 0; k < 4; k++) u += rnd(); return (u - 2) / 0.577; };   // ~N(0,1)
+  for (let k = 0; k < count; k++) {
+    const l4 = k % 2 === 0, da = Math.max(-0.45, Math.min(0.45, gauss() * 0.16));
+    out.push({ ang: jupAng + (l4 ? 1 : -1) * (Math.PI / 3) + da, dr: gauss() * 0.7, s: 0.5 + rnd(), l4 });
+  }
+  return out;
+}
+
+const EPS = 23.4392911 * D2R;
+/** Vector ecuatorial J2000 → eclíptico J2000. */
+export const eqToEcl = (v) => [v[0], v[1] * Math.cos(EPS) + v[2] * Math.sin(EPS), -v[1] * Math.sin(EPS) + v[2] * Math.cos(EPS)];
+
+/**
+ * Una sonda de /api/probes (dirección vista desde la Tierra, ecuatorial, y distancia en UA) → posición heliocéntrica
+ * eclíptica { x, y, z, r, lon (rad) }. earth = posición heliocéntrica eclíptica de la Tierra [x, y, z] (UA).
+ */
+export function probeHelio(p, earth) {
+  const g = eqToEcl([p.nx * p.dist_au, p.ny * p.dist_au, p.nz * p.dist_au]);
+  const x = g[0] + earth[0], y = g[1] + earth[1], z = g[2] + (earth[2] || 0);
+  return { x, y, z, r: Math.hypot(x, y, z), lon: Math.atan2(y, x) };
+}
+
+/** Posición heliocéntrica eclíptica (UA) de un cometa con anomalía verdadera nu (elementos de comet-orbits.json). */
+export function cometEclAtNu(el, nu) {
+  const r = (el.q * (1 + el.e)) / (1 + el.e * Math.cos(nu)), u = el.w * D2R + nu, O = el.om * D2R, I = el.i * D2R;
+  return [r * (Math.cos(O) * Math.cos(u) - Math.sin(O) * Math.sin(u) * Math.cos(I)), r * (Math.sin(O) * Math.cos(u) + Math.cos(O) * Math.sin(u) * Math.cos(I)), r * Math.sin(u) * Math.sin(I)];
+}
+
+/** La parte de la órbita de un cometa a menos de rMax UA del Sol, como puntos eclípticos [[x, y, z]…]. */
+export function cometOrbit(el, rMax = 32, n = 160) {
+  const Q = el.e < 1 ? (el.q * (1 + el.e)) / (1 - el.e) : Infinity;
+  const nuMax = Q <= rMax ? Math.PI : Math.acos(Math.max(-1, Math.min(1, ((el.q * (1 + el.e)) / rMax - 1) / el.e))) * 0.999;
+  const out = [];
+  for (let k = 0; k <= n; k++) out.push(cometEclAtNu(el, -nuMax + (2 * nuMax * k) / n));
+  return out;
+}
+
+/**
+ * El cometa más brillante de la lista ahora, si se puede ver (magnitud ≤ magLim): { name, el, mag, p (eclíptica),
+ * r } o null. at(el) → { r, mag, nu } (cometAt + trueAnomaly de cometSky.js).
+ */
+export function brightestComet(orbits, at, magLim = 11) {
+  let best = null;
+  for (const [name, el] of Object.entries(orbits || {})) {
+    if (!el || !Number.isFinite(el.q) || !Number.isFinite(el.e)) continue;
+    const s = at(el); if (!s || !Number.isFinite(s.mag) || s.mag > magLim) continue;
+    if (!best || s.mag < best.mag) best = { name, el, mag: s.mag, r: s.r, p: cometEclAtNu(el, s.nu) };
+  }
+  return best;
+}

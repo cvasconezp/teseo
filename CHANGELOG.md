@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.67.0 — 2026-11-22
+
+- **Ruta: más allá del cinturón de asteroides.**
+  - **Troyanos de Júpiter:** dos nubes que comparten su órbita, 60° por delante y 60° por detrás del planeta.
+  - **Cinturón de Kuiper y Plutón:** una franja tenue tras Neptuno (muy comprimida, junto al borde) con Plutón en su posición de hoy (elementos de JPL, comprobados con Horizons).
+  - **Voyager 1, Voyager 2 y New Horizons:** flechas en el borde con su dirección real vista desde el Sol y su distancia (de Horizons); las que van en direcciones parecidas comparten rótulo.
+  - **El cometa más brillante** al alcance de un telescopio de aficionado (magnitud 14 o menos): su órbita, su posición y su brillo de hoy. Si no hay ninguno, no aparece.
+  - Todos los rótulos buscan el hueco libre más cercano a su punto, sin tapar planetas, nombres, marcadores ni la ruta.
+
 ## 1.66.0 — 2026-11-22
 
 - **Ruta: el cinturón de asteroides y Ceres en el mapa.** Entre Marte y Júpiter, el cinturón principal (2,1–3,3 UA) con la escala comprimida del mapa y los huecos de Kirkwood que abren las resonancias con Júpiter; Ceres, el planeta enano, en su posición de hoy (elementos de JPL, comprobados con Horizons). Los rótulos buscan sitio sin tapar planetas, nombres, marcadores ni la ruta; en pantallas estrechas, «Asteroides».

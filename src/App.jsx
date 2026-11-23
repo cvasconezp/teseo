@@ -27,7 +27,21 @@ import { GA } from "./route/i18n-assists.js";
 import { MGA } from "./route/i18n-mga.js";
 // Geometría del dibujo de la ruta en el mapa: media elipse de Hohmann con ángulos reales
 import { ORBIT_R, hohmannPlan, pathD, placeLabel, routeDates, mapRadius } from "./route/hohmannMap.js";
-import { CERES, keplerXYZ, beltPoints } from "./route/smallBodies.js";
+import { CERES, PLUTO, KUIPER, keplerXYZ, beltPoints, kuiperPoints, kuiperR, trojanPoints, probeHelio, cometOrbit, brightestComet } from "./route/smallBodies.js";
+import { cometAt, cometHelio } from "./sky/cometSky.js";
+
+// Datos extra del mapa de Ruta (una vez por visita): las sondas lejanas (/api/probes, Horizons) y las órbitas de
+// los cometas de la capa Cometas (public/comet-orbits.json)
+let mapExtrasP = null;
+function loadMapExtras() {
+  if (!mapExtrasP) {
+    const probes = fetch(`${API}/api/probes`).then((r) => (r.ok ? r.json() : null)).then((d) => (d && d.objects) || []).catch(() => []);
+    const comets = fetch("/comet-orbits.json").then((r) => (r.ok ? r.json() : null)).then((d) => (d && d.comets) || {}).catch(() => ({}));
+    mapExtrasP = Promise.all([probes, comets]).then(([pr, co]) => ({ probes: pr, comets: co }));
+  }
+  return mapExtrasP;
+}
+const FAR_PROBES = ["Voyager 1", "Voyager 2", "New Horizons"];
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
 import PlanetSphere from "./ui/PlanetSphere.jsx";
@@ -91,8 +105,9 @@ const T = {
     mapNasa:        "Today's positions: NASA JPL",
     mapLocal:       "Today's positions: local estimate",
     mapLoading:     "Loading real positions…",
-    mapNote:        "Tap a planet to go there. Sizes are not to scale. The line is the Hohmann route for the next window: real angles, compressed distances. Between Mars and Jupiter, the asteroid belt (with the gaps Jupiter carves) and Ceres, the dwarf planet, where it is today.",
-    mapBelt: "Asteroid belt", mapBeltShort: "Asteroids", mapCeres: "Ceres",
+    mapNote:        "Tap a planet to go there. Sizes are not to scale. The line is the Hohmann route for the next window: real angles, compressed distances. Between Mars and Jupiter, the asteroid belt (with the gaps Jupiter carves) and Ceres; beside Jupiter, its Trojans. Beyond Neptune, the Kuiper belt with Pluto (heavily compressed) and, at the edge, the real direction of the Voyager and New Horizons probes. If a comet is within reach of an amateur telescope (magnitude 14 or brighter), its orbit and brightness.",
+    mapBelt: "Asteroid belt", mapBeltShort: "Asteroids", mapCeres: "Ceres", mapKuiper: "Kuiper belt", mapKuiperShort: "Kuiper", mapPluto: "Pluto", mapTrojans: "Trojans",
+    mapProbe: (n, au) => `${n} · ${Math.round(au)} AU`, mapComet: (n, m) => `${n} · mag ${m.toFixed(1)}`,
     mapNoteSpecial: "Tap a planet to go there. Sizes and distances are not to scale; the thread is schematic.",
     mapNoWindow:    "No launch window available: the line leaves today.",
     mapDep:         (d) => `Departure: ${d}`,
@@ -296,8 +311,9 @@ const T = {
     mapNasa:        "Posiciones de hoy: NASA JPL",
     mapLocal:       "Posiciones de hoy: cálculo local aproximado",
     mapLoading:     "Cargando posiciones reales…",
-    mapNote:        "Toca un planeta para ir allí. Los tamaños no están a escala. La línea es la ruta de Hohmann de la próxima ventana: ángulos reales, distancias comprimidas. Entre Marte y Júpiter, el cinturón de asteroides (con los huecos que abre Júpiter) y Ceres, el planeta enano, en su posición de hoy.",
-    mapBelt: "Cinturón de asteroides", mapBeltShort: "Asteroides", mapCeres: "Ceres",
+    mapNote:        "Toca un planeta para ir allí. Los tamaños no están a escala. La línea es la ruta de Hohmann de la próxima ventana: ángulos reales, distancias comprimidas. Entre Marte y Júpiter, el cinturón de asteroides (con los huecos que abre Júpiter) y Ceres; junto a Júpiter, sus troyanos. Tras Neptuno, el cinturón de Kuiper con Plutón (muy comprimido) y, en el borde, la dirección real de las sondas Voyager y New Horizons. Si hay un cometa al alcance de un telescopio de aficionado (magnitud 14 o menos), su órbita y su brillo.",
+    mapBelt: "Cinturón de asteroides", mapBeltShort: "Asteroides", mapCeres: "Ceres", mapKuiper: "Cinturón de Kuiper", mapKuiperShort: "Kuiper", mapPluto: "Plutón", mapTrojans: "Troyanos",
+    mapProbe: (n, au) => `${n} · ${Math.round(au)} UA`, mapComet: (n, m) => `${n} · mag. ${m.toFixed(1).replace(".", ",")}`,
     mapNoteSpecial: "Toca un planeta para ir allí. Tamaños y distancias no están a escala; el hilo es esquemático.",
     mapNoWindow:    "No hay ventana de lanzamiento disponible: la línea sale hoy.",
     mapDep:         (d) => `Salida: ${d}`,
@@ -766,6 +782,34 @@ function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun
   // misma escala comprimida del mapa; el rótulo del cinturón, en el arco más alejado de los planetas
   const belt = useMemo(()=>beltPoints(650).map(b=>{ const r = mapRadius(b.au); return { x: 50 + r * Math.cos(b.ang), y: 50 - r * Math.sin(b.ang), s: b.s }; }),[]);
   const ceres = useMemo(()=>{ const c = keplerXYZ(CERES, new Date()), a = Math.atan2(c.y, c.x), r = mapRadius(CERES.a); return { a, x: 50 + r * Math.cos(a), y: 50 - r * Math.sin(a) }; },[]);
+  const xyAt = (a, r) => ({ x: 50 + r * Math.cos(a), y: 50 - r * Math.sin(a) });
+  // tras Neptuno: el cinturón de Kuiper (franja comprimida junto al borde) y Plutón en su posición de hoy
+  const kuiper = useMemo(()=>kuiperPoints(420).map(b=>({ ...xyAt(b.ang, kuiperR(b.au)), s: b.s })),[]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const pluto = useMemo(()=>{ const c = keplerXYZ(PLUTO, new Date()), a = Math.atan2(c.y, c.x), r = Math.hypot(c.x, c.y); return { a, au: r, ...xyAt(a, kuiperR(r)) }; },[]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // los troyanos de Júpiter, 60° por delante y por detrás de él, en su órbita
+  const jup = pts.find(q=>q.p.id==="jupiter");
+  const trojans = useMemo(()=>jup ? trojanPoints(jup.a).map(b=>({ ...xyAt(b.ang, jup.r + b.dr), s: b.s, l4: b.l4 })) : [],[jup && jup.a, jup && jup.r]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // sondas lejanas (en el borde, en su dirección real) y el cometa más brillante (su órbita en la escala del mapa)
+  const [extras, setExtras] = useState(null);
+  useEffect(()=>{ let alive = true; loadMapExtras().then(d=>{ if (alive) setExtras(d); }); return ()=>{ alive = false; }; },[]);
+  const earthPos = positions.earth;
+  const probes = useMemo(()=>{
+    if (!extras || !earthPos) return [];
+    const E = [earthPos.x_au, earthPos.y_au, earthPos.z_au || 0];
+    return FAR_PROBES.map(n=>extras.probes.find(o=>o.name===n)).filter(Boolean).map(o=>{ const h = probeHelio(o, E); return { name: o.name, au: h.r, a: h.lon, ...xyAt(h.lon, 48.3), tip: xyAt(h.lon, 49.7) }; });
+  },[extras, earthPos]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const comet = useMemo(()=>{
+    if (!extras) return null;
+    const now = Date.now();
+    const c = brightestComet(extras.comets, (el)=>{ try { return { ...cometAt(el, now), nu: cometHelio(el, now).nu }; } catch { return null; } }, 14);
+    if (!c) return null;
+    const toMap = (v)=>{ const a = Math.atan2(v[1], v[0]), r = Math.hypot(v[0], v[1]); return xyAt(a, r > KUIPER.au0 ? kuiperR(r) : mapRadius(r)); };
+    const orbit = cometOrbit(c.el, 32).map(toMap);
+    const here = toMap(c.p), a = Math.atan2(c.p[1], c.p[0]);
+    // la cola, hacia fuera del Sol (esquemática, corta)
+    const r0 = Math.hypot(here.x - 50, here.y - 50) || 1, tail = { x: here.x + ((here.x - 50) / r0) * 2.4, y: here.y + ((here.y - 50) / r0) * 2.4 };
+    return { name: c.name, mag: c.mag, a, here, tail, d: orbit.map((q,k)=>`${k ? "L" : "M"}${q.x.toFixed(2)} ${q.y.toFixed(2)}`).join("") };
+  },[extras]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Media elipse de Hohmann de la próxima ventana: ángulos reales, radios comprimidos
   // con la misma escala del mapa (ver src/route/hohmannMap.js). Solo con destino planeta.
@@ -820,7 +864,8 @@ function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun
     return out;
   },[hoh, marks, pts, w, lay, t, depTxt, arrTxt, pathPx]);
 
-  // Rótulos de Ceres y del cinturón, sin pisar planetas, sus nombres, los marcadores ni la ruta (si no caben, no van)
+  // Rótulos de lo pequeño (Ceres, Plutón, troyanos, sondas, cometa y los dos cinturones), sin pisar planetas, sus
+  // nombres, los marcadores ni la ruta, y sin pisarse entre sí; si alguno no cabe, no va (el punto queda)
   const smallTags = useMemo(()=>{
     const px = v => (v * w) / 100, sunR = (w * SUN_SIZE) / 200;
     const obs = [{ x: w / 2 - sunR, y: w / 2 - sunR, w: sunR * 2, h: sunR * 2 }];
@@ -830,30 +875,79 @@ function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun
     if (tags) for (const k of ["dep", "arr"]) if (tags[k]) obs.push(tags[k]);
     const inBox = (x, y, m = 1) => obs.some(o => x >= o.x - m && x <= o.x + o.w + m && y >= o.y - m && y <= o.y + o.h + m);
     const nearPath = (x, y) => pathPx.some(q => Math.abs(q.x - x) < 4 && Math.abs(q.y - y) < 4);
-    // Ceres: su nombre junto al punto (a menos de ~26 px)
-    const cx = px(ceres.x), cy = px(ceres.y), cw = t.mapCeres.length * 6 + 4;
-    let cer = placeLabel(cx, cy, cw, 13, w, obs, { avoidPath: pathPx, gap: 4 });
-    if (cer && Math.hypot(cer.x + cer.w / 2 - cx, cer.y + cer.h / 2 - cy) > 26) cer = null;
-    if (cer) obs.push(cer);
-    // el cinturón: un arco de ~57° sobre la banda, en el ángulo libre más alejado de los planetas
-    // el arco, del largo del texto (≈ 0,56 em por letra a 9,5 px) más un margen; si el nombre largo no cabe en
-    // ningún hueco, el corto
-    const r = mapRadius(2.7), N = 24;
-    let best = null, bestScore = -1, label = null;
-    for (const txt of [t.mapBelt, t.mapBeltShort]) {
-    const half = Math.min(1.3, (txt.length * 9.5 * 0.56) / ((r / 100) * w) / 2 + 0.08);
-    for (let a0 = 0; a0 < Math.PI * 2; a0 += Math.PI / 36) {
-      const top = Math.sin(a0) >= 0, rr = top ? r + 0.9 : r - 1.7;
-      const P = [];
-      for (let k = 0; k <= N; k++) { const sF = k / N, a = top ? a0 + half - 2 * half * sF : a0 - half + 2 * half * sF; P.push([50 + rr * Math.cos(a), 50 - rr * Math.sin(a)]); }
-      if (P.some(([x, y]) => inBox(px(x), px(y), 3) || nearPath(px(x), px(y)))) continue;
-      const score = Math.min(...pts.map(q => Math.hypot(q.x - (50 + r * Math.cos(a0)), q.y - (50 - r * Math.sin(a0)))));
-      if (score > bestScore) { bestScore = score; label = txt; best = P.map(([x, y], k) => `${k ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`).join(""); }
+    const toVB = (b) => ({ x: (b.x / w) * 100, y: ((b.y + b.h * 0.78) / w) * 100 });
+    // el hueco libre más cercano a un punto para una caja cw × ch (px), con su centro a menos de maxD px
+    const freeBox = (cx, cy, cw, ch, maxD) => {
+      const hit = (b) => b.x < 0 || b.y < 0 || b.x + b.w > w || b.y + b.h > w || obs.some(o => b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y)
+        || pathPx.some(q => q.x >= b.x - 2 && q.x <= b.x + b.w + 2 && q.y >= b.y - 2 && q.y <= b.y + b.h + 2);
+      for (let d = cw / 2 + 5; d <= maxD; d += 5) {
+        for (let k = 0; k < 16; k++) {
+          const a = (k / 16) * Math.PI * 2, b = { x: cx + d * Math.cos(a) - cw / 2, y: cy + d * Math.sin(a) * 0.6 - ch / 2, w: cw, h: ch };
+          if (!hit(b)) return b;
+        }
+      }
+      return null;
+    };
+    // un rótulo junto a su punto (su centro a menos de maxD px)
+    const near = (pt, txt, size, maxD = 34) => {
+      if (!pt) return null;
+      const cw = txt.length * size * 0.58 + 4, b = freeBox(px(pt.x), px(pt.y), cw, size + 3, maxD + cw / 2);
+      if (!b) return null;
+      obs.push(b); return { ...toVB(b), txt };
+    };
+    const out = {};
+    // las sondas: las que van en direcciones parecidas (Voyager 2 y New Horizons) comparten un rótulo de varias líneas,
+    // hacia dentro del borde
+    out.probes = [];
+    const sorted = [...probes].sort((a, b) => a.a - b.a), groups = [];
+    for (const p of sorted) { const g = groups[groups.length - 1]; if (g && Math.abs(p.a - g[g.length - 1].a) < 0.2) g.push(p); else groups.push([p]); }
+    for (const g of groups) {
+      const lines = g.map(p => t.mapProbe(p.name, p.au)), size = 9.5;
+      const am = g.reduce((s0, p) => s0 + p.a, 0) / g.length, anc = xyAt(am, 48.6);
+      const cw = Math.max(...lines.map(l => l.length)) * size * 0.58 + 4, ch = lines.length * (size + 2) + 2;
+      const b = freeBox(px(anc.x), px(anc.y), cw, ch, cw / 2 + 30);
+      if (b) {
+        obs.push(b); out.probes.push({ x: (b.x / w) * 100, y: ((b.y + size + 1) / w) * 100, dy: ((size + 2) / w) * 100, lines });
+      }
     }
-    if (best) break;
+    // el cometa: su rótulo cerca; si no cabe, algo más lejos con una línea fina hasta él
+    out.comet = comet ? (near(comet.here, t.mapComet(comet.name, comet.mag), 9.5, 30) || near(comet.here, t.mapComet(comet.name.replace(/\s*\(.*\)$/, ""), comet.mag), 9.5, 80)) : null;
+    if (out.comet) {
+      const lx = out.comet.x + (out.comet.txt.length * 9.5 * 0.58 / 2 / w) * 100, ly = out.comet.y - (4 / w) * 100;
+      if (Math.hypot(lx - comet.here.x, ly - comet.here.y) > (30 / w) * 100) out.comet.lead = { x1: comet.here.x, y1: comet.here.y, x2: lx, y2: ly };
     }
-    return { cer: cer ? { x: (cer.x / w) * 100, y: ((cer.y + cer.h * 0.78) / w) * 100 } : null, arc: best, label };
-  },[w, pts, lay, marks, tags, pathPx, ceres, t]);
+    out.cer = near(ceres, t.mapCeres, 10);
+    out.plu = near(pluto, t.mapPluto, 10);
+    if (trojans.length) {
+      const l4 = trojans.filter(q => q.l4), c4 = { x: l4.reduce((s0, q) => s0 + q.x, 0) / l4.length, y: l4.reduce((s0, q) => s0 + q.y, 0) / l4.length };
+      out.tro = near(c4, t.mapTrojans, 9.5, 30);
+    }
+    // los cinturones: un arco del largo del texto sobre su franja, en el ángulo libre más alejado de los planetas;
+    // si el nombre largo no cabe en ningún hueco, el corto
+    const arc = (r, texts, inner) => {
+      const N = 24;
+      for (const txt of texts) {
+        const half = Math.min(1.3, (txt.length * 9.5 * 0.56) / ((r / 100) * w) / 2 + 0.08);
+        let best = null, bestScore = -1;
+        for (let a0 = 0; a0 < Math.PI * 2; a0 += Math.PI / 36) {
+          const top = Math.sin(a0) >= 0, rr = top ? r + inner[0] : r - inner[1];
+          const P = [];
+          for (let k = 0; k <= N; k++) { const sF = k / N, a = top ? a0 + half - 2 * half * sF : a0 - half + 2 * half * sF; P.push([50 + rr * Math.cos(a), 50 - rr * Math.sin(a)]); }
+          if (P.some(([x, y]) => inBox(px(x), px(y), 3) || nearPath(px(x), px(y)))) continue;
+          const score = Math.min(...pts.map(q => Math.hypot(q.x - (50 + r * Math.cos(a0)), q.y - (50 - r * Math.sin(a0)))));
+          if (score > bestScore) { bestScore = score; best = P; }
+        }
+        if (best) {
+          for (const [x, y] of best.filter((_, k) => k % 3 === 0)) obs.push({ x: px(x) - 5, y: px(y) - 5, w: 10, h: 10 });
+          return { d: best.map(([x, y], k) => `${k ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`).join(""), txt };
+        }
+      }
+      return null;
+    };
+    out.belt = arc(mapRadius(2.7), [t.mapBelt, t.mapBeltShort], [0.9, 1.7]);
+    out.kuiper = arc((KUIPER.r0 + KUIPER.r1) / 2, [t.mapKuiper, t.mapKuiperShort], [-1.6, -0.4]);
+    return out;
+  },[w, pts, lay, marks, tags, pathPx, ceres, pluto, probes, comet, trojans, t]);
 
   // El hilo de Ariadna con destino especial: al Sol, media vuelta cayendo hacia el centro
   // (esquemática); a la Luna no hay hilo (está pegada a la Tierra a esta escala).
@@ -899,10 +993,37 @@ function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun
         })}
         <g className="map__belt">
           {belt.map((b,k)=><circle key={k} cx={b.x.toFixed(2)} cy={b.y.toFixed(2)} r={(0.11 * b.s).toFixed(3)}/>)}
-          {smallTags.arc && <path id="map-belt-arc" d={smallTags.arc} fill="none" stroke="none"/>}
-          {smallTags.arc && <text className="map__belt-label" style={{ fontSize: `${(9.5 / w) * 100}px` }}><textPath href="#map-belt-arc" startOffset="50%" textAnchor="middle">{smallTags.label}</textPath></text>}
-          <circle className="map__ceres" cx={ceres.x} cy={ceres.y} r="0.75"/>
-          {smallTags.cer && <text className="map__ceres-label" style={{ fontSize: `${(10 / w) * 100}px` }} x={smallTags.cer.x} y={smallTags.cer.y}>{t.mapCeres}</text>}
+        </g>
+        <g className="map__trojans">
+          {trojans.map((b,k)=><circle key={k} cx={b.x.toFixed(2)} cy={b.y.toFixed(2)} r={(0.12 * b.s).toFixed(3)}/>)}
+        </g>
+        <g className="map__kuiper">
+          {kuiper.map((b,k)=><circle key={k} cx={b.x.toFixed(2)} cy={b.y.toFixed(2)} r={(0.1 * b.s).toFixed(3)}/>)}
+        </g>
+        {comet && (
+          <g className="map__comet">
+            <path d={comet.d} className="map__comet-orbit"/>
+            <line x1={comet.here.x} y1={comet.here.y} x2={comet.tail.x} y2={comet.tail.y} className="map__comet-tail"/>
+            <circle cx={comet.here.x} cy={comet.here.y} r="0.7"/>
+          </g>
+        )}
+        <g className="map__probes">
+          {probes.map(p=>{
+            const a = p.a, ux = Math.cos(a), uy = -Math.sin(a), vx = -uy, vy = ux;
+            return <path key={p.name} d={`M${(p.tip.x).toFixed(2)} ${(p.tip.y).toFixed(2)}L${(p.x + vx * 0.9).toFixed(2)} ${(p.y + vy * 0.9).toFixed(2)}L${(p.x - vx * 0.9).toFixed(2)} ${(p.y - vy * 0.9).toFixed(2)}Z`}/>;
+          })}
+        </g>
+        <circle className="map__dwarf" cx={ceres.x} cy={ceres.y} r="0.75"/>
+        <circle className="map__dwarf" cx={pluto.x} cy={pluto.y} r="0.7"/>
+        <g className="map__small-labels">
+          {smallTags.belt && <path id="map-belt-arc" d={smallTags.belt.d} fill="none" stroke="none"/>}
+          {smallTags.belt && <text style={{ fontSize: `${(9.5 / w) * 100}px` }}><textPath href="#map-belt-arc" startOffset="50%" textAnchor="middle">{smallTags.belt.txt}</textPath></text>}
+          {smallTags.kuiper && <path id="map-kuiper-arc" d={smallTags.kuiper.d} fill="none" stroke="none"/>}
+          {smallTags.kuiper && <text style={{ fontSize: `${(9.5 / w) * 100}px` }}><textPath href="#map-kuiper-arc" startOffset="50%" textAnchor="middle">{smallTags.kuiper.txt}</textPath></text>}
+          {[smallTags.cer, smallTags.plu, smallTags.tro].filter(Boolean).map((l,k)=><text key={k} style={{ fontSize: `${(10 / w) * 100}px` }} x={l.x} y={l.y}>{l.txt}</text>)}
+          {smallTags.probes.map((l,k)=><text key={`p${k}`} className="is-probe" style={{ fontSize: `${(9.5 / w) * 100}px` }} x={l.x} y={l.y}>{l.lines.map((ln,j)=><tspan key={j} x={l.x} dy={j ? l.dy : 0}>{ln}</tspan>)}</text>)}
+          {smallTags.comet && smallTags.comet.lead && <line className="map__comet-lead" {...smallTags.comet.lead}/>}
+          {smallTags.comet && <text className="is-comet" style={{ fontSize: `${(9.5 / w) * 100}px` }} x={smallTags.comet.x} y={smallTags.comet.y}>{smallTags.comet.txt}</text>}
         </g>
         <g key={`${from.id}-${special || toId}`}>
           <path d={thread} className="thread thread--glow" pathLength="1"/>
