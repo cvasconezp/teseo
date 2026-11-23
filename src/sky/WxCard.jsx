@@ -77,7 +77,8 @@ export function WxCard({ lang = "es", now, fc, sat, rainDrawn = false, cloudsOn,
   // con otra hora en el cielo, la tarjeta entera pasa a esa hora (pronóstico del lugar); si no, ahora
   const hr = !skyIsNow && Number.isFinite(skyT) ? hourAt(now.hours, skyT) : null;
   const v = hr || now;
-  const cc = hr ? (data ? cloudsAt(data, hr.t) : null) : c;
+  // ahora, con satélite: la nubosidad que se ve desde tu sitio (pesada por la bóveda del cielo), no la media de 300 km
+  const cc = hr ? (data ? cloudsAt(data, hr.t) : null) : c && c.dome ? { ...c, ...c.dome } : c;
   const k = wxKind(v.code, v.day);
   // con el satélite reciente, cuántas nubes hay lo dice él (octas de la OMM); lluvia, niebla, nieve o tormenta, el código
   const name = !hr && satW > 0 && cc && ["sun", "moon", "partly", "cloud"].includes(k) ? (WX[lang] || WX.es).cover[coverClass(cc.total)] : (WX_NAMES[lang] || WX_NAMES.es)[k];

@@ -26,6 +26,32 @@ export function parseSatClouds(j) {
   return { t, sat: j.sat, by: j.by, source: j.source, n, res: j.res_km, half: j.radius_km + j.res_km / 2, layers, cover: +j.cover || 0, mean };
 }
 
+/**
+ * Alturas típicas de cada capa sobre el observador (km) para medir cuánto cielo tapa cada celda: bajas, medias y altas
+ * (las de Open-Meteo: < 3 km, 3–8 km, > 8 km).
+ */
+export const DOME_H_KM = { low: 1.2, mid: 5, high: 10 };
+
+/**
+ * Fracción de la bóveda del cielo cubierta, como la estima quien mira desde el suelo (las octas de la OMM): cada celda
+ * cuenta según el ángulo sólido que ocupa vista desde el centro, h·A / (d² + h²)^(3/2). Una nube encima pesa mucho más
+ * que una a 140 km, que apenas asoma sobre el horizonte. `grid` en % (255 sin dato), malla n × n de paso `res` km.
+ */
+export function domeCover(grid, n, res, hKm) {
+  const c0 = (n - 1) / 2;
+  let sw = 0, sv = 0;
+  for (let r = 0; r < n; r++) {
+    const y = (r - c0) * res;
+    for (let c = 0; c < n; c++) {
+      const v = grid[r * n + c];
+      if (v === 255) continue;
+      const x = (c - c0) * res, q = x * x + y * y + hKm * hKm, w = hKm / (q * Math.sqrt(q));
+      sw += w; sv += w * v;
+    }
+  }
+  return sw > 0 ? sv / sw / 100 : null;
+}
+
 /** Peso del satélite (0–1) en el instante `s` (s Unix): 1 cerca del barrido, 0 lejos. */
 export function satWeight(sat, s) {
   if (!sat || !Number.isFinite(s)) return 0;
@@ -58,8 +84,13 @@ export function fuseSat(sat, fc) {
     sl += ll; sm += mm; sh += h; st += Math.min(1, l + m + h); cnt++;
   }
   const c = Math.max(1, cnt);
+  // lo que ve quien está en el centro (para la tarjeta): cada capa pesada por la bóveda; el total, sin contar dos
+  // veces lo que se tapa entre capas
+  const dome = {};
+  for (const [l, g] of [["low", low], ["mid", mid], ["high", high]]) { const d = domeCover(g, sat.n, sat.res, DOME_H_KM[l]); dome[l] = d == null ? (l === "low" ? sl : l === "mid" ? sm : sh) / c : d; }
+  dome.total = 1 - (1 - dome.low) * (1 - dome.mid) * (1 - dome.high);
   sat._fused = { t: sat.t, n: sat.n, res: sat.res, half: sat.half, sat: sat.sat, by: sat.by, source: sat.source,
-    layers: { low, mid, high }, mean: { low: sl / c, mid: sm / c, high: sh / c }, cover: st / c, key };
+    layers: { low, mid, high }, mean: { low: sl / c, mid: sm / c, high: sh / c }, cover: st / c, dome, key };
   return sat._fused;
 }
 
@@ -79,6 +110,11 @@ export function mergeClouds(fc, sat, w) {
   }
   const ft = fc && fc.total != null ? fc.total : sat.cover;
   out.total = ft + (sat.cover - ft) * w;
+  // lo que se ve desde tu sitio (la tarjeta): el pronóstico ya es de tu zona; el satélite, pesado por la bóveda
+  if (sat.dome) {
+    out.dome = {};
+    for (const l of [...LAYERS, "total"]) { const f = fc && fc[l] != null ? fc[l] : sat.dome[l]; out.dome[l] = f + (sat.dome[l] - f) * w; }
+  }
   return out;
 }
 

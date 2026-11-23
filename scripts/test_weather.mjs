@@ -201,6 +201,14 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
   ok(sc.fuseSat(sat, { low: 0.5, mid: 1, high: 0 }) === f, "la fusión se recuerda mientras no cambie el pronóstico");
   const m = sc.mergeClouds({ low: 0.9, mid: 0.9, high: 0.9, total: 1, wind: { low: [1, 0], mid: [0, 0], high: [0, 0] } }, f, 1);
   ok(near(m.high, f.mean.high, 1e-9) && m.wind.low[0] === 1 && m.sat === true, "con peso 1, la media de cada capa es la del satélite y el viento el del pronóstico");
+  {
+    // bóveda: una celda llena encima tapa casi todo el cielo; un anillo lejano, casi nada
+    const N = 101, g1 = new Uint8Array(N * N), g2 = new Uint8Array(N * N);
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { const d = Math.hypot(r - 50, c - 50) * 3; if (d <= 20) g1[r * N + c] = 100; else g2[r * N + c] = 100; }
+    const near20 = sc.domeCover(g1, N, 3, 1.2), far = sc.domeCover(g2, N, 3, 1.2);
+    ok(near20 > 0.9 && far < 0.1 && near(near20 + far, 1, 1e-9), "nubes bajas en 20 km a la redonda tapan más del 90 % de la bóveda; las del resto, menos del 10 %");
+    ok(f.dome && near(f.dome.total, 1 - (1 - f.dome.low) * (1 - f.dome.mid) * (1 - f.dome.high), 1e-12) && near(m.dome.high, f.dome.high, 1e-9), "la tarjeta recibe la nubosidad de la bóveda por capa y total");
+  }
   const tex = sc.thresholdTexture(f);
   ok(tex.length === n * n * 4 && tex[3] === 255 && tex[24 * 4 + 3] === 0, "textura de umbrales con la validez en el canal alfa");
   ok(near(sc.decTh(tex[2]), threshold("high", 1), 0.01) && near(sc.decTh(tex[12 * 4 + 2]), threshold("high", 0), 0.01), "los umbrales codificados son los del ruido para esa cobertura");

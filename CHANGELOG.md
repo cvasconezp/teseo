@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.70.2 — 2026-11-23
+
+- **La nubosidad de la tarjeta, como la ves tú:** con el satélite, la tarjeta del tiempo promediaba 150 km a la redonda como si todo pesara igual, y una nube encima contaba lo mismo que una a 140 km. Ahora cada zona cuenta por cuánto cielo tapa vista desde tu sitio, como se estiman las octas de la OMM. En Praga, con nubes bajas en 20 km a la redonda, decía «Parcialmente nublado» (53 %) y ahora dice «Cubierto» (99 %). El dibujo de las nubes no cambia: ya las ponía donde el satélite las ve.
+
 ## 1.70.1 — 2026-11-23
 
 - **«Apuntar al cielo» con lo necesario arriba:** se ven el menú y la temperatura. La pastilla de abajo lleva un punto con el estado de la brújula: verde si va bien, ámbar parpadeando si hay que calibrarla y rojo si el celular no da norte. En «Controles» se explica qué hacer en cada caso. Los créditos se ven más pequeños.
