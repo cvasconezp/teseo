@@ -178,7 +178,7 @@ const FRAG = `
 precision highp float;
 uniform sampler2D map;
 uniform vec3 uSun, uHorizon, uNightNear, uNightFar, uSnow;
-uniform float uDay, uSunAlt, uHzSun, uH0, uSnowH, uOpaque, uGlow, uFadeLo, uFadeHi, uUnits;
+uniform float uDay, uSunAlt, uHzSun, uH0, uSnowH, uOpaque, uGlow, uFadeLo, uFadeHi, uUnits, uOvc, uFogB;
 varying vec2 vUv; varying vec3 vN; varying vec3 vDir; varying float vH; varying float vD; varying vec3 vP;
 float th(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float tn(vec2 x) { vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
@@ -240,6 +240,7 @@ void main() {
   float q = clamp(hRel / 1500.0, 0.0, 1.0);
   float thr = mix(max(uHzSun, -0.6), -dip, q);
   float lit = uSunAlt < -8.0 ? 0.0 : smoothstep(0.0, 1.0, (uSunAlt - thr) / 0.9 + 0.5);
+  lit *= 1.0 - uOvc;                                               // cielo cubierto: sin Sol directo
   // (bajo los pies la luz es la de un suelo parejo: sin las rayas que dejaría la pendiente de cada dirección)
   vec3 n = normalize(mix(vec3(0.0, 1.0, 0.0), normalize(vN), smoothstep(10.0, 140.0, vD)));
   float ndl = max(0.0, dot(n, uSun));
@@ -255,6 +256,8 @@ void main() {
   dcol = mix(dcol, mix(vec3(1.0, 0.5, 0.33) * max(0.45, lum * 1.6), vec3(1.0, 0.6, 0.55), sn), mix(0.45, 0.8, sn) * gl);
   // bruma con la distancia
   dcol = mix(dcol, uHorizon, 0.86 * (1.0 - exp(-vD / 95000.0)));   // aire limpio de altura: no todo blanquecino
+  // y la del tiempo (lluvia, niebla: rainLook.js), con la visibilidad del pronóstico
+  dcol = mix(dcol, uHorizon, min(0.95, 1.0 - exp(-vD * uFogB)));
   // de noche, siluetas (algo más claras lejos), con un resto del relieve
   float f = sqrt(clamp(vD / 300000.0, 0.0, 1.0));
   vec3 ncol = mix(uNightNear, uNightFar, pow(f, 0.8) * 0.95) * (0.82 + 0.5 * g + 0.5 * sn);
@@ -274,7 +277,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
     uNightNear: { value: new THREE.Vector3(0.05, 0.056, 0.085) }, uNightFar: { value: new THREE.Vector3(0.17, 0.185, 0.27) },
     uSnow: { value: new THREE.Vector3(0.9, 0.92, 0.95) }, uDay: { value: 0 }, uSunAlt: { value: -90 }, uHzSun: { value: 0 },
     uH0: { value: 0 }, uSnowH: { value: 4900 }, uOpaque: { value: 0 }, uGlow: { value: 0 }, uFadeLo: { value: -9 }, uFadeHi: { value: -2.5 },
-    uUnits: { value: UNITS_PER_M },
+    uUnits: { value: UNITS_PER_M }, uOvc: { value: 0 }, uFogB: { value: 0 },
   };
   const clear = () => {
     if (mesh) { mesh.geometry.dispose(); if (uniforms.map.value) uniforms.map.value.dispose(); mesh.material.dispose(); group.remove(mesh); }
@@ -345,6 +348,10 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
       uniforms.uOpaque.value = floor ? 1 : 0;
       const x = Math.min(1, Math.max(0, (sunAlt - 1) / 7));
       uniforms.uGlow.value = sunAlt > -8 ? 1 - x * x * (3 - 2 * x) : 0;
+      // el tiempo (rainLook.js): cielo cubierto y bruma (β en 1/km → 1/m)
+      const wx = st && st.wx;
+      uniforms.uOvc.value = wx ? wx.overcast || 0 : 0;
+      uniforms.uFogB.value = wx && wx.beta > 0 ? (wx.beta / 1000) * day : 0;
       // fuera de una cumbre, el relieve se deshace hacia abajo y deja ver el suelo translúcido de siempre
       const top = Math.min(-0.9, lowest - 0.9);
       uniforms.uFadeHi.value = top; uniforms.uFadeLo.value = top - 2.6;

@@ -57,6 +57,7 @@ import { skyState, visibility, starsHidden, countVisibleNow, moonMagV, phaseAngl
 import { createAtmosphereLayer } from "./sky/atmosphereLayer.js";
 import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/cloudsLayer.js";
+import { rainLook, thickenForRain, weatherSky } from "./sky/rainLook.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
 import { andeanLabels, TX_AND } from "./sky/andean.js";
 import { fetchNearTerrain, createNearTerrainLayer, SUMMIT_LIFT_M, reliefFromNear } from "./sky/terrain3d.js";
@@ -2738,6 +2739,50 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const id = setInterval(ask, 15 * 60 * 1000);
     return () => { alive = false; clearInterval(id); };
   }, [wxNowKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // nubes: pronóstico de Open-Meteo para el lugar (solo si se piden o se abre su panel) y capa del cielo
+  useEffect(() => { try { localStorage.setItem(CLOUDS_KEY, cloudsOn ? "1" : "0"); } catch { /* no-op */ } }, [cloudsOn]);
+  const wxKey = localActive && !viewFrom && lat != null && lon != null ? `${Math.round(lat * 10)},${Math.round(lon * 10)}` : null;
+  useEffect(() => {
+    if (!wxKey || !(cloudsOn || wxWanted)) return;
+    let alive = true;
+    setWx((w) => (w.key === wxKey && w.status === "ok" ? w : { status: "loading", data: null, key: wxKey }));
+    fetchForecast(lat, lon).then(
+      (data) => { if (alive) setWx({ status: "ok", data, key: wxKey }); },
+      (e) => { if (alive) setWx({ status: "error", data: null, key: wxKey, error: String(e && e.message || e) }); });
+    return () => { alive = false; };
+  }, [wxKey, cloudsOn, wxWanted, wxRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const wxData = wx.status === "ok" && wx.key === wxKey ? wx.data : null;
+  // nubes de AHORA del satélite (GOES, Meteosat o Himawari): dónde están y a qué altura, en 150 km. Se piden con las
+  // nubes encendidas o la tarjeta del tiempo abierta, cada 10 minutos. El suelo para repartirlas en capas es el del
+  // pronóstico (el mismo desde el que se miden sus capas); sin él, el del relieve
+  const satGround = wxData && Number.isFinite(wxData.elevation) ? wxData.elevation : hzData && Number.isFinite(hzData.ground_m) ? hzData.ground_m : null;
+  const satKey = wxKey && (cloudsOn || wxOpen) && satGround != null ? `${lat.toFixed(2)},${lon.toFixed(2)},${Math.round(satGround / 100)}` : null;
+  useEffect(() => {
+    if (!satKey) return undefined;
+    let alive = true;
+    const ask = () => fetchSatClouds(lat, lon, satGround, { api: API })
+      .then((data) => { if (alive) setSatCl({ key: satKey, data }); }, () => { if (alive) setSatCl((s0) => (s0.key === satKey ? s0 : { key: satKey, data: null })); });
+    ask();
+    const id = setInterval(ask, 10 * 60 * 1000);
+    return () => { alive = false; clearInterval(id); };
+  }, [satKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const satData = satCl.key === satKey ? satCl.data : null;
+  // las nubes de un instante: el pronóstico y, cerca de la hora del barrido, el satélite (con su mapa en el cielo)
+  // con lluvia (rainLook.js), las capas bajas y medias se engrosan y se cierran sobre ti antes de mezclarse con el satélite
+  const cloudsFor = (d) => {
+    const s = d.getTime() / 1000, fc0 = wxData ? cloudsAt(wxData, d) : null, w = satWeight(satData, s);
+    const look = rainLook(fc0, satData, w), fc = thickenForRain(fc0, look);
+    const view = w > 0 ? fuseSat(satData, fc) : null, merged = mergeClouds(fc, view, w);
+    return { clouds: merged, sat: view, w, off: w > 0 ? mapOffsets(merged, s, satData.t) : null, look };
+  };
+  const cfNow = useMemo(() => { try { return cloudsFor(new Date(whenStr)); } catch { return { clouds: null, sat: null, w: 0, off: null, look: null }; } },
+    [wxData, satData, whenStr]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // el cielo con el tiempo que hace (solo con las nubes encendidas): luz de día cubierto, bruma y lluvia
+  const atmSky = useMemo(() => (cloudsOn && atmState && cfNow.clouds ? weatherSky(atmState, cfNow.clouds, cfNow.look) : atmState),
+    [atmState, cloudsOn, cfNow]);
+  // tu altura sobre el suelo del pronóstico (km): el horizonte real la da exacta; si no, la altitud del lugar
+  const obsM = hzData ? (hzData.ground_m || 0) + (hzData.eye_m || 1.7) : (Number.isFinite(elev) ? elev : null);
+  const cloudLiftKm = useMemo(() => cloudLift(obsM, wxData ? wxData.elevation : null), [obsM, wxData]);
   // monumentos: los que hay a menos de 25 km del lugar, asentados sobre el suelo del modelo de relieve (la altura
   // del terreno alrededor de cada uno y bajo el observador, de /api/elevation)
   useEffect(() => { try { localStorage.setItem(MONUMENTS_KEY, monOn ? "1" : "0"); } catch { /* no-op */ } }, [monOn]);
@@ -2786,15 +2831,15 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const hzEff = useMemo(() => (hzData && monSil ? withMonuments(hzData, monSil) : hzData), [hzData, monSil]);
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.monuments) return;
-    ref.monuments.set(monItems, atmState, monRelief);
+    ref.monuments.set(monItems, atmSky, monRelief);
     ref.monGround = monItems.length > 0;
     ref.monLabels = monItems.length ? monumentLabels(monItems, lang, monSil, hzData ? hzData.step_deg || 0.2 : 0.2).map((p) => ({ ...p, label: p.name, subText: p.sub || (lang === "es" ? `${String(p.ele_m).replace(".", ",")} m de alto` : `${p.ele_m} m tall`) })) : null;
     ref._dirty = true;
   }, [monItems, monSil, lang, ready, monRelief]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.monuments || !monItems.length) return;
-    try { ref.monuments.paint(atmState); } catch { /* no-op */ }
-  }, [monItems, atmState, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+    try { ref.monuments.paint(atmSky); } catch { /* no-op */ }
+  }, [monItems, atmSky, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
   // «Astronomía andina»: por dónde sale y se pone el Sol en solsticios y equinoccios (sobre el relieve real) y los
   // sitios quitu-caranquis cercanos (src/sky/andean.js, coordenadas GNSS de Cobo 2012)
   const andean = useMemo(() => (andOn && hzData ? andeanLabels({ lat, lon, ground: hzData.ground_m || 0, hz: hzData, lang }) : null), [andOn, hzData, lat, lon, lang]);
@@ -2861,15 +2906,15 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [hzData, hzEff, ready, placeSummit]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {      // el color de las montañas sigue la luz del cielo (sin atmósfera: siluetas de noche)
     const ref = sceneRef.current; if (!ref || !ref.terrain || !hzData) return;
-    try { ref.terrain.setLand(landData, satOn); ref.terrain.paint(atmState); } catch { /* no-op */ }
+    try { ref.terrain.setLand(landData, satOn); ref.terrain.paint(atmSky); } catch { /* no-op */ }
     try {
       let low = 0;
       if (hzData.alt) for (const v of hzData.alt) if (v < low) low = v;
       // opaco en las cumbres y donde hay monumentos (si no, quedarían flotando sobre un hueco translúcido)
-      ref.near3d.setLook(atmState, { hz: hzData, lat, floor: ref.terrain.floor || monItems.length > 0, lowest: low });
+      ref.near3d.setLook(atmSky, { hz: hzData, lat, floor: ref.terrain.floor || monItems.length > 0, lowest: low });
       ref._dirty = true;
     } catch { /* no-op */ }
-  }, [hzData, atmState, ready, placeSummit, landData, satOn, nearData, monItems.length]);
+  }, [hzData, atmSky, ready, placeSummit, landData, satOn, nearData, monItems.length]);
   useEffect(() => {      // la malla del relieve cercano: se pone cuando llegan sus datos y se quita al cambiar de lugar
     const ref = sceneRef.current; if (!ref || !ref.near3d) return;
     // en una cumbre (sin monumentos al lado, que se dibujan a la altura de los ojos de siempre) se mira desde 5 m más arriba
@@ -2882,43 +2927,6 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref._dirty = true;
   }, [hzData, nearData, hzKey, ready, summitLift, nearPending, monItems.length, monBase.ground]);
 
-  // nubes: pronóstico de Open-Meteo para el lugar (solo si se piden o se abre su panel) y capa del cielo
-  useEffect(() => { try { localStorage.setItem(CLOUDS_KEY, cloudsOn ? "1" : "0"); } catch { /* no-op */ } }, [cloudsOn]);
-  const wxKey = localActive && !viewFrom && lat != null && lon != null ? `${Math.round(lat * 10)},${Math.round(lon * 10)}` : null;
-  useEffect(() => {
-    if (!wxKey || !(cloudsOn || wxWanted)) return;
-    let alive = true;
-    setWx((w) => (w.key === wxKey && w.status === "ok" ? w : { status: "loading", data: null, key: wxKey }));
-    fetchForecast(lat, lon).then(
-      (data) => { if (alive) setWx({ status: "ok", data, key: wxKey }); },
-      (e) => { if (alive) setWx({ status: "error", data: null, key: wxKey, error: String(e && e.message || e) }); });
-    return () => { alive = false; };
-  }, [wxKey, cloudsOn, wxWanted, wxRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const wxData = wx.status === "ok" && wx.key === wxKey ? wx.data : null;
-  // nubes de AHORA del satélite (GOES, Meteosat o Himawari): dónde están y a qué altura, en 150 km. Se piden con las
-  // nubes encendidas o la tarjeta del tiempo abierta, cada 10 minutos. El suelo para repartirlas en capas es el del
-  // pronóstico (el mismo desde el que se miden sus capas); sin él, el del relieve
-  const satGround = wxData && Number.isFinite(wxData.elevation) ? wxData.elevation : hzData && Number.isFinite(hzData.ground_m) ? hzData.ground_m : null;
-  const satKey = wxKey && (cloudsOn || wxOpen) && satGround != null ? `${lat.toFixed(2)},${lon.toFixed(2)},${Math.round(satGround / 100)}` : null;
-  useEffect(() => {
-    if (!satKey) return undefined;
-    let alive = true;
-    const ask = () => fetchSatClouds(lat, lon, satGround, { api: API })
-      .then((data) => { if (alive) setSatCl({ key: satKey, data }); }, () => { if (alive) setSatCl((s0) => (s0.key === satKey ? s0 : { key: satKey, data: null })); });
-    ask();
-    const id = setInterval(ask, 10 * 60 * 1000);
-    return () => { alive = false; clearInterval(id); };
-  }, [satKey]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const satData = satCl.key === satKey ? satCl.data : null;
-  // las nubes de un instante: el pronóstico y, cerca de la hora del barrido, el satélite (con su mapa en el cielo)
-  const cloudsFor = (d) => {
-    const s = d.getTime() / 1000, fc = wxData ? cloudsAt(wxData, d) : null, w = satWeight(satData, s);
-    const view = w > 0 ? fuseSat(satData, fc) : null, merged = mergeClouds(fc, view, w);
-    return { clouds: merged, sat: view, w, off: w > 0 ? mapOffsets(merged, s, satData.t) : null };
-  };
-  // tu altura sobre el suelo del pronóstico (km): el horizonte real la da exacta; si no, la altitud del lugar
-  const obsM = hzData ? (hzData.ground_m || 0) + (hzData.eye_m || 1.7) : (Number.isFinite(elev) ? elev : null);
-  const cloudLiftKm = useMemo(() => cloudLift(obsM, wxData ? wxData.elevation : null), [obsM, wxData]);
   // columnas de ceniza (ilustrativas): la simulación pedida desde la ficha de un volcán y, suaves, las de los que el
   // Smithsonian da en erupción este año y se ven en el horizonte; el viento, del pronóstico (capa media)
   useEffect(() => {
@@ -2935,9 +2943,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const day = atmState ? Math.min(1, Math.max(0, (atmState.sunAlt + 8) / 14)) : 0;
     // arrebol: con el Sol entre −4° y 8°, la luz que llega a la pluma es rojiza
     const sa = atmState ? atmState.sunAlt : -90, glow = sa > -6 && sa < 10 ? 1 - Math.abs(sa - 1) / 9 : 0;
-    ref.plume.setLook({ windMs, day, glow: Math.max(0, glow), sunDir: atmState && atmState.sunDir ? atmState.sunDir : null, horizon: atmState && atmState.colors ? atmState.colors.horizon : null });
+    ref.plume.setLook({ windMs, day, glow: Math.max(0, glow), sunDir: atmState && atmState.sunDir ? atmState.sunDir : null, horizon: atmSky && atmSky.colors ? atmSky.colors.horizon : null });
     ref._dirty = true;
-  }, [plumeSim, peakList, volcList, hzData, localActive, viewFrom, wxData, whenStr, atmState, ready, wxNow]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [plumeSim, peakList, volcList, hzData, localActive, viewFrom, wxData, whenStr, atmState, atmSky, ready, wxNow]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setPlumeSim(null); }, [lat, lon]);
 
   // atmósfera: estrellas, planetas y cielo profundo según lo que deja ver el cielo (después de colocar
@@ -2949,14 +2957,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.hzData = hzEff;
     ref._atmTouched = true;
     try {
-      const d = new Date(whenStr), cf = cloudsFor(d);
+      const d = new Date(whenStr), cf = cfNow;
       const map = ref.clouds ? ref.clouds.setMap(cf.sat, cf.w, cf.off) : null;
       ref.cloudOcc = cloudsOn && atmState && cf.clouds ? makeOccluder(cf.clouds, d.getTime() / 1000, cloudLiftKm, map) : null;
     } catch { ref.cloudOcc = null; }
     let c;
-    try { c = ref.applyAtm(atmState); } catch (e) { try { c = ref.applyAtm(null); } catch { /* no-op */ } }
+    try { c = ref.applyAtm(atmSky); } catch (e) { try { c = ref.applyAtm(null); } catch { /* no-op */ } }
     if (c) setAtmInfo((p) => (p.stars === c.stars && p.deep === c.deep && p.deepTot === c.deepTot ? p : { stars: c.stars, deep: c.deep, deepTot: c.deepTot }));
-  }, [atmState, ready, datasets, enabled, bodies, showSolar, localActive, viewFrom, cloudsOn, wxData, satData, hzData, hzEff, cloudLiftKm]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [atmState, atmSky, ready, datasets, enabled, bodies, showSolar, localActive, viewFrom, cloudsOn, wxData, satData, hzData, hzEff, cloudLiftKm, cfNow]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // nubes: la capa del cielo (el pronóstico se lee más arriba). Desde una cumbre, las capas se acercan o quedan
   // por debajo (cloudLift) y las montañas que asoman las tapan (las bandas del horizonte real)
@@ -2964,14 +2972,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const ref = sceneRef.current; if (!ref || !ref.clouds) return;
     let show = false;
     try {
-      const d = new Date(whenStr), cf = cloudsFor(d);
+      const d = new Date(whenStr), cf = cfNow;
       show = !!(cloudsOn && atmState && cf.clouds);
       ref.clouds.setView(cloudLiftKm, hzData);
       ref.clouds.setMap(show ? cf.sat : null, cf.w, cf.off);
-      ref.clouds.update(show ? cf.clouds : null, atmState, d.getTime() / 1000);
+      ref.clouds.update(show ? cf.clouds : null, atmSky, d.getTime() / 1000);
     } catch { ref.clouds.update(null, null, 0); }   // nunca debe romper la vista
     ref.clouds.setEnabled(show);
-  }, [cloudsOn, atmState, wxData, satData, whenStr, ready, cloudLiftKm, hzData]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cloudsOn, atmState, atmSky, cfNow, wxData, satData, whenStr, ready, cloudLiftKm, hzData]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // animar el tiempo (play)
   // (con una pasada de la ISS en el cielo, el tiempo lo lleva su reloj, al segundo y a ×1/×10/×60: ver el bucle)

@@ -15,6 +15,7 @@
 // filo más bajo, y el paisaje se ve desde arriba.
 import * as THREE from "three";
 import { terrainPalette, snowLine } from "./horizon.js";
+import { hazeAt } from "./rainLook.js";
 
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
@@ -231,7 +232,10 @@ export function createTerrainLayer({ radius = 880 } = {}) {
     // de dónde viene la luz del Sol (acimut) y cuánto marca el relieve (más con el Sol bajo, nada de noche)
     const sd = st && st.sunDir ? st.sunDir : null;
     const sunAz = sd ? Math.atan2(sd[0], -sd[2]) : 0;
-    const relief = sd ? pal.day * (0.22 + 0.3 * (1 - Math.min(1, Math.max(0, sd[1])))) : 0;
+    // cielo cubierto (rainLook.js, st.wx): sin Sol directo no hay sombras ni arrebol, y la bruma borra lo lejano
+    const wx = st && st.wx, ovc = wx ? wx.overcast || 0 : 0;
+    const fogC = st && st.colors && st.colors.horizon ? st.colors.horizon : null;
+    const relief = sd ? pal.day * (1 - ovc) * (0.22 + 0.3 * (1 - Math.min(1, Math.max(0, sd[1])))) : 0;
     // sombra de las montañas y arrebol: ¿le llega el Sol a cada filo y al pie de cada banda? (sunLight)
     const sunAlt = st && Number.isFinite(st.sunAlt) ? st.sunAlt : -90;
     const sunAzDeg = ((sunAz / RAD) % 360 + 360) % 360;
@@ -250,7 +254,9 @@ export function createTerrainLayer({ radius = 880 } = {}) {
       for (let j = 0; j < n; j++) { let sum = 0; for (let q = -Wl; q <= Wl; q++) sum += raw[(j + q + n) % n]; out[j] = sum / (2 * Wl + 1); }
       m[top] = out; return out;
     };
-    const litAt = (b, j, top) => (lightOn ? litArr(b, top)[j] : 0);
+    const litAt = (b, j, top) => (lightOn ? litArr(b, top)[j] * (1 - ovc) : 0);
+    // la bruma del tiempo a la distancia d (km): hacia el gris del aire, solo de día (de noche no se ve)
+    const fogged = (c, d) => { const h = fogC ? hazeAt(wx, d) * pal.day : 0; return h > 0.001 ? mix3(c, fogC, h) : c; };
     // la luz que falta cuando el Sol está tapado (solo la del cielo: más oscura y azulada) y el tinte del arrebol
     const dim = 0.42 * pal.day, SKY = [0.55, 0.66, 0.95], GLOW = [1.0, 0.5, 0.33], GLOW_SNOW = [1.0, 0.6, 0.55];
     const light = (c0, lit, glow, snowy) => {
@@ -311,7 +317,7 @@ export function createTerrainLayer({ radius = 880 } = {}) {
           const j = i % n, f = cut[j];
           const lt = litAt(b, j, true), ln = litAt(bn, j, true);
           const fill = mix3(light(scale(c.top, shadeOf(b, j, lt)), lt, glowOf(sunAlt, lt), false), light(scale(cn.top, shadeOf(bn, j, ln)), ln, glowOf(sunAlt, ln), false), f);
-          lc.set(lin(mix3(light(e, lt, 0, false), fill, f)), i * 3);
+          lc.set(lin(fogged(mix3(light(e, lt, 0, false), fill, f), b.dist_km ? b.dist_km[j] : b.max_km)), i * 3);
         }
         m.geometry.attributes.color.needsUpdate = true;
         m.material.opacity = 0.5 + 0.3 * (1 - k / Math.max(1, nb - 1));
@@ -329,13 +335,14 @@ export function createTerrainLayer({ radius = 880 } = {}) {
         const lt = litAt(b, j, true), ln = litAt(bn, j, true), lb = litAt(b, j, false);
         const gt = glowOf(sunAlt, lt);
         const shade = shadeOf(b, j, lt), f = cut[j] * CUT_MIX;
+        const dTop = b.dist_km ? b.dist_km[j] : b.max_km, dBot = k > 0 ? data.bands[k - 1].max_km : dTop * 0.5;
         const snow = light(scale(pal.snow, 0.86 + 0.14 * shade), lt, gt, true);
-        col.set(lin(snow), (i * 4) * 3);
-        col.set(lin(scale(snow, 0.94)), (i * 4 + 1) * 3);
+        col.set(lin(fogged(snow, dTop)), (i * 4) * 3);
+        col.set(lin(fogged(scale(snow, 0.94), dTop)), (i * 4 + 1) * 3);
         // con los colores del satélite, los de esta columna (y los de la banda de atrás para los cortes)
         const cc = landAt(k, j) || c, ccn = f > 0 ? landAt(nk, j) || cn : cn;
-        col.set(lin(mix3(light(scale(cc.top, shade), lt, gt, false), light(scale(ccn.top, shadeOf(bn, j, ln)), ln, glowOf(sunAlt, ln), false), f)), (i * 4 + 2) * 3);
-        col.set(lin(light(cc.bottom, lb, glowOf(sunAlt, lb) * 0.5, false)), (i * 4 + 3) * 3);
+        col.set(lin(fogged(mix3(light(scale(cc.top, shade), lt, gt, false), light(scale(ccn.top, shadeOf(bn, j, ln)), ln, glowOf(sunAlt, ln), false), f), dTop)), (i * 4 + 2) * 3);
+        col.set(lin(fogged(light(cc.bottom, lb, glowOf(sunAlt, lb) * 0.5, false), dBot)), (i * 4 + 3) * 3);
       }
       m.geometry.attributes.color.needsUpdate = true;
     }

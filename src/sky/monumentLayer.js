@@ -391,8 +391,10 @@ export function createMonumentLayer({ onReady = null } = {}) {
       sun.position.set(c.x + sd[0] * r * 2, c.y + Math.max(0.02, sd[1]) * r * 2, c.z + sd[2] * r * 2);
       sun.color.setRGB(1, 0.94 - 0.3 * low, 0.86 - 0.52 * low);
       // un Sol alto da ~π (una cara blanca de frente refleja 1); bajo, la atmósfera le quita fuerza
-      sun.intensity = Math.PI * sunUp * (1 - 0.35 * low);
-      sun.castShadow = true;
+      // con el cielo cubierto (rainLook.js, st.wx) casi no hay luz directa ni sombras
+      const ovc = st.wx ? st.wx.overcast || 0 : 0;
+      sun.intensity = Math.PI * sunUp * (1 - 0.35 * low) * (1 - 0.85 * ovc);
+      sun.castShadow = ovc < 0.6;
     } else { sun.intensity = 0; sun.castShadow = false; }
     const sky = st && st.colors ? st.colors.horizon : [0.1, 0.11, 0.17];
     const zen = st && st.colors && st.colors.zenith ? st.colors.zenith : sky;

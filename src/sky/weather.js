@@ -3,7 +3,8 @@
 // scripts/test_weather.mjs.
 //
 // Qué se usa: nubosidad total y por capas (bajas < 3 km, medias 3–8 km, altas > 8 km, en %), probabilidad
-// de lluvia y el viento en 850, 500 y 250 hPa (≈ 1,5, 5,5 y 10 km: mueve cada capa de nubes). Son salidas
+// de lluvia, tipo de tiempo (código OMM), lluvia (mm) y visibilidad (para dibujar la lluvia y la bruma: rainLook.js)
+// y el viento en 850, 500 y 250 hPa (≈ 1,5, 5,5 y 10 km: mueve cada capa de nubes). Son salidas
 // de modelos numéricos (que asimilan datos de satélite): la CANTIDAD y la ALTURA de las nubes son las del
 // pronóstico; la forma que dibuja el cielo es ilustrativa.
 //
@@ -17,6 +18,7 @@ export const LAYERS = ["low", "mid", "high"];
 export const LAYER_KM = { low: 1.5, mid: 4.5, high: 9 };
 const WIND_LEVEL = { low: "850hPa", mid: "500hPa", high: "250hPa" };
 const HOURLY = ["cloud_cover", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high", "precipitation_probability",
+  "weather_code", "precipitation", "visibility",
   ...LAYERS.flatMap((l) => [`wind_speed_${WIND_LEVEL[l]}`, `wind_direction_${WIND_LEVEL[l]}`])];
 
 const round1 = (v) => Math.round(v * 10) / 10;
@@ -39,6 +41,7 @@ const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 /**
  * Respuesta de Open-Meteo → { t: [s Unix], total, low, mid, high (fracciones 0–1 o null), precip (0–1 o null),
+ * code (código OMM o null), mm (mm en la hora o null), visKm (km o null),
  * wind: { low|mid|high: [[ve, vn] m/s hacia donde va] } }. Lanza si no tiene la forma esperada.
  */
 export function parseForecast(json) {
@@ -56,7 +59,9 @@ export function parseForecast(json) {
       return [-s * Math.sin(a), -s * Math.cos(a)];  // velocidad hacia donde va: (este, norte)
     });
   }
+  const raw = (k, f = 1) => { const a = h[k]; return Array.from({ length: n }, (_, i) => { const v = num(a && a[i]); return v == null ? null : v * f; }); };
   return {
+    code: raw("weather_code"), mm: raw("precipitation"), visKm: raw("visibility", 0.001),
     t: h.time.map(Number), total: frac("cloud_cover"), low: frac("cloud_cover_low"), mid: frac("cloud_cover_mid"),
     high: frac("cloud_cover_high"), precip: frac("precipitation_probability"), wind,
     lat: num(json.latitude), lon: num(json.longitude), elevation: num(json.elevation),
@@ -67,7 +72,8 @@ export function parseForecast(json) {
 const lerp = (a, b, f) => (a == null ? b : b == null ? a : a + (b - a) * f);
 
 /**
- * Nubes en un instante (Date o s Unix): { total, low, mid, high, precip, wind: {low:[ve,vn],…}, t } interpolado
+ * Nubes en un instante (Date o s Unix): { total, low, mid, high, precip, code, mm, visKm, wind: {low:[ve,vn],…}, t } interpolado
+ * (el código de tiempo, el de la hora más cercana)
  * entre horas, o null si cae fuera del pronóstico (más de una hora antes del primer dato o después del último).
  */
 export function cloudsAt(fc, when) {
@@ -81,6 +87,9 @@ export function cloudsAt(fc, when) {
   const j = Math.min(n - 1, i + 1), f = j === i ? 0 : Math.min(1, Math.max(0, (s - t[i]) / (t[j] - t[i])));
   const pick = (a) => lerp(a[i], a[j], f);
   const out = { t: s, total: pick(fc.total), low: pick(fc.low), mid: pick(fc.mid), high: pick(fc.high), precip: pick(fc.precip), wind: {} };
+  const cd = fc.code ? (f < 0.5 ? fc.code[i] : fc.code[j]) : null;
+  out.code = cd == null ? null : Math.round(cd);
+  out.mm = fc.mm ? pick(fc.mm) : null; out.visKm = fc.visKm ? pick(fc.visKm) : null;
   for (const l of LAYERS) { const a = fc.wind[l][i], b = fc.wind[l][j]; out.wind[l] = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }
   if (out.total == null) {   // sin total: el de capas que se solapan al azar
     const p = LAYERS.map((l) => out[l]).filter((v) => v != null);

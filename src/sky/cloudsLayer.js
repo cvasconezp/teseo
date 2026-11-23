@@ -49,6 +49,9 @@ function layerGlsl(l, k) {
     float n = fbm(q, ${s.octaves});
     // nubes del satélite: el umbral de la celda donde cae este punto (la malla viaja con el viento de la capa)
     float th = uTh[${k}];
+    // si llueve donde estás, la nube se cierra sobre ti (rainLook.js: thickenForRain)
+    vec2 pw = vec2(d.x, -d.z) * dist;
+    th -= uOver[${k}] * exp(-dot(pw, pw) / (uOverR * uOverR));
     if (uMapOn > 0.5) {
       vec2 uv = (vec2(d.x, -d.z) * dist - uMapOff[${k}] + uMapHalf) / (2.0 * uMapHalf);
       float e = min(min(uv.x, uv.y), min(1.0 - uv.x, 1.0 - uv.y));
@@ -63,7 +66,9 @@ function layerGlsl(l, k) {
     float a = t * ${f1(s.maxAlpha)} * horizonFade;
     vec3 col = mix(lit, uShade, pow(t, 1.5) * (uH[${k}] > 0.0 ? ${f1(THICK[l])} : 0.12));   // desde arriba, la cima de la nube, al sol
     col += uSunGlow * rim * (1.0 - t);
-    col = mix(col, uHorizon, (1.0 - exp(-dist / 90.0)) * uHaze);
+    // cielo cubierto: donde la nube es más gruesa, la base es más oscura (manchas del nimboestrato)
+    col *= 1.0 - uMottle * ${l === "high" ? "0.0" : "0.34"} * t * smoothstep(0.32, 0.72, n);
+    col = mix(col, uHorizon, max((1.0 - exp(-dist / 90.0)) * uHaze, min(0.7, 0.6 * (1.0 - exp(-min(dist, 1.5 / abs(d.y)) * uFogB)))));
     acc.rgb += (1.0 - acc.a) * a * col;
     acc.a += (1.0 - acc.a) * a;
   }`;
@@ -92,8 +97,29 @@ uniform float uMapW;
 uniform float uMapHalf;
 uniform vec2 uMapOff[3];
 uniform sampler2D uMap;
+uniform float uOver[3];
+uniform float uOverR;
+uniform float uFogB;
+uniform float uRain;
+uniform float uMottle;
+uniform vec3 uRainCol;
 varying vec3 vWorld;
 ${GLSL_NOISE}
+float rhash(float x) { return fract(sin(x * 127.1) * 43758.5453); }
+// densidad (0–1) de la capa baja en un punto del plano (km respecto a ti), con el mismo umbral que su dibujo
+float lowDens(vec2 pw) {
+  vec2 pe = pw - uOff[0];
+  vec2 w = uDir[0];
+  vec2 q = vec2(dot(pe, w) / ${f1(LAYER_STYLE.low.scaleKm * LAYER_STYLE.low.stretch)}, (-pe.x * w.y + pe.y * w.x) / ${f1(LAYER_STYLE.low.scaleKm)});
+  float n = fbm(q, 3);
+  float th = uTh[0] - uOver[0] * exp(-dot(pw, pw) / (uOverR * uOverR));
+  if (uMapOn > 0.5) {
+    vec2 uv = (pw - uMapOff[0] + uMapHalf) / (2.0 * uMapHalf);
+    float e = min(min(uv.x, uv.y), min(1.0 - uv.x, 1.0 - uv.y));
+    if (e > 0.0) { vec4 m = texture2D(uMap, uv); th = mix(th, ${f1(TH_LO)} + m.r * ${f1(TH_HI - TH_LO)}, m.a * clamp(e / 0.08, 0.0, 1.0) * uMapW); }
+  }
+  return smoothstep(th - 0.05, th + 0.12, n);
+}
 // ¿hay montaña delante de la nube en esta dirección? La franja que se ve es la más cercana cuyo filo queda por
 // encima del píxel (las bandas del horizonte, de cerca a lejos: R = ángulo del filo, G = altura m, B = distancia km)
 float terrainFront(vec3 d, float distKm, float cloudM) {
@@ -117,6 +143,34 @@ void main() {
   float side = (length(d.xz) > 1e-4 && length(sh) > 1e-4) ? 0.5 + 0.5 * dot(normalize(d.xz), normalize(sh)) : 0.5;
   vec3 lit = mix(uLitAnti, uLit, side * side);
   vec4 acc = vec4(0.0);
+  // lluvia: cortinas grises que bajan de las nubes bajas densas hasta el suelo (se ven de lado, hacia el horizonte)
+  // y, si llueve donde estás, las gotas que caen (hilos que convergen en el cenit). Delante de las nubes
+  if (uSide > 0.0 && uRain > 0.01 && uOn[0] > 0.5 && uH[0] > 0.0 && d.y > -0.03) {
+    float e = max(d.y, 0.0), tg = e / max(sqrt(1.0 - e * e), 1e-3);
+    vec2 hd = normalize(vec2(d.x, -d.z) + vec2(1e-6));
+    float az = atan(hd.x, hd.y);
+    float veil = 0.0;
+    for (int i = 0; i < 4; i++) {
+      float x = 1.2 * pow(2.3, float(i));                  // 1,2 · 2,8 · 6,3 · 14,6 km
+      float z = x * tg;                                     // altura del rayo allí (km)
+      float wz = 1.0 - smoothstep(0.55 * uH[0], uH[0], z);   // sin escalón donde el rayo llega a la base
+      if (wz > 0.0) {
+        float dn = lowDens(hd * x);
+        // mantos verticales (la lluvia cae en cortinas, no en una pared lisa)
+        float streak = 0.45 + 0.55 * vnoise(hd * x / 0.7 + vec2(float(i) * 7.3, z * 0.15));   // columnas de ~1 km, fijas en el sitio
+        veil += (1.0 - veil) * dn * uRain * 0.34 * streak * wz;
+      }
+    }
+    // gotas sobre ti: solo con la nube cerrada encima
+    float here = uRain * lowDens(vec2(0.0));
+    if (here > 0.05 && d.y > 0.0) {
+      float sx = az * 286.5, id = floor(sx), fx = fract(sx);
+      float line = smoothstep(0.42, 0.5, fx) * smoothstep(0.58, 0.5, fx);
+      float dash = step(0.45, fract(asin(d.y) * (3.0 + 4.0 * rhash(id + 3.1)) + rhash(id)));
+      veil += (1.0 - veil) * here * 0.07 * line * dash * (1.0 - smoothstep(0.75, 0.95, d.y));
+    }
+    acc = vec4(uRainCol * veil, veil);
+  }
 ${LAYERS.map(layerGlsl).join("\n")}
   if (acc.a < 0.003) discard;
   gl_FragColor = vec4(acc.rgb / acc.a, acc.a);
@@ -145,8 +199,20 @@ export function cloudLight(st) {
   const lit = add3(base, glow, 0.95 * tw);                                   // hacia el Sol
   const litAnti = add3(add3(base, glow, 0.18 * tw), [0.10, 0.11, 0.17], tw);   // del lado opuesto: luz del cielo
   const shade = add3(mix3(mix3(night, [0, 0, 0], 0.25), [0.5, 0.52, 0.57], day), glow, 0.22 * tw);
-  const horizon = st && st.colors && day > 0.05 ? mix3(lit, st.colors.horizon, 0.7) : lit;
-  return { lit, litAnti, shade, sunGlow: glow, horizon, rim: 0.5 * Math.max(day, tw), haze: 0.65 * day, day, night };
+  let horizon = st && st.colors && day > 0.05 ? mix3(lit, st.colors.horizon, 0.7) : lit;
+  let rim = 0.5 * Math.max(day, tw), L = { lit, litAnti, shade };
+  // cielo cubierto o con lluvia (rainLook.js: st.wx): sin Sol directo, las nubes son grises y las bases oscuras
+  const wx = st && st.wx, o = wx ? wx.overcast || 0 : 0, r = wx ? wx.rain || 0 : 0;
+  if (o > 0) {
+    const dk = 1 - 0.3 * r, gl = [0.7 * dk, 0.72 * dk, 0.76 * dk], gs = [0.3 * dk, 0.32 * dk, 0.36 * dk];
+    const ko = o * day * 0.85;
+    L = { lit: mix3(lit, gl, ko), litAnti: mix3(litAnti, gl, ko), shade: mix3(shade, mix3(night, gs, day), Math.max(ko * 0.7, r * day)) };
+    horizon = mix3(horizon, L.lit, o * 0.5);
+    rim *= 1 - o;
+  }
+  // las cortinas de lluvia: entre la base de la nube y el aire del horizonte
+  const rain = mix3(L.shade, horizon, 0.45);
+  return { lit: L.lit, litAnti: L.litAnti, shade: L.shade, sunGlow: glow, horizon, rim, haze: 0.65 * day, day, night, rain };
 }
 
 /** Desplazamiento de una capa (km, este y norte) con el viento [ve, vn] m/s durante `dt` s, y su dirección. */
@@ -178,12 +244,16 @@ export function layerHeight(l, lift = 0) {
   return Math.abs(h) < 0.12 ? (h < 0 ? -0.12 : 0.12) : h;
 }
 
-/** Parámetros de cada capa para un instante: umbral, desplazamiento, dirección del viento y altura (km). */
+/**
+ * Parámetros de cada capa para un instante: umbral, desplazamiento, dirección del viento, altura (km) y cuánto se
+ * cierra sobre ti con lluvia (over; clouds.overR, el radio en km).
+ */
 export function layerParams(clouds, tSec, lift = 0) {
   const dt = tSec - Math.floor(tSec / ANCHOR_S) * ANCHOR_S;
   return LAYERS.map((l) => {
     const c = clouds ? clouds[l] || 0 : 0, dr = drift((clouds && clouds.wind && clouds.wind[l]) || [0, 0], dt);
-    return { layer: l, on: c > 0.003, th: threshold(l, c), off: dr.off, dir: dr.dir, h: layerHeight(l, lift) };
+    const over = clouds && clouds.over ? clouds.over[l] || 0 : 0;
+    return { layer: l, on: c > 0.003, th: threshold(l, c), off: dr.off, dir: dr.dir, h: layerHeight(l, lift), over };
   });
 }
 
@@ -195,6 +265,7 @@ export function makeOccluder(clouds, tSec, lift = 0, map = null) {
   if (!clouds) return null;
   const P = layerParams(clouds, tSec, lift).filter((p) => p.on && p.h > 0);   // las de abajo no tapan el cielo
   if (!P.length) return null;
+  const R2 = (clouds.overR || 25) ** 2;
   return (d) => {
     if (!(d[1] > 0.004)) return 0;
     const fade = Math.min(1, Math.max(0, (d[1] - 0.004) / 0.056)), hf = fade * fade * (3 - 2 * fade);
@@ -203,7 +274,8 @@ export function makeOccluder(clouds, tSec, lift = 0, map = null) {
       const st = LAYER_STYLE[p.layer], dist = Math.min(p.h / d[1], 240);
       const ex = d[0] * dist - p.off[0], ny = -d[2] * dist - p.off[1], w = p.dir;
       const n = fbm((ex * w[0] + ny * w[1]) / (st.scaleKm * st.stretch), (-ex * w[1] + ny * w[0]) / st.scaleKm, st.octaves);
-      let th = p.th;
+      const px = d[0] * dist, py = -d[2] * dist;
+      let th = p.th - p.over * Math.exp(-(px * px + py * py) / R2);
       if (map && map.w > 0) {   // el mismo umbral local del satélite que lee el sombreador
         const k = LAYERS.indexOf(p.layer), o = map.off[k] || [0, 0];
         const m = sampleThreshold(map.tex, map.n, map.half, k, d[0] * dist - o[0], -d[2] * dist - o[1]);
@@ -233,6 +305,7 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
     uSun: { value: new THREE.Vector3(0, 1, 0) }, uRim: { value: 0 }, uHaze: { value: 0 },
     uMapOn: { value: 0 }, uMapW: { value: 0 }, uMapHalf: { value: 151.5 }, uMap: { value: null },
     uMapOff: { value: [new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2()] },
+    uOver: { value: [0, 0, 0] }, uOverR: { value: 25 }, uFogB: { value: 0 }, uRain: { value: 0 }, uMottle: { value: 0 }, uRainCol: { value: new THREE.Color(0.5, 0.52, 0.56) },
   };
   let mapTex = null, mapSat = null;
   const mat = (side) => new THREE.ShaderMaterial({
@@ -272,12 +345,19 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
           uniforms.uTh.value[k] = p.th;
           uniforms.uOff.value[k].set(p.off[0], p.off[1]);
           uniforms.uDir.value[k].set(p.dir[0], p.dir[1]);
+          uniforms.uOver.value[k] = p.over;
           if (p.on) any = true;
         });
+        uniforms.uOverR.value = clouds.overR || 25;
         const L = cloudLight(st);
         setC(uniforms.uLit, L.lit); setC(uniforms.uLitAnti, L.litAnti); setC(uniforms.uShade, L.shade); setC(uniforms.uSunGlow, L.sunGlow); setC(uniforms.uHorizon, L.horizon);
         uniforms.uSun.value.set(st.sunDir[0], st.sunDir[1], st.sunDir[2]);
         uniforms.uRim.value = L.rim; uniforms.uHaze.value = L.haze;
+        const wx = st.wx;
+        uniforms.uFogB.value = wx && wx.beta > 0 ? wx.beta : 0;
+        uniforms.uRain.value = wx && wx.rain > 0 ? wx.rain : 0;
+        uniforms.uMottle.value = wx ? (wx.overcast || 0) * L.day : 0;
+        setC(uniforms.uRainCol, L.rain);
       }
       below.visible = anyBelow;
       mesh.visible = enabled && any;

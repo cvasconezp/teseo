@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.68.0 — 2026-11-23
+
+- **La lluvia se ve en el cielo:** cuando el pronóstico marca lluvia, chubascos o tormenta (por el tipo de tiempo y los milímetros, no solo la probabilidad), las nubes bajas y medias se engrosan y se cierran sobre ti, con la base gris y manchas más oscuras donde la nube es más gruesa. Antes, con 98 % de lluvia el cielo se veía casi despejado, porque las nubes se dibujaban solo con la nubosidad por capas.
+- **Luz de día nublado:** con el cielo cubierto, el azul y el resplandor del Sol se apagan (más oscuro con lluvia fuerte), el Sol queda como un disco pálido y las montañas y los monumentos pierden las sombras y el arrebol.
+- **Cortinas de lluvia y gotas:** mantos grises que bajan de las nubes densas hacia el horizonte y, si llueve donde estás, hilos de lluvia que convergen en el cenit.
+- **Bruma según la visibilidad:** con la visibilidad del pronóstico (por ejemplo 4,7 km), las montañas lejanas se desvanecen en gris y las cercanas quedan apagadas. Por encima de 20 km no se añade bruma, porque muchos modelos topan ahí su visibilidad.
+- **Con el satélite:** cerca de la hora del barrido, las nubes siguen saliendo del satélite. La lluvia del pronóstico solo se dibuja si el satélite ve nubes sobre ti, y los claros que él ve siguen azules.
+- Todo esto solo con las nubes encendidas.
+
 ## 1.67.1 — 2026-11-23
 
 - **Tarjeta del tiempo a la hora elegida:** al tocar una hora del gráfico (o mover el cielo a otra hora), toda la tarjeta pasa a esa hora con el pronóstico del lugar: estado, sensación, viento, nubosidad y capas, probabilidad de lluvia, humedad, UV y visibilidad. Arriba dice «A las 15:00 · pronóstico», con un botón «Volver a ahora». Antes, la línea de la hora decía «lluvia 100 %» y la casilla seguía mostrando la de ahora (0 %).

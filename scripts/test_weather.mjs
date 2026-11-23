@@ -223,5 +223,42 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
   ok(nw.hourAt(r.hours, T0 + 3600 + 600).t === T0 + 3600 && nw.hourAt(r.hours, T0 + 5 * 3600) === null && nw.hourAt([], T0) === null, "la hora que contiene un instante, o ninguna");
 }
 
+// lluvia, cielo cubierto y bruma (rainLook.js)
+{
+  const rl = await import("../src/sky/rainLook.js");
+  const ul = new URL(forecastUrl(0.07, -78.13));
+  ok(/weather_code/.test(ul.searchParams.get("hourly")) && /visibility/.test(ul.searchParams.get("hourly")) && /(^|,)precipitation(,|$)/.test(ul.searchParams.get("hourly")), "el pronóstico pide tipo de tiempo, lluvia y visibilidad");
+  const T1 = 1795420800;
+  const fcR = parseForecast({ latitude: 0.1, longitude: -78.1, elevation: 3100, hourly: { time: [T1, T1 + 3600], cloud_cover: [72, 60], cloud_cover_low: [30, 20], cloud_cover_mid: [7, 5], cloud_cover_high: [58, 50],
+    precipitation_probability: [98, 50], weather_code: [63, 3], precipitation: [2.4, 0], visibility: [4700, 24140] } });
+  const c0 = cloudsAt(fcR, T1 + 600), c1 = cloudsAt(fcR, T1 + 3000);
+  ok(c0.code === 63 && c1.code === 3 && near(c0.visKm, 4.7 + (24.14 - 4.7) / 6, 1e-6) && near(c0.mm, 2.4 * 5 / 6, 1e-9), "el código es el de la hora más cercana; lluvia y visibilidad se interpolan");
+  ok(rl.rainAmount({ code: 63, mm: 2 }) === 0.7 && rl.rainAmount({ code: 3, mm: 0 }) === 0 && rl.rainAmount({ code: 95, mm: 0 }) === 1 && rl.rainAmount({ code: null, mm: 6 }) === 1 && rl.rainAmount(null) === 0, "intensidad de la lluvia por código y milímetros");
+  ok(rl.visBeta(24.14) === 0 && rl.visBeta(null) === 0 && near(rl.visBeta(4.7), 3.912 * (1 / 4.7 - 1 / 20), 1e-9), "bruma solo si el pronóstico baja la visibilidad (Koschmieder)");
+  const fc = { low: 0.3, mid: 0.07, high: 0.58, total: 0.72, code: 63, mm: 2.4, visKm: 4.7, wind: { low: [0, 0], mid: [0, 0], high: [0, 0] } };
+  const look = rl.rainLook(fc);
+  const th = rl.thickenForRain(fc, look);
+  ok(look.rain === 0.7 && th.low > 0.7 && th.mid > 0.4 && th.high === 0.58 && th.over.low > 0.3 && th.overR === 25, "con lluvia, las bajas y medias se engrosan y se cierran sobre ti");
+  ok(rl.thickenForRain({ ...fc, code: 3, mm: 0 }, rl.rainLook({ ...fc, code: 3, mm: 0 })).low === 0.3, "sin lluvia no cambia nada");
+  ok(rl.thickenForRain({ ...fc, code: 81 }, rl.rainLook({ ...fc, code: 81 })).overR === 7, "un chubasco se cierra en un radio corto");
+  ok(rl.overcastOf(th, look) > 0.65 && rl.overcastOf({ low: 0.1, mid: 0, high: 1 }, null) < 0.25, "cubierto con bajas gruesas o lluvia; los cirros solo blanquean");
+  ok(rl.overcastOf({ low: 0.3, mid: 0.1, high: 0.4, sat: true, satW: 1 }, look) < rl.overcastOf({ low: 0.3, mid: 0.1, high: 0.4 }, look), "con el satélite, los claros que ve siguen azules aunque llueva");
+  // con el satélite: si no ve nubes sobre ti, la lluvia del pronóstico no se dibuja
+  const n = 9, empty = () => new Uint8Array(n * n), full = () => new Uint8Array(n * n).fill(80);
+  const clear = { n, res: 3, layers: { low: empty(), mid: empty(), high: empty() } }, cloudy = { n, res: 3, layers: { low: full(), mid: empty(), high: full() } };
+  ok(rl.rainLook(fc, clear, 1).rain < 0.01 && near(rl.rainLook(fc, cloudy, 1).rain, 0.7, 1e-9) && near(rl.rainLook(fc, clear, 0).rain, 0.7, 1e-9), "el satélite reciente manda: sin nubes encima, sin lluvia");
+  ok(rl.hazeAt({ beta: 0.6 }, 15) > 0.9 && rl.hazeAt({ beta: 0.6 }, 15) <= 0.95 && rl.hazeAt({ beta: 0 }, 50) === 0 && rl.hazeAt(null, 5) === 0, "la bruma borra lo lejano (sin pasar de 95 %)");
+  const st = { sunAlt: 50, cls: 5, moonAlt: -10, moonIllum: 0, colors: { zenith: [0.17, 0.44, 0.82], horizon: [0.66, 0.8, 0.94], sunGlow: [1, 0.96, 0.87], glow: 0.6, ground: [0.1, 0.1, 0.1], alpha: 1 } };
+  const ws = rl.weatherSky(st, th, look);
+  ok(ws !== st && ws.wx.rain === 0.7 && ws.colors.zenith[2] - ws.colors.zenith[0] < 0.15 && ws.colors.glow < 0.3 && st.colors.zenith[0] === 0.17, "de día con lluvia el cielo pierde el azul y el resplandor del Sol (sin tocar el original)");
+  ok(rl.weatherSky(st, { low: 0.05, mid: 0, high: 0 }, { rain: 0, beta: 0 }) === st, "despejado: el cielo queda igual");
+  const L0 = cloudLight(st), L1 = cloudLight(ws);
+  ok(L1.lit[0] < L0.lit[0] - 0.1 && L1.shade[0] < L0.shade[0] && L1.rim < L0.rim && L1.rain.length === 3, "nubes de lluvia: grises, con la base oscura y sin borde de Sol");
+  const P = layerParams(th, T1, 0);
+  ok(P[0].over > 0 && P[2].over === 0, "el cierre sobre ti llega a cada capa");
+  const occ0 = makeOccluder({ ...fc, over: null }, T1, 0), occ1 = makeOccluder(th, T1, 0);
+  ok(occ1([0, 1, 0]) >= occ0([0, 1, 0]) && occ1([0, 1, 0]) > 0.9, "con lluvia, el cenit queda tapado también para los nombres");
+}
+
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);
