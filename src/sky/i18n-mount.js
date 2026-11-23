@@ -79,7 +79,7 @@ export const MT = {
     grOpen: "Abrir en pantalla completa",
     grNoSun: "Ahora el Sol está demasiado bajo o demasiado alto para la sombra de un palillo.",
     // pantalla completa
-    flatSunTip: "Palillo aquí", flatShadow: "sombra", flatNorth: "norte verdadero",
+    flatSunTip: "Palillo aquí", flatShadow: "sombra", flatVioSun: "N de la brújula", flatNorth: "norte verdadero",
     flatTurn: "Gira el celular hasta que la sombra del palillo caiga sobre la línea naranja.",
     flatCompassTip: "Las líneas siguen al norte verdadero mientras giras el celular.",
     flatLevel: { ok: "Nivelado", tilt: "Ponlo plano", unknown: "Sin sensor de inclinación" },
@@ -181,7 +181,7 @@ export const MT = {
     grCompassHow: "Lay the phone flat, away from the tripod and any metal: the lines stay put as you turn it. It carries the compass error (±3–10°).",
     grOpen: "Open full screen",
     grNoSun: "The Sun is now too low or too high for a toothpick's shadow.",
-    flatSunTip: "Toothpick here", flatShadow: "shadow", flatNorth: "true north",
+    flatSunTip: "Toothpick here", flatShadow: "shadow", flatVioSun: "compass N", flatNorth: "true north",
     flatTurn: "Turn the phone until the toothpick's shadow falls on the orange line.",
     flatCompassTip: "The lines follow true north as you turn the phone.",
     flatLevel: { ok: "Level", tilt: "Lay it flat", unknown: "No tilt sensor" },

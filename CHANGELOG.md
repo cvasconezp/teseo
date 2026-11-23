@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.70.6 — 2026-11-23
+
+- **Celular en el suelo, rediseñado:** el nivel de burbuja va dentro del mismo dibujo, alrededor del palillo, con anillos a 5° y 10°. La burbuja se va al lado alto, en ámbar mientras falta nivelar y en verde cuando queda plano; arriba se lee «Nivelado · 1° / 1°».
+- **Línea violeta de la brújula:** con el Sol marca dónde cree la brújula que está el norte (si coincide con la N blanca cuando la sombra está en su línea, la brújula va bien). Con la brújula marca hacia dónde apunta el celular.
+- **Trazos más finos y sutiles,** sobre una esfera con marcas cada 10° y la sombra en un naranja más suave. La palabra «sombra» va a un lado de su línea.
+
 ## 1.70.5 — 2026-11-23
 
 - **Franja del día: la fase ya no se corta en los bordes.** «Noche», «Día», «Amanecer» o «Atardecer» va justo debajo del botón y, en los extremos del día, se alinea con el borde de la franja en vez de salirse.

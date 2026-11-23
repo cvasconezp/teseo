@@ -421,42 +421,77 @@ export function FlatPhone({ lang = "es", mode = "sun", lat, lon, tz, decl = 0, o
   const dirTxt = hd != null ? `${(ROSE[lang] || ROSE.es)[compassPoint8(hd)]} ${hd}°` : "—";
   // con el Sol, la brújula sirve de control: si la sombra está en su línea, el borde de arriba apunta al norte verdadero
   const cmpOff = mode === "sun" && hd != null ? ((hd + 540) % 360) - 180 : null;
-  // burbuja: el ladeo mueve la bola a los lados y la inclinación arriba y abajo (hasta 10°)
-  const bx = tilt ? Math.max(-1, Math.min(1, tilt.g / 10)) * 18 : 0, by = tilt ? Math.max(-1, Math.min(1, tilt.b / 10)) * 18 : 0;
+  // nivel de burbuja dentro del dibujo: la burbuja va al lado alto (inclinación arriba/abajo, ladeo a los lados); anillos a 5° y 10°
+  const LV = 9;                                      // px por grado (10° = 90 px)
+  const clampR = (x, y, m) => { const d = Math.hypot(x, y); return d > m ? [x * m / d, y * m / d] : [x, y]; };
+  const [bx, by] = tilt ? clampR(-tilt.g * LV, -tilt.b * LV, 118) : [0, 0];
+  // violeta: con el Sol, dónde cree la brújula que está el norte (si coincide con la N blanca, la brújula va bien);
+  // con la brújula, hacia dónde apunta el celular (el borde de arriba)
+  const vio = hd == null ? null : mode === "sun" ? (360 - hd) % 360 : 0;
+  const dial = [];
+  for (let az = 0; az < 360; az += 10) {
+    const big = az % 30 === 0, [x1, y1] = ray(az, R + 6), [x2, y2] = ray(az, R + (big ? 15 : 10));
+    dial.push(<line key={az} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#8d93c4" strokeOpacity={big ? 0.55 : 0.25} strokeWidth={big ? 1.4 : 1} />);
+  }
   return (
     <div className="sk-flat" role="dialog" aria-label={T.grHead}>
       <div className="sk-flat-top">
         <b>{mode === "sun" ? T.grSun : T.grCompass}</b>
-        <span className={`sk-flat-level lv-${level}`}>{T.flatLevel[level]}</span>
+        <span className={`sk-flat-level lv-${level}`}>{T.flatLevel[level]}{tilt ? ` · ${nf(tilt.b)}° / ${nf(tilt.g)}°` : ""}</span>
         <button type="button" className="sk-mnt-x" aria-label={T.close} onClick={onClose}><Icon name="close" size={18} /></button>
       </div>
       <div className="sk-flat-stats">
         <div><small>{T.flatClock}</small><b>{clock}</b></div>
         <div><small>{T.flatHeading}</small><b>{dirTxt}</b>{sens.acc != null && sens.acc >= 0 && <em>±{nf(sens.acc)}°</em>}</div>
-        <div className="sk-flat-bubble"><small>{T.flatTilt}</small>
-          <span><svg viewBox="0 0 48 48" width="40" height="40" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="#5a6390" /><circle cx="24" cy="24" r="6" fill="none" stroke="#5a6390" /><circle cx={24 + bx} cy={24 + by} r="5" fill={level === "ok" ? "#5DCAA5" : "#EF9F27"} /></svg>
-            <b>{tilt ? `${nf(tilt.b)}° / ${nf(tilt.g)}°` : "—"}</b></span></div>
         <div><small>{T.flatSun}</small><b>{`${nf(gs.alt)}° · ${nf(gs.sunAz)}°`}</b></div>
         <div><small>{T.flatGps}</small><b>{gps && gps.acc != null ? `±${nf(gps.acc)} m` : gps && gps.err ? "—" : "…"}</b>{gps && gps.acc != null && <em>{`${nf(gps.lat, 5)}, ${nf(gps.lon, 5)}`}</em>}</div>
         {mode === "sun" && <div><small>{T.flatCheck}</small><b>{cmpOff != null ? `${cmpOff > 0 ? "+" : ""}${nf(cmpOff)}°` : "—"}</b></div>}
       </div>
-      <svg viewBox="0 0 400 400" className="sk-flat-svg" role="img" aria-label={mode === "sun" ? T.flatTurn : T.flatCompassTip}>
+      <svg viewBox="-10 -10 420 420" className="sk-flat-svg" role="img" aria-label={mode === "sun" ? T.flatTurn : T.flatCompassTip}>
+        <defs>
+          <radialGradient id="skFlatBg" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#151a3a" /><stop offset="100%" stopColor="#070912" /></radialGradient>
+          <linearGradient id="skFlatShadow" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#ff8a3d" stopOpacity="0.95" /><stop offset="100%" stopColor="#ffc38f" stopOpacity="0.55" /></linearGradient>
+          {[["skFlatBubOk", "#5DCAA5"], ["skFlatBubTilt", "#EF9F27"]].map(([id, c]) => (
+            <radialGradient key={id} id={id} cx="40%" cy="35%" r="65%"><stop offset="0%" stopColor="#fff" stopOpacity="0.6" /><stop offset="45%" stopColor={c} stopOpacity="0.6" /><stop offset="100%" stopColor={c} stopOpacity="0.16" /></radialGradient>))}
+        </defs>
+        <circle cx="200" cy="200" r={R + 18} fill="url(#skFlatBg)" stroke="#2c3260" strokeWidth="1" />
+        {/* nivel: anillos a 5° y 10° (fijos al celular) */}
+        <circle cx="200" cy="200" r={5 * LV} fill="none" stroke="#5DCAA5" strokeOpacity="0.22" strokeWidth="1" />
+        <circle cx="200" cy="200" r={10 * LV} fill="none" stroke="#5DCAA5" strokeOpacity="0.22" strokeWidth="1" strokeDasharray="2 5" />
+        <text x={200 + 5 * LV + 4} y="196" className="sk-flat-ring">5°</text>
+        <text x={200 + 10 * LV + 4} y="196" className="sk-flat-ring">10°</text>
         <g transform={`rotate(${rot} 200 200)`}>
+          {dial}
           {lines.map((l) => {
             const [x, y] = ray(l.az);
-            return <line key={l.key} x1="200" y1="200" x2={x} y2={y} stroke={l.kind === "ns" ? "#ffffff" : l.kind === "eq" ? "#EF9F27" : "#F0997B"}
-              strokeWidth={l.kind === "ns" ? 4 : l.kind === "eq" ? 3 : 2} strokeDasharray={l.kind === "sol" ? "10 8" : undefined} />;
+            return <line key={l.key} x1="200" y1="200" x2={x} y2={y} strokeLinecap="round"
+              stroke={l.kind === "ns" ? "#eceaff" : l.kind === "eq" ? "#f2b35b" : "#f0997b"}
+              strokeOpacity={l.kind === "ns" ? 0.9 : l.kind === "eq" ? 0.85 : 0.5}
+              strokeWidth={l.kind === "ns" ? 2.2 : l.kind === "eq" ? 1.8 : 1.3} strokeDasharray={l.kind === "sol" ? "6 7" : undefined} />;
           })}
-          {(() => { const [x, y] = ray(0, R + 12); return <text x={x} y={y + 6} textAnchor="middle" className="sk-flat-n">{T.markN}</text>; })()}
-          {mode === "sun" && gs.usable && (() => { const [x, y] = ray(gs.shadowAz, R - 10); return (
-            <><line x1="200" y1="200" x2={x} y2={y} stroke="#ff8a3d" strokeWidth="7" strokeLinecap="round" opacity="0.9" />
-              <text x={ray(gs.shadowAz, R - 40)[0]} y={ray(gs.shadowAz, R - 40)[1] - 10} textAnchor="middle" className="sk-flat-s">{T.flatShadow}</text></>
+          {(() => { const [x, y] = ray(0, R + 30); return <text x={x} y={y + 6} textAnchor="middle" className="sk-flat-n">{T.markN}</text>; })()}
+          {mode === "sun" && gs.usable && (() => { const [x, y] = ray(gs.shadowAz, R - 14); const [mx, my] = ray(gs.shadowAz, R * 0.62);
+            // la palabra, a un lado de la línea (el de arriba) y no sobre ella
+            const sa = (gs.shadowAz * Math.PI) / 180; let nx = -Math.cos(sa), ny = -Math.sin(sa); if (ny > 0) { nx = -nx; ny = -ny; }
+            const lx = mx + nx * 16, ly = my + ny * 16 + 4; return (
+            <><line x1="200" y1="200" x2={x} y2={y} stroke="#ff8a3d" strokeOpacity="0.18" strokeWidth="10" strokeLinecap="round" />
+              <line x1="200" y1="200" x2={x} y2={y} stroke="#ff9d5c" strokeWidth="3.2" strokeLinecap="round" />
+              <circle cx={x} cy={y} r="3.5" fill="#ffc38f" />
+              <text x={lx} y={ly} textAnchor="middle" className="sk-flat-s" transform={`rotate(${(((gs.shadowAz % 180) + 180) % 180) - 90} ${lx} ${ly})`}>{T.flatShadow}</text></>
           ); })()}
         </g>
-        {/* el borde de arriba del celular: hacia dónde apunta */}
-        {mode === "compass" && <polygon points="200,8 192,24 208,24" fill="#a78bfa" />}
-        <circle cx="200" cy="200" r="9" fill="#141a33" stroke="#fff" strokeWidth="2" />
-        <circle cx="200" cy="200" r="2.5" fill="#fff" />
+        {/* violeta: la brújula (con el Sol, su norte; con la brújula, hacia dónde apunta el celular) */}
+        {vio != null && (() => { const [x, y] = ray(vio, R - 4), [tx, ty] = ray(vio, R - 30); const a = (vio * Math.PI) / 180;
+          const p = (d, s) => `${x - Math.sin(a) * d + Math.cos(a) * s},${y + Math.cos(a) * d + Math.sin(a) * s}`;
+          return (<g className="sk-flat-vio">
+            <line x1="200" y1="200" x2={x} y2={y} stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeDasharray={mode === "sun" ? "1 6" : undefined} />
+            <polygon points={`${x},${y} ${p(12, -6)} ${p(12, 6)}`} fill="#a78bfa" />
+            <text x={tx + (Math.sin(a) >= 0 ? 10 : -10)} y={ty} textAnchor={Math.sin(a) >= 0 ? "start" : "end"} className="sk-flat-vt">{mode === "sun" ? T.flatVioSun : `${hd}°`}</text>
+          </g>); })()}
+        {/* la burbuja */}
+        {tilt && <circle cx={200 + bx} cy={200 + by} r="15" fill={`url(#${level === "ok" ? "skFlatBubOk" : "skFlatBubTilt"})`} stroke={level === "ok" ? "#5DCAA5" : "#EF9F27"} strokeOpacity="0.85" strokeWidth="1.2" />}
+        <circle cx="200" cy="200" r="8" fill="#0d1124" stroke="#eceaff" strokeWidth="1.6" />
+        <circle cx="200" cy="200" r="2.2" fill="#eceaff" />
       </svg>
       <div className="sk-flat-bot">
         {mode === "sun" ? (
