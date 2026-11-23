@@ -156,6 +156,21 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:22px 48px;padding-top:36px;padding-
 footer .who{flex:1 1 320px;display:flex;flex-direction:column;gap:6px}
 footer nav{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:flex-start}
 footer nav a{color:var(--soft)}
+/* fuentes y ciencia ciudadana */
+.src{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.src section,.src>div{padding:20px 22px;border-radius:18px;background:var(--panel);border:1px solid var(--line)}
+.src h3{font-size:18px;color:var(--gold);margin-bottom:10px}
+.src ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+.src li{font-size:15px;line-height:1.4;color:var(--muted)}
+.src li a{color:var(--text);text-decoration:none;font-weight:600;border-bottom:1px solid rgba(242,196,109,.35)}
+.src li a:hover{color:#FFE2A3;border-bottom-color:var(--gold)}
+.src li span{display:block}
+.cs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:18px}
+.cs a{display:flex;flex-direction:column;gap:6px;padding:18px 20px;border-radius:16px;border:1px solid var(--line2);text-decoration:none;color:inherit}
+.cs a:hover{border-color:rgba(126,224,195,.7)}
+.cs b{color:var(--teal);font-size:17px}
+.cs span{color:var(--soft);font-size:15px}
+.src-foot{margin-top:26px;color:var(--muted);font-size:15px}
 </style>
 <!-- Vercel Web Analytics: visitas sin cookies -->
 <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};</script>
@@ -175,6 +190,7 @@ footer nav a{color:var(--soft)}
       <a class="lang-link" href="/acerca" hreflang="es" lang="es" data-lang="es" aria-label="Versión en español" title="Versión en español">ES</a>
       <a href="#que-es">What it is</a>
       <a href="#ciencia">The science</a>
+      <a href="#fuentes">Sources</a>
       <a href="#videos">Videos</a>
       <a href="#podcast">Podcast</a>
       <a href="#talleres">Workshops</a>
@@ -326,6 +342,70 @@ footer nav a{color:var(--soft)}
         <div><h3>Your location is yours</h3><p>No account, no sign-up. Your location is used to compute your sky, not to profile you.</p></div>
         <div><h3>Open source</h3><p>AGPL-3.0 licence and automated tests: anyone can review, use and improve the code, and improvements stay open.</p></div>
       </div>
+    </div>
+  </section>
+
+  <!-- Fuentes y ciencia ciudadana -->
+  <section id="fuentes" aria-label="Teseo data sources">
+    <div class="wrap sec">
+      <div class="head">
+        <p class="kicker">Open data</p>
+        <h2>Sources and citizen science</h2>
+        <p class="soft">Everything Teseo shows comes from public data by space agencies, observatories and volunteer communities. Here they are, so you can check them, use them or join in.</p>
+      </div>
+      <div class="src">
+        <div><h3>Stars and deep sky</h3><ul>
+          <li><a href="https://github.com/astronexus/HYG-Database" rel="noopener">HYG Database</a><span>position, brightness, colour and distance of every star</span></li>
+          <li><a href="https://heasarc.gsfc.nasa.gov/W3Browse/all/hipnewcat.html" rel="noopener">Hipparcos (HEASARC, NASA)</a><span>the error of each distance in true depth</span></li>
+          <li><a href="https://github.com/Stellarium/stellarium-skycultures" rel="noopener">Stellarium · sky cultures</a><span>the constellation lines (IAU)</span></li>
+          <li><a href="https://github.com/mattiaverga/OpenNGC" rel="noopener">OpenNGC</a><span>Messier, NGC and IC nebulae, clusters and galaxies</span></li>
+          <li><a href="https://www.atnf.csiro.au/research/pulsar/psrcat/" rel="noopener">ATNF Pulsar Catalogue</a><span>pulsars</span></li>
+          <li><a href="https://exoplanetarchive.ipac.caltech.edu/" rel="noopener">NASA Exoplanet Archive</a><span>stars with planets</span></li>
+          <li><a href="https://simbad.cds.unistra.fr/simbad/" rel="noopener">SIMBAD · CDS</a><span>looking up objects by name</span></li>
+          <li><a href="https://svs.gsfc.nasa.gov/4851" rel="noopener">NASA SVS · Deep Star Maps (Gaia)</a><span>the Milky Way</span></li>
+          <li><a href="https://sky.esa.int/" rel="noopener">ESASky · DSS, SDSS and 2MASS</a><span>sky photos when you zoom in</span></li>
+        </ul></div>
+        <div><h3>Solar System and missions</h3><ul>
+          <li><a href="https://ssd.jpl.nasa.gov/horizons/" rel="noopener">NASA JPL Horizons</a><span>planets, comets, probes and telescopes</span></li>
+          <li><a href="https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html" rel="noopener">JPL Small-Body Database</a><span>asteroids and comets</span></li>
+          <li><a href="https://cneos.jpl.nasa.gov/ca/" rel="noopener">NASA CNEOS</a><span>close approaches to Earth</span></li>
+          <li><a href="https://thespacedevs.com/llapi" rel="noopener">The Space Devs · Launch Library 2</a><span>upcoming launches</span></li>
+          <li><a href="https://aa.usno.navy.mil/" rel="noopener">Astronomical Almanac (USNO)</a><span>Sun formulas and ephemeris checks</span></li>
+          <li><a href="https://sdo.gsfc.nasa.gov/" rel="noopener">Solar Dynamics Observatory</a><span>today’s Sun</span></li>
+          <li><a href="https://www.solarsystemscope.com/textures/" rel="noopener">Solar System Scope</a><span>planet textures</span></li>
+          <li><a href="https://astrogeology.usgs.gov/" rel="noopener">USGS Astrogeology</a><span>maps of the moons</span></li>
+          <li><a href="https://images.nasa.gov/" rel="noopener">NASA Image and Video Library</a><span>images in the info cards</span></li>
+        </ul></div>
+        <div><h3>Earth, weather and terrain</h3><ul>
+          <li><a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a><span>forecast and clouds by layer</span></li>
+          <li><a href="https://view.eumetsat.int/" rel="noopener">EUMETSAT · EUMETView</a><span>Meteosat clouds (Europe and Africa)</span></li>
+          <li><a href="https://registry.opendata.aws/noaa-goes/" rel="noopener">NOAA · GOES</a><span>clouds over the Americas</span></li>
+          <li><a href="https://registry.opendata.aws/noaa-himawari/" rel="noopener">JMA · Himawari (via NOAA)</a><span>clouds over Asia and Oceania</span></li>
+          <li><a href="https://earthobservatory.nasa.gov/features/NightLights" rel="noopener">NASA GIBS · Black Marble</a><span>night lights and light pollution</span></li>
+          <li><a href="https://registry.opendata.aws/terrain-tiles/" rel="noopener">AWS Terrain Tiles (SRTM, GMTED2010)</a><span>terrain and the real horizon</span></li>
+          <li><a href="https://s2maps.eu/" rel="noopener">Sentinel-2 cloudless · EOX</a><span>mountain colours (Copernicus)</span></li>
+          <li><a href="https://www.ncei.noaa.gov/products/world-magnetic-model" rel="noopener">World Magnetic Model 2025 (NOAA)</a><span>compass declination</span></li>
+          <li><a href="https://volcano.si.edu/" rel="noopener">Smithsonian · Global Volcanism Program</a><span>volcanoes and their eruptions</span></li>
+        </ul></div>
+        <div><h3>Places and names</h3><ul>
+          <li><a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a><span>peaks and maps</span></li>
+          <li><a href="https://www.wikidata.org/" rel="noopener">Wikidata</a><span>mountains, volcanoes and their heights</span></li>
+          <li><a href="https://www.geonames.org/" rel="noopener">GeoNames</a><span>place names when you search</span></li>
+          <li><a href="https://opentopomap.org/" rel="noopener">OpenTopoMap</a><span>the map to pick your place</span></li>
+          <li><a href="https://photon.komoot.io/" rel="noopener">Photon · Komoot</a><span>peak search</span></li>
+        </ul></div>
+      </div>
+      <h3 style="margin-top:40px;font-size:24px">Take part in science</h3>
+      <p class="soft" style="margin-top:6px">Looking at the sky helps science too. These projects take observations from anyone, no astronomer needed.</p>
+      <div class="cs">
+        <a href="https://globeatnight.org/" rel="noopener"><b>Globe at Night</b><span>Count the stars you see from home and help measure light pollution around the world.</span></a>
+        <a href="https://www.zooniverse.org/" rel="noopener"><b>Zooniverse</b><span>Classify galaxies and hunt for planets and supernovae in real telescope data, from your phone.</span></a>
+        <a href="https://backyardworlds.org/" rel="noopener"><b>Backyard Worlds</b><span>Search NASA images for brown dwarfs and worlds near the Sun.</span></a>
+        <a href="https://www.aavso.org/" rel="noopener"><b>AAVSO</b><span>Observe variable stars and submit your measurements to a database astronomers use.</span></a>
+        <a href="https://www.imo.net/" rel="noopener"><b>International Meteor Organization</b><span>Count shooting stars during meteor showers and share your counts.</span></a>
+        <a href="https://science.nasa.gov/citizen-science/" rel="noopener"><b>NASA citizen science</b><span>Dozens of open projects, from the Sun and asteroids to Earth seen from space.</span></a>
+      </div>
+      <p class="src-foot">The full list, with the licence and use of each dataset, is in <a href="https://github.com/cvasconezp/teseo/blob/main/CREDITS.md" rel="noopener">CREDITS.md</a>. Spotted something that doesn’t add up? <a href="https://github.com/cvasconezp/teseo/issues" rel="noopener">Tell us on GitHub</a>.</p>
     </div>
   </section>
 
@@ -516,7 +596,7 @@ footer nav a{color:var(--soft)}
     </div>
     <nav aria-label="Footer">
       <a href="https://github.com/cvasconezp/teseo">Code (AGPL-3.0 licence)</a>
-      <a href="https://github.com/cvasconezp/teseo/blob/main/CREDITS.md">Credits and data sources</a>
+      <a href="#fuentes">Credits and data sources</a>
       <a href="https://github.com/cvasconezp/teseo/blob/main/CHANGELOG.md">Changelog</a>
       <a href="https://www.yachaydeep.com">Yachay Deep</a>
     </nav>

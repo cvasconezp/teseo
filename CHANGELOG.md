@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.71.2 — 2026-11-23
+
+- **«Acerca de»: nueva sección «Fuentes y ciencia ciudadana»** (también en /about). Reúne las fuentes de datos abiertos de Teseo en cuatro grupos: estrellas y cielo profundo, Sistema Solar y misiones, Tierra, clima y relieve, y lugares y nombres. Cada fuente lleva su enlace y para qué la usa Teseo. Debajo, «Participa en la ciencia» enlaza seis proyectos donde cualquiera puede aportar observaciones: Globe at Night, Zooniverse, Backyard Worlds, AAVSO, la Organización Internacional de Meteoros y la ciencia ciudadana de la NASA. La lista completa con licencias sigue en CREDITS.md.
+- **El enlace «Créditos y fuentes de datos» del pie de página** lleva ahora a esa sección. Los créditos de la app suman un enlace a ella.
+
 ## 1.71.1 — 2026-11-23
 
 - **Foto 360°: los planetas ya no salen cortados.** Un planeta, el Sol o la Luna justo en la costura entre dos de las seis fotos que forman la 360° (por ejemplo a 45° de altura, entre una lateral y la de arriba) se perdía en una de ellas y quedaba recortado en rectángulo. Mientras se toma la foto ya no se descarta nada fuera de cada cara.
