@@ -26,7 +26,8 @@ import MgaPlanner from "./route/MgaPlanner.jsx";
 import { GA } from "./route/i18n-assists.js";
 import { MGA } from "./route/i18n-mga.js";
 // Geometría del dibujo de la ruta en el mapa: media elipse de Hohmann con ángulos reales
-import { ORBIT_R, hohmannPlan, pathD, placeLabel, routeDates } from "./route/hohmannMap.js";
+import { ORBIT_R, hohmannPlan, pathD, placeLabel, routeDates, mapRadius } from "./route/hohmannMap.js";
+import { CERES, keplerXYZ, beltPoints } from "./route/smallBodies.js";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
 import PlanetSphere from "./ui/PlanetSphere.jsx";
@@ -90,7 +91,8 @@ const T = {
     mapNasa:        "Today's positions: NASA JPL",
     mapLocal:       "Today's positions: local estimate",
     mapLoading:     "Loading real positions…",
-    mapNote:        "Tap a planet to go there. Sizes are not to scale. The line is the Hohmann route for the next window: real angles, compressed distances.",
+    mapNote:        "Tap a planet to go there. Sizes are not to scale. The line is the Hohmann route for the next window: real angles, compressed distances. Between Mars and Jupiter, the asteroid belt (with the gaps Jupiter carves) and Ceres, the dwarf planet, where it is today.",
+    mapBelt: "Asteroid belt", mapBeltShort: "Asteroids", mapCeres: "Ceres",
     mapNoteSpecial: "Tap a planet to go there. Sizes and distances are not to scale; the thread is schematic.",
     mapNoWindow:    "No launch window available: the line leaves today.",
     mapDep:         (d) => `Departure: ${d}`,
@@ -294,7 +296,8 @@ const T = {
     mapNasa:        "Posiciones de hoy: NASA JPL",
     mapLocal:       "Posiciones de hoy: cálculo local aproximado",
     mapLoading:     "Cargando posiciones reales…",
-    mapNote:        "Toca un planeta para ir allí. Los tamaños no están a escala. La línea es la ruta de Hohmann de la próxima ventana: ángulos reales, distancias comprimidas.",
+    mapNote:        "Toca un planeta para ir allí. Los tamaños no están a escala. La línea es la ruta de Hohmann de la próxima ventana: ángulos reales, distancias comprimidas. Entre Marte y Júpiter, el cinturón de asteroides (con los huecos que abre Júpiter) y Ceres, el planeta enano, en su posición de hoy.",
+    mapBelt: "Cinturón de asteroides", mapBeltShort: "Asteroides", mapCeres: "Ceres",
     mapNoteSpecial: "Toca un planeta para ir allí. Tamaños y distancias no están a escala; el hilo es esquemático.",
     mapNoWindow:    "No hay ventana de lanzamiento disponible: la línea sale hoy.",
     mapDep:         (d) => `Salida: ${d}`,
@@ -759,6 +762,11 @@ function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun
   const names = useMemo(()=>Object.fromEntries(PLANETS.map(p=>[p.id, pname(p, lang)])),[lang]);
   const toId = special ? null : to.id;   // con la Luna o el Sol de destino no se marca ningún planeta
 
+  // El cinturón de asteroides (puntos fijos, con los huecos de Kirkwood) y Ceres en su posición de hoy, con la
+  // misma escala comprimida del mapa; el rótulo del cinturón, en el arco más alejado de los planetas
+  const belt = useMemo(()=>beltPoints(650).map(b=>{ const r = mapRadius(b.au); return { x: 50 + r * Math.cos(b.ang), y: 50 - r * Math.sin(b.ang), s: b.s }; }),[]);
+  const ceres = useMemo(()=>{ const c = keplerXYZ(CERES, new Date()), a = Math.atan2(c.y, c.x), r = mapRadius(CERES.a); return { a, x: 50 + r * Math.cos(a), y: 50 - r * Math.sin(a) }; },[]);
+
   // Media elipse de Hohmann de la próxima ventana: ángulos reales, radios comprimidos
   // con la misma escala del mapa (ver src/route/hohmannMap.js). Solo con destino planeta.
   const depISO = plan && plan.dep, arrISO = plan && plan.arr;
@@ -812,6 +820,41 @@ function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun
     return out;
   },[hoh, marks, pts, w, lay, t, depTxt, arrTxt, pathPx]);
 
+  // Rótulos de Ceres y del cinturón, sin pisar planetas, sus nombres, los marcadores ni la ruta (si no caben, no van)
+  const smallTags = useMemo(()=>{
+    const px = v => (v * w) / 100, sunR = (w * SUN_SIZE) / 200;
+    const obs = [{ x: w / 2 - sunR, y: w / 2 - sunR, w: sunR * 2, h: sunR * 2 }];
+    for (const q of pts) { const r = (w * q.p.size) / 200 + 2; obs.push({ x: px(q.x) - r, y: px(q.y) - r, w: r * 2, h: r * 2 }); }
+    for (const id of Object.keys(lay.boxes)) obs.push(lay.boxes[id]);
+    if (marks) obs.push(...marks.boxes);
+    if (tags) for (const k of ["dep", "arr"]) if (tags[k]) obs.push(tags[k]);
+    const inBox = (x, y, m = 1) => obs.some(o => x >= o.x - m && x <= o.x + o.w + m && y >= o.y - m && y <= o.y + o.h + m);
+    const nearPath = (x, y) => pathPx.some(q => Math.abs(q.x - x) < 4 && Math.abs(q.y - y) < 4);
+    // Ceres: su nombre junto al punto (a menos de ~26 px)
+    const cx = px(ceres.x), cy = px(ceres.y), cw = t.mapCeres.length * 6 + 4;
+    let cer = placeLabel(cx, cy, cw, 13, w, obs, { avoidPath: pathPx, gap: 4 });
+    if (cer && Math.hypot(cer.x + cer.w / 2 - cx, cer.y + cer.h / 2 - cy) > 26) cer = null;
+    if (cer) obs.push(cer);
+    // el cinturón: un arco de ~57° sobre la banda, en el ángulo libre más alejado de los planetas
+    // el arco, del largo del texto (≈ 0,56 em por letra a 9,5 px) más un margen; si el nombre largo no cabe en
+    // ningún hueco, el corto
+    const r = mapRadius(2.7), N = 24;
+    let best = null, bestScore = -1, label = null;
+    for (const txt of [t.mapBelt, t.mapBeltShort]) {
+    const half = Math.min(1.3, (txt.length * 9.5 * 0.56) / ((r / 100) * w) / 2 + 0.08);
+    for (let a0 = 0; a0 < Math.PI * 2; a0 += Math.PI / 36) {
+      const top = Math.sin(a0) >= 0, rr = top ? r + 0.9 : r - 1.7;
+      const P = [];
+      for (let k = 0; k <= N; k++) { const sF = k / N, a = top ? a0 + half - 2 * half * sF : a0 - half + 2 * half * sF; P.push([50 + rr * Math.cos(a), 50 - rr * Math.sin(a)]); }
+      if (P.some(([x, y]) => inBox(px(x), px(y), 3) || nearPath(px(x), px(y)))) continue;
+      const score = Math.min(...pts.map(q => Math.hypot(q.x - (50 + r * Math.cos(a0)), q.y - (50 - r * Math.sin(a0)))));
+      if (score > bestScore) { bestScore = score; label = txt; best = P.map(([x, y], k) => `${k ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`).join(""); }
+    }
+    if (best) break;
+    }
+    return { cer: cer ? { x: (cer.x / w) * 100, y: ((cer.y + cer.h * 0.78) / w) * 100 } : null, arc: best, label };
+  },[w, pts, lay, marks, tags, pathPx, ceres, t]);
+
   // El hilo de Ariadna con destino especial: al Sol, media vuelta cayendo hacia el centro
   // (esquemática); a la Luna no hay hilo (está pegada a la Tierra a esta escala).
   const thread = useMemo(()=>{
@@ -854,6 +897,13 @@ function SolarMap({ from, to, positions, lang, onPick, special = null, onPickSun
             stroke={sel ? "rgba(255,255,255,0.34)" : "rgba(255,255,255,0.13)"}
             strokeWidth={sel ? 0.34 : 0.22}/>;
         })}
+        <g className="map__belt">
+          {belt.map((b,k)=><circle key={k} cx={b.x.toFixed(2)} cy={b.y.toFixed(2)} r={(0.11 * b.s).toFixed(3)}/>)}
+          {smallTags.arc && <path id="map-belt-arc" d={smallTags.arc} fill="none" stroke="none"/>}
+          {smallTags.arc && <text className="map__belt-label" style={{ fontSize: `${(9.5 / w) * 100}px` }}><textPath href="#map-belt-arc" startOffset="50%" textAnchor="middle">{smallTags.label}</textPath></text>}
+          <circle className="map__ceres" cx={ceres.x} cy={ceres.y} r="0.75"/>
+          {smallTags.cer && <text className="map__ceres-label" style={{ fontSize: `${(10 / w) * 100}px` }} x={smallTags.cer.x} y={smallTags.cer.y}>{t.mapCeres}</text>}
+        </g>
         <g key={`${from.id}-${special || toId}`}>
           <path d={thread} className="thread thread--glow" pathLength="1"/>
           <path d={thread} className="thread" pathLength="1" stroke="url(#thread-grad)"/>

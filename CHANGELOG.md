@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.66.0 — 2026-11-22
+
+- **Ruta: el cinturón de asteroides y Ceres en el mapa.** Entre Marte y Júpiter, el cinturón principal (2,1–3,3 UA) con la escala comprimida del mapa y los huecos de Kirkwood que abren las resonancias con Júpiter; Ceres, el planeta enano, en su posición de hoy (elementos de JPL, comprobados con Horizons). Los rótulos buscan sitio sin tapar planetas, nombres, marcadores ni la ruta; en pantallas estrechas, «Asteroides».
+
 ## 1.65.0 — 2026-11-22
 
 - **Tour nuevo para quien empieza en la astronomía y en Teseo:** nueve paradas que unen una idea del cielo con una función de la app; el botón del que habla cada parada se ilumina, con un «Pruébalo».
