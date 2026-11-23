@@ -99,3 +99,9 @@
 
 /* cinco datos en la cuadrícula de tres: el último ocupa el resto de la fila */
 .sk-stage .sk-flat-stats > div:nth-child(5):last-child { grid-column: span 2; }
+.sk-stage .sk-flat-c { fill: #f2b35b; font-size: 14px; font-weight: 600; }
+.sk-stage .sk-flat-sol { fill: #f0997b; fill-opacity: 0.85; font-size: 11px; }
+.sk-stage .sk-flat-legend { display: block; color: #a3a9cc; font-size: 11.5px; line-height: 1.45; }
+.sk-stage .sk-flat-legend i { display: inline-block; width: 16px; height: 0; margin: 0 5px 3px 0; vertical-align: middle; border-top: 2px solid #f2b35b; }
+.sk-stage .sk-flat-legend i.is-sol { border-top: 2px dashed #f0997b; }
+.sk-stage .sk-flat-legend span { display: block; }

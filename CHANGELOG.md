@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.70.7 — 2026-11-23
+
+- **Celular en el suelo: puntos cardinales y solsticios rotulados.** La línea este–oeste lleva E y O en sus extremos, la N–S lleva N y S, y las punteadas indican su mes (jun, dic): son las direcciones por donde sale y se pone el Sol en los solsticios. Debajo, una leyenda explica la línea de los equinoccios y las punteadas. Los rótulos quedan de pie aunque el dibujo gire con la brújula.
+
 ## 1.70.6 — 2026-11-23
 
 - **Celular en el suelo, rediseñado:** el nivel de burbuja va dentro del mismo dibujo, alrededor del palillo, con anillos a 5° y 10°. La burbuja se va al lado alto, en ámbar mientras falta nivelar y en verde cuando queda plano; arriba se lee «Nivelado · 1° / 1°».

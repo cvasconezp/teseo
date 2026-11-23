@@ -447,7 +447,7 @@ export function FlatPhone({ lang = "es", mode = "sun", lat, lon, tz, decl = 0, o
         <div><small>{T.flatGps}</small><b>{gps && gps.acc != null ? `±${nf(gps.acc)} m` : gps && gps.err ? "—" : "…"}</b>{gps && gps.acc != null && <em>{`${nf(gps.lat, 5)}, ${nf(gps.lon, 5)}`}</em>}</div>
         {mode === "sun" && <div><small>{T.flatCheck}</small><b>{cmpOff != null ? `${cmpOff > 0 ? "+" : ""}${nf(cmpOff)}°` : "—"}</b></div>}
       </div>
-      <svg viewBox="-10 -10 420 420" className="sk-flat-svg" role="img" aria-label={mode === "sun" ? T.flatTurn : T.flatCompassTip}>
+      <svg viewBox="-22 -22 444 444" className="sk-flat-svg" role="img" aria-label={mode === "sun" ? T.flatTurn : T.flatCompassTip}>
         <defs>
           <radialGradient id="skFlatBg" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#151a3a" /><stop offset="100%" stopColor="#070912" /></radialGradient>
           <linearGradient id="skFlatShadow" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#ff8a3d" stopOpacity="0.95" /><stop offset="100%" stopColor="#ffc38f" stopOpacity="0.55" /></linearGradient>
@@ -469,7 +469,11 @@ export function FlatPhone({ lang = "es", mode = "sun", lat, lon, tz, decl = 0, o
               strokeOpacity={l.kind === "ns" ? 0.9 : l.kind === "eq" ? 0.85 : 0.5}
               strokeWidth={l.kind === "ns" ? 2.2 : l.kind === "eq" ? 1.8 : 1.3} strokeDasharray={l.kind === "sol" ? "6 7" : undefined} />;
           })}
-          {(() => { const [x, y] = ray(0, R + 30); return <text x={x} y={y + 6} textAnchor="middle" className="sk-flat-n">{T.markN}</text>; })()}
+          {/* puntos cardinales en los extremos de las líneas, y en las punteadas el mes del solsticio (de pie aunque el dibujo gire) */}
+          {[[0, T.markN, "sk-flat-n"], [90, T.markE, "sk-flat-c"], [180, T.markS, "sk-flat-c"], [270, T.markW, "sk-flat-c"]].map(([az, txt, cls]) => {
+            const [x, y] = ray(az, R + 30); return <text key={az} x={x} y={y} dy="0.36em" textAnchor="middle" className={cls} transform={`rotate(${-rot} ${x} ${y})`}>{txt}</text>; })}
+          {lines.filter((l) => l.kind === "sol").map((l) => {
+            const [x, y] = ray(l.az, R + 28); return <text key={l.key} x={x} y={y} dy="0.36em" textAnchor="middle" className="sk-flat-sol" transform={`rotate(${-rot} ${x} ${y})`}>{l.key.startsWith("jun") ? T.flatJun : T.flatDec}</text>; })}
           {mode === "sun" && gs.usable && (() => { const [x, y] = ray(gs.shadowAz, R - 14); const [mx, my] = ray(gs.shadowAz, R * 0.62);
             // la palabra, a un lado de la línea (el de arriba) y no sobre ella
             const sa = (gs.shadowAz * Math.PI) / 180; let nx = -Math.cos(sa), ny = -Math.sin(sa); if (ny > 0) { nx = -nx; ny = -ny; }
@@ -499,6 +503,7 @@ export function FlatPhone({ lang = "es", mode = "sun", lat, lon, tz, decl = 0, o
         ) : (
           trueHeading != null ? <p>{T.flatCompassTip}{sens.acc != null && sens.acc > 15 ? ` · ${T.chipStatus.calibrate}` : ""}</p> : <p>{asked ? T.flatNoCompass : ""}</p>
         )}
+        <small className="sk-flat-legend"><span><i className="is-eq" />{T.flatLegEq}</span><span><i className="is-sol" />{T.flatLegSol}</span></small>
         <small className="sk-flat-gpsnote">{T.flatGpsNote}</small>
         {(!asked || !gps) && <button type="button" className="sk-mnt-primary" onClick={ask}>{T.flatSensors}</button>}
       </div>
