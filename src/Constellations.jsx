@@ -84,7 +84,8 @@ import { GuidesControls, useGuides } from "./sky/GuidesControls.jsx";
 import { IssLayer, ISS_COLORS, ISS_RATES, stepClock as stepIssClock } from "./sky/issLayer.js";
 import IssSheet from "./sky/IssSheet.jsx";
 import PeakSheet from "./sky/PeakSheet.jsx";
-import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp, compass8, fmtWind, windText, windVector } from "./sky/nowWeather.js";
+import { WxCard } from "./sky/WxCard.jsx";
+import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp, fmtWind, windText, windVector } from "./sky/nowWeather.js";
 import { fetchVolcanoes, matchVolcanoes, recentEruption, eruptingInView, volcanoesOnSkyline, VT as VOLC_T } from "./sky/volcanoes.js";
 import { angleOf as terrainAngleOf } from "./sky/terrainLayer.js";
 import { createPlumeLayer, veiColumnKm, plumeParams } from "./sky/plumeLayer.js";
@@ -2734,6 +2735,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const volcList = volc.key === volcKey ? volc.list : null;
   // el tiempo de ahora en el lugar (pastilla «16 °C · Quito»; src/sky/nowWeather.js): cada 15 minutos
   const [wxNow, setWxNow] = useState(null);
+  const [wxOpen, setWxOpen] = useState(false);   // la tarjeta del tiempo (WxCard.jsx), abierta desde la pastilla
+  const wxPillRef = useRef(null);
   // la altitud para corregir la temperatura: la del modelo de terreno en tu punto (fiable); sin ella, la del lugar
   // solo si es creíble; si no, ninguna (Open-Meteo usa entonces su propio modelo de terreno de 90 m). La altitud del
   // GPS del navegador no se usa: a veces llega mal y cada 150 m de error son 1 °C
@@ -2742,7 +2745,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   useEffect(() => {
     if (!wxNowKey) { setWxNow(null); return undefined; }
     let alive = true;
-    const ask = () => fetch(nowUrl(lat, lon, wxElev)).then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setWxNow(parseNow(j)); }).catch(() => {});
+    const ask = () => fetch(nowUrl(lat, lon, wxElev)).then((r) => (r.ok ? r.json() : null)).then((j) => { const w = parseNow(j); if (alive) setWxNow(w ? { ...w, fetchedAt: Date.now() } : null); }).catch(() => {});
     ask();
     const id = setInterval(ask, 15 * 60 * 1000);
     return () => { alive = false; clearInterval(id); };
@@ -4053,21 +4056,16 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const wxPill = wxNow && localMode && !viewFrom ? (() => {
     const k = wxKind(wxNow.code, wxNow.day), nm = (WX_NAMES[lang] || WX_NAMES.es)[k];
     return (
-      <button type="button" className="sk-chip sk-wx-pill" onClick={() => { setWxWanted(true); openPanel("layers"); }}
+      <button ref={wxPillRef} type="button" className="sk-chip sk-wx-pill" aria-expanded={wxOpen} aria-haspopup="dialog"
+        onClick={() => { setWxWanted(true); setWxOpen((o) => { if (!o) track("sky_weather_card", { kind: "open" }); return !o; }); }}
         aria-label={`${nm}, ${fmtTemp(wxNow.temp)}${wxNow.windKmh != null ? `. ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}
         title={`${nm}${wxNow.windKmh != null ? ` · ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}>
         <Icon name={`wx_${k}`} size={18} /><span>{fmtTemp(wxNow.temp)}</span>
         {wxNow.windKmh != null && (
-          <span className="sk-wx-wind">
-            {wxNow.windKmh >= 1 && wxNow.windFrom != null && (
-              // la flecha apunta hacia donde va el viento; las letras dicen de dónde viene
-              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style={{ transform: `rotate(${wxNow.windFrom + 180}deg)` }}>
-                <path d="M6 1 L9.6 9.8 L6 7.6 L2.4 9.8 Z" fill="currentColor" />
-              </svg>
-            )}
-            {wxNow.windKmh >= 1 && wxNow.windFrom != null ? `${compass8(wxNow.windFrom, lang)} ` : ""}{fmtWind(wxNow.windKmh)}
-          </span>
+          // el icono dice que es el viento; de dónde viene, en la tarjeta
+          <span className="sk-wx-wind"><Icon name="wind" size={13} />{fmtWind(wxNow.windKmh)}</span>
         )}
+        <Icon name="chevron_down" size={15} className="sk-wx-chev" />
       </button>
     );
   })() : null;
@@ -4207,6 +4205,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
 
       {/* en el teléfono, el tiempo de ahora va arriba, entre el buscador y el botón «…» (solo icono y temperatura) */}
       {sky && !isWide && wxPill && <div className="sk-wx-float">{wxPill}</div>}
+      {sky && wxPill && wxOpen && (
+        <WxCard lang={lang} now={wxNow} fc={wxKey ? (wx.key === wxKey ? wx : { status: "loading" }) : null}
+          cloudsOn={cloudsOn} canDraw={localActive && !viewFrom && atmOn}
+          onToggleClouds={() => { const nv = !cloudsOn; setCloudsOn(nv); track("sky_setting", { setting: "clouds", state: nv ? "on" : "off" }); }}
+          isNight={isNight} tz={placeTz} skyT={new Date(whenStr).getTime() / 1000} skyIsNow={!timeMoved}
+          onPickHour={(t) => { track("sky_time", { kind: "weather_card" }); setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(new Date(t * 1000))); }}
+          anchorRef={wxPillRef} stageRef={stageRef} onClose={() => setWxOpen(false)} />
+      )}
       {sky && (
         <div ref={railRef} className={`sk-rail${railOpen ? " is-open" : ""}`}>
           <button type="button" className="sk-rail-toggle" onClick={() => setRailOpen(o => !o)} aria-expanded={railOpen} aria-label={railOpen ? t.moreClose : t.more} title={t.more}><Icon name={railOpen ? "close" : "dots"} size={21} /></button>

@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.63.0 — 2026-11-22
+
+- **Tarjeta del tiempo:** al tocar la pastilla de la temperatura se abre una tarjeta con el interruptor de las nubes, el estado del cielo, la sensación térmica, el viento (velocidad y de dónde viene), la nubosidad total y por capas (altas, medias y bajas), la nubosidad de las próximas 12 horas, la probabilidad de lluvia, la humedad, el índice UV y la visibilidad. Datos de Open-Meteo.
+  - **Mejor ventana:** en el gráfico de 12 horas se resaltan las horas de noche más despejadas.
+  - **Tocar una hora lleva el cielo a esa hora**, con sus nubes previstas.
+  - La pastilla muestra un icono de viento junto a la velocidad; temperatura y viento no se repiten dentro de la tarjeta.
+
 ## 1.62.0 — 2026-11-22
 
 - **Modelos 3D nuevos (formas simplificadas, con medidas publicadas):**

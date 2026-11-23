@@ -793,5 +793,5 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 /* en el teléfono, el viento va en una segunda línea (al lado no cabe junto al buscador) */
 .sk-stage .sk-wx-float .sk-wx-pill { display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 6px; row-gap: 0; padding: 3px 12px 3px 10px; line-height: 1.15; }
 .sk-stage .sk-wx-float .sk-wx-pill .sk-wx-wind { grid-column: 1 / -1; justify-content: center; padding-left: 0; border-left: 0; font-size: 11px; gap: 4px; }
-.sk-stage .sk-wx-float .sk-wx-pill .sk-wx-wind svg { width: 9px; height: 9px; }
+.sk-stage .sk-wx-float .sk-wx-pill .sk-wx-wind svg { width: 11px; height: 11px; }
 .sk-stage .sk-top:focus-within ~ .sk-wx-float, .sk-stage.is-covered .sk-wx-float, .sk-stage.has-panel .sk-wx-float, .sk-stage.is-immersive .sk-wx-float { display: none; }

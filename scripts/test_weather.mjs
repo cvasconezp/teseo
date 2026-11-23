@@ -1,6 +1,6 @@
 // Pruebas de nubes y clima: src/sky/weather.js (pronóstico), src/sky/cloudNoise.js (calibración del ruido),
 // src/sky/cloudsLayer.js (luz de las nubes) y src/sky/satellite.js (imagen de satélite y proyección).
-import { forecastUrl, parseForecast, cloudsAt, coverClass, nextChange, bestNightHour, hourlySeries, fetchForecast } from "../src/sky/weather.js";
+import { forecastUrl, parseForecast, cloudsAt, coverClass, nextChange, bestNightHour, hourlySeries, fetchForecast, bestWindow } from "../src/sky/weather.js";
 import { fbm, threshold, density, layerCoord, LAYER_STYLE, hash12 } from "../src/sky/cloudNoise.js";
 import { cloudLight, drift, makeOccluder, OCC_HIDE, cloudLift, layerHeight, layerParams } from "../src/sky/cloudsLayer.js";
 import { pickSource, wmsUrl, latestTime, orthoInverse, orthoForward, regionBox, domainsUrl, timeUrl, SOURCES, timeCandidates, dataFraction } from "../src/sky/satellite.js";
@@ -163,6 +163,24 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
   ok(/float terrainFront\(/.test(cl) && /below\.renderOrder = 2\.8/.test(cl) && /uSide/.test(cl), "las de abajo se dibujan tras las montañas, que las tapan donde asoman");
   const cj = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
   ok(/ref\.clouds\.setView\(cloudLiftKm, hzData\)/.test(cj) && /cloudLiftKm\) : null/.test(cj), "la vista y las estrellas tapadas usan la misma altura de las capas");
+}
+
+// mejor ventana para observar (tarjeta del clima)
+{
+  const S = (arr, t0 = 0) => arr.map((v, i) => ({ t: t0 + i * 3600, total: v == null ? null : v / 100 }));
+  const w = bestWindow(S([85, 80, 70, 55, 40, 25, 20, 30, 45, 60, 70, 75]));
+  ok(w && w.i0 === 5 && w.i1 === 7 && w.t1 === 8 * 3600 && near(w.min, 0.2, 1e-9), "ventana: de la hora más despejada a las vecinas que no la pasan en 15 puntos");
+  ok(bestWindow(S([90, 80, 70, 60, 55])) === null, "sin ventana si lo más despejado pasa de 50 %");
+  ok(bestWindow(S([10, 10, 80, 5, 5]), null).i0 === 3, "gana el tramo de la hora más despejada");
+  const night = (t) => t >= 2 * 3600;
+  const wn = bestWindow(S([0, 0, 30, 35, 90]), night);
+  ok(wn && wn.i0 === 2 && wn.i1 === 3, "solo cuenta las horas de noche");
+  ok(bestWindow(S([null, null])) === null && bestWindow([]) === null, "sin datos, sin ventana");
+  const { parseNow: pn } = await import("../src/sky/nowWeather.js");
+  const r = pn({ current: { time: "2026-11-23T01:45", temperature_2m: 13, apparent_temperature: 13.4, relative_humidity_2m: 94, precipitation_probability: 75, uv_index: 0, visibility: 11320, cloud_cover: 100, weather_code: 3, is_day: 0, wind_speed_10m: 1, wind_direction_10m: 45 } });
+  ok(r.feels === 13.4 && r.rh === 94 && r.pop === 75 && r.uv === 0 && near(r.visKm, 11.32, 1e-9) && r.cloud === 100 && r.at === Date.UTC(2026, 10, 23, 1, 45), "lee sensación, humedad, lluvia, UV, visibilidad y la hora del dato");
+  const r2 = pn({ current: { temperature_2m: 10, relative_humidity_2m: 140 } });
+  ok(r2.rh === null && r2.feels === null && r2.at === null, "lo que falta o no es creíble queda en null");
 }
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);

@@ -7,7 +7,7 @@ export const OPEN_METEO = "https://api.open-meteo.com/v1/forecast";
 
 /** URL de la consulta: lugar con 2 decimales (≈ 1 km) y, si se sabe, la altitud (m). */
 export function nowUrl(lat, lon, elev) {
-  const q = new URLSearchParams({ latitude: lat.toFixed(2), longitude: lon.toFixed(2), current: "temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m", wind_speed_unit: "kmh", timezone: "GMT" });
+  const q = new URLSearchParams({ latitude: lat.toFixed(2), longitude: lon.toFixed(2), current: "temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,apparent_temperature,relative_humidity_2m,precipitation_probability,uv_index,visibility,cloud_cover", wind_speed_unit: "kmh", timezone: "GMT" });
   if (Number.isFinite(elev)) q.set("elevation", String(Math.round(elev)));
   return `${OPEN_METEO}?${q}`;
 }
@@ -18,8 +18,17 @@ export function parseNow(json) {
   if (!c || typeof c.temperature_2m !== "number" || !Number.isFinite(c.temperature_2m)) return null;
   const ws = Number.isFinite(c.wind_speed_10m) && c.wind_speed_10m >= 0 ? c.wind_speed_10m : null;
   const wd = ws != null && Number.isFinite(c.wind_direction_10m) ? ((c.wind_direction_10m % 360) + 360) % 360 : null;
-  // windKmh: velocidad a 10 m del suelo; windFrom: de dónde viene (grados desde el norte hacia el este), como en meteorología
-  return { temp: c.temperature_2m, code: Number.isFinite(c.weather_code) ? c.weather_code : null, day: c.is_day !== 0, windKmh: ws, windFrom: wd };
+  const n = (v, lo = -Infinity, hi = Infinity) => (typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi ? v : null);
+  // la hora del dato (UTC, porque se pide con timezone GMT): «2026-11-23T01:45»
+  const at = typeof c.time === "string" ? Date.parse(c.time.length === 16 ? `${c.time}:00Z` : c.time) : NaN;
+  // windKmh: velocidad a 10 m del suelo; windFrom: de dónde viene (grados desde el norte hacia el este), como en meteorología.
+  // Para la tarjeta: feels (sensación, °C), rh (humedad, %), pop (probabilidad de lluvia, %), uv, visKm, cloud (%)
+  return {
+    temp: c.temperature_2m, code: Number.isFinite(c.weather_code) ? c.weather_code : null, day: c.is_day !== 0, windKmh: ws, windFrom: wd,
+    feels: n(c.apparent_temperature, -90, 70), rh: n(c.relative_humidity_2m, 0, 100), pop: n(c.precipitation_probability, 0, 100),
+    uv: n(c.uv_index, 0, 30), visKm: n(c.visibility, 0) != null ? c.visibility / 1000 : null, cloud: n(c.cloud_cover, 0, 100),
+    at: Number.isFinite(at) ? at : null,
+  };
 }
 
 /** Código WMO → icono (icons.jsx) y nombre del estado. */

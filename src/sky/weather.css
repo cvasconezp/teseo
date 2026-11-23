@@ -33,3 +33,39 @@
 /* sin punto de color ni contador: solo texto e interruptor (con la rejilla de 4 columnas, el texto caía en la de 12 px) */
 .sk-stage .sk-hz-peaks .sk-layer-main { grid-template-columns: minmax(0, 1fr) 40px; min-height: 0; padding: 6px 4px; }
 .sk-stage .sk-hz-line { margin: 0; font-size: 13.5px; line-height: 1.4; color: var(--text); }
+
+/* ── Tarjeta del tiempo (WxCard.jsx): se abre al tocar la pastilla «13 °C · 1 km/h» ─────────────────────────── */
+.sk-stage .sk-wxc { position: absolute; z-index: 80; overflow-y: auto; overscroll-behavior: contain; padding: 12px; border-radius: 16px; background: rgb(16, 20, 40); border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5); color: #eef0fa; font-size: 13px; line-height: 1.35; animation: sk-wxc-in 0.16s var(--ease, ease-out); }
+@keyframes sk-wxc-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.sk-stage .sk-wxc small { display: inline-flex; align-items: center; gap: 5px; color: #a3a9cc; font-size: 11.5px; }
+.sk-stage .sk-wxc small svg { color: #b9c3ee; flex: none; }
+.sk-stage .sk-wxc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sk-stage .sk-wxc-switch { display: inline-flex; align-items: center; gap: 8px; padding: 2px 0; background: none; border: 0; color: #a3a9cc; font: inherit; font-size: 12px; cursor: pointer; }
+.sk-stage .sk-wxc-switch:disabled { opacity: 0.55; cursor: default; }
+.sk-stage .sk-wxc-state { font-size: 15px; font-weight: 600; text-align: right; }
+.sk-stage .sk-wxc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.sk-stage .sk-wxc-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 6px; text-align: center; }
+.sk-stage .sk-wxc-grid.three small { justify-content: center; }
+.sk-stage .sk-wxc-tile { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 9px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); }
+.sk-stage .sk-wxc-tile b { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-stage .sk-wxc-tile b em { margin-left: 5px; font-style: normal; font-weight: 400; font-size: 11.5px; color: #a3a9cc; }
+.sk-stage .sk-wxc-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 12px; }
+.sk-stage .sk-wxc-row b { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sk-stage .sk-wxc-best, .sk-stage .sk-wxc-nobest { display: inline-flex; align-items: center; gap: 4px; font-style: normal; font-size: 11.5px; white-space: nowrap; }
+.sk-stage .sk-wxc-best { color: #c9c3ff; }
+.sk-stage .sk-wxc-nobest { color: #a3a9cc; }
+.sk-stage .sk-wxc-bars { display: flex; align-items: stretch; gap: 3px; height: 54px; margin-top: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.16); }
+.sk-stage .sk-wxc-bar { flex: 1; display: flex; align-items: flex-end; min-width: 0; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 3px 3px 0 0; }
+.sk-stage .sk-wxc-bar:hover, .sk-stage .sk-wxc-bar:focus-visible { background: rgba(255, 255, 255, 0.06); outline: none; }
+.sk-stage .sk-wxc-bar:focus-visible { box-shadow: 0 0 0 2px var(--violet, #8b7cf6); }
+.sk-stage .sk-wxc-bar i { display: block; width: 100%; border-radius: 2px 2px 0 0; background: #5f668f; transition: background 0.15s; }
+.sk-stage .sk-wxc-bar.is-best i { background: #b3acf2; }
+.sk-stage .sk-wxc-bar.is-on i { background: #fff; }
+.sk-stage .sk-wxc-bar:disabled { cursor: default; }
+.sk-stage .sk-wxc-ticks { display: flex; justify-content: space-between; margin-top: 3px; color: #a3a9cc; font-size: 11px; font-variant-numeric: tabular-nums; }
+.sk-stage .sk-wxc-read { display: flex; align-items: center; gap: 5px; min-height: 18px; margin: 6px 0 0; color: #ccd1ee; font-size: 12px; }
+.sk-stage .sk-wxc-fine { margin: 10px 0 0; color: #8e95bb; font-size: 11.5px; }
+/* la pastilla: icono del viento y, en pantallas anchas, la flecha que dice que se abre */
+.sk-stage .sk-wx-pill .sk-wx-chev { transition: transform 0.2s; opacity: 0.8; }
+.sk-stage .sk-wx-pill[aria-expanded="true"] .sk-wx-chev { transform: rotate(180deg); }
+.sk-stage .sk-wx-float .sk-wx-pill .sk-wx-chev { display: none; }

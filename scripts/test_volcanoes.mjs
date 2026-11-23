@@ -50,7 +50,7 @@ ok(VT.es.sub("4.784 m", 2002) === "4.784 m · erupción 2002", "texto bajo el no
 
 console.log("El tiempo de ahora");
 const u = new URL(nowUrl(0.04312, -78.14563, 2911.4));
-ok(u.searchParams.get("latitude") === "0.04" && u.searchParams.get("elevation") === "2911" && u.searchParams.get("current") === "temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m" && u.searchParams.get("wind_speed_unit") === "kmh", "lugar a 1 km y temperatura corregida a la altitud");
+ok(u.searchParams.get("latitude") === "0.04" && u.searchParams.get("elevation") === "2911" && u.searchParams.get("current").startsWith("temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,") && /apparent_temperature/.test(u.searchParams.get("current")) && u.searchParams.get("wind_speed_unit") === "kmh", "lugar a 1 km y temperatura corregida a la altitud");
 ok(!new URL(nowUrl(0, 0, null)).searchParams.get("elevation"), "sin altitud, la del modelo de Open-Meteo");
 ok(parseNow({ current: { temperature_2m: 15.6, weather_code: 61, is_day: 1 } }).temp === 15.6 && parseNow({}) === null, "lee la respuesta");
 ok(wxKind(0, true) === "sun" && wxKind(0, false) === "moon" && wxKind(3) === "cloud" && wxKind(63) === "rain" && wxKind(95) === "storm" && wxKind(73) === "snow" && wxKind(45) === "fog", "códigos WMO → icono");

@@ -128,6 +128,24 @@ export function bestNightHour(fc, from, isNight, hours = 24) {
   return best;
 }
 
+/**
+ * La mejor ventana para observar en una serie horaria [{ t, total }]: el tramo seguido de horas más despejado.
+ * Cuentan solo las horas que pasan `isNight(t)` (si se da). Se parte de la hora con menos nubes y se extiende a las
+ * vecinas que no la superan en más de 15 puntos ni pasan de 50 %. Devuelve { i0, i1 (índices, inclusive), t0, t1
+ * (s; t1 = fin de la última hora), min } o null si no hay horas válidas o la más despejada pasa de 50 %.
+ */
+export function bestWindow(series, isNight) {
+  const ok = (p) => p && p.total != null && (!isNight || isNight(p.t));
+  let k = -1;
+  series.forEach((p, i) => { if (ok(p) && (k < 0 || p.total < series[k].total - 1e-9)) k = i; });
+  if (k < 0 || series[k].total > 0.5) return null;
+  const lim = Math.min(0.5, series[k].total + 0.15), fits = (i) => i >= 0 && i < series.length && ok(series[i]) && series[i].total <= lim + 1e-9;
+  let i0 = k, i1 = k;
+  while (fits(i0 - 1)) i0--;
+  while (fits(i1 + 1)) i1++;
+  return { i0, i1, t0: series[i0].t, t1: series[i1].t + 3600, min: series[k].total };
+}
+
 /** Serie horaria de nubosidad total desde `from` (s): [{ t, total }] (las horas sin dato, total null). */
 export function hourlySeries(fc, from, hours = 24) {
   const h0 = Math.floor(from / 3600) * 3600, out = [];
