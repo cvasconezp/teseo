@@ -157,6 +157,8 @@ EVENTS: Dict[str, Dict[str, Any]] = {
     "sky_location":       {"kind": {"gps", "manual", "default"}},
     "sky_time":           {"kind": {"now", "forward", "back", "custom"}},
     "sky_setting":        {"setting": SKY_SETTINGS, "state": STATES},
+    # «Estacionar montura» (src/sky/MountSheet.jsx): abrir la hoja, ver la marca en el cielo, el celular en el suelo
+    "sky_mount":          {"kind": {"open", "look", "ground_sun", "ground_compass"}},
     "sky_nasa_image":     {"kind": SKY_KINDS},
     # ISS: pasadas sobre mi lugar (src/sky/IssPassesCard.jsx) y la ISS en el Cielo. kind: ver la tarjeta,
     # "Verla en el cielo", reintentar, listar también las no visibles, quitarla, abrir su ficha, reproducir.

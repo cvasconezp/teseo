@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.69.0 — 2026-11-23
+
+- **Brújula junto a la temperatura:** una aguja que apunta al norte verdadero y el rumbo hacia donde miras («O 250°»). Con «Apuntar al cielo» muestra la brújula del celular, ya corregida por la declinación magnética (WMM2025), y se pone en ámbar si hay que calibrarla.
+- **Estacionar montura:** al tocar la brújula se abre una guía para orientar el eje polar de una montura ecuatorial en cualquier lugar del mundo. Los métodos se ordenan según la latitud y cada uno muestra su precisión:
+  - **Estrella Polar** (hemisferio norte) o **σ Octantis** (sur): su posición en el reloj del polo ahora mismo.
+  - **Punto del horizonte al norte verdadero:** el filo que queda justo en 0° (o en 180°), con su distancia y altura, calculado con el relieve real. «Ver en el cielo» lo muestra con la línea norte–sur subiendo por la ladera hasta él.
+  - **Sombra del gnomon:** el día del equinoccio, la recta de la punta de la sombra; cualquier otro día, el **círculo indio**, con las horas de las dos marcas, el radio del círculo para el alto del gnomon y el pequeño error por el movimiento del Sol. Puede avisarte 30 minutos antes de cada marca.
+  - **Celular en el suelo:** con un palillo vertical y el Sol, giras el celular hasta que la sombra cae sobre su línea y la pantalla queda alineada al norte verdadero sin depender del imán; o con la brújula, que mantiene las líneas en su sitio.
+  - **Mediodía solar**, con la hora de hoy y el largo de la sombra, y **brújula del celular**, solo para empezar.
+  - **Colocar el trípode:** dos patas sobre la línea este–oeste y la marcada «N» hacia el polo, la escala de latitud (en el ecuador, casi 0°: muchas monturas necesitan una cuña) y cómo afinar con el método de deriva.
+- **Líneas en el suelo:** con la guía abierta, el suelo del cielo muestra la norte–sur (blanca), la este–oeste de los equinoccios (ámbar) y las salidas y puestas del Sol en los solsticios (punteadas), con sus nombres en el horizonte.
+
 ## 1.68.1 — 2026-11-23
 
 - **Una sola lluvia en la tarjeta y en el cielo:** la línea bajo las barras decía «lluvia 52 %» y la casilla, 26 %, porque salían de dos consultas a Open-Meteo: la de las nubes (tu zona, redondeada a ~11 km y a la altura media del modelo) y la de tu punto exacto con su altitud. Ahora la probabilidad, el tipo de tiempo, los milímetros y la visibilidad salen siempre de tu punto exacto: la línea, la casilla, el panel «Nubes y clima» y la lluvia que dibuja el cielo. De la zona quedan solo la nubosidad por capas y el viento en altura, que es lo que existe por capas.

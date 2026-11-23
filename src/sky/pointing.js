@@ -42,7 +42,7 @@ function screenAngle() {
  */
 export function createPointing(onStatus) {
   // alpha ya es absoluto (o lo mejor disponible); `fresh` = hay al menos una lectura
-  const pose = { alpha: 0, beta: 0, gamma: 0, screen: 0, fresh: false };
+  const pose = { alpha: 0, beta: 0, gamma: 0, screen: 0, fresh: false, acc: null };
   let running = false, status = "off", startedAt = 0, noDataTimer = 0;
   let rank = 0, lastBestAt = 0;          // 2 = absoluto/brújula, 1 = relativo
   let iosOffset = 0, iosLocked = false;  // desfase alpha relativo → absoluto (brújula de iOS)
@@ -86,6 +86,8 @@ export function createPointing(onStatus) {
     if (r < rank && now - lastBestAt < 1500) return;
     rank = r; if (r === 2) lastBestAt = now;
     pose.alpha = a; pose.beta = beta; pose.gamma = gamma; pose.screen = screenAngle(); pose.fresh = true;
+    // precisión de la brújula (iOS, grados; −1 = sin calibrar); Android no la da (null): para la brújula del cielo
+    if (typeof e.webkitCompassAccuracy === "number") pose.acc = e.webkitCompassAccuracy; else if (absolute) pose.acc = null;
     if (noDataTimer) { clearTimeout(noDataTimer); noDataTimer = 0; }
     // "relativo" se declara tras un margen: en Android el evento absoluto puede tardar un poco más
     if (r === 2) setStatus("absolute");

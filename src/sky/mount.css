@@ -1,0 +1,88 @@
+/* la brújula junto al tiempo y «Estacionar montura» (MountSheet.jsx) */
+.sk-stage .sk-compass { position: relative; gap: 6px; padding: 0 11px 0 8px; border: 1px solid rgba(255, 255, 255, 0.24); background: rgba(12, 16, 34, 0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #f4f6ff; font-variant-numeric: tabular-nums; cursor: pointer; }
+.sk-stage .sk-compass-dial { flex: none; color: #cfe0ff; }
+.sk-stage .sk-compass-needle { transform-origin: 12px 12px; transform-box: view-box; transition: transform 0.12s linear; }
+.sk-stage .sk-compass-txt { display: inline-flex; align-items: baseline; gap: 5px; line-height: 1; }
+.sk-stage .sk-compass-txt b { font-weight: 600; }
+.sk-stage .sk-compass-txt small { font-size: 0.86em; color: #cfd6f2; }
+.sk-stage .sk-compass-dot { display: none; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; }
+.sk-stage .sk-compass[data-state="ok"] .sk-compass-dot { display: block; background: #5DCAA5; }
+.sk-stage .sk-compass[data-state="calibrate"] { border-color: #EF9F27; }
+.sk-stage .sk-compass[data-state="calibrate"] .sk-compass-dot { display: block; background: #EF9F27; }
+.sk-stage .sk-compass[data-state="none"] .sk-compass-dot { display: block; background: #E24B4A; }
+.sk-stage .sk-compass[aria-expanded="true"] { border-color: #a78bfa; }
+/* teléfono: redonda, con el rumbo debajo de la aguja */
+.sk-stage .sk-wx-float { gap: 6px; }
+.sk-stage .sk-wx-float .sk-compass { flex-direction: column; justify-content: center; gap: 1px; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 22px; }
+.sk-stage .sk-wx-float .sk-compass-dial { width: 20px; height: 20px; }
+.sk-stage .sk-wx-float .sk-compass-txt b { display: none; }
+.sk-stage .sk-wx-float .sk-compass-txt small { font-size: 10.5px; color: #f4f6ff; }
+
+.sk-stage .sk-mnt { font-size: 13.5px; }
+.sk-stage .sk-mnt h3 { margin: 8px 0 6px; font-size: 16px; font-weight: 600; color: #fff; }
+.sk-stage .sk-mnt h4 { margin: 12px 0 2px; font-size: 13.5px; font-weight: 600; color: #e6e9f5; }
+.sk-stage .sk-mnt p { margin: 6px 0; }
+.sk-stage .sk-mnt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.sk-stage .sk-mnt-head b { display: block; font-size: 16px; font-weight: 600; color: #fff; }
+.sk-stage .sk-mnt-head small { display: block; margin-top: 2px; }
+.sk-stage .sk-mnt-x { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.07); border: 0; color: #e6e9f5; cursor: pointer; flex: none; }
+.sk-stage .sk-mnt-axis { color: #CECBF6; }
+.sk-stage .sk-mnt-fine { color: #a3a9cc; font-size: 12.5px; }
+.sk-stage .sk-mnt-pick { margin-top: 12px !important; color: #e6e9f5; font-weight: 600; }
+.sk-stage .sk-mnt-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.sk-stage .sk-mnt-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 10px 11px; border-radius: 12px; background: rgba(255, 255, 255, 0.06); border: 1px solid transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.sk-stage .sk-mnt-item:hover { background: rgba(255, 255, 255, 0.1); }
+.sk-stage .sk-mnt-item.is-rec { border-color: #7F77DD; background: rgba(127, 119, 221, 0.14); }
+.sk-stage .sk-mnt-item.is-off { opacity: 0.6; }
+.sk-stage .sk-mnt-itxt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sk-stage .sk-mnt-itxt b { font-size: 14px; font-weight: 600; color: #fff; }
+.sk-stage .sk-mnt-iside { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.sk-stage .sk-mnt-rec { font-style: normal; font-size: 11px; color: #CECBF6; }
+.sk-stage .sk-mnt-acc { font-style: normal; font-size: 12px; font-variant-numeric: tabular-nums; padding: 2px 7px; border-radius: 8px; }
+.sk-stage .sk-mnt-acc.acc-fine { color: #9FE1CB; background: rgba(29, 158, 117, 0.18); }
+.sk-stage .sk-mnt-acc.acc-ok { color: #FAC775; background: rgba(239, 159, 39, 0.16); }
+.sk-stage .sk-mnt-acc.acc-rough { color: #F5C4B3; background: rgba(216, 90, 48, 0.18); }
+.sk-stage .sk-mnt-back { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 4px 8px 4px 4px; border-radius: 8px; background: none; border: 0; color: #b9c3ee; font: inherit; font-size: 12.5px; cursor: pointer; }
+.sk-stage .sk-mnt-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.sk-stage .sk-mnt-primary, .sk-stage .sk-mnt-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 20px; font: inherit; font-size: 13px; cursor: pointer; }
+.sk-stage .sk-mnt-primary { background: #534AB7; border: 0; color: #fff; }
+.sk-stage .sk-mnt-ghost { background: none; border: 1px solid #5a6390; color: #e6e9f5; }
+.sk-stage .sk-mnt > .sk-mnt-ghost { width: 100%; margin-top: 10px; }
+.sk-stage .sk-mnt-ghost:disabled { opacity: 0.6; }
+.sk-stage .sk-mnt-steps { margin: 8px 0; padding-left: 20px; list-style: decimal; display: flex; flex-direction: column; gap: 5px; }
+.sk-stage .sk-mnt-steps li::marker { color: #a78bfa; }
+.sk-stage .sk-mnt-warn { display: flex; gap: 6px; align-items: flex-start; color: #FAC775; font-size: 12.5px; }
+.sk-stage .sk-mnt-warn svg, .sk-stage .sk-mnt-ok svg { flex: none; margin-top: 1px; }
+.sk-stage .sk-mnt-ok { display: flex; gap: 6px; color: #9FE1CB; font-size: 12.5px; }
+.sk-stage .sk-mnt-big { font-size: 17px; font-weight: 600; color: #fff; }
+.sk-stage .sk-mnt-row { display: flex; gap: 12px; align-items: center; }
+.sk-stage .sk-mnt-clock { width: 96px; height: 96px; flex: none; }
+.sk-stage .sk-mnt-fig { display: block; width: 100%; height: auto; margin: 8px 0; }
+.sk-stage .sk-mnt-figt { fill: #e6e9f5; font-size: 12px; }
+.sk-stage .sk-mnt-figr { fill: #F7C1C1; font-size: 12px; }
+.sk-stage .sk-mnt-figa { fill: #FAC775; font-size: 12px; }
+.sk-stage .sk-mnt-figk { fill: #141a33; font-size: 11px; font-weight: 700; }
+.sk-stage .sk-mnt-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; border-radius: 14px; background: rgba(0, 0, 0, 0.3); }
+.sk-stage .sk-mnt-tabs button { min-height: 32px; border-radius: 11px; background: none; border: 0; color: #a3a9cc; font: inherit; font-size: 13px; cursor: pointer; }
+.sk-stage .sk-mnt-tabs button[aria-selected="true"] { background: #3C3489; color: #fff; }
+.sk-stage .sk-mnt-gnomon { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.sk-stage .sk-mnt-gnomon button { min-height: 30px; padding: 0 10px; border-radius: 15px; background: rgba(255, 255, 255, 0.06); border: 1px solid transparent; color: #e6e9f5; font: inherit; font-size: 12.5px; cursor: pointer; }
+.sk-stage .sk-mnt-gnomon button[aria-pressed="true"] { border-color: #a78bfa; color: #fff; }
+.sk-stage .sk-mnt-remind { margin-top: 6px; }
+.sk-stage .sk-mnt-more { margin-top: 10px; }
+.sk-stage .sk-mnt-more summary { cursor: pointer; color: #CECBF6; }
+.sk-stage .sk-mnt-src { margin-top: 12px !important; color: #7f86a8; font-size: 11px; }
+
+/* el celular plano en el suelo: pantalla completa, alto contraste para leer al sol */
+.sk-stage .sk-flat { position: absolute; inset: 0; z-index: 120; display: flex; flex-direction: column; background: #05070e; color: #fff; }
+.sk-stage .sk-flat-top { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+.sk-stage .sk-flat-top b { flex: 1; font-size: 15px; }
+.sk-stage .sk-flat-level { font-size: 12px; padding: 3px 9px; border-radius: 10px; }
+.sk-stage .sk-flat-level.lv-ok { color: #9FE1CB; background: rgba(29, 158, 117, 0.2); }
+.sk-stage .sk-flat-level.lv-tilt { color: #FAC775; background: rgba(239, 159, 39, 0.2); }
+.sk-stage .sk-flat-level.lv-unknown { color: #a3a9cc; }
+.sk-stage .sk-flat-svg { flex: 1; width: 100%; min-height: 0; }
+.sk-stage .sk-flat-n { fill: #fff; font-size: 20px; font-weight: 700; }
+.sk-stage .sk-flat-s { fill: #ffb27a; font-size: 15px; }
+.sk-stage .sk-flat-bot { padding: 10px 16px max(16px, env(safe-area-inset-bottom)); text-align: center; font-size: 14px; }
+.sk-stage .sk-flat-bot small { color: #a3a9cc; }

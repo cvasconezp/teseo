@@ -58,8 +58,12 @@ import { createAtmosphereLayer } from "./sky/atmosphereLayer.js";
 import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/cloudsLayer.js";
 import { rainLook, thickenForRain, weatherSky, withPointRain } from "./sky/rainLook.js";
+import { CompassChip, MountSheet, FlatPhone } from "./sky/MountSheet.jsx";
+import { createMountLines } from "./sky/mountLinesLayer.js";
+import { groundLines, horizonMark } from "./sky/mountAlign.js";
+import { MT } from "./sky/i18n-mount.js";
 import { createTerrainLayer } from "./sky/terrainLayer.js";
-import { andeanLabels, TX_AND } from "./sky/andean.js";
+import { andeanLabels, TX_AND, horizonAltAt } from "./sky/andean.js";
 import { fetchNearTerrain, createNearTerrainLayer, SUMMIT_LIFT_M, reliefFromNear } from "./sky/terrain3d.js";
 import { DEFAULT_LAYERS, presetState, presetOf } from "./sky/layerPresets.js";
 import { useKeepAwake } from "./sky/keepAwake.js";
@@ -122,7 +126,7 @@ const LAYERS = [
   // timeout mayor: con la caché del backend fría, el NASA Exoplanet Archive (~780 KB) tarda bastante más que el resto
   { key: "exoplanets", api: true, endpoint: "/api/exoplanets", es: "Exoplanetas", en: "Exoplanets", color: 0x4dd866, size: 6, timeout: 45000 },
 ];
-const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_deepfields:"#ffe08a", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_minor:"#e6b877", obj_ngc:"#7fd3c0", obj_oddities:"#ff9e6b", obj_specialstars:"#ffe9a8", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
+const LABEL_COLOR = { card:"#9cc2ff", cardn:"#ff9d8a", peak:"#f3e4c6", andsun:"#ffc95c", andsite:"#7ee0c3", mount:"#f4f1ff", con:"#c9b8ff", star:"#ffffff", obj_messier:"#67e8c8", obj_caldwell:"#c7a8ff", obj_pulsars:"#ff5dc8", obj_deepfields:"#ffe08a", obj_blackholes:"#ff7a3c", obj_galaxies:"#9db4ff", obj_meteors:"#ffd27a", obj_comets:"#8be0ff", obj_minor:"#e6b877", obj_ngc:"#7fd3c0", obj_oddities:"#ff9e6b", obj_specialstars:"#ffe9a8", obj_probes:"#e6ebff", obj_exoplanets:"#8fe89f", solar:"#ffe9a8", iss: ISS_COLORS.label, iss_t: ISS_COLORS.tick, ...GUIDE_LABEL_COLOR };
 // Nombres en el cielo: por defecto solo los objetos con nombre propio o notables. Los
 // de catálogo ("J1759+5036", "NGC 1269"…) aparecen al acercarse, cuando ya caben pocos
 // en pantalla (umbral según "Nombres en el cielo"), o al tocar el objeto.
@@ -785,6 +789,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const arOnRef = useRef(false);
   const panelRef = useRef(null);
   const pointRef = useRef(null);
+  const compassApiRef = useRef(null);   // la brújula junto al tiempo (MountSheet.jsx): el bucle le pasa el rumbo
+  const compassChipRef = useRef(null);
   if (!pointRef.current) {
     let prevSrc = null;
     pointRef.current = createPointing((s) => {
@@ -1341,6 +1347,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // columnas de ceniza ilustrativas sobre los volcanes (src/sky/plumeLayer.js)
     const plume = createPlumeLayer();
     horizon.add(plume.group);
+    // «Estacionar montura» (src/sky/mountLinesLayer.js): norte–sur, este–oeste y solsticios pintados en el suelo
+    const mountLines = createMountLines();
+    horizon.add(mountLines.group);
     horizon.visible = false; scene.add(horizon);
     // líneas guía (src/sky/guidesLayer.js): eclíptica, ecuador, Vía Láctea, cuadrículas… Todas apagadas al
     // empezar; se dibujan antes que estrellas y figuras (renderOrder −1) y el suelo las atenúa bajo el horizonte
@@ -1605,7 +1614,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, plume, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat, groundMesh: ground, horizonLine, near3d,
+      atm, clouds, terrain, monuments, plume, mountLines, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat, groundMesh: ground, horizonLine, near3d,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1819,6 +1828,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     document.addEventListener("visibilitychange", onVisible);
     const tmp = new THREE.Vector3(), tmpB = new THREE.Vector3(), flyV = new THREE.Vector3(), flyQ = new THREE.Quaternion(), flyYP = {};
     const cullQ = new THREE.Quaternion(), cullF = new THREE.Vector3(), cullP = new THREE.Vector3();
+    const cmpV = new THREE.Vector3(); let cmpN = 0;
     const animate = () => {
       raf = requestAnimationFrame(animate);
       const ref = sceneRef.current; if (!ref) return;
@@ -1915,6 +1925,15 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       } else {
         ref.controls.update();
       }
+      // la brújula junto al tiempo: hacia dónde se mira (acimut desde el norte verdadero; en «Apuntar al cielo», el del
+      // celular, ya corregido por la declinación magnética). Cada 4 cuadros; la brújula solo toca el DOM si cambia
+      if (compassApiRef.current && ref.localModeOn && ref.mode === "in" && (cmpN++ & 3) === 0) {
+        ref.fwd(cmpV);
+        const h = Math.hypot(cmpV.x, cmpV.z);
+        if (h > 0.05) compassApiRef.current(((Math.atan2(cmpV.x, -cmpV.z) * 180) / Math.PI + 360) % 360,
+          { ar: ar.on, acc: pointRef.current && pointRef.current.pose ? pointRef.current.pose.acc : null });
+      }
+      if (ref.mountLines && ref.mountLines.group.visible) ref.mountLines.setFov(ref.camera.fov);
       // la esfera vista desde fuera: los planetas de la cara oculta no se dibujan (se confundirían con los de delante)
       const outNow = !ar.on && ref.mode === "out";
       if (outNow || ref._solarCulled) {
@@ -2152,12 +2171,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         }
         // nombres de las montañas: sobre la cumbre, con un palito que baja hasta la silueta (el punto exacto del
         // filo dibujado). Las que más destacan primero; los que no caben no se ponen.
-        if (inside && ref.localModeOn && ref.hzData && (ref.peakLabels || ref.monLabels || ref.andLabels)) {
-          const dens = ref.labelDensity || "normal", maxP = (dens === "pocas" ? 5 : dens === "muchas" ? 22 : 12) + (ref.andLabels ? 6 : 0), R = Math.PI / 180;
+        if (inside && ref.localModeOn && (ref.mountLabels || (ref.hzData && (ref.peakLabels || ref.monLabels || ref.andLabels)))) {
+          const dens = ref.labelDensity || "normal", maxP = (dens === "pocas" ? 5 : dens === "muchas" ? 22 : 12) + (ref.andLabels ? 6 : 0) + (ref.mountLabels ? ref.mountLabels.length : 0), R = Math.PI / 180;
           let np = 0;
           // primero «Astronomía andina» (el Sol en solsticios y equinoccios, luego los sitios), después los
           // monumentos (son pocos y es lo que se vino a ver) y al final las cumbres
-          for (const p of [...(ref.andLabels || []), ...(ref.monLabels || []), ...(ref.peakLabels || [])]) {
+          for (const p of [...(ref.mountLabels || []), ...(ref.andLabels || []), ...(ref.monLabels || []), ...(ref.peakLabels || [])]) {
             if (np >= maxP) break;
             // una cumbre que queda detrás de un monumento (una pirámide la tapa) no se nombra
             // con suelo de verdad, una cumbre más baja que el observador queda tapada por él
@@ -2725,6 +2744,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // el tiempo de ahora en el lugar (pastilla «16 °C · Quito»; src/sky/nowWeather.js): cada 15 minutos
   const [wxNow, setWxNow] = useState(null);
   const [wxOpen, setWxOpen] = useState(false);   // la tarjeta del tiempo (WxCard.jsx), abierta desde la pastilla
+  const [mountOpen, setMountOpen] = useState(false);   // «Estacionar montura» (MountSheet.jsx), desde la brújula
+  const [flatMode, setFlatMode] = useState(null);      // null | "sun" | "compass": el celular plano en el suelo
+  const [mountPeek, setMountPeek] = useState(false);   // «Ver en el cielo»: la hoja se cierra y las líneas quedan
   const wxPillRef = useRef(null);
   // la altitud para corregir la temperatura: la del modelo de terreno en tu punto (fiable); sin ella, la del lugar
   // solo si es creíble; si no, ninguna (Open-Meteo usa entonces su propio modelo de terreno de 90 m). La altitud del
@@ -2850,6 +2872,31 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.andLabels = andean ? andean.all : null;
     ref._dirty = true;
   }, [andean, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // «Estacionar montura»: el filo del horizonte justo al norte y al sur verdaderos (con su nombre, si es una cumbre
+  // conocida) y, con la hoja abierta, las líneas en el suelo y sus nombres en el horizonte
+  const mountMarks = useMemo(() => {
+    if (!hzData) return null;
+    const named = (mk) => {
+      if (!mk) return mk;
+      const p = (peakList || []).find((q) => Math.abs(((q.az - mk.az + 540) % 360) - 180) < 1.5 && Math.abs(q.alt - mk.alt) < 0.6);
+      return { ...mk, name: p ? peakName(p, lang) : null };
+    };
+    return { north: named(horizonMark(hzData, 0)), south: named(horizonMark(hzData, 180)) };
+  }, [hzData, peakList, lang]);
+  const mountShow = (mountOpen || mountPeek) && localActive && !viewFrom;
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref || !ref.mountLines) return;
+    const lines = mountShow ? groundLines(lat) : null;
+    // la norte–sur sube por la ladera hasta el filo: así se ve qué punto del relieve marca el norte verdadero
+    ref.mountLines.set(lines && hzData ? lines.map((l) => (l.kind === "ns" ? { ...l, to: Math.max(-0.25, horizonAltAt(hzData, l.az)) } : l)) : lines);
+    const M = MT[lang] || MT.es;
+    ref.mountLabels = lines ? lines.map((l) => ({
+      az: l.az, alt: hzData ? horizonAltAt(hzData, l.az) : 0, name: "mnt:" + l.key, cls: "mount",
+      label: M.lineLabels[l.key], subText: l.kind === "sol" ? (/Rise$/.test(l.key) ? M.lineSub.rise : M.lineSub.set) : `${Math.round(l.az)}°`,
+    })) : null;
+    ref._dirty = true;
+  }, [mountShow, lat, lang, hzData, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!localActive || viewFrom) { setMountOpen(false); setMountPeek(false); setFlatMode(null); } }, [localActive, viewFrom]);
   useEffect(() => {
     const ref = sceneRef.current; if (!ref) return;
     // las que son volcanes del Holoceno llevan su ficha; las que han entrado en erupción desde 1900, el año
@@ -4202,7 +4249,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const k = wxKind(wxNow.code, wxNow.day), nm = (WX_NAMES[lang] || WX_NAMES.es)[k];
     return (
       <button ref={wxPillRef} type="button" data-tour="weather" className="sk-chip sk-wx-pill" aria-expanded={wxOpen} aria-haspopup="dialog"
-        onClick={() => { setWxWanted(true); setWxOpen((o) => { if (!o) track("sky_weather_card", { kind: "open" }); return !o; }); }}
+        onClick={() => { setWxWanted(true); setMountOpen(false); setWxOpen((o) => { if (!o) track("sky_weather_card", { kind: "open" }); return !o; }); }}
         aria-label={`${nm}, ${fmtTemp(wxNow.temp)}${wxNow.windKmh != null ? `. ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}
         title={`${nm}${wxNow.windKmh != null ? ` · ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}>
         <Icon name={`wx_${k}`} size={18} /><span>{fmtTemp(wxNow.temp)}</span>
@@ -4214,6 +4261,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       </button>
     );
   })() : null;
+  // la brújula: junto a la temperatura; abre «Estacionar montura»
+  const compassChip = localMode && !viewFrom && lat != null && lon != null ? (
+    <CompassChip lang={lang} apiRef={compassApiRef} chipRef={compassChipRef} arOn={arOn} arSrc={arSrc} open={mountOpen}
+      onClick={() => { setWxOpen(false); setMountOpen((o) => { if (!o) track("sky_mount", { kind: "open" }); return !o; }); }} />
+  ) : null;
   const wxPanel = (
     <WeatherPanel lang={lang} available={localActive && !viewFrom} atmOn={atmOn}
       on={cloudsOn} onToggle={() => { const nv = !cloudsOn; setCloudsOn(nv); track("sky_setting", { setting: "clouds", state: nv ? "on" : "off" }); }}
@@ -4342,6 +4394,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
                   </div>
                 );
               })()}
+              {isWide && compassChip}
               {isWide && wxPill}
             </div>
           )}
@@ -4349,7 +4402,21 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       )}
 
       {/* en el teléfono, el tiempo de ahora va arriba, entre el buscador y el botón «…» (solo icono y temperatura) */}
-      {sky && !isWide && wxPill && <div className="sk-wx-float">{wxPill}</div>}
+      {sky && !isWide && (wxPill || compassChip) && <div className="sk-wx-float">{compassChip}{wxPill}</div>}
+      {sky && compassChip && mountOpen && (
+        <MountSheet lang={lang} lat={lat} lon={lon} tz={placeTz} marks={mountMarks} decl={decl} arOn={arOn} api={API}
+          onStartAr={() => { setMountOpen(false); startAr(); }}
+          onLook={(alt, az, span) => {
+            const r = sceneRef.current; if (!r || !r.lookAt) return;
+            const v = altAzToLocal(alt, az);
+            setMountOpen(false); setMountPeek(true);
+            r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), span, false); if (r.wake) r.wake();
+            track("sky_mount", { kind: "look" });
+          }}
+          onGround={(m) => { setFlatMode(m); track("sky_mount", { kind: `ground_${m}` }); }}
+          anchorRef={compassChipRef} stageRef={stageRef} onClose={() => { setMountOpen(false); setMountPeek(false); }} />
+      )}
+      {sky && flatMode && <FlatPhone lang={lang} mode={flatMode} lat={lat} lon={lon} tz={placeTz} decl={decl && decl.valid ? decl.decl : 0} onClose={() => setFlatMode(null)} />}
       {sky && wxPill && wxOpen && (
         <WxCard lang={lang} now={wxNow} fc={wxKey ? (wx.key === wxKey ? wx : { status: "loading" }) : null} sat={satData}
           rainDrawn={!!(atmSky && atmSky.wx && atmSky.wx.rain > 0.02)}
