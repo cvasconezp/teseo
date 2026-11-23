@@ -81,7 +81,7 @@ export default function TimeSheet({ lang = "es", date, lat, lon, tz = null, plac
       <div className="sk-ts-day">
         <input type="range" min={0} max={1439} step={1} value={minOfDay} aria-label={tx.dayBar} className="sk-ts-dayrange"
           style={{ background: dayGradient(profile) }} onChange={(e) => onSetMinute(Number(e.target.value))} />
-        <span className="sk-ts-phase" style={{ left: `${(minOfDay / 1440) * 100}%` }}>{phaseName(profile, minOfDay, lang)}</span>
+        <span className="sk-ts-phase" style={{ "--p": (minOfDay / 1439).toFixed(4) }}>{phaseName(profile, minOfDay, lang)}</span>
       </div>
     </section>
   );

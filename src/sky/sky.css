@@ -693,7 +693,8 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-stage .sk-ts-dayrange { -webkit-appearance: none; appearance: none; width: 100%; height: 26px; border-radius: 13px; outline: none; }
 .sk-stage .sk-ts-dayrange::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #A78BFA, #60A5FA); border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
 .sk-stage .sk-ts-dayrange::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #A78BFA, #60A5FA); border: 2px solid #fff; }
-.sk-stage .sk-ts-phase { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 12.5px; color: rgba(255, 255, 255, 0.75); white-space: nowrap; pointer-events: none; }
+/* bajo el botón, que recorre de su medio ancho al otro (30 px; 24 en escritorio); en los extremos la palabra se alinea al borde y no se corta */
+.sk-stage .sk-ts-phase { --th: 30px; position: absolute; bottom: 0; left: calc(var(--th) / 2 + var(--p, 0.5) * (100% - var(--th))); transform: translateX(calc(var(--p, 0.5) * -100%)); font-size: 12.5px; color: rgba(255, 255, 255, 0.75); white-space: nowrap; pointer-events: none; }
 @media (max-width: 899.98px) { .sk-stage .sk-ts .sk-ts-phase { max-width: 40%; } }
 /* Control de tiempo más compacto (1.20.2): mismos controles, ~100 px menos de alto.
    Asa y flechas más bajas, cifras algo menores, saltos de noche con el icono al lado
@@ -720,7 +721,7 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-stage .sk-ts-dayrange { height: 18px; border-radius: 9px; }
 .sk-stage .sk-ts-dayrange::-webkit-slider-thumb { width: 24px; height: 24px; }
 .sk-stage .sk-ts-dayrange::-moz-range-thumb { width: 22px; height: 22px; }
-.sk-stage .sk-ts-phase { font-size: 11.5px; }
+.sk-stage .sk-ts-phase { font-size: 11.5px; --th: 24px; }
 .sk-stage .sk-ts-jumps button span { white-space: nowrap; }
 @media (max-width: 480px) { .sk-stage .sk-ts-jumps button { font-size: 12px; gap: 3px; } .sk-stage .sk-ts-jumps button svg { width: 14px; height: 14px; } }
 @media (max-width: 360px) { .sk-stage .sk-ts-jumps button { font-size: 11px; gap: 2px; } }

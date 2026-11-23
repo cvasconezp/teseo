@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.70.5 — 2026-11-23
+
+- **Franja del día: la fase ya no se corta en los bordes.** «Noche», «Día», «Amanecer» o «Atardecer» va justo debajo del botón y, en los extremos del día, se alinea con el borde de la franja en vez de salirse.
+
 ## 1.70.4 — 2026-11-23
 
 - **Tiempo: la flecha de abajo avanza y la de arriba retrocede**, en el año, el mes, el día, la hora y los minutos, como al bajar por un calendario. Los nombres para lectores de pantalla dicen «Avanzar» y «Retroceder».
