@@ -159,7 +159,8 @@ export const VT = {
     erupting: (y) => `El Smithsonian la da en erupción en ${y}. La columna que se dibuja sobre ella es ilustrativa: para alertas oficiales, el Instituto Geofísico.`,
     simulate: "Simular su última erupción",
     gasNote: "Sobre él se dibuja una pluma de gases y ceniza (ilustrativa: la forma es genérica).",
-    simChip: (n, vei, km, y) => `Simulación ilustrativa · ${n}${y != null ? ` · su última erupción fue en ${y < 0 ? `${-y} a. C.` : y}` : ""}: hoy no está en erupción · VEI ${vei} · columna ≈ ${km} km`,
+    simChip: (n, vei, km, y, on) => (on ? `Simulación ilustrativa · ${n}, en erupción según el Smithsonian · VEI ${vei} · columna ≈ ${km} km`
+      : `Simulación ilustrativa · ${n}${y != null ? ` · su última erupción fue en ${y < 0 ? `${-y} a. C.` : y}` : ""}: hoy no está en erupción · VEI ${vei} · columna ≈ ${km} km`),
     simStop: "Parar",
     simStopLong: "Parar la simulación",
     simNote: "Solo la altura (por el VEI) y la dirección del viento salen de datos; la forma es genérica. No es una predicción.",
@@ -178,7 +179,8 @@ export const VT = {
     erupting: (y) => `The Smithsonian lists it as erupting in ${y}. The plume drawn over it is illustrative: for official alerts, check your geophysical institute.`,
     simulate: "Simulate its last eruption",
     gasNote: "A plume of gas and ash is drawn over it (illustrative: the shape is generic).",
-    simChip: (n, vei, km, y) => `Illustrative simulation · ${n}${y != null ? ` · its last eruption was in ${y < 0 ? `${-y} BCE` : y}` : ""}: not erupting today · VEI ${vei} · column ≈ ${km} km`,
+    simChip: (n, vei, km, y, on) => (on ? `Illustrative simulation · ${n}, erupting according to the Smithsonian · VEI ${vei} · column ≈ ${km} km`
+      : `Illustrative simulation · ${n}${y != null ? ` · its last eruption was in ${y < 0 ? `${-y} BCE` : y}` : ""}: not erupting today · VEI ${vei} · column ≈ ${km} km`),
     simStop: "Stop",
     simStopLong: "Stop the simulation",
     simNote: "Only the height (from the VEI) and the wind direction come from data; the shape is generic. Not a prediction.",

@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.65.0 — 2026-11-22
+
+- **Tour nuevo para quien empieza en la astronomía y en Teseo:** nueve paradas que unen una idea del cielo con una función de la app; el botón del que habla cada parada se ilumina, con un «Pruébalo».
+  - Mirar alrededor; **el lugar**, con el Sol de hoy bajando sobre la pirámide de Keops (Guiza); **el tiempo**, con el Sangay en erupción al atardecer visto desde la cumbre del Chimborazo (columna simulada con el viento real).
+  - De vuelta a tu cielo: una constelación, una estrella brillante, un planeta o la Luna y un objeto de cielo profundo que estén **sobre tu horizonte en ese momento**; luego, la tarjeta del tiempo y «Esta noche».
+  - Textos breves y revisados (sin esperar a la IA). Al salir, vuelven tu lugar y tu hora; si eliges un lugar durante el tour, queda como el tuyo.
+- Los primeros pasos describen los botones donde están hoy (Tiempo, Lugar, Capas y Tour a la derecha) e invitan al tour.
+- La simulación de un volcán que el Smithsonian da en erupción ya no dice «hoy no está en erupción».
+
 ## 1.64.0 — 2026-11-22
 
 - **Nubes reales de ahora, del satélite, en todo el mundo:** cerca de la hora presente, las nubes del cielo salen de los satélites geoestacionarios: dónde hay nubes en 150 km a la redonda y a qué altura está su tope, repartidas en capas bajas, medias y altas. GOES-19 y GOES-18 para América y el Pacífico, Meteosat para Europa, África y el océano Índico, e Himawari-9 para Asia y Oceanía. Se actualizan cada 10 minutos y viajan con el viento si mueves la hora; lejos del presente (más de 2 horas) vuelve el pronóstico.

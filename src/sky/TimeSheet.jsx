@@ -100,9 +100,9 @@ export function ArRail({ lang = "es", timeOpen, onTime, onPlace, onLayers, onSea
   const tx = RAIL[lang] || RAIL.es;
   return (
     <nav className="sk-arrail" aria-label={tx.aria}>
-      <button type="button" onClick={onTime} aria-pressed={!!timeOpen} className={timeMoved ? "tone-gold" : undefined}><Icon name="clock" size={22} /><span>{tx.time}</span></button>
-      <button type="button" onClick={onPlace} className={placeOn ? "tone-blue" : undefined}><Icon name="pin" size={22} /><span>{tx.place}</span></button>
-      <button type="button" onClick={onLayers}><Icon name="layers" size={22} /><span>{tx.layers}</span>{layersOn > 0 && <i className="sk-arrail-badge">{layersOn}</i>}</button>
+      <button type="button" data-tour="time" onClick={onTime} aria-pressed={!!timeOpen} className={timeMoved ? "tone-gold" : undefined}><Icon name="clock" size={22} /><span>{tx.time}</span></button>
+      <button type="button" data-tour="place" onClick={onPlace} className={placeOn ? "tone-blue" : undefined}><Icon name="pin" size={22} /><span>{tx.place}</span></button>
+      <button type="button" data-tour="layers" onClick={onLayers}><Icon name="layers" size={22} /><span>{tx.layers}</span>{layersOn > 0 && <i className="sk-arrail-badge">{layersOn}</i>}</button>
       {onTour && <button type="button" onClick={onTour} disabled={!tourReady}><Icon name="tour" size={22} /><span>{tx.tour}</span></button>}
       {onSearch && <button type="button" onClick={onSearch}><Icon name="search" size={22} /><span>{tx.search}</span></button>}
     </nav>

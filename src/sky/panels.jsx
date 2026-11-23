@@ -132,7 +132,7 @@ export function SearchBox({ t, query, setQuery, results, onResult, quick, compac
 export function Dock({ t, panel, onPanel, localMode, tourReady, onTour, timeLabel, isNow, layersOn, layersWarn, playing, mySkyLabel }) {
   // función normal (no componente): así los botones no se remontan en cada render
   const item = ({ id, icon, label, active, onClick, disabled, badge, tone }) => (
-    <button type="button" key={id} className={`sk-dock-item${active ? " is-active" : ""}${tone ? " tone-" + tone : ""}`}
+    <button type="button" key={id} data-tour={{ location: "place", time: "time", layers: "layers" }[id]} className={`sk-dock-item${active ? " is-active" : ""}${tone ? " tone-" + tone : ""}`}
       onClick={onClick} disabled={disabled} aria-pressed={id === "tour" ? undefined : !!active}
       aria-expanded={id === "tour" ? undefined : panel === id}>
       <span className="sk-dock-icon"><Icon name={icon} size={21} /></span>
@@ -376,8 +376,8 @@ export function LocationPanel({ t, lang = "es", localMode, lat, lon, placeName, 
 export function SkyActions({ t, onTonight, onPoint }) {
   return (
     <div className="sk-cta">
-      {onTonight && <button type="button" className="sk-cta-btn" onClick={onTonight}><Icon name="moon" size={19} /><span>{t.tonight}</span></button>}
-      {onPoint && <button type="button" className="sk-cta-btn is-point" onClick={onPoint}><Icon name="point" size={20} /><span>{t.pointSky}</span></button>}
+      {onTonight && <button type="button" data-tour="tonight" className="sk-cta-btn" onClick={onTonight}><Icon name="moon" size={19} /><span>{t.tonight}</span></button>}
+      {onPoint && <button type="button" data-tour="point" className="sk-cta-btn is-point" onClick={onPoint}><Icon name="point" size={20} /><span>{t.pointSky}</span></button>}
     </div>
   );
 }
@@ -615,31 +615,26 @@ export function TimePanel({ t, lang, when, whenStr, isNow, playing, onShift, onT
 }
 
 // ── Tour guiado ──────────────────────────────────────────────────────────
-export function TourCard({ t, title, fact, index, total, text, auto, onPrev, onNext, onToggleAuto, onExit, onRetry }) {
+export function TourCard({ tt, view, index, total, onPrev, onNext, onExit }) {
+  const last = index >= total - 1;
   return (
-    <section className="sk-tour" aria-label={t.tourAria}>
+    <section className={`sk-tour${view.top ? " at-top" : ""}`} aria-label={tt.step(index + 1, total)}>
       <div className="sk-tour-progress" aria-hidden="true">
         {Array.from({ length: total }, (_, i) => <i key={i} className={i < index ? "done" : i === index ? "now" : ""} />)}
       </div>
       <div className="sk-tour-head">
         <div>
-          <p className="sk-tour-step">{t.tourStep(index + 1, total)}</p>
-          <h2>{title}</h2>
-          {fact && <p className="sk-tour-fact">{fact}</p>}
+          <p className="sk-tour-step">{tt.step(index + 1, total)}</p>
+          <h2>{view.title}</h2>
+          {view.fact && <p className="sk-tour-fact">{view.fact}</p>}
         </div>
-        <button type="button" className="sk-iconbtn" onClick={onExit} aria-label={t.tourExit}><Icon name="close" size={18} /></button>
+        <button type="button" className="sk-iconbtn" onClick={onExit} aria-label={tt.exit}><Icon name="close" size={18} /></button>
       </div>
-      <p className="sk-tour-text" aria-live="polite">
-        {text === null ? <span className="sk-narrating"><i className="sk-spin" />{t.narrating}</span>
-          : text ? <>“{text}”<small>{t.aiNarration}</small></>
-          : <span className="sk-tour-off">{t.tourNoText} <button type="button" onClick={onRetry}><Icon name="retry" size={14} />{t.retry}</button></span>}
-      </p>
+      <p className="sk-tour-text" aria-live="polite">{view.text}</p>
+      {view.tip && <p className="sk-tour-try"><Icon name="hand" size={15} /><b>{tt.tryIt}:</b> {view.tip}</p>}
       <div className="sk-tour-nav">
-        <button type="button" className="sk-btn" onClick={onPrev}><Icon name="prev" size={17} />{t.prev}</button>
-        <button type="button" className="sk-btn" onClick={onToggleAuto} aria-pressed={auto}>
-          <Icon name={auto ? "pause" : "play"} size={16} />{auto ? t.tourPause : t.tourResume}
-        </button>
-        <button type="button" className="sk-btn primary" onClick={onNext}>{t.next}<Icon name="next" size={17} /></button>
+        <button type="button" className="sk-btn" onClick={onPrev} disabled={index === 0}><Icon name="prev" size={17} />{tt.prev}</button>
+        <button type="button" className="sk-btn primary" onClick={onNext}>{last ? tt.done : tt.next}{!last && <Icon name="next" size={17} />}</button>
       </div>
     </section>
   );

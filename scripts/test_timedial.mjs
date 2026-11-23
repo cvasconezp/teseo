@@ -23,7 +23,7 @@ ok(dayProfile(null, null, new Date()) === null, "sin lugar, sin fases");
 const sky = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
 ok(/<ArRail /.test(sky) && /<TimeSheet /.test(sky) && /openPanel\("location"\)/.test(sky) && /openPanel\("layers"\)/.test(sky), "en el modo apuntar, a la derecha: tiempo, lugar, capas y buscar");
 ok(/help=\{false\}/.test(sky), "la ayuda de alinear el norte ya no sale sola");
-ok(/const railView = !!\(sky && !tourActive && !arBar\)/.test(sky) && /onTour=\{\(\) => \{ setTsOpen\(false\); startTour\(\); \}\}/.test(sky) && /!tourActive && !railView && \(\s*<Dock/.test(sky), "al mirar arrastrando (teléfono y ordenador), la misma columna (con el tour) en lugar de la barra de abajo");
+ok(/const railView = !!\(sky && !arBar\)/.test(sky) && /onTour=\{\(\) => \{ setTsOpen\(false\); startTour\(\); \}\}/.test(sky) && /!tourActive && !railView && \(\s*<Dock/.test(sky), "al mirar arrastrando (teléfono y ordenador), la misma columna (también durante el tour, que ilumina sus botones) en lugar de la barra de abajo");
 ok((sky.match(/!covered && !railOpen && \(\s*<ArRail/g) || []).length === 2 && /if \(railOpen\) setTsOpen\(false\)/.test(sky), "con el menú «…» abierto, la columna y el tiempo se apartan");
 
 ok(/panel === "time" && \([\s\S]{0,200}<TimeSheet [\s\S]{0,400}docked extra=/.test(sky) && !/<TimePanel /.test(sky), "«Ahora» abre el mismo control de tiempo (ya no el panel antiguo)");

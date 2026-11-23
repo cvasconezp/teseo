@@ -86,6 +86,7 @@ import { IssLayer, ISS_COLORS, ISS_RATES, stepClock as stepIssClock } from "./sk
 import IssSheet from "./sky/IssSheet.jsx";
 import PeakSheet from "./sky/PeakSheet.jsx";
 import { WxCard } from "./sky/WxCard.jsx";
+import { TOUR_STOPS, TOUR_T, CANDIDATES, pickVisible, sunsetAt, gizaView, KHUFU, VOLCANO_VIEW, SANGAY, bearing, deepKind, nameOf } from "./sky/tour.js";
 import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp, fmtWind, windText, windVector } from "./sky/nowWeather.js";
 import { fetchVolcanoes, matchVolcanoes, recentEruption, eruptingInView, volcanoesOnSkyline, VT as VOLC_T } from "./sky/volcanoes.js";
 import { angleOf as terrainAngleOf } from "./sky/terrainLayer.js";
@@ -265,16 +266,6 @@ function meteorActive(o, now = new Date()) {
   return o.start <= o.end ? (md >= o.start && md <= o.end) : (md >= o.start || md <= o.end);
 }
 
-const TOUR = [
-  { type: "con", ab: "Ori", title: { es: "Orión, el cazador", en: "Orion the Hunter" } },
-  { type: "star", name: "Betelgeuse", title: { es: "Betelgeuse", en: "Betelgeuse" } },
-  { type: "star", name: "Rigel", title: { es: "Rigel", en: "Rigel" } },
-  { type: "messier", m: 42, title: { es: "Nebulosa de Orión", en: "Orion Nebula" } },
-  { type: "star", name: "Sirius", title: { es: "Sirio, la estrella más brillante", en: "Sirius, the brightest star" } },
-  { type: "messier", m: 45, title: { es: "Las Pléyades", en: "The Pleiades" } },
-  { type: "bh", name: "Sgr A*", title: { es: "El centro de la Vía Láctea", en: "The Galactic Center" } },
-  { type: "messier", m: 31, title: { es: "Galaxia de Andrómeda", en: "Andromeda Galaxy" } },
-];
 function resolveStop(stop, ref, sky, datasets) {
   if (!ref || !sky) return null;
   if (stop.type === "con") {
@@ -421,7 +412,7 @@ const TC = {
     onboard: [
       { title: "Look around with your finger", body: "You're at the centre of the sky, as if you were looking up from Earth. Drag to look around and pinch to zoom in. Every star sits in its real position." },
       { title: "Tap anything that catches your eye", body: "A planet, a star, a nebula… or search for it by name. You'll see what it is and how far away." },
-      { title: "Add layers, or let us guide you", body: "Below: Layers (galaxies, pulsars, comets…), My sky (what's up from where you are), Tour and Time." },
+      { title: "Pick your place, or let us guide you", body: "On the right: Time, Place (the sky from where you are), Layers (galaxies, comets, satellites…) and Tour. First time? The tour shows you the sky and the app in a few minutes." },
     ],
     // ── ficha ──
     closeSheet: "Close this card", sheetExpand: "Expand the card", sheetCollapse: "Shrink the card",
@@ -567,7 +558,7 @@ const TC = {
     onboard: [
       { title: "Mira alrededor con el dedo", body: "Estás en el centro del cielo, como si lo miraras desde la Tierra. Arrastra para mirar alrededor y pellizca para acercar. Cada estrella está en su posición real." },
       { title: "Toca lo que te llame la atención", body: "Un planeta, una estrella, una nebulosa… o búscalo por su nombre. Verás qué es y a qué distancia está." },
-      { title: "Suma capas o déjate guiar", body: "Abajo tienes Capas (galaxias, púlsares, cometas…), Mi cielo (lo que se ve desde donde estás), Tour y Tiempo." },
+      { title: "Elige tu lugar o déjate guiar", body: "A la derecha tienes Tiempo, Lugar (el cielo desde donde estás), Capas (galaxias, cometas, satélites…) y Tour. ¿Primera vez? El tour te muestra el cielo y la app en unos minutos." },
     ],
     // ── ficha ──
     closeSheet: "Cerrar la ficha", sheetExpand: "Ampliar la ficha", sheetCollapse: "Reducir la ficha",
@@ -747,10 +738,6 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   STAR_MODE.vivid = vividStars;
   const [tourActive, setTourActive] = useState(false);
   const [tourIndex, setTourIndex] = useState(0);
-  const [tourAuto, setTourAuto] = useState(true);
-  const [tourTitle, setTourTitle] = useState("");
-  const [tourText, setTourText] = useState(null);
-  const [tourTry, setTourTry] = useState(0);          // sube al reintentar la narración
   const [loadingLayer, setLoadingLayer] = useState({});
   const [layerError, setLayerError] = useState({});   // key -> true si falló la carga
   const [skyError, setSkyError] = useState(false);
@@ -773,7 +760,6 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const issHudRef = useRef(null);        // setter de la píldora (vive en <IssPill>)
   const issFlyRef = useRef(null);        // culminación hacia la que volar en cuanto «Mi cielo» esté activo
   const issOn = !!(issSel && issSel.status === "ok");
-  const [tourFact, setTourFact] = useState("");
   const [isWide, setIsWide] = useState(() => { try { return window.matchMedia("(min-width: 900px)").matches; } catch { return false; } });
   const isWideRef = useRef(isWide);
   const datasetsRef = useRef(datasets);
@@ -3204,35 +3190,152 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [issOn, issSel, playing]);
   const cycleIssRate = useCallback(() => setIssRate((r) => nextRate(r)), []);
 
-  const startTour = useCallback(() => { track("sky_tour", { state: "start" }); setSel(null); setOutside(false); setSelObj(null); setPanel(null); setTourAuto(true); setTourIndex(0); setTourActive(true); }, []);
-  // Los datos del tour (Messier y agujeros negros) se leen por referencia: así, si
-  // OTRA capa termina de cargar a mitad del recorrido, la parada actual no se
-  // reinicia ni se vuelve a pedir su narración.
+  // ── tour para principiantes (src/sky/tour.js): cada parada une una idea del cielo con una función de la app ──
+  // Al empezar se guarda tu lugar y tu hora; las paradas de Guiza y del volcán los cambian sin guardarlos, y al
+  // volver a tu cielo (o al salir) se restauran. Si eliges un lugar durante el tour, ese pasa a ser el tuyo.
+  const tourSnap = useRef(null);
+  const [tourView, setTourView] = useState(null);      // { id, title, text, fact, tip, target, top }
+  const startTour = useCallback(() => {
+    track("sky_tour", { state: "start" }); setSel(null); setOutside(false); setSelObj(null); setPanel(null); setPlumeSim(null);
+    let saved = null; try { saved = localStorage.getItem(PLACE_KEY); } catch { /* no-op */ }
+    tourSnap.current = { lat, lon, elev, elevPreset, placeFine, placeSummit, placeKind, localMode, placeDefault, saved, whenStr, timeMoved, away: false, timeAway: false };
+    setTourView(null); setTourIndex(0); setTourActive(true);
+  }, [lat, lon, elev, elevPreset, placeFine, placeSummit, placeKind, localMode, placeDefault, whenStr, timeMoved]);
+  const tourGoPlace = useCallback((p) => {
+    ++placeSeq.current;
+    setLat(p.lat); setLon(p.lon); setElev(p.elev ?? null); setElevPreset(p.elev != null ? "terrain" : false); setPlaceFine(true); setPlaceSummit(!!p.summit); setPlaceDefault(false);
+    setPlaceKind(p.name); setLocalMode(true); setSel(null);
+    if (tourSnap.current) tourSnap.current.away = true;
+  }, []);
+  const tourRestore = useCallback(() => {
+    const s0 = tourSnap.current; if (!s0) return;
+    if (s0.away) {
+      ++placeSeq.current;
+      setLat(s0.lat); setLon(s0.lon); setElev(s0.elev); setElevPreset(s0.elevPreset); setPlaceFine(s0.placeFine); setPlaceSummit(s0.placeSummit);
+      setPlaceDefault(s0.placeDefault); setPlaceKind(s0.placeKind); setLocalMode(s0.localMode);
+      try { if (s0.saved == null) localStorage.removeItem(PLACE_KEY); else localStorage.setItem(PLACE_KEY, s0.saved); } catch { /* no-op */ }
+      s0.away = false;
+    }
+    if (s0.timeAway) { setPlaying(false); setTimeMoved(s0.timeMoved); setWhenStr(s0.timeMoved ? s0.whenStr : fmtInput(new Date())); s0.timeAway = false; }
+    setPlumeSim(null);
+  }, []);
+  // elegir un lugar durante el tour: ese pasa a ser el tuyo (no se deshace al salir)
+  const tourAdopt = useCallback((a, o) => {
+    const s0 = tourSnap.current; if (!s0) return;
+    let saved = null; try { saved = localStorage.getItem(PLACE_KEY); } catch { /* no-op */ }
+    Object.assign(s0, { away: false, lat: a, lon: o, localMode: true, saved });
+  }, []);
   const tourDataReady = !!(ready && sky && datasets.messier && datasets.blackholes);
   useEffect(() => {
-    if (!tourActive || !tourDataReady) return;
-    const ref = sceneRef.current; const stop = TOUR[tourIndex];
-    const r = resolveStop(stop, ref, sky, datasetsRef.current);
-    if (!r) return;
-    focusDir(r.dir[0], r.dir[1], r.dir[2], r.type === "con" ? 75 : 45);
-    const title = stop.title ? (stop.title[lang] || stop.title.es) : "";
-    setTourTitle(title); setTourText(null);
-    setTourFact(r.dist ? TC[lang].tourFactDist(fmtDist(r.dist, lang)) : "");
-    const tw = r.type === "con" ? (lang === "es" ? "la constelación de" : "the constellation") : r.type === "star" ? (lang === "es" ? "la estrella" : "the star") : "";
-    const concept = `${tw} ${title}${r.dist ? `, ${lang === "es" ? "a" : "at"} ${fmtDist(r.dist, lang)} ${lang === "es" ? "de la Tierra" : "from Earth"}` : ""}`.trim();
-    let cancel = false;
-    const ctrl = new AbortController();
-    // 12 s: menos que el avance automático (15 s), para que la parada nunca se quede en "narrando…"
-    fetchJson(`${API}/api/explain`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ concept, lang }), signal: ctrl.signal, timeout: 12000 })
-      .then(d => { if (!cancel) setTourText((d && d.explanation) || ""); })
-      .catch(e => { if (!cancel && !isAbort(e)) setTourText(""); });
-    return () => { cancel = true; ctrl.abort(); };
-  }, [tourActive, tourIndex, tourDataReady, sky, lang, focusDir, tourTry]);
+    if (!tourActive || !tourDataReady) return undefined;
+    const stop = TOUR_STOPS[tourIndex], T = TOUR_T[lang] || TOUR_T.es, ref = sceneRef.current;
+    let cancel = false; const timers = [];
+    const later = (fn, ms) => timers.push(setTimeout(() => { if (!cancel) fn(); }, ms));
+    const lookAA = (alt, az, span) => { const r = sceneRef.current; if (r && r.lookAt) { const v = altAzToLocal(alt, az); r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), span, true); if (r.wake) r.wake(); } };
+    const sunFn = (la, lo) => (d) => { const sn = ephemeris(d).find((b) => b.name === "Sol"); return altAz(sn.nx, sn.ny, sn.nz, la, lo, d); };
+    const base = { id: stop.id, target: stop.target, fact: "", tip: null, top: stop.id === "tonight" };
+    const goTime = (d) => { setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(d)); if (tourSnap.current) tourSnap.current.timeAway = true; };
+    if (stop.scene === "giza") {
+      // hoy, con el Sol a 4,5° justo sobre la cúspide de Keops (3 km al este de ella, en la línea del Sol poniente)
+      const f = sunFn(KHUFU.lat, KHUFU.lon), ss = sunsetAt(new Date(), KHUFU.lon, f, 4.5);
+      if (ss) {
+        const gv = gizaView(f(ss).az);
+        tourGoPlace({ name: lang === "es" ? "Guiza" : "Giza", lat: +gv.lat.toFixed(5), lon: +gv.lon.toFixed(5) }); goTime(ss);
+        later(() => lookAA(4, gv.lookAz, 32), 900); later(() => lookAA(4, gv.lookAz, 32), 3500);
+      }
+      setTourView({ ...base, title: T.place.title, text: T.place.text, tip: T.place.tip });
+    } else if (stop.scene === "volcano") {
+      // de pie en la cumbre del Chimborazo (la del modelo de relieve), con el Sol a 1,5° tras de ti
+      const V = VOLCANO_VIEW, ss = sunsetAt(new Date(), V.lon, sunFn(V.lat, V.lon), 1.5);
+      const go = (p) => { if (!cancel) tourGoPlace(p); };
+      fetchSummit(V.lat, V.lon, { r: 400, api: API })
+        .then((sm) => go(sm && sm.found ? { name: V.name[lang] || V.name.es, lat: sm.lat, lon: sm.lon, elev: sm.ground_m, summit: true } : { name: V.name[lang] || V.name.es, lat: V.lat, lon: V.lon }),
+          () => go({ name: V.name[lang] || V.name.es, lat: V.lat, lon: V.lon }));
+      if (ss) goTime(ss);
+      const az = bearing(V.lat, V.lon, SANGAY.lat, SANGAY.lon);
+      later(() => lookAA(2, az, 40), 1500);
+      setTourView({ ...base, title: T.time.title, text: T.time.text(null), tip: T.time.tip });
+    } else {
+      // de vuelta a tu cielo: tu lugar y tu hora (los objetos se eligen con ellos)
+      const s0 = tourSnap.current || {};
+      const wasAway = !!(s0.away || s0.timeAway);
+      if (wasAway) tourRestore();
+      const d = s0.timeMoved ? new Date(s0.whenStr) : new Date();
+      const loc = s0.localMode && s0.lat != null ? { lat: s0.lat, lon: s0.lon } : null;
+      const altOf = (v) => (loc ? altAz(v[0], v[1], v[2], loc.lat, loc.lon, d).alt : null);
+      const away = wasAway ? T.away : "";
+      const focus = (v, span) => later(() => focusDir(v[0], v[1], v[2], span), wasAway ? 900 : 50);
+      if (stop.id === "look") {
+        setTourView({ ...base, title: T.look.title, text: T.look.text, tip: T.look.tip, fact: away });
+      } else if (stop.id === "con") {
+        const dirOf = (ab) => {
+          const c = ref && ref.conCentroid && ref.conCentroid[ab]; if (!c || !c.idxs.length) return null;
+          let x = 0, y = 0, z = 0; for (const k of c.idxs) { x += ref.posFlat[k * 3]; y += ref.posFlat[k * 3 + 1]; z += ref.posFlat[k * 3 + 2]; }
+          const L = Math.hypot(x, y, z) || 1; return [x / L, y / L, z / L];
+        };
+        const ab = pickVisible(CANDIDATES.con, (a) => { const v = dirOf(a); return v ? altOf(v) : undefined; }) || "Ori";
+        const v = dirOf(ab); if (v) focus(v, 75);
+        const nm = nameOf("con", ab, lang);
+        setTourView({ ...base, title: nm, text: T.con.text(nm), tip: T.con.tip, fact: away });
+      } else if (stop.id === "star") {
+        const find = (n) => sky && sky.stars.find((x) => x[7] === n);
+        const nmK = pickVisible(CANDIDATES.star, (n) => { const st = find(n); return st ? altOf([st[1], st[2], st[3]]) : undefined; }) || "Sirius";
+        const st = find(nmK);
+        if (st) focus([st[1], st[2], st[3]], 45);
+        const ly = st && Number.isFinite(st[6]) ? st[6] : null;
+        setTourView({ ...base, title: nameOf("star", nmK, lang), text: ly ? T.star.text(ly, lang) : T.star.textNoDist, tip: T.star.tip,
+          fact: [away, ly ? TC[lang].tourFactDist(fmtDist(ly, lang)) : ""].filter(Boolean).join(" · ") });
+      } else if (stop.id === "planet") {
+        const bs = skyBodies(ephemeris(d), d, loc ? { lat: loc.lat, lon: loc.lon, elev: s0.elev || 0 } : null);
+        const nm = pickVisible(CANDIDATES.planet, (n) => { const b = bs.find((x) => x.name === n); return b ? altOf([b.nx, b.ny, b.nz]) : undefined; }) || "Júpiter";
+        const b = bs.find((x) => x.name === nm);
+        setShowSolar(true);
+        if (b) focus([b.nx, b.ny, b.nz], 30);
+        setTourView({ ...base, title: nameOf("planet", nm, lang), text: T.planet.text(nm === "Luna"), tip: T.planet.tip, fact: away });
+      } else if (stop.id === "deep") {
+        const objs = (datasetsRef.current.messier && datasetsRef.current.messier.objects) || [];
+        const m = pickVisible(CANDIDATES.deep, (k) => { const o = objs.find((x) => x.m === k); return o ? altOf([o.nx, o.ny, o.nz]) : undefined; }) || 42;
+        const o = objs.find((x) => x.m === m);
+        if (o) { setEnabled((e) => ({ ...e, messier: true })); focus([o.nx, o.ny, o.nz], 25); }
+        setTourView({ ...base, title: nameOf("deep", m, lang), text: T.deep.text(T.deep.kind[deepKind(o && o.type)], o && o.dist_ly ? fmtDist(o.dist_ly, lang) : ""), tip: T.deep.tip, fact: away });
+      } else if (stop.id === "weather") {
+        setTourView({ ...base, title: T.weather.title, text: loc ? T.weather.text : T.weather.textNoPlace, tip: loc ? T.weather.tip : null, target: loc ? "weather" : "place", fact: away });
+      } else {
+        setTourView({ ...base, title: T.tonight.title, text: T.tonight.text, tip: T.tonight.tip, fact: away, target: loc ? "tonight" : null });
+      }
+    }
+    return () => { cancel = true; timers.forEach(clearTimeout); };
+  }, [tourActive, tourIndex, tourDataReady, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // el volcán en erupción que se ve desde la parada del tiempo: su columna simulada al atardecer
   useEffect(() => {
-    if (!tourActive || !tourAuto) return;
-    const id = setTimeout(() => setTourIndex(i => (i + 1) % TOUR.length), 15000);
-    return () => clearTimeout(id);
-  }, [tourActive, tourAuto, tourIndex]);
+    if (!tourActive || TOUR_STOPS[tourIndex].scene !== "volcano" || !volcList || !hzData || plumeSim) return;
+    const hot = eruptingInView(volcList, hzData, lat, lon, terrainAngleOf);
+    const pick = hot.find((h) => { const v = volcList.find((x) => x.id === h.id); return v && /sangay/i.test(v.name); }) || hot[0];
+    if (!pick) return;
+    const v = volcList.find((x) => x.id === pick.id);
+    setPlumeSim({ name: v.name, label: v.name, az: pick.az, alt: pick.alt, dist_km: +pick.dist_km.toFixed(1), ele_m: v.elev_m, lat: v.lat, lon: v.lon, volcano: v, volcanoChecked: true });
+    const T = TOUR_T[lang] || TOUR_T.es;
+    setTourView((tv) => (tv && tv.id === "time" ? { ...tv, text: T.time.text(v.name) } : tv));
+    const r = sceneRef.current;
+    if (r && r.lookAt) { const w = altAzToLocal(pick.alt + 3, pick.az); r.lookAt(new THREE.Vector3(w[0], w[1], w[2]), 40, true); }
+  }, [tourActive, tourIndex, volcList, hzData, plumeSim, lat, lon, lang]);
+  // el botón del que habla la parada, iluminado (atributo data-tour); en «Esta noche», también «Apuntar al cielo»
+  const tourTarget = tourActive && tourView ? tourView.target : null;
+  useEffect(() => {
+    const st = stageRef.current; if (!st || !tourTarget) return undefined;
+    const sel = `[data-tour="${tourTarget}"]` + (tourTarget === "tonight" ? ', [data-tour="point"]' : "");
+    let els = [];
+    const mark = () => { els.forEach((el) => el.classList.remove("sk-tour-hl")); els = [...st.querySelectorAll(sel)]; els.forEach((el) => el.classList.add("sk-tour-hl")); };
+    mark();
+    const id = setInterval(mark, 1000);   // los botones pueden aparecer después (la pastilla del tiempo) o volver a montarse
+    return () => { clearInterval(id); els.forEach((el) => el.classList.remove("sk-tour-hl")); };
+  }, [tourTarget]);
+  // al salir del tour (por cualquier camino): tu lugar y tu hora de antes
+  const tourWas = useRef(false);
+  useEffect(() => {
+    if (tourWas.current && !tourActive) { tourRestore(); tourSnap.current = null; setTourView(null); }
+    tourWas.current = tourActive;
+  }, [tourActive, tourRestore]);
 
   const onResult = useCallback((res) => {
     if (res.type === "loading") return;   // fila informativa, no navegable
@@ -3485,6 +3588,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         const top = !!(sm && sm.found);
         setLat(la); setLon(lo); setElev(al); setElevPreset(src); setPlaceFine(true); setPlaceSummit(top); setPlaceDefault(false);
         savePlace({ kind: "me", lat: la, lon: lo, elev: al, fine: true, ...(src ? { elevSrc: src } : {}), ...(top ? { summit: true } : {}) });
+        tourAdopt(la, lo);
         track("sky_location", { kind: "gps" });
         setPlaceKind("me"); setLocalMode(true); setGeo("ok"); setSel(null);
         if (!isWideRef.current) setPanel(null);
@@ -3505,6 +3609,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     }
     setLat(p.lat); setLon(p.lon); setElev(p.elev ?? null); setElevPreset(src); setPlaceFine(fine); setPlaceSummit(top); setPlaceDefault(false);
     savePlace({ kind: p.name, lat: p.lat, lon: p.lon, elev: p.elev ?? null, ...(fine ? { fine: true } : {}), ...(src === "terrain" ? { elevSrc: "terrain" } : {}), ...(top ? { summit: true } : {}) });
+    tourAdopt(p.lat, p.lon);
     track("sky_location", { kind: "manual" });   // los atajos de ciudad cuentan como "manual"
     setPlaceKind(p.name); setLocalMode(true); setGeo("idle"); setSel(null);
     if (!isWideRef.current) setPanel(null);
@@ -3513,6 +3618,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ++placeSeq.current;
     setLat(+a.toFixed(4)); setLon(+o.toFixed(4)); setElev(null); setElevPreset(false); setPlaceFine(false); setPlaceSummit(false); setPlaceDefault(false);
     savePlace({ kind: "custom", lat: +a.toFixed(4), lon: +o.toFixed(4), elev: null });
+    tourAdopt(+a.toFixed(4), +o.toFixed(4));
     track("sky_location", { kind: "manual" });
     setPlaceKind("custom"); setLocalMode(true); setGeo("idle"); setSel(null);
     if (!isWideRef.current) setPanel(null);
@@ -4014,7 +4120,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const arBar = !sky || tourActive ? null : arOn ? "on" : ar === "paused" ? "paused" : arError ? "error" : null;
   // la columna de la derecha también al mirar arrastrando en el teléfono (sin la barra de abajo)
   // (también en el ordenador: los mismos botones que en el teléfono)
-  const railView = !!(sky && !tourActive && !arBar);
+  const railView = !!(sky && !arBar);   // también durante el tour: sus botones se iluminan
   useEffect(() => { if (arBar !== "on" && arBar !== "paused" && !railView) setTsOpen(false); }, [arBar, railView]);
   // el menú «…» y la columna comparten el lado derecho: con el menú abierto, la columna (y el tiempo) se apartan
   useEffect(() => { if (railOpen) setTsOpen(false); }, [railOpen]);
@@ -4085,7 +4191,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const wxPill = wxNow && localMode && !viewFrom ? (() => {
     const k = wxKind(wxNow.code, wxNow.day), nm = (WX_NAMES[lang] || WX_NAMES.es)[k];
     return (
-      <button ref={wxPillRef} type="button" className="sk-chip sk-wx-pill" aria-expanded={wxOpen} aria-haspopup="dialog"
+      <button ref={wxPillRef} type="button" data-tour="weather" className="sk-chip sk-wx-pill" aria-expanded={wxOpen} aria-haspopup="dialog"
         onClick={() => { setWxWanted(true); setWxOpen((o) => { if (!o) track("sky_weather_card", { kind: "open" }); return !o; }); }}
         aria-label={`${nm}, ${fmtTemp(wxNow.temp)}${wxNow.windKmh != null ? `. ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}
         title={`${nm}${wxNow.windKmh != null ? ` · ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}>
@@ -4147,7 +4253,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     }
     return out;
   }, [selCon, datasets.messier, datasets.caldwell, datasets.galaxies, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const showActions = !!(sky && !tourActive && !arOn && ar !== "paused" && !arError && inMySky && !covered && !showOnboard && !viewFrom && !showDepth);
+  const showActions = !!(sky && (!tourActive || (tourView && tourView.id === "tonight")) && !arOn && ar !== "paused" && !arError && inMySky && !covered && !showOnboard && !viewFrom && !showDepth);
   // compartiendo en el teléfono, el visor pasa a pantalla completa: la vista previa necesita todo el alto
   const stageClass = "sk-stage" + (full || immersive || (share && !isWide) ? " is-full" : "") + (immersive ? " is-immersive" : "") + (arOn && arCtl ? " ar-ctl" : "") + (covered ? " is-covered" : "") + (selObj || issSheetOn ? " has-sheet" : "") + (railView ? " has-rail" : "")
     + (tourActive ? " has-tour" : "") + (showDepth ? " has-depth" : "") + (issSel ? " has-isspill" : "") + (arOn ? " is-ar" : "") + (panel ? " has-panel" : "");
@@ -4221,7 +4327,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
                 const VTl = VOLC_T[lang] || VOLC_T.es, vei = plumeSim.volcano && Number.isFinite(plumeSim.volcano.last_vei) ? plumeSim.volcano.last_vei : 2;
                 return (
                   <div className="sk-chip tone-violet sk-sim-chip">
-                    <span>{VTl.simChip(plumeSim.label || plumeSim.name, vei, String(veiColumnKm(vei)).replace(".", lang === "es" ? "," : "."), plumeSim.volcano ? (Number.isFinite(plumeSim.volcano.last_end) ? plumeSim.volcano.last_end : Number.isFinite(plumeSim.volcano.last_start) ? plumeSim.volcano.last_start : null) : null)}{wxNow && wxNow.windKmh != null ? ` · ${windText(wxNow, lang)}` : ""}</span>
+                    <span>{VTl.simChip(plumeSim.label || plumeSim.name, vei, String(veiColumnKm(vei)).replace(".", lang === "es" ? "," : "."), plumeSim.volcano ? (Number.isFinite(plumeSim.volcano.last_end) ? plumeSim.volcano.last_end : Number.isFinite(plumeSim.volcano.last_start) ? plumeSim.volcano.last_start : null) : null, !!(plumeSim.volcano && plumeSim.volcano.erupting))}{wxNow && wxNow.windKmh != null ? ` · ${windText(wxNow, lang)}` : ""}</span>
                     <button type="button" onClick={() => setPlumeSim(null)}>{VTl.simStop}</button>
                   </div>
                 );
@@ -4296,13 +4402,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           layersOn={layersOn} layersWarn={failedLayers.length > 0} mySkyLabel={!isWide && inMySky ? placeLabel : null} />
       )}
 
-      {sky && tourActive && (
-        <TourCard t={t} title={tourTitle} fact={tourFact} index={tourIndex} total={TOUR.length} text={tourText} auto={tourAuto}
-          onPrev={() => setTourIndex(i => (i - 1 + TOUR.length) % TOUR.length)}
-          onNext={() => setTourIndex(i => (i + 1) % TOUR.length)}
-          onToggleAuto={() => setTourAuto(a => !a)}
-          onExit={() => { track("sky_tour", { state: tourIndex >= TOUR.length - 1 ? "done" : "skip" }); setTourActive(false); }}
-          onRetry={() => setTourTry(n => n + 1)} />
+      {sky && tourActive && tourView && !covered && (
+        <TourCard tt={TOUR_T[lang] || TOUR_T.es} view={tourView} index={tourIndex} total={TOUR_STOPS.length}
+          onPrev={() => setTourIndex((i) => Math.max(0, i - 1))}
+          onNext={() => { if (tourIndex >= TOUR_STOPS.length - 1) { track("sky_tour", { state: "done" }); setTourActive(false); } else setTourIndex((i) => i + 1); }}
+          onExit={() => { track("sky_tour", { state: tourIndex >= TOUR_STOPS.length - 1 ? "done" : "skip" }); setTourActive(false); }} />
       )}
 
       {arBar && (
