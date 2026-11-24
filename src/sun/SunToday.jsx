@@ -107,7 +107,7 @@ function HalphaImage({ h, t, lang }) {
         {failed ? (
           <p className="sun-img__fail">{t.haFail}</p>
         ) : (
-          <img src={h.url_small} srcSet={`${h.url_small} 512w, ${h.url} 2048w`} sizes="(max-width: 460px) 92vw, 420px"
+          <img src={h.url_small} srcSet={h.url !== h.url_small ? `${h.url_small} 512w, ${h.url} 2048w` : undefined} sizes="(max-width: 460px) 92vw, 420px"
             alt={t.haAlt} width="512" height="512" decoding="async" loading="lazy" referrerPolicy="no-referrer"
             onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
         )}

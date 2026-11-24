@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.76.2 — 2026-11-24
+
+- **H-alfa: la foto más reciente de verdad.** En las fotos de los últimos minutos, GONG aún no publica la versión de 2048 px (responde «none»), y el servidor las descartaba: terminaba mostrando una de hace más de una hora. Ahora acepta la de 512 px mientras la grande no exista. Si otro observatorio ya tiene la grande y es como mucho 30 minutos más vieja, prefiere esa, porque se ve mucho mejor.
+
 ## 1.76.1 — 2026-11-24
 
 - **Espectro legible en cualquier fondo:** los números del eje, «pico 502 nm» y «longitud de onda» tomaban su color de variables que solo existen en el Cielo y en las Preguntas. Fuera de ellas salían en negro sobre fondo oscuro. Ahora cada color lleva un valor de respaldo.

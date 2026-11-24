@@ -350,6 +350,26 @@ def test_gong_details_valid_and_rejected_paths():
         assert sun.parse_gong_details(gong_xml(bad)) is None, bad
 
 
+def test_gong_details_fresh_photo_without_big_image():
+    # respuesta real (24-nov-2026, 16:55 UTC): la de 2048 px aún no existe y zoomFile dice «none»
+    xml = ("<response><index>0</index><image>/HA/hav/202611/20261124/20261124165542Ch.jpg</image>"
+           "<dataFile>none</dataFile><zoomFile>none</zoomFile><ok>1</ok></response>")
+    img = sun.parse_gong_details(xml)
+    assert img["time"] == "2026-11-24T16:55:42Z" and img["site"] == "C"
+    assert img["url"] == img["url_small"] == "https://gong2.nso.edu/HA/hav/202611/20261124/20261124165542Ch.jpg"
+    # una «image» fuera de /hav/ no se acepta
+    assert sun.parse_gong_details(xml.replace("/HA/hav/", "/HA/haf/")) is None
+
+
+def test_pick_halpha_prefers_big_photo_if_recent():
+    big_c = sun.gong_image("20261124165042", "C")                    # 2048 px, 16:50
+    small_b = sun.gong_image("20261124165602", "B", big=False)       # solo 512 px, 16:56
+    assert sun.pick_halpha([small_b, big_c]) is big_c                 # 6 min más vieja pero grande
+    old_t = sun.gong_image("20261124153322", "T")                     # grande pero de hace 1 h
+    assert sun.pick_halpha([small_b, old_t]) is small_b               # mejor la de ahora, aunque chica
+    assert sun.pick_halpha([small_b]) is small_b
+
+
 def test_gong_listing_skips_test_sites():
     img = sun.parse_gong_listing(GONG_LISTING)
     assert img["site"] == "C" and img["time"] == "2026-11-24T16:37:42Z"      # 163750Z es de prueba

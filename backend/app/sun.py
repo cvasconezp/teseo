@@ -78,7 +78,7 @@ GONG_DAY_URL = GONG_BASE + "/HA/hag/{ym}/{ymd}/"
 GONG_SITES = ("B", "C", "L", "M", "T", "U")     # sitios científicos; el resto de letras son pruebas
 GONG_CREDIT = "GONG/NSO/AURA/NSF"
 _GONG_RE = re.compile(r"(\d{14})([BCLMTU])h\.jpg")
-_GONG_PATH_RE = re.compile(r"^/HA/hag/(\d{6})/(\d{8})/(\d{14})([BCLMTU])h\.jpg$")
+_GONG_PATH_RE = re.compile(r"^/HA/(hag|hav)/(\d{6})/(\d{8})/(\d{14})([BCLMTU])h\.jpg$")
 _HALPHA_TTL = 10 * 60   # la red da una imagen cada 20 s; con 10 min basta y no se carga al NSO
 
 SILSO_SOURCE = "SILSO, Real Observatorio de Bélgica"
@@ -361,13 +361,15 @@ async def _fetch_image() -> dict:
 
 
 # ─── H-alfa (GONG) ────────────────────────────────────────────────────────
-def gong_image(stamp: str, site: str) -> dict:
-    """De '20261124163742' y 'C' a la imagen grande (2048 px), la mediana (512 px) y su hora UTC."""
+def gong_image(stamp: str, site: str, big: bool = True) -> dict:
+    """De '20261124163742' y 'C' a la imagen grande (2048 px), la mediana (512 px) y su hora UTC.
+    big=False: la grande aún no está publicada (pasa en las fotos de los últimos minutos) y `url`
+    apunta también a la de 512 px."""
     ym, ymd = stamp[:6], stamp[:8]
     name = f"{stamp}{site}h.jpg"
     t = datetime.strptime(stamp, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
     return {
-        "url": f"{GONG_BASE}/HA/hag/{ym}/{ymd}/{name}",
+        "url": f"{GONG_BASE}/HA/{'hag' if big else 'hav'}/{ym}/{ymd}/{name}",
         "url_small": f"{GONG_BASE}/HA/hav/{ym}/{ymd}/{name}",
         "time": t.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "site": site,
@@ -379,13 +381,33 @@ def parse_gong_details(xml: str) -> Optional[dict]:
     La ruta se valida con una expresión estricta: nunca se reenvía una URL arbitraria."""
     if not isinstance(xml, str) or "<ok>1</ok>" not in xml:
         return None
-    m = re.search(r"<zoomFile>\s*([^<\s]+)\s*</zoomFile>", xml)
-    if not m:
-        return None
-    pm = _GONG_PATH_RE.match(m.group(1))
-    if not pm or pm.group(3)[:6] != pm.group(1) or pm.group(3)[:8] != pm.group(2):
-        return None
-    return gong_image(pm.group(3), pm.group(4))
+
+    def path(tag, folder):
+        m = re.search(rf"<{tag}>\s*([^<\s]+)\s*</{tag}>", xml)
+        pm = _GONG_PATH_RE.match(m.group(1)) if m else None
+        if not pm or pm.group(1) != folder or pm.group(4)[:6] != pm.group(2) or pm.group(4)[:8] != pm.group(3):
+            return None
+        return pm.group(4), pm.group(5)
+
+    # la foto grande (zoomFile) tarda unos minutos en publicarse: mientras dice «none», vale la mediana
+    big, small = path("zoomFile", "hag"), path("image", "hav")
+    if big:
+        return gong_image(*big)
+    if small:
+        return gong_image(*small, big=False)
+    return None
+
+
+def pick_halpha(imgs: list, slack_min: int = 30) -> dict:
+    """La más reciente; pero si otra tiene ya la foto grande (2048 px) y es como mucho `slack_min`
+    minutos más vieja, se prefiere esa: se ve mucho mejor y sigue siendo de ahora."""
+    newest = max(imgs, key=lambda i: i["time"])
+    big = [i for i in imgs if i["url"] != i["url_small"]]
+    if newest in big or not big:
+        return newest
+    best_big = max(big, key=lambda i: i["time"])
+    gap = datetime.fromisoformat(newest["time"].rstrip("Z")) - datetime.fromisoformat(best_big["time"].rstrip("Z"))
+    return best_big if gap <= timedelta(minutes=slack_min) else newest
 
 
 def parse_gong_listing(html: str) -> Optional[dict]:
@@ -409,7 +431,7 @@ async def _fetch_halpha(now: Optional[datetime] = None) -> dict:
                 return None
         imgs = [i for i in await asyncio.gather(*(one(s) for s in GONG_SITES)) if i]
         if imgs:
-            return max(imgs, key=lambda i: i["time"])
+            return pick_halpha(imgs)
         # plan B: el listado del día (y del anterior, a primera hora UTC)
         now = now or datetime.now(timezone.utc)
         for d in (now, now - timedelta(days=1)):
