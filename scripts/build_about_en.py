@@ -37,10 +37,6 @@ PAIRS = [
   '"operatingSystem":"Web, Android, iOS (browser)"'),
  ('<a class="skip" href="#contenido">Saltar al contenido</a>',
   '<a class="skip" href="#contenido">Skip to content</a>'),
- ('<a class="brand" href="/acerca" aria-label="Teseo, inicio de esta página">',
-  '<a class="brand" href="/about" aria-label="Teseo, top of this page">'),
- ('<small>Navegación interplanetaria · <span>con Killa Ñan</span></small>',
-  '<small>Interplanetary navigation · <span>with Killa Ñan</span></small>'),
  ('<nav class="links" aria-label="Secciones">',
   '<nav class="links" aria-label="Sections">'),
  ('<a class="lang-link" href="/about" hreflang="en" lang="en" data-lang="en" aria-label="English version" title="English version">EN</a>',
@@ -291,6 +287,8 @@ PAIRS = [
   '<p class="soft">Teseo was born out of a need at Killa Ñan, the community astronomy initiative working in Cayambe since 2018: to tell and share astronomy better from a single tool. Today amateurs, teachers and curious people use it.</p>'),
  ('<div class="social" aria-label="Redes sociales">\n            <p><b>Killa Ñan</b> <a href="https://www.instagram.com/killananec/" rel="noopener">Instagram</a> · <a href="https://www.facebook.com/share/1A65WV66FH/" rel="noopener">Facebook</a></p>\n            <p><b>Yachay Deep</b> <a href="https://www.instagram.com/yachaydeep" rel="noopener">Instagram</a> · <a href="https://www.facebook.com/yachaydeep" rel="noopener">Facebook</a> · <a href="https://x.com/yachaydeep" rel="noopener">X</a> · <a href="https://www.yachaydeep.com/" rel="noopener">Sitio web</a></p>\n            <p><b>Contacto</b> <a href="mailto:teseo@yachaydeep.com">teseo@yachaydeep.com</a> · <a href="https://wa.me/593987489892" rel="noopener">WhatsApp +593 98 748 9892</a></p>\n          </div>',
   '<div class="social" aria-label="Social media">\n            <p><b>Killa Ñan</b> <a href="https://www.instagram.com/killananec/" rel="noopener">Instagram</a> · <a href="https://www.facebook.com/share/1A65WV66FH/" rel="noopener">Facebook</a></p>\n            <p><b>Yachay Deep</b> <a href="https://www.instagram.com/yachaydeep" rel="noopener">Instagram</a> · <a href="https://www.facebook.com/yachaydeep" rel="noopener">Facebook</a> · <a href="https://x.com/yachaydeep" rel="noopener">X</a> · <a href="https://www.yachaydeep.com/" rel="noopener">Website</a></p>\n            <p><b>Contact</b> <a href="mailto:teseo@yachaydeep.com">teseo@yachaydeep.com</a> · <a href="https://wa.me/593987489892" rel="noopener">WhatsApp +593 98 748 9892</a></p>\n          </div>'),
+ ('    <div class="brand">\n      <a href="/acerca" aria-label="Teseo, inicio de esta página"><b>Teseo</b></a>\n      <small>Navegación interplanetaria · <a href="https://sites.google.com/view/killanan/inicio" rel="noopener">con Killa Ñan</a></small>\n    </div>',
+  '    <div class="brand">\n      <a href="/about" aria-label="Teseo, top of this page"><b>Teseo</b></a>\n      <small>Interplanetary navigation · <a href="https://sites.google.com/view/killanan/inicio" rel="noopener">with Killa Ñan</a></small>\n    </div>'),
 ]
 out = re.sub(r'<script type="application/ld\+json" id="ld-media">.*?</script>\n', '', src, flags=re.S); missing = []
 for es, en in PAIRS:

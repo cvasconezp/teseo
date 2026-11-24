@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.72.4 — 2026-11-23
+
+- **«con Killa Ñan» lleva a Killa Ñan:** en la cabecera de «Acerca de» (también /about), ese texto ahora abre el sitio de Killa Ñan. Antes formaba parte del enlace de inicio de la página y no llevaba a ningún lado.
+
 ## 1.72.3 — 2026-11-23
 
 - **El origen de Teseo, precisado:** nació de una necesidad de Killa Ñan, contar y divulgar mejor la astronomía desde una sola herramienta. Así lo cuentan «Acerca de» (también /about) y los créditos de la app.
