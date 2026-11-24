@@ -45,8 +45,6 @@ PAIRS = [
   '<nav class="links" aria-label="Sections">'),
  ('<a class="lang-link" href="/about" hreflang="en" lang="en" data-lang="en" aria-label="English version" title="English version">EN</a>',
   '<a class="lang-link" href="/acerca" hreflang="es" lang="es" data-lang="es" aria-label="Versión en español" title="Versión en español">ES</a>'),
- ('>Código</a>\n    </nav>',
-  '>Code</a>\n    </nav>'),
  ('</svg>Apoya</a>',
   '</svg>Support</a>'),
  ('<a class="btn btn--gold btn--sm" href="/">Abrir Teseo</a>',

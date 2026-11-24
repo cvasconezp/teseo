@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.72.2 — 2026-11-23
+
+- **«Acerca de»: el menú de arriba ya no lleva «Código».** El enlace al código sigue en el pie de página y en «Apoya».
+
 ## 1.72.1 — 2026-11-23
 
 - **«Acerca de» más liviana** (también /about). En el celular pasa de unas 26 pantallas a unas 17.
