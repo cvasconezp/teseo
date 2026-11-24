@@ -214,10 +214,10 @@ const T = {
     skipToContent:  "Skip to content",
 
     // Pie y créditos
-    madeBy:         "Made by Yachay Deep Labs",
-    coopWith:       "In cooperation with Killa Ñan · Community astronomy",
+    madeBy:         "A Yachay Deep Labs product",
+    coopWith:       "with Killa Ñan · Community astronomy",
     allianceShort:  "with Killa Ñan",
-    introCredit:    "Yachay Deep Labs × Killa Ñan · Community astronomy",
+    introCredit:    "A Yachay Deep Labs product, with Killa Ñan · Community astronomy",
     whoTitle:       "Who makes Teseo",
     whoYd:          ["Yachay Deep Labs", "Develops Teseo. Cayambe, Ecuador."],
     whoKn:          ["Killa Ñan · Community astronomy", "Non-profit community astronomy project born in Cayambe (Ecuador) on 15 July 2018 and now present in several cities in the country. Teseo was born out of its need to tell and share astronomy better from a single tool, and is built in cooperation with Killa Ñan."],
@@ -240,6 +240,11 @@ const T = {
     reportCard:     ["Report a problem", "Something not working? Tell us by WhatsApp or email."],
     supportCard:    ["Support Teseo", "Free and ad-free. Your support pays for the servers."],
     supportLink:    "Support Teseo",
+    productOf:      "A Yachay Deep Labs product",
+    menuMusic:      "Music",
+    menuNight:      "Red light",
+    menuLang:       "Language",
+    menuSocial:     "Social media",
     creditsIntro:   "Teseo uses real data from official sources. Free software under the AGPL-3.0 licence.",
     sourceLink:     "Source code on GitHub",
     sourcesAll:     "All data sources and citizen science", sourcesHref: "/about#fuentes",
@@ -423,10 +428,10 @@ const T = {
     nowErrBody:     "“Ahora en el espacio” no terminó de cargar. Revisa tu conexión y vuelve a intentarlo; el resto de Teseo sigue funcionando.",
     skipToContent:  "Saltar al contenido",
 
-    madeBy:         "Desarrollado por Yachay Deep Labs",
-    coopWith:       "En cooperación con Killa Ñan · Astronomía comunitaria",
+    madeBy:         "Un producto de Yachay Deep Labs",
+    coopWith:       "con Killa Ñan · Astronomía comunitaria",
     allianceShort:  "con Killa Ñan",
-    introCredit:    "Yachay Deep Labs × Killa Ñan · Astronomía comunitaria",
+    introCredit:    "Un producto de Yachay Deep Labs, con Killa Ñan · Astronomía comunitaria",
     whoTitle:       "Quiénes hacen Teseo",
     whoYd:          ["Yachay Deep Labs", "Desarrolla Teseo. Cayambe, Ecuador."],
     whoKn:          ["Killa Ñan · Astronomía comunitaria", "Proyecto de astronomía comunitaria sin fines de lucro nacido en Cayambe (Ecuador) el 15 de julio de 2018 y presente hoy en varias ciudades del país. Teseo nació de su necesidad de contar y divulgar mejor la astronomía desde una sola herramienta, y se hace en cooperación con Killa Ñan."],
@@ -449,6 +454,11 @@ const T = {
     reportCard:     ["Reportar un problema", "¿Algo no funciona? Cuéntanos por WhatsApp o correo."],
     supportCard:    ["Apoya a Teseo", "Gratis y sin publicidad. Tu aporte paga los servidores."],
     supportLink:    "Apoya a Teseo",
+    productOf:      "Un producto de Yachay Deep Labs",
+    menuMusic:      "Música",
+    menuNight:      "Luz roja",
+    menuLang:       "Idioma",
+    menuSocial:     "Redes sociales",
     creditsIntro:   "Teseo usa datos reales de fuentes oficiales. Software libre con licencia AGPL-3.0.",
     sourceLink:     "Código fuente en GitHub",
     sourcesAll:     "Todas las fuentes de datos y ciencia ciudadana", sourcesHref: "/acerca#fuentes",
@@ -1475,33 +1485,28 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
     document.addEventListener("keydown", onKey);
     return ()=>{ document.removeEventListener("keydown", onKey); before?.focus?.(); };
   },[onClose]);
+  const support = `${aboutHref(lang)}#apoya`;
+  const chev = <svg className="am-chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
+  const heart = <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg>;
+  const pickLang = (l) => { if (l !== lang) onLang(); };
   return (
     <div className="app-menu" role="presentation" onClick={e=>{ if (e.target === e.currentTarget) onClose(); }}>
       <aside ref={boxRef} className="app-menu__panel" role="dialog" aria-modal="true" aria-label={t.menu}>
-        <div className="app-menu__head">
-          <div>
+        <div className="am-head">
+          <div className="am-top">
             <p className="wordmark" style={{fontSize:28, margin:0}}>Teseo</p>
-            <p className="tagline">{t.tagline}</p>
-            <a className="tagline tagline--kn" href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer"
+            <div className="am-hbtns">
+              <a className="am-round am-round--gold" href={support} aria-label={t.supportCard[0]} title={t.supportCard[0]} onClick={()=>track("support_open", { from: "menu_head" })}>{heart}</a>
+              <button type="button" className="am-round" onClick={onClose} aria-label={t.menuClose}>
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+            </div>
+          </div>
+          <div className="am-brand">
+            <a className="am-yd" href="https://www.yachaydeep.com/" target="_blank" rel="noopener noreferrer" onClick={()=>track("yd_open", { from: "menu" })}>{t.productOf}</a>
+            <a className="am-kn" href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer"
               onClick={()=>track("coop_open", { from: "menu" })}>{t.allianceShort}</a>
           </div>
-          <button type="button" className="app-menu__close" onClick={onClose} aria-label={t.menuClose}>
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-          </button>
-        </div>
-        <div className="app-menu__cards">
-        <a href={aboutHref(lang)} className="app-menu__about" onClick={()=>track("about_open", { from: "menu" })}>
-          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg>
-          <span><b>{t.aboutCard[0]}</b><small>{t.aboutCard[1]}</small></span>
-        </a>
-        <button type="button" className="app-menu__about app-menu__report" onClick={()=>{ onClose(); onReport(); }}>
-          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V4h11l-1 4 5 1-2 6H6"/></svg>
-          <span><b>{t.reportCard[0]}</b><small>{t.reportCard[1]}</small></span>
-        </button>
-        <a href={`${aboutHref(lang)}#apoya`} className="app-menu__about app-menu__report" onClick={()=>track("support_open", { from: "menu" })}>
-          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg>
-          <span><b>{t.supportCard[0]}</b><small>{t.supportCard[1]}</small></span>
-        </a>
         </div>
         <nav className="app-menu__tabs" aria-label={t.sections}>
           {TABS.map(({ id, Icon })=>(
@@ -1511,26 +1516,65 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
             </button>
           ))}
         </nav>
-        <div className="app-menu__opts">
-          <button type="button" aria-pressed={ambient} onClick={onAmbient}>
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>{!ambient && <path d="M3 3l18 18" strokeWidth="1.6"/>}
-            </svg>
-            <span>{ambient ? t.ambientOff : t.ambientOn}</span>
+        <div className="am-list">
+          <a href={aboutHref(lang)} className="am-row am-row--gold" onClick={()=>track("about_open", { from: "menu" })}>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg>
+            <span>{t.aboutCard[0]}</span>{chev}
+          </a>
+          <a href={support} className="am-row" onClick={()=>track("support_open", { from: "menu" })}>
+            {heart}<span>{t.supportCard[0]}</span>{chev}
+          </a>
+          <button type="button" className="am-row" onClick={()=>{ onClose(); onReport(); }}>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4h11l-1.5 4L19 9l-2 6H5"/></svg>
+            <span>{t.reportCard[0]}</span>{chev}
           </button>
-          <button type="button" aria-pressed={night} onClick={onNight}>
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
-            <span>{night ? t.nightOff : t.nightOn}</span>
+        </div>
+        <div className="am-set">
+          <button type="button" className="am-tool" aria-pressed={ambient} aria-label={ambient ? t.ambientOff : t.ambientOn} onClick={onAmbient}>
+            <span className="am-tool__ic">
+              <svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>{!ambient && <path d="M3 3l18 18" strokeWidth="1.6"/>}
+              </svg>
+            </span>
+            <span className="am-tool__cap" aria-hidden="true">{t.menuMusic}</span>
           </button>
-          <button type="button" className="lang" aria-label={t.switchLang} onClick={onLang}>
-            <span className={lang==="es" ? "is-on" : ""} aria-hidden="true">ES</span>
-            <span className={lang==="en" ? "is-on" : ""} aria-hidden="true">EN</span>
+          <button type="button" className="am-tool" aria-pressed={night} aria-label={night ? t.nightOff : t.nightOn} onClick={onNight}>
+            <span className="am-tool__ic">
+              <svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
+            </span>
+            <span className="am-tool__cap" aria-hidden="true">{t.menuNight}</span>
           </button>
+          <div className="am-lang" role="group" aria-label={t.menuLang}>
+            <button type="button" lang="es" aria-pressed={lang==="es"} onClick={()=>pickLang("es")}>ES</button>
+            <button type="button" lang="en" aria-pressed={lang==="en"} onClick={()=>pickLang("en")}>EN</button>
+          </div>
+        </div>
+        <div className="am-space" aria-hidden="true"/>
+        <div className="am-social" aria-label={t.menuSocial}>
+          <div className="am-sg"><b>Killa Ñan</b>
+            <a href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer" aria-label={`Killa Ñan · ${t.whoLinks.web}`} title={`Killa Ñan · ${t.whoLinks.web}`}>{SOC.web}</a>
+            <a href="https://www.instagram.com/killananec/" target="_blank" rel="noopener noreferrer" aria-label="Killa Ñan · Instagram" title="Killa Ñan · Instagram">{SOC.ig}</a>
+            <a href="https://www.facebook.com/share/1A65WV66FH/" target="_blank" rel="noopener noreferrer" aria-label="Killa Ñan · Facebook" title="Killa Ñan · Facebook">{SOC.fb}</a>
+          </div>
+          <div className="am-sg"><b>Yachay Deep</b>
+            <a href="https://www.yachaydeep.com/" target="_blank" rel="noopener noreferrer" aria-label={`Yachay Deep · ${t.whoLinks.web}`} title={`Yachay Deep · ${t.whoLinks.web}`}>{SOC.web}</a>
+            <a href="https://www.instagram.com/yachaydeep" target="_blank" rel="noopener noreferrer" aria-label="Yachay Deep · Instagram" title="Yachay Deep · Instagram">{SOC.ig}</a>
+            <a href="https://www.facebook.com/yachaydeep" target="_blank" rel="noopener noreferrer" aria-label="Yachay Deep · Facebook" title="Yachay Deep · Facebook">{SOC.fb}</a>
+            <a href="https://x.com/yachaydeep" target="_blank" rel="noopener noreferrer" aria-label="Yachay Deep · X" title="Yachay Deep · X">{SOC.x}</a>
+          </div>
         </div>
       </aside>
     </div>
   );
 }
+
+// íconos de redes del menú (trazo propio, sin logos de terceros a color)
+const SOC = {
+  web: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.5 3.5 5.3 3.5 8.5s-1.1 6-3.5 8.5c-2.4-2.5-3.5-5.3-3.5-8.5s1.1-6 3.5-8.5z"/></svg>,
+  ig: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"/></svg>,
+  fb: <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M13.6 21v-7.4h2.5l.4-2.9h-2.9V8.9c0-.8.3-1.4 1.4-1.4h1.6V4.9c-.3 0-1.2-.1-2.3-.1-2.3 0-3.8 1.4-3.8 3.9v2.1H8v2.9h2.5V21z"/></svg>,
+  x: <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M17.8 3.5h3.1l-6.8 7.7 8 9.3h-6.2l-4.9-6.1-5.6 6.1H2.3l7.2-8.2L1.8 3.5h6.4l4.4 5.6zm-1.1 15.2h1.7L7.3 5.2H5.5z"/></svg>,
+};
 
 // Página «Acerca de»: /acerca en español, /about en inglés
 const aboutHref = (lang) => (lang === "en" ? "/about" : "/acerca");

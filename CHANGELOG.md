@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.74.0 — 2026-11-23
+
+- **Menú del teléfono rediseñado:**
+  - Arriba, Teseo con «Un producto de Yachay Deep Labs» y «con Killa Ñan», cada uno enlazado a su sitio, y el corazón de apoyo junto a la X.
+  - Luego las secciones, y después «Acerca de Teseo», «Apoya a Teseo» y «Reportar un problema» en una línea cada uno.
+  - Música y luz roja pasan a ser íconos con su nombre, y el idioma un interruptor ES/EN.
+  - Las redes de Killa Ñan y Yachay Deep van al fondo, tras un espacio que se ajusta al alto de cada pantalla.
+- **Una sola forma de nombrar la relación:** «Un producto de Yachay Deep Labs, con Killa Ñan», en el pie de la app, la introducción y «Acerca de» (también /about). Las postales mantienen su línea corta para no desbordarse.
+
 ## 1.73.1 — 2026-11-23
 
 - **«Apoya a Teseo» en la app:** se agregó al menú del teléfono, debajo de «Reportar un problema», con un estilo sobrio. También está en el botón «…» del Cielo, con un corazón, y en el pie de las otras secciones. Lleva directo a las formas de donar en «Acerca de».
