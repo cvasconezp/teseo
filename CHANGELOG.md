@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.76.1 — 2026-11-24
+
+- **Espectro legible en cualquier fondo:** los números del eje, «pico 502 nm» y «longitud de onda» tomaban su color de variables que solo existen en el Cielo y en las Preguntas. Fuera de ellas salían en negro sobre fondo oscuro. Ahora cada color lleva un valor de respaldo.
+
 ## 1.76.0 — 2026-11-24
 
 - **El Sol hoy en H-alfa.** Un selector nuevo, «Luz visible / H-alfa», en la ficha del Sol y en «Ahora». H-alfa muestra la foto más reciente de la red GONG del National Solar Observatory (NSF): seis observatorios en el mundo, una foto por minuto en cada uno, la misma luz (656,3 nm) que se ve por un telescopio solar H-alfa.
