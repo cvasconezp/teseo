@@ -1,7 +1,7 @@
 // SunToday.jsx — «El Sol hoy». Un solo componente para dos sitios:
 //   · la ficha del Sol en el Cielo (src/sky/ObjectSheet.jsx)      → <SunToday source="sheet" />
 //   · la tarjeta de «Ahora en el espacio» (src/now/Now.jsx)       → <SunSummary /> + <SunContent />
-// Datos: GET /api/sun/today (SILSO, NOAA SWPC, NASA SDO). Cada dato lleva su fuente enlazada y su hora;
+// Datos: GET /api/sun/today (SILSO, NOAA SWPC, NASA SDO, NSO GONG). Cada dato lleva su fuente enlazada y su hora;
 // lo que no llega se dice (con su motivo) y no se rellena. Las frases las escribimos nosotros (i18n.js).
 import { useEffect, useId, useState } from "react";
 import { fetchJson, isAbort } from "../net.js";
@@ -9,7 +9,7 @@ import { trackOnce, trackNetError } from "../ui/track.js";
 import { TS } from "./i18n.js";
 import {
   API, SUN_PATH, LINKS, fmtEarths, flareInfo, flareLevel, flareSummary, kpInfo, parseLocation, splitRegions,
-  maxFlareProb, cyclePeak, cycleGeometry, dateToYear, fmtUtc, fmtDay, fmtMonth, fmtNum, hasAnyData,
+  maxFlareProb, cyclePeak, cycleGeometry, dateToYear, fmtUtc, fmtDay, fmtMonth, fmtNum, hasAnyData, halphaOf, halphaIsOld,
 } from "./sun.js";
 import "./sun.css";
 
@@ -91,6 +91,55 @@ function SunImage({ image, t, lang }) {
         <Ext href={LINKS.sdo} t={t}>{t.imgOpen}</Ext>
       </figcaption>
     </figure>
+  );
+}
+
+// H-alfa: foto de la red GONG (NSO). Cuadrada y sin recorte redondo: las protuberancias están FUERA del disco.
+// La imagen de 512 px basta en la mayoría de pantallas; el navegador pide la de 2048 px solo si hace falta.
+function HalphaImage({ h, t, lang }) {
+  const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => { setFailed(false); setLoaded(false); }, [h && h.url]);
+  const site = (t.haSites && t.haSites[h.site]) || h.site;
+  return (
+    <figure className="sun-figure">
+      <div className={`sun-img sun-img--ha${loaded ? " is-loaded" : ""}`}>
+        {failed ? (
+          <p className="sun-img__fail">{t.haFail}</p>
+        ) : (
+          <img src={h.url_small} srcSet={`${h.url_small} 512w, ${h.url} 2048w`} sizes="(max-width: 460px) 92vw, 420px"
+            alt={t.haAlt} width="512" height="512" decoding="async" loading="lazy" referrerPolicy="no-referrer"
+            onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
+        )}
+      </div>
+      <figcaption>
+        <span>{t.haCaption}</span>
+        <span>{t.haGray}</span>
+        {halphaIsOld(h) ? <span>{t.haOld}</span> : null}
+        <span>{t.haSite(site)} · {h.time ? t.haTime(fmtUtc(h.time, lang)) : t.imgNoTime}</span>
+        <span>{t.imgCredit("")}<Ext href={h.page || LINKS.gong} t={t}>{h.credit || "GONG/NSO/AURA/NSF"}</Ext></span>
+        <Ext href={h.url} t={t}>{t.haFull}</Ext>
+      </figcaption>
+    </figure>
+  );
+}
+
+// Selector «Luz visible / H-alfa». Si no llega la imagen H-alfa, se dice (no se esconde el botón sin explicar).
+function SunViews({ d, t, lang }) {
+  const [view, setView] = useState("visible");
+  const h = halphaOf(d);
+  const gid = useId();
+  return (
+    <div className="sun-views">
+      <div className="sun-seg" role="group" aria-labelledby={gid}>
+        <span id={gid} className="sun-sr">{t.viewLabel}</span>
+        <button type="button" aria-pressed={view === "visible"} onClick={() => setView("visible")}>{t.viewVisible}</button>
+        <button type="button" aria-pressed={view === "halpha"} onClick={() => setView("halpha")}>{t.viewHalpha}</button>
+      </div>
+      {view === "visible" ? <SunImage image={d.image} t={t} lang={lang} />
+        : h ? <HalphaImage h={h} t={t} lang={lang} />
+        : <Missing t={t} source="NSO GONG" reason={d.errors && d.errors.halpha} what={t.haMissing} />}
+    </div>
   );
 }
 
@@ -294,6 +343,7 @@ function Sources({ d, t, lang }) {
         <li><Ext href={LINKS.silso} t={t}>SILSO</Ext> — {t.srcSpots}</li>
         <li><Ext href={LINKS.regions} t={t}>NOAA SWPC</Ext> — {t.srcRegions}, <Ext href={LINKS.flares} t={t}>{t.srcFlares}</Ext>, <Ext href={LINKS.kp} t={t}>{t.srcKp}</Ext>, <Ext href={LINKS.cycle} t={t}>{t.srcCycle}</Ext></li>
         <li><Ext href={LINKS.sdo} t={t}>NASA SDO</Ext> — {t.srcImage}: {t.srcNasa}</li>
+        <li><Ext href={LINKS.gong} t={t}>NSO GONG</Ext> — {t.srcHalpha}: GONG/NSO/AURA/NSF</li>
       </ul>
       {d.updated ? <p className="sun-small">{t.srcUpdated(fmtUtc(d.updated, lang))}</p> : null}
     </Block>
@@ -310,7 +360,7 @@ export function SunContent({ data: d, lang = "es" }) {
         <span><strong>{t.warnTitle}.</strong> {t.warn}</span>
       </p>
       {d.stale === true ? <p className="sun-small sun-stale">{t.stale}</p> : null}
-      <SunImage image={d.image} t={t} lang={lang} />
+      <SunViews d={d} t={t} lang={lang} />
       <Spots d={d} t={t} lang={lang} />
       <Regions d={d} t={t} lang={lang} />
       <Flares d={d} t={t} lang={lang} />

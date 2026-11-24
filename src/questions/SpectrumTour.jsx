@@ -115,7 +115,7 @@ function SpectrumFigure({ mode, T, spec, named, lang, S, night, mystery = false 
     : { nm: l.nm, depth: l.depth, band: l.band })), [spec, named]);
   const peak = wienPeak(T);
   const visTxt = spec.visLines.length
-    ? spec.visLines.map(l => `${named ? l.name + " " : ""}${nm0(l.nm, lang)} nm`).join(", ")
+    ? spec.visLines.map(l => `${named ? l.name + " " : ""}${nm1(l.nm, lang)} nm`).join(", ")
     : "";
   const aria = mystery && !named ? S.mysteryAria(visTxt, spec.visLines.length)
     : S.specAria(mode, T, classOfTemp(T), peak, visTxt, named);
@@ -299,7 +299,7 @@ function LabStep({ lang, t, T, st, setSt, hash }) {
           <ul className="q-spec-read__list">
             {spec.present.map(id => {
               const sp = SPECIES[id];
-              const vis = spec.visLines.filter(l => l.id === id).map(l => nm0(l.nm, lang));
+              const vis = spec.visLines.filter(l => l.id === id).map(l => nm1(l.nm, lang));
               const nir = spec.nir.filter(b => b.id === id).map(b => nm0(b.nm, lang));
               return <li key={id}><strong>{sp.sym}</strong> {S.readItem(vis, nir)}</li>;
             })}

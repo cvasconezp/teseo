@@ -32,6 +32,19 @@ Fuentes (formatos verificados el 16-nov-2026):
      La hora de la imagen es la cabecera Last-Modified de una petición HEAD;
      si no llega, la hora va a null (no se inventa).
 
+  7. Imagen H-alfa (656,28 nm): red GONG del NSO (NSF), seis observatorios
+     (Big Bear, Cerro Tololo, Learmonth, Mauna Loa, El Teide, Udaipur), una imagen
+     por minuto en cada uno. La última imagen de cada sitio se pide al servicio
+     liviano de su página de vista rápida (≈ 500 bytes por sitio):
+       GET https://gong2.nso.edu/products/tableView/getImageDetails.php?…&latestFile=hAlpha_<L>.dat…
+     y se elige la más reciente. Si ese servicio no responde, se lee el listado
+     del día (UTC) en https://gong2.nso.edu/HA/hag/AAAAMM/AAAAMMDD/ y, si aún no
+     hay imágenes, el del día anterior. Solo se aceptan nombres AAAAMMDDhhmmss<L>h.jpg
+     con L = B, C, L, M, T o U: según el NSO, el resto de letras son pruebas, no
+     datos científicos (https://nso.edu/data/nisp-data/h-alpha/). Comprobado el
+     24-nov-2026. La hora sale del nombre del archivo (hora de observación, UTC).
+     Crédito según la política de uso de imágenes del NSO: GONG/NSO/AURA/NSF.
+
 Cada fuente es un `Resource` independiente (caché de 1 h, pausa tras fallo,
 `stale` si cae tras un éxito): si una falla, el resto se sirve igual y esa
 sección va a null con su motivo en `errors`.
@@ -40,6 +53,7 @@ sección va a null con su motivo en `errors`.
 import asyncio
 import csv
 import io
+import re
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from typing import Optional
@@ -57,6 +71,16 @@ FLARES_URL = "https://services.swpc.noaa.gov/json/goes/primary/xray-flares-7-day
 KP_URL = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"
 IMAGE_URL = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMIIF.jpg"
 
+GONG_BASE = "https://gong2.nso.edu"
+GONG_DETAILS_URL = (GONG_BASE + "/products/tableView/getImageDetails.php?index=0&latestFile=hAlpha_{site}.dat"
+                    "&hr=12&mn=10&sc=8&dataSub=hav%7Chaf,jpg%7Cfits.fz&zoomSub=hav%7Chag")
+GONG_DAY_URL = GONG_BASE + "/HA/hag/{ym}/{ymd}/"
+GONG_SITES = ("B", "C", "L", "M", "T", "U")     # sitios científicos; el resto de letras son pruebas
+GONG_CREDIT = "GONG/NSO/AURA/NSF"
+_GONG_RE = re.compile(r"(\d{14})([BCLMTU])h\.jpg")
+_GONG_PATH_RE = re.compile(r"^/HA/hag/(\d{6})/(\d{8})/(\d{14})([BCLMTU])h\.jpg$")
+_HALPHA_TTL = 10 * 60   # la red da una imagen cada 20 s; con 10 min basta y no se carga al NSO
+
 SILSO_SOURCE = "SILSO, Real Observatorio de Bélgica"
 SWPC_SOURCE = "NOAA SWPC"
 SDO_CREDIT = "NASA/SDO y equipo científico HMI"
@@ -66,6 +90,7 @@ PAGES = {
     "silso": "https://www.sidc.be/SILSO/",
     "swpc": "https://www.swpc.noaa.gov/",
     "sdo": "https://sdo.gsfc.nasa.gov/",
+    "gong": "https://nso.edu/data/nisp-data/h-alpha/",
 }
 
 _TTL = 60 * 60          # 1 h
@@ -335,6 +360,69 @@ async def _fetch_image() -> dict:
     return {"time": t}
 
 
+# ─── H-alfa (GONG) ────────────────────────────────────────────────────────
+def gong_image(stamp: str, site: str) -> dict:
+    """De '20261124163742' y 'C' a la imagen grande (2048 px), la mediana (512 px) y su hora UTC."""
+    ym, ymd = stamp[:6], stamp[:8]
+    name = f"{stamp}{site}h.jpg"
+    t = datetime.strptime(stamp, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+    return {
+        "url": f"{GONG_BASE}/HA/hag/{ym}/{ymd}/{name}",
+        "url_small": f"{GONG_BASE}/HA/hav/{ym}/{ymd}/{name}",
+        "time": t.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "site": site,
+    }
+
+
+def parse_gong_details(xml: str) -> Optional[dict]:
+    """Respuesta XML de getImageDetails.php -> imagen, o None si no trae una ruta válida.
+    La ruta se valida con una expresión estricta: nunca se reenvía una URL arbitraria."""
+    if not isinstance(xml, str) or "<ok>1</ok>" not in xml:
+        return None
+    m = re.search(r"<zoomFile>\s*([^<\s]+)\s*</zoomFile>", xml)
+    if not m:
+        return None
+    pm = _GONG_PATH_RE.match(m.group(1))
+    if not pm or pm.group(3)[:6] != pm.group(1) or pm.group(3)[:8] != pm.group(2):
+        return None
+    return gong_image(pm.group(3), pm.group(4))
+
+
+def parse_gong_listing(html: str) -> Optional[dict]:
+    """Listado de un día -> la imagen científica más reciente (o None)."""
+    found = _GONG_RE.findall(html or "")
+    if not found:
+        return None
+    stamp, site = max(found)
+    return gong_image(stamp, site)
+
+
+async def _fetch_halpha(now: Optional[datetime] = None) -> dict:
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        async def one(site):
+            try:
+                r = await client.get(GONG_DETAILS_URL.format(site=site), headers=provider_headers())
+                if getattr(r, "status_code", 200) >= 400:
+                    return None
+                return parse_gong_details(r.text)
+            except Exception:   # un sitio caído no tumba a los demás
+                return None
+        imgs = [i for i in await asyncio.gather(*(one(s) for s in GONG_SITES)) if i]
+        if imgs:
+            return max(imgs, key=lambda i: i["time"])
+        # plan B: el listado del día (y del anterior, a primera hora UTC)
+        now = now or datetime.now(timezone.utc)
+        for d in (now, now - timedelta(days=1)):
+            url = GONG_DAY_URL.format(ym=d.strftime("%Y%m"), ymd=d.strftime("%Y%m%d"))
+            r = await client.get(url, headers=provider_headers())
+            if getattr(r, "status_code", 200) >= 400:
+                continue
+            img = parse_gong_listing(r.text)
+            if img:
+                return img
+    raise RuntimeError("GONG no tiene imágenes H-alfa recientes")
+
+
 _KW = dict(ttl=_TTL, wait=20.0, retry_after=_RETRY_AFTER)
 silso = Resource("sun_silso", _fetch_silso, **_KW)
 regions = Resource("sun_regions", _fetch_regions, **_KW)
@@ -343,8 +431,9 @@ kp = Resource("sun_kp", _fetch_kp, **_KW)
 observed = Resource("sun_cycle_observed", _fetch_observed, **_KW)
 predicted = Resource("sun_cycle_predicted", _fetch_predicted, **_KW)
 image = Resource("sun_image", _fetch_image, **_KW)
+halpha = Resource("sun_halpha", _fetch_halpha, ttl=_HALPHA_TTL, wait=20.0, retry_after=_RETRY_AFTER)
 RESOURCES = {"silso": silso, "regions": regions, "flares": flares, "kp": kp,
-             "observed": observed, "predicted": predicted, "image": image}
+             "observed": observed, "predicted": predicted, "image": image, "halpha": halpha}
 
 
 def status() -> dict:
@@ -385,6 +474,8 @@ async def build_today(now: Optional[datetime] = None) -> dict:
     obs_d, e_obs = take("observed")
     pred_d, e_pred = take("predicted")
     img_d, e = take("image")   # sin la hora, la imagen se sirve igual (time=None)
+    ha_d, e = take("halpha")
+    if e: errors["halpha"] = e
 
     cycle = None
     if obs_d is not None or pred_d is not None:
@@ -412,6 +503,9 @@ async def build_today(now: Optional[datetime] = None) -> dict:
         {"id": "sdo", "name": SDO_CREDIT, "url": PAGES["sdo"], "data_url": IMAGE_URL,
          "provides": "image", "ok": img_d is not None, "stale": "image" in stale,
          "updated": (img_d or {}).get("time")},
+        {"id": "gong", "name": GONG_CREDIT, "url": PAGES["gong"], "data_url": GONG_BASE + "/HA/hag/",
+         "provides": "halpha", "ok": ha_d is not None, "stale": "halpha" in stale,
+         "updated": (ha_d or {}).get("time")},
     ]
 
     return {
@@ -431,6 +525,7 @@ async def build_today(now: Optional[datetime] = None) -> dict:
         "cycle": cycle,
         "image": {"url": IMAGE_URL, "credit": SDO_CREDIT, "time": (img_d or {}).get("time"),
                   "page": PAGES["sdo"]},
+        "halpha": None if ha_d is None else {**ha_d, "credit": GONG_CREDIT, "page": PAGES["gong"]},
         "stale": bool(stale),               # true si alguna fuente sirve su última copia guardada
         "stale_sources": sorted(stale),
         "errors": errors,

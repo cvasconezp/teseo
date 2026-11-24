@@ -54,7 +54,7 @@ export const COMP = {
     // ── espectro ──
     specTitle: "Espectro",
     specCaption: (T, cls, lower) => `Espectro esquemático: curva de cuerpo negro a ${lower ? "≥" : "≈"} ${k0(T, "es")} K con las líneas típicas de una estrella tipo ${cls}. No es una medición de esta estrella.`,
-    specCaptionSun: (T) => `Espectro esquemático: curva de cuerpo negro a ${k0(T, "es")} K con las principales líneas de Fraunhofer (las letras son las que les puso Fraunhofer en 1814). El espectro real del Sol tiene miles de líneas más.`,
+    specCaptionSun: (T) => `Espectro esquemático: curva de cuerpo negro a ${k0(T, "es")} K con las principales líneas de Fraunhofer (las letras son las que les puso Fraunhofer en 1814). El espectro real del Sol tiene miles de líneas más. C es Hα, la línea del hidrógeno a 656 nm, y K la del calcio ionizado a 393 nm: en esas dos miran los telescopios solares H-alfa y Calcio K.`,
     specNoLines: "Sin tipo espectral O–M en el catálogo: solo la curva, sin líneas.",
     specMismatch: "No dibujamos su espectro: el tipo espectral del catálogo no cuadra con su color (puede ser una estrella doble o estar enrojecida por el polvo).",
     specAxis: "longitud de onda (nm)",
@@ -114,7 +114,7 @@ export const COMP = {
     compSrcTemp: "Temperature estimated from the B−V colour index (Ballesteros 2012).",
     specTitle: "Spectrum",
     specCaption: (T, cls, lower) => `Schematic spectrum: blackbody curve at ${lower ? "≥" : "≈"} ${k0(T, "en")} K with the lines typical of a type ${cls} star. It is not a measurement of this star.`,
-    specCaptionSun: (T) => `Schematic spectrum: blackbody curve at ${k0(T, "en")} K with the main Fraunhofer lines (the letters are the ones Fraunhofer gave them in 1814). The real solar spectrum has thousands more lines.`,
+    specCaptionSun: (T) => `Schematic spectrum: blackbody curve at ${k0(T, "en")} K with the main Fraunhofer lines (the letters are the ones Fraunhofer gave them in 1814). The real solar spectrum has thousands more lines. C is Hα, hydrogen’s line at 656 nm, and K is ionized calcium’s at 393 nm: H-alpha and Calcium K solar telescopes look at the Sun in those two lines.`,
     specNoLines: "No O–M spectral type in the catalogue: curve only, no lines.",
     specMismatch: "We don't draw its spectrum: the catalogue's spectral type doesn't match its colour (it may be a double star or reddened by dust).",
     specAxis: "wavelength (nm)",

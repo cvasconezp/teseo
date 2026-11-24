@@ -600,7 +600,7 @@ export default function Now({ lang = "es", api = "" }) {
     <div className="now-grid now-grid--cal">
       <Calendar lang={lang} api={api} />
       <Card title={(TS[lang] || TS.es).cardTitle} cert="measured" certNote={(TS[lang] || TS.es).cardCert} state={sun} retry={retrySun} t={t} lang={lang}
-        area="sun" fallbackSource="SILSO, NOAA SWPC, NASA SDO">
+        area="sun" fallbackSource="SILSO, NOAA SWPC, NASA SDO, NSO GONG">
         {d => <SunBody data={d} lang={lang} />}
       </Card>
       <Card title={t.marsTitle} cert="measured" certNote={t.marsCert} state={mars} retry={retryMars} t={t} lang={lang}

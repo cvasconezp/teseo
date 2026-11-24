@@ -239,5 +239,21 @@ console.log("Textos ES/EN");
   ok(!/Na|H₂O|CO₂|CH₄/.test(es.s2.mysteryAria("401 nm", 1)), "la descripción del espectro misterioso no nombra elementos");
 }
 
+// ─── Para jornadas de observación solar (24-nov-2026) ──────────────────────
+console.log("Líneas de los telescopios solares y helio de las protuberancias");
+{
+  const specJsx = read("../src/sky/Spectrum.jsx");
+  ok(/FR_TAG = \{ C: "Hα", F: "Hβ" \}/.test(specJsx) && /"D·Na"/.test(specJsx) && /"b·Mg"/.test(specJsx), "en el Sol, cada letra de Fraunhofer lleva su línea: C·Hα, F·Hβ, D·Na, b·Mg");
+  eq(LINES.Ha.fr, "C", "C es Hα"); eq(LINES.CaK.fr, "K", "K es Ca II K");
+  for (const lang of ["es", "en"]) {
+    const T = SPEC_T[lang].s2;
+    ok(/587[,.]6/.test(T.presetNotes.sun) && /protuberancias|prominences/.test(T.presetNotes.sun) && /1868/.test(T.presetNotes.sun), `el Sol: el helio brilla en las protuberancias (587,6 nm, 1868) (${lang})`);
+  }
+  ok(SPEC_T.es.s2.readItem(["516,7", "517,3"], []).includes("516,7; 517,3") && SPEC_T.es.s2.fingerprint(["656,3", "486,1"], [], "atom").includes("656,3; 486,1"), "en español, las longitudes con coma decimal se separan con punto y coma");
+  ok(SPEC_T.en.s2.readItem(["516.7", "517.3"], []).includes("516.7, 517.3"), "en inglés, con coma");
+  const tour = read("../src/questions/SpectrumTour.jsx");
+  ok(/visLines\.filter\(l => l\.id === id\)\.map\(l => nm1\(/.test(tour), "«Lo que se ve ahora» con un decimal (517,3 y no 517, 517)");
+}
+
 console.log(`\n${passed} pruebas correctas, ${failed} fallidas`);
 process.exit(failed ? 1 : 0);

@@ -34,6 +34,14 @@
 .sun-img img { transform: scale(1.04); display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.4s; }
 .sun-img.is-loaded img { opacity: 1; }
 .sun-img__fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 18%; text-align: center; font-size: 13px; color: var(--sun-mute); }
+/* H-alfa: cuadrada, sin recorte redondo ni zoom (las protuberancias están fuera del disco) */
+.sun-img--ha { border-radius: 14px; }
+.sun-img--ha img { transform: none; object-fit: contain; }
+.sun-views { display: flex; flex-direction: column; gap: 10px; }
+.sun-seg { display: inline-flex; align-self: center; padding: 3px; gap: 3px; border: 1px solid var(--sun-line); border-radius: 999px; }
+.sun-seg button { min-height: 36px; padding: 6px 16px; border: 0; border-radius: 999px; background: transparent; color: var(--sun-mute); font: inherit; font-size: 13.5px; cursor: pointer; }
+.sun-seg button[aria-pressed="true"] { background: var(--sun-gold); color: #1a1206; font-weight: 600; }
+.sun-seg button:focus-visible { outline: 2px solid var(--sun-gold); outline-offset: 2px; }
 .sun-figure figcaption { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; line-height: 1.45; color: var(--sun-mute); }
 
 /* Bloques */

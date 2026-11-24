@@ -79,6 +79,24 @@ PREDICTED = [
 ]
 
 
+def gong_xml(path):
+    return (f"<?xml version='1.0' encoding='ISO-8859-1'?><response><index>0</index><image>{path.replace('/hag/', '/hav/')}</image>"
+            f"<age>220</age><zoomFile>{path}</zoomFile><ok>1</ok></response>")
+
+
+# Respuestas reales del 24-nov-2026 (Mauna Loa sigue con su última imagen de 2022)
+GONG_XML = {
+    "C": gong_xml("/HA/hag/202611/20261124/20261124163742Ch.jpg"),
+    "B": gong_xml("/HA/hag/202611/20261124/20261124163202Bh.jpg"),
+    "T": gong_xml("/HA/hag/202611/20261124/20261124153322Th.jpg"),
+    "M": gong_xml("/HA/hag/202211/20221126/20221126234752Mh.jpg"),
+}
+GONG_LISTING = (
+    '<a href="/secret0x2112">x</a><a href="20261124163642Ah.jpg">a</a><a href="20261124163642Ch.jpg">c</a>'
+    '<a href="20261124163702Zh.jpg">z</a><a href="20261124163742Ch.jpg">c</a><a href="20261124163750Zh.jpg">z</a>'
+)
+
+
 class FakeResp:
     def __init__(self, payload=None, text="", status_code=200, headers=None):
         self._payload, self.text, self.status_code, self.headers = payload, text, status_code, headers or {}
@@ -102,6 +120,11 @@ def default_handler(method, url):
         return FakeResp(PREDICTED)
     if "HMIIF" in url:
         return FakeResp(headers={"last-modified": "Mon, 16 Nov 2026 13:30:10 GMT"})
+    if "getImageDetails.php" in url:
+        site = url.split("hAlpha_")[1][0]
+        return FakeResp(text=GONG_XML.get(site, "<response><ok>0</ok></response>"))
+    if "/HA/hag/" in url:
+        return FakeResp(text=GONG_LISTING)
     raise AssertionError(f"URL inesperada: {url}")
 
 
@@ -208,7 +231,7 @@ def test_today_contract(net):
     assert r.status_code == 200
     d = r.json()
     for k in ("updated", "sunspot_number", "regions", "regions_date", "flares_7d", "strongest_flare_24h",
-              "kp", "cycle", "image", "sources", "errors", "stale", "stale_sources"):
+              "kp", "cycle", "image", "halpha", "sources", "errors", "stale", "stale_sources"):
         assert k in d, k
     assert d["errors"] == {} and d["stale"] is False and d["stale_sources"] == []
     assert d["sunspot_number"]["value"] == 98 and d["sunspot_number"]["date"] == "2026-11-16"
@@ -222,7 +245,12 @@ def test_today_contract(net):
     assert d["image"]["url"] == "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMIIF.jpg"
     assert d["image"]["credit"] == "NASA/SDO y equipo científico HMI"
     assert d["image"]["time"] == "2026-11-16T13:30:10Z"
-    assert {s["id"] for s in d["sources"]} == {"silso", "swpc", "sdo"} and all(s["ok"] for s in d["sources"])
+    assert d["halpha"] == {
+        "url": "https://gong2.nso.edu/HA/hag/202611/20261124/20261124163742Ch.jpg",
+        "url_small": "https://gong2.nso.edu/HA/hav/202611/20261124/20261124163742Ch.jpg",
+        "time": "2026-11-24T16:37:42Z", "site": "C", "credit": "GONG/NSO/AURA/NSF",
+        "page": "https://nso.edu/data/nisp-data/h-alpha/"}
+    assert {s["id"] for s in d["sources"]} == {"silso", "swpc", "sdo", "gong"} and all(s["ok"] for s in d["sources"])
     assert d["updated"].endswith("Z")
     assert r.headers["cache-control"] == "public, max-age=600"
 
@@ -230,11 +258,13 @@ def test_today_contract(net):
 def test_today_cache_one_hour_single_request_per_source(net):
     client.get("/api/sun/today")
     n = len(net.calls)
-    assert n == 7                       # una por fuente (la imagen con HEAD)
+    assert n == 7 + 6                   # una por fuente (la imagen con HEAD) y una por sitio GONG
     client.get("/api/sun/today"); client.get("/api/sun/today")
     assert len(net.calls) == n
     assert ("HEAD", sun.IMAGE_URL) in net.calls
-    assert all(r.ttl == 3600 for r in sun.RESOURCES.values())
+    assert not any("/HA/hag/" in u for _, u in net.calls)      # el listado pesado solo es plan B
+    assert all(r.ttl == 3600 for k, r in sun.RESOURCES.items() if k != "halpha")
+    assert sun.halpha.ttl == 600
 
 
 @pytest.mark.parametrize("frag,key,field", [
@@ -278,13 +308,14 @@ def test_image_time_unknown_when_head_fails(net):
 
 
 def test_everything_down_still_json_200(net):
-    for frag in ("EISN", "swpc.noaa.gov", "HMIIF"):
+    for frag in ("EISN", "swpc.noaa.gov", "HMIIF", "gong2.nso.edu"):
         net.broken[frag] = "raise"
     r = client.get("/api/sun/today")
     assert r.status_code == 200
     d = r.json()
     assert d["sunspot_number"] is None and d["regions"] is None and d["kp"] is None and d["cycle"] is None
-    assert set(d["errors"]) == {"sunspot_number", "regions", "flares", "kp", "cycle"}
+    assert set(d["errors"]) == {"sunspot_number", "regions", "flares", "kp", "cycle", "halpha"}
+    assert d["halpha"] is None
     assert r.headers["cache-control"] == "public, max-age=30"
     assert not any(s["ok"] for s in d["sources"])
 
@@ -304,3 +335,41 @@ def test_metrics_whitelist_sun_today():
     assert metrics.clean_event({"e": "sun_today", "p": {"source": "sheet"}}) == {"e": "sun_today", "p": {"source": "sheet"}}
     assert metrics.clean_event({"e": "sun_today", "p": {"source": "now", "lat": -0.2}})["p"] == {"source": "now"}
     assert metrics.clean_event({"e": "sun_today", "p": {"source": "otra"}})["p"] == {}
+
+
+# ─── H-alfa (GONG) ───────────────────────────────────────────────────────
+def test_gong_details_valid_and_rejected_paths():
+    ok = sun.parse_gong_details(GONG_XML["C"])
+    assert ok["site"] == "C" and ok["time"] == "2026-11-24T16:37:42Z"
+    assert ok["url"].startswith("https://gong2.nso.edu/HA/hag/") and "/HA/hav/" in ok["url_small"]
+    assert sun.parse_gong_details("<response><ok>0</ok></response>") is None
+    # letras de prueba (A, Z…), rutas con otro host, otro directorio o fecha que no cuadra: fuera
+    for bad in ("/HA/hag/202611/20261124/20261124163742Zh.jpg", "https://evil.example/x.jpg",
+                "/HA/hag/../../etc/20261124163742Ch.jpg", "/HA/hag/202611/20261123/20261124163742Ch.jpg",
+                "/HA/haf/202611/20261124/20261124163742Ch.jpg"):
+        assert sun.parse_gong_details(gong_xml(bad)) is None, bad
+
+
+def test_gong_listing_skips_test_sites():
+    img = sun.parse_gong_listing(GONG_LISTING)
+    assert img["site"] == "C" and img["time"] == "2026-11-24T16:37:42Z"      # 163750Z es de prueba
+    assert sun.parse_gong_listing('<a href="/secret0x2112">x</a>') is None
+
+
+def test_halpha_picks_newest_site(net):
+    d = client.get("/api/sun/today").json()
+    assert d["halpha"]["site"] == "C"          # 16:37:42 gana a Big Bear 16:32 y a El Teide 15:33
+
+
+def test_halpha_falls_back_to_day_listing(net):
+    net.broken["getImageDetails"] = 500
+    d = client.get("/api/sun/today").json()
+    assert d["halpha"]["site"] == "C" and "halpha" not in d["errors"]
+    assert any("/HA/hag/" in u for _, u in net.calls)
+
+
+def test_halpha_down_rest_still_served(net):
+    net.broken["gong2.nso.edu"] = "raise"
+    d = client.get("/api/sun/today").json()
+    assert d["halpha"] is None and "halpha" in d["errors"]
+    assert d["sunspot_number"] is not None and d["image"]["url"]

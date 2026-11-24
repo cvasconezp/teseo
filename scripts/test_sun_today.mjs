@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import {
   EARTH_MSH, R_SUN_KM, R_EARTH_KM, earthsOf, fmtEarths, flareInfo, compareFlares, flareLevel, flareSummary, kpInfo,
   parseLocation, splitRegions, maxFlareProb, cyclePeak, monthToYear, dateToYear, pathOf, cycleGeometry, fmtUtc, fmtDay,
-  fmtMonth, fmtNum, hasAnyData, LINKS, SUN_PATH,
+  fmtMonth, fmtNum, hasAnyData, LINKS, SUN_PATH, halphaOf, halphaIsOld,
 } from "../src/sun/sun.js";
 import { TS } from "../src/sun/i18n.js";
 import { metricParams } from "../src/ui/track.js";
@@ -169,6 +169,33 @@ console.log("Fuentes enlazadas, métrica y cableado");
   ok(/area="sun"/.test(now) && /SunSummary/.test(now) && /SunContent/.test(now), "Now.jsx tiene la tarjeta «El Sol hoy» que reutiliza el mismo componente");
   const comp = readFileSync(new URL("../src/sun/SunToday.jsx", import.meta.url), "utf8");
   ok(!/<img[^>]*crossOrigin/.test(comp) && /<img/.test(comp), "la imagen de SDO es un <img> normal (sin CORS)");
+}
+
+// ─── 9 · H-alfa (red GONG del NSO) ───────────────────────────────────────────
+console.log("H-alfa (GONG)");
+{
+  // respuesta real del servidor (24-nov-2026, Cerro Tololo)
+  const H = { url: "https://gong2.nso.edu/HA/hag/202611/20261124/20261124163742Ch.jpg",
+    url_small: "https://gong2.nso.edu/HA/hav/202611/20261124/20261124163742Ch.jpg",
+    time: "2026-11-24T16:37:42Z", site: "C", credit: "GONG/NSO/AURA/NSF", page: "https://nso.edu/data/nisp-data/h-alpha/" };
+  ok(halphaOf({ halpha: H }) === H, "acepta la imagen de GONG de un sitio científico");
+  ok(halphaOf({ halpha: { ...H, url: "https://evil.example/x.jpg" } }) === null, "otro host → no se pinta");
+  ok(halphaOf({ halpha: { ...H, url_small: H.url_small.replace("Ch.jpg", "Zh.jpg") } }) === null, "sitio de prueba (Z) → no se pinta");
+  ok(halphaOf({ halpha: null }) === null && halphaOf(null) === null && halphaOf({}) === null, "sin H-alfa → null");
+  const t0 = Date.parse(H.time);
+  ok(!halphaIsOld(H, t0 + 3600e3) && halphaIsOld(H, t0 + 4 * 3600e3) && !halphaIsOld({ time: null }, t0), "foto vieja: más de 3 h (sin hora no se acusa)");
+  ok(/^https:\/\/nso\.edu\//.test(LINKS.gong), "enlaza la página H-alfa del NSO");
+  for (const lang of ["es", "en"]) {
+    const t = TS[lang];
+    ok(["B", "C", "L", "M", "T", "U"].every(k => typeof t.haSites[k] === "string"), `nombre de los seis observatorios (${lang})`);
+    ok(/656,3|656\.3/.test(t.haCaption) && /protuberancias|prominences/.test(t.haCaption) && /filamentos|filaments/.test(t.haCaption) && /fulguraci|flare/.test(t.haCaption), `el pie explica Hα, protuberancias, filamentos y fulguraciones (${lang})`);
+    ok(/gris|grey/.test(t.haGray), `dice que la cámara registra en gris (${lang})`);
+    ok(!/undefined|NaN/.test(t.haSite("x") + t.haTime("y")), `textos H-alfa sin undefined (${lang})`);
+  }
+  const comp = readFileSync(new URL("../src/sun/SunToday.jsx", import.meta.url), "utf8");
+  ok(/GONG\/NSO\/AURA\/NSF/.test(comp) && /h\.credit/.test(comp), "el crédito GONG/NSO/AURA/NSF va junto a la imagen, con enlace");
+  const css = readFileSync(new URL("../src/sun/sun.css", import.meta.url), "utf8");
+  ok(/\.sun-img--ha\s*\{[^}]*border-radius:\s*14px/.test(css) && /\.sun-img--ha img\s*\{[^}]*transform:\s*none/.test(css), "H-alfa sin recorte redondo ni zoom: se ven las protuberancias");
 }
 
 console.log(`\n${passed} pruebas correctas, ${failed} fallidas`);

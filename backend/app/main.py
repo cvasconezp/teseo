@@ -19,7 +19,7 @@ Endpoints:
   GET  /api/launches                  → próximos lanzamientos (Launch Library 2)
   GET  /api/asteroids                 → acercamientos a la Tierra (JPL CNEOS)
   GET  /api/iss/passes                → pasadas de la ISS sobre un lugar (CelesTrak + SGP4)
-  GET  /api/sun/today                 → «El Sol hoy»: manchas (SILSO), regiones, fulguraciones, Kp, ciclo (NOAA SWPC), imagen SDO
+  GET  /api/sun/today                 → «El Sol hoy»: manchas (SILSO), regiones, fulguraciones, Kp, ciclo (NOAA SWPC), imagen SDO, H-alfa (NSO GONG)
   GET  /api/missions/mars             → ventana a Marte + naves con destino Marte
   GET  /api/horizon?lat&lon[&fine]     → horizonte real del lugar: silueta del relieve (AWS Terrain Tiles)
   GET  /api/horizon/colors?lat&lon     → color real de las laderas del horizonte (Sentinel-2 cloudless 2016)
@@ -77,7 +77,7 @@ from app import terrain3d
 from app import lightpollution
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.75.1"
+VERSION = "1.76.0"
 _STARTED = time.time()
 
 app = FastAPI(
@@ -223,7 +223,7 @@ def api_health():
             "iss": {"provider": iss.SOURCE, **iss.resource.status()},
             "horizon": {"provider": horizon.SOURCE, "cells_cached": len(horizon._results), "tiles_cached": len(horizon._tiles), **{k: v for k, v in horizon.stats.items()}},
             "peaks": {"provider": peaks.SOURCE, "cells_cached": len(peaks._results), **{k: v for k, v in peaks.stats.items()}},
-            "sun": {"provider": "SILSO / NOAA SWPC / NASA SDO", **sun.status()},
+            "sun": {"provider": "SILSO / NOAA SWPC / NASA SDO / NSO GONG", **sun.status()},
             "aurora": {"provider": "NOAA SWPC (OVATION, Kp)", **aurora.status()},
             "exoplanets": {"provider": "NASA Exoplanet Archive", **exoplanets.resource.status()},
             "positions": {"provider": "NASA JPL Horizons", **nasa_horizons.positions_status()},

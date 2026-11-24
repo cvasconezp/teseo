@@ -1,6 +1,6 @@
 // sun.js — «El Sol hoy»: lógica pura (sin React, sin red). La probamos en Node
 // (scripts/test_sun_today.mjs). Aquí NO se inventa ningún dato: solo se formatea, se ordena y se
-// traduce a categorías lo que llega de GET /api/sun/today (SILSO, NOAA SWPC, NASA SDO).
+// traduce a categorías lo que llega de GET /api/sun/today (SILSO, NOAA SWPC, NASA SDO, NSO GONG).
 // «La IA narra, nunca calcula»: las frases las escribimos nosotros, a mano, con tabla de textos.
 
 export const API = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) || "";
@@ -16,6 +16,7 @@ export const LINKS = {
   scales: "https://www.swpc.noaa.gov/noaa-scales-explanation",
   sdo: "https://sdo.gsfc.nasa.gov/data/",
   sdoHome: "https://sdo.gsfc.nasa.gov/",
+  gong: "https://nso.edu/data/nisp-data/h-alpha/",   // red GONG del NSO: imágenes H-alfa (comprobado el 24-nov-2026)
 };
 
 // ─── Tamaño de las regiones: «≈ N Tierras» ───────────────────────────────────
@@ -259,4 +260,19 @@ export function fmtNum(n, lang = "es", digits = 0) {
 export function hasAnyData(d) {
   return !!d && typeof d === "object" && !Array.isArray(d) &&
     !!(d.sunspot_number || d.regions || d.flares_7d || d.kp || d.cycle);
+}
+
+// ─── H-alfa (GONG) ───────────────────────────────────────────────────────────
+const GONG_URL_RE = /^https:\/\/gong2\.nso\.edu\/HA\/ha[gv]\/\d{6}\/\d{8}\/\d{14}[BCLMTU]h\.jpg$/;
+/** La imagen H-alfa solo se usa si sus dos URL son de GONG y de un sitio científico (no se pinta lo que no se reconoce). */
+export function halphaOf(d) {
+  const h = d && d.halpha;
+  if (!h || typeof h !== "object" || !GONG_URL_RE.test(String(h.url)) || !GONG_URL_RE.test(String(h.url_small))) return null;
+  return h;
+}
+
+/** ¿La foto H-alfa tiene más de `hours` horas? (de noche o nublado en toda la red). Sin hora → false. */
+export function halphaIsOld(h, now = Date.now(), hours = 3) {
+  const t = h && Date.parse(h.time);
+  return Number.isFinite(t) ? now - t > hours * 3600e3 : false;
 }

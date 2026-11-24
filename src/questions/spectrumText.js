@@ -5,7 +5,7 @@
 
 const fingerprintEs = (vis, nir, kind) => {
   const what = kind === "atom" ? "líneas" : "bandas";
-  return [vis.length ? `${what} visibles: ${vis.join(", ")} nm` : "", nir.length ? `infrarrojo cercano: ≈ ${nir.join(", ")} nm` : ""].filter(Boolean).join(" · ");
+  return [vis.length ? `${what} visibles: ${vis.join("; ")} nm` : "", nir.length ? `infrarrojo cercano: ≈ ${nir.join("; ")} nm` : ""].filter(Boolean).join(" · ");
 };
 const fingerprintEn = (vis, nir, kind) => {
   const what = kind === "atom" ? "visible lines" : "visible bands";
@@ -73,7 +73,7 @@ export const SPEC_T = {
       readTitle: "Lo que se ve ahora",
       emptyMix: "La mezcla está vacía: sin gas, la luz llega entera, sin ninguna raya.",
       nothingDrawn: "Con estas condiciones ninguna de tus opciones deja líneas visibles.",
-      readItem: (vis, nir) => [vis.length ? `en el visible: ${vis.join(", ")} nm` : "", nir.length ? `en el infrarrojo cercano: ${nir.join(", ")} nm` : ""].filter(Boolean).join(" · "),
+      readItem: (vis, nir) => [vis.length ? `en el visible: ${vis.join("; ")} nm` : "", nir.length ? `en el infrarrojo cercano: ${nir.join("; ")} nm` : ""].filter(Boolean).join(" · "),
       silent: {
         cold: () => "En un gas frío este átomo casi no deja líneas visibles: hace falta el calor de una estrella para excitarlo o ionizarlo.",
         hot: () => "A la temperatura de una estrella esta molécula se rompe y no deja bandas. Pruébala en «En un planeta».",
@@ -90,7 +90,7 @@ export const SPEC_T = {
         mars: "Marte: 95,1 % CO₂, pero con una atmósfera de unos 6 mb. Casi todo ocurre en el infrarrojo cercano, cerca de 1.600 y 2.000 nm.",
         venus: "Venus: el mismo gas que Marte (96,5 % CO₂) pero a 92 bar: unas 14.000 veces más denso. Las mismas bandas, mucho más profundas.",
         jupiter: "Júpiter: casi todo es H₂ y helio, que casi no dejan líneas en estos colores. Lo que se ve es el metano: 619 y 727 nm y, muy fuerte, 890 nm.",
-        sun: "El Sol: líneas de hidrógeno, sodio, calcio, magnesio y hierro. El helio está en el Sol, pero a 5.772 K casi no deja líneas visibles en su superficie.",
+        sun: "El Sol: líneas de hidrógeno, sodio, calcio, magnesio y hierro. El helio está en el Sol, pero a 5.772 K casi no deja líneas visibles en su superficie. Su línea amarilla (587,6 nm) sí brilla en las protuberancias del borde, más calientes: así se descubrió el helio, en el eclipse de 1868.",
       },
       customNote: "Tu mezcla. Prueba a poner el helio con luz roja y con luz azul: mismo gas, otro resultado.",
       pvs: {
@@ -312,7 +312,7 @@ export const SPEC_T = {
         mars: "Mars: 95.1 % CO₂, but an atmosphere of only about 6 mb. Almost everything happens in the near infrared, around 1,600 and 2,000 nm.",
         venus: "Venus: the same gas as Mars (96.5 % CO₂) but at 92 bar: about 14,000 times denser. The same bands, much deeper.",
         jupiter: "Jupiter: almost all H₂ and helium, which leave almost no lines in these colours. What you see is methane: 619 and 727 nm and, very strong, 890 nm.",
-        sun: "The Sun: lines of hydrogen, sodium, calcium, magnesium and iron. Helium is in the Sun, but at 5,772 K it leaves almost no visible lines at its surface.",
+        sun: "The Sun: lines of hydrogen, sodium, calcium, magnesium and iron. Helium is in the Sun, but at 5,772 K it leaves almost no visible lines at its surface. Its yellow line (587.6 nm) does shine in the hotter prominences at the edge: that is how helium was discovered, at the 1868 eclipse.",
       },
       customNote: "Your mix. Try putting helium under red light and under blue light: same gas, different result.",
       pvs: {

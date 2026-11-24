@@ -1,5 +1,19 @@
 # Cambios
 
+## 1.76.0 — 2026-11-24
+
+- **El Sol hoy en H-alfa.** Un selector nuevo, «Luz visible / H-alfa», en la ficha del Sol y en «Ahora». H-alfa muestra la foto más reciente de la red GONG del National Solar Observatory (NSF): seis observatorios en el mundo, una foto por minuto en cada uno, la misma luz (656,3 nm) que se ve por un telescopio solar H-alfa.
+  - El pie explica qué se ve: protuberancias en el borde, filamentos sobre el disco y regiones activas, donde estallan las fulguraciones. Dice desde qué observatorio y a qué hora se tomó, y avisa si la foto tiene más de 3 horas (noche o nubes en toda la red).
+  - La imagen es cuadrada, sin el recorte redondo de la de SDO, para que no se corten las protuberancias. Se carga la de 512 px y el navegador pide la de 2048 px solo en pantallas que la aprovechan.
+  - Servidor: `/api/sun/today` trae `halpha`. Pregunta la última foto de cada sitio al servicio liviano de GONG (≈ 500 bytes por sitio, cada 10 min) y elige la más reciente. Si falla, lee el listado del día. Solo acepta los sitios científicos (B, C, L, M, T, U) y rutas validadas con una expresión estricta.
+  - Crédito «GONG/NSO/AURA/NSF» junto a la imagen, con enlace, como pide la política de uso de imágenes del NSO. También en «Créditos y datos», en «De dónde sale cada dato» y en CREDITS.md.
+- **Espectro del Sol con sus líneas nombradas.** Las letras de Fraunhofer llevan su elemento: C·Hα, F·Hβ, D·Na y b·Mg. El pie explica que Hα (656 nm) y el calcio K (393 nm) son las dos líneas en que miran los telescopios solares H-alfa y Calcio K.
+- **Laboratorio de espectros:**
+  - «Lo que se ve ahora» muestra las longitudes con un decimal: 516,7; 517,3; 518,4 nm, en vez de «517, 517, 518».
+  - En español, las listas de longitudes se separan con punto y coma, porque la coma es la decimal.
+  - El atajo «Sol» cuenta que la línea amarilla del helio (587,6 nm) sí brilla en las protuberancias del borde, y que así se descubrió el helio en 1868.
+- **Regiones activas:** la comparación dice «≈ 0,8 × la superficie terrestre» en vez de «≈ 0,8 Tierras», para que no se lea como el tamaño del disco de la Tierra.
+
 ## 1.75.1 — 2026-11-24
 
 - **Foto 360°: Sol, Luna y planetas redondos.** Se dibujan siempre de frente a la pantalla. En las seis caras de 90° de la foto, lejos del centro de cada cara, quedaban más chicos de lo debido hacia afuera (hasta un 30 % en el borde y un 42 % en las esquinas). Al desplegar la foto salían como óvalos inclinados. Ahora cada astro se vuelve a fotografiar con la cámara apuntando justo a él, y ese recorte se pega en su sitio con un borde suave. En la imagen plana solo queda el ensanche propio de la proyección según la altura, que el visor 360° deshace. Hay pruebas nuevas.

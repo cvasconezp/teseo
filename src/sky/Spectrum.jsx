@@ -27,6 +27,9 @@ const TICK_Y = 128;
 const TICKS = [400, 450, 500, 550, 600, 650, 700, 750];
 const CHAR_W = 5.4;            // ancho medio estimado de un carácter a 9 px
 
+// Qué es cada letra de Fraunhofer que lleva rótulo doble (K y H del calcio se dejan solas: van juntas y no caben)
+const FR_TAG = { C: "Hα", F: "Hβ" };
+
 /** Rótulos agrupados: un rótulo por doblete/triplete muy próximo. */
 function labelsFor(lines, useFr) {
   const out = [];
@@ -39,7 +42,9 @@ function labelsFor(lines, useFr) {
       const base = l.fr.replace(/[₀-₉]/g, "");
       if ((base === "D" || base === "b") && seen.has(base)) continue;
       if (base === "D" || base === "b") seen.add(base);
-      text = base === "D" || base === "b" ? base : l.fr;
+      // la letra va con su elemento o línea (C·Hα, D·Na, b·Mg…): así se reconocen las líneas de los
+      // telescopios solares (Hα, Ca II K) sin saberse la tabla de Fraunhofer
+      text = base === "D" ? "D·Na" : base === "b" ? "b·Mg" : FR_TAG[l.fr] ? `${l.fr}·${FR_TAG[l.fr]}` : l.fr;
       nm = base === "D" ? 589.3 : base === "b" ? 517.5 : l.nm;
     } else {
       const key = g === "balmer" || g === "hei" || g === "tio" ? (l.key || l.nm) : g;
@@ -82,7 +87,8 @@ export default function Spectrum({ temp, cls = "G", lines, width, lang = "es", l
   const placed = [];
   const rowEnd = [-Infinity, -Infinity];
   for (const lb of labelsFor(drawn, useFr)) {
-    const cx = x(lb.nm), w = lb.text.length * CHAR_W;
+    // los rótulos dobles (C·Hα) llevan letra griega y punto medio, más anchos que el promedio
+    const cx = x(lb.nm), w = lb.text.length * CHAR_W + (lb.text.includes("·") ? 6 : 0);
     const left = Math.max(PAD_L, Math.min(W - PAD_R - w, cx - w / 2));
     const row = left > rowEnd[0] + 3 ? 0 : left > rowEnd[1] + 3 ? 1 : -1;
     if (row < 0) continue;
