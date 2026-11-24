@@ -1494,7 +1494,7 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
       <aside ref={boxRef} className="app-menu__panel" role="dialog" aria-modal="true" aria-label={t.menu}>
         <div className="am-head">
           <div className="am-top">
-            <p className="wordmark" style={{fontSize:28, margin:0}}>Teseo</p>
+            <p className="wordmark" style={{fontSize:36, margin:0, lineHeight:1}}>Teseo</p>
             <div className="am-hbtns">
               <a className="am-round am-round--gold" href={support} aria-label={t.supportCard[0]} title={t.supportCard[0]} onClick={()=>track("support_open", { from: "menu_head" })}>{heart}</a>
               <button type="button" className="am-round" onClick={onClose} aria-label={t.menuClose}>
@@ -2199,6 +2199,10 @@ export default function Teseo() {
             <a href={aboutHref(lang)} className="about-btn" aria-label={t.aboutLink} title={t.aboutLink}
               onClick={()=>track("about_open", { from: "header" })}>
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg><span>{t.aboutShort}</span>
+            </a>
+            <a href={`${aboutHref(lang)}#apoya`} className="about-btn about-btn--icon" aria-label={t.supportLink} title={t.supportLink}
+              onClick={()=>track("support_open", { from: "header" })}>
+              <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg>
             </a>
             <button type="button" className={`night-btn night-btn--music${ambient ? " is-on" : ""}`} aria-pressed={ambient}
               aria-label={ambient ? t.ambientOff : t.ambientOn} title={ambient ? t.ambientOff : t.ambientOn}

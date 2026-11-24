@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.74.1 — 2026-11-23
+
+- **Cabecera del teléfono:** «Acerca de» queda solo como ícono y se suma el corazón de «Apoya a Teseo». Los cinco botones miden 40 px en pantallas angostas, «Navegación interplanetaria» pasa a dos líneas si hace falta y «con Killa Ñan» ya no se parte. En la computadora, el corazón aparece junto a «Acerca de».
+- **Menú:** el nombre Teseo se ve más grande.
+
 ## 1.74.0 — 2026-11-23
 
 - **Menú del teléfono rediseñado:**
