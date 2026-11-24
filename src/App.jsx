@@ -219,7 +219,7 @@ const T = {
     introCredit:    "Yachay Deep Labs × Killa Ñan · Community astronomy",
     whoTitle:       "Who makes Teseo",
     whoYd:          ["Yachay Deep Labs", "Develops Teseo. Cayambe, Ecuador."],
-    whoKn:          ["Killa Ñan · Community astronomy", "Non-profit community astronomy project born in Cayambe (Ecuador) on 15 July 2018 and now present in several cities in the country. Teseo is built in cooperation with Killa Ñan."],
+    whoKn:          ["Killa Ñan · Community astronomy", "Non-profit community astronomy project born in Cayambe (Ecuador) on 15 July 2018 and now present in several cities in the country. Teseo was born out of its need to tell and share astronomy better from a single tool, and is built in cooperation with Killa Ñan."],
     whoLinks:       { web: "Website", fb: "Facebook", ig: "Instagram" },
     creditsGroups:  "Data sources by institution",
     creditsLink:    "Credits and data",
@@ -419,7 +419,7 @@ const T = {
     introCredit:    "Yachay Deep Labs × Killa Ñan · Astronomía comunitaria",
     whoTitle:       "Quiénes hacen Teseo",
     whoYd:          ["Yachay Deep Labs", "Desarrolla Teseo. Cayambe, Ecuador."],
-    whoKn:          ["Killa Ñan · Astronomía comunitaria", "Proyecto de astronomía comunitaria sin fines de lucro nacido en Cayambe (Ecuador) el 15 de julio de 2018 y presente hoy en varias ciudades del país. Teseo se hace en cooperación con Killa Ñan."],
+    whoKn:          ["Killa Ñan · Astronomía comunitaria", "Proyecto de astronomía comunitaria sin fines de lucro nacido en Cayambe (Ecuador) el 15 de julio de 2018 y presente hoy en varias ciudades del país. Teseo nació de su necesidad de contar y divulgar mejor la astronomía desde una sola herramienta, y se hace en cooperación con Killa Ñan."],
     whoLinks:       { web: "Sitio web", fb: "Facebook", ig: "Instagram" },
     creditsGroups:  "Fuentes de datos por institución",
     creditsLink:    "Créditos y datos",
@@ -1548,13 +1548,19 @@ function CreditsModal({ lang, onClose }) {
           </a>
           <div className="who__links">
             <a href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>{t.whoLinks.web}</a>
-            <a href="https://www.facebook.com/KillaNanEC" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>{t.whoLinks.fb}</a>
+            <a href="https://www.facebook.com/share/1A65WV66FH/" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>{t.whoLinks.fb}</a>
             <a href="https://www.instagram.com/killananec/" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>{t.whoLinks.ig}</a>
           </div>
           <a className="who__card" href="https://yachaydeep.com" target="_blank" rel="noopener noreferrer">
             <span className="who__name">{t.whoYd[0]}</span>
             <span className="who__text">{t.whoYd[1]}</span>
           </a>
+          <div className="who__links">
+            <a href="https://www.yachaydeep.com/" target="_blank" rel="noopener noreferrer">{t.whoLinks.web}</a>
+            <a href="https://www.facebook.com/yachaydeep" target="_blank" rel="noopener noreferrer">{t.whoLinks.fb}</a>
+            <a href="https://www.instagram.com/yachaydeep" target="_blank" rel="noopener noreferrer">{t.whoLinks.ig}</a>
+            <a href="https://x.com/yachaydeep" target="_blank" rel="noopener noreferrer">X</a>
+          </div>
         </div>
         <h3 className="credits__h">{t.creditsGroups}</h3>
         <p className="modal__p">{t.creditsIntro} <a href="https://github.com/cvasconezp/teseo" target="_blank" rel="noopener noreferrer">{t.sourceLink}</a> · <a href={t.sourcesHref} onClick={()=>track("credits_sources")}>{t.sourcesAll}</a></p>

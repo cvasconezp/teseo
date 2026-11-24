@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.72.3 — 2026-11-23
+
+- **El origen de Teseo, precisado:** nació de una necesidad de Killa Ñan, contar y divulgar mejor la astronomía desde una sola herramienta. Así lo cuentan «Acerca de» (también /about) y los créditos de la app.
+- **Redes y contacto:** Killa Ñan (Instagram y Facebook) y Yachay Deep (Instagram, Facebook, X y sitio web), más el contacto teseo@yachaydeep.com y el WhatsApp +593 98 748 9892. Están en la parte «El hilo lo tejemos juntos» y en el pie de página. Los créditos de la app suman las redes de Yachay Deep y el enlace nuevo de Facebook de Killa Ñan.
+
 ## 1.72.2 — 2026-11-23
 
 - **«Acerca de»: el menú de arriba ya no lleva «Código».** El enlace al código sigue en el pie de página y en «Apoya».

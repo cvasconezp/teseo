@@ -216,6 +216,12 @@ footer nav a{color:var(--soft)}
 @media (max-width:760px){.links{gap:0 9px;font-size:13px;letter-spacing:-.005em}.links.is-scroll{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}}
 @media (max-width:720px){.vids{justify-content:flex-start}}
 @media (max-width:760px){.links a.lang-link{min-width:36px;padding:3px 9px;font-size:13px}}
+.social{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.social p{margin:0;color:var(--muted);font-size:15px}
+.social b{color:var(--text);font-weight:600;margin-right:6px}
+.social a,.foot-social a{color:var(--gold);text-decoration:none}
+.social a:hover,.foot-social a:hover{text-decoration:underline}
+.foot-social{flex-basis:100%;margin:6px 0 0;color:var(--muted);font-size:14px}
 </style>
 <!-- Vercel Web Analytics: visitas sin cookies -->
 <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};</script>
@@ -280,7 +286,7 @@ footer nav a{color:var(--soft)}
           <p class="kicker">Qué es</p>
           <h2>Un hilo para orientarte en el universo</h2>
           <p class="soft">Teseo es a la vez planetario, navegador interplanetario, calendario del cielo y laboratorio. No solo te dice qué hay allá arriba: calcula distancias, rutas y fechas de salida con física real y datos oficiales.</p>
-          <p class="soft">Nació en Cayambe, en la latitud cero, para los talleres de astronomía comunitaria de Killa Ñan. Esta página sigue su hilo: desde donde estás parado hasta el fin del universo.</p>
+          <p class="soft">Nació en Cayambe, en la latitud cero, de una necesidad de Killa Ñan: contar y divulgar mejor la astronomía desde una sola herramienta. Esta página sigue su hilo: desde donde estás parado hasta el fin del universo.</p>
           <p class="fine">Teseo en un minuto: el mapa del cielo, tu horizonte, los viajes por el sistema solar y las grandes preguntas, filmados en la propia app. 44 segundos.</p>
           <p class="fine">Las voces de los videos son sintéticas.</p>
         </div>
@@ -522,7 +528,7 @@ footer nav a{color:var(--soft)}
       <div class="split">
         <div style="display:flex;flex-direction:column;gap:18px">
           <h2>Hecho en Cayambe, en la latitud cero</h2>
-          <p class="soft">Teseo nació para los talleres de Killa Ñan, la iniciativa de astronomía comunitaria que trabaja en Cayambe desde 2018. Hoy lo usan aficionados, docentes y curiosos.</p>
+          <p class="soft">Teseo nació de una necesidad de Killa Ñan, la iniciativa de astronomía comunitaria que trabaja en Cayambe desde 2018: contar y divulgar mejor la astronomía desde una sola herramienta. Hoy lo usan aficionados, docentes y curiosos.</p>
           <ul class="ticks">
             <li><span><b>Para tu grupo:</b> el calendario del cielo de tu ciudad, suscrito en el teléfono de cada integrante.</span></li>
             <li><span><b>Para el aula:</b> los recorridos de Preguntas funcionan en el proyector y en el teléfono, sin instalar nada.</span></li>
@@ -531,6 +537,11 @@ footer nav a{color:var(--soft)}
           <div class="ctas">
             <a class="btn btn--ghost btn--sm" href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer">Conocer Killa Ñan</a>
             <a class="btn btn--ghost btn--sm" href="https://github.com/cvasconezp/teseo/issues" target="_blank" rel="noopener noreferrer">Proponer una mejora</a>
+          </div>
+          <div class="social" aria-label="Redes sociales">
+            <p><b>Killa Ñan</b> <a href="https://www.instagram.com/killananec/" rel="noopener">Instagram</a> · <a href="https://www.facebook.com/share/1A65WV66FH/" rel="noopener">Facebook</a></p>
+            <p><b>Yachay Deep</b> <a href="https://www.instagram.com/yachaydeep" rel="noopener">Instagram</a> · <a href="https://www.facebook.com/yachaydeep" rel="noopener">Facebook</a> · <a href="https://x.com/yachaydeep" rel="noopener">X</a> · <a href="https://www.yachaydeep.com/" rel="noopener">Sitio web</a></p>
+            <p><b>Contacto</b> <a href="mailto:teseo@yachaydeep.com">teseo@yachaydeep.com</a> · <a href="https://wa.me/593987489892" rel="noopener">WhatsApp +593 98 748 9892</a></p>
           </div>
         </div>
         <div id="podcast" class="pod-side">
@@ -635,6 +646,7 @@ footer nav a{color:var(--soft)}
       <a href="https://github.com/cvasconezp/teseo/blob/main/CHANGELOG.md">Novedades</a>
       <a href="https://www.yachaydeep.com">Yachay Deep</a>
     </nav>
+      <p class="foot-social">Killa Ñan: <a href="https://www.instagram.com/killananec/" rel="noopener">Instagram</a> · <a href="https://www.facebook.com/share/1A65WV66FH/" rel="noopener">Facebook</a> — Yachay Deep: <a href="https://www.instagram.com/yachaydeep" rel="noopener">Instagram</a> · <a href="https://www.facebook.com/yachaydeep" rel="noopener">Facebook</a> · <a href="https://x.com/yachaydeep" rel="noopener">X</a> — <a href="mailto:teseo@yachaydeep.com">teseo@yachaydeep.com</a> · <a href="https://wa.me/593987489892" rel="noopener">WhatsApp +593 98 748 9892</a></p>
   </div>
 </footer>
 
