@@ -196,6 +196,26 @@ footer nav a{color:var(--soft)}
 .split-vid{display:flex;justify-content:center}
 .split-vid .vid{width:100%;max-width:300px}
 @media (max-width:600px){.hot__pt{width:24px;height:24px;font-size:12px;box-shadow:0 0 0 3px rgba(167,139,250,.28)}}
+/* síntesis: etiquetas, videos en franja, fuentes plegadas y ciencia ciudadana en lista */
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tags span{padding:6px 12px;border-radius:999px;border:1px solid var(--line2);font-size:14px;color:var(--soft)}
+@media (max-width:720px){
+  .vids{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:16px;padding-bottom:10px;margin-right:calc(-1 * var(--pad, 20px))}
+  .vids .vid{flex:0 0 64%;max-width:260px;scroll-snap-align:start}
+}
+.src-more{margin-top:28px;border-top:1px solid var(--line)}
+.src-more summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:10px;min-height:48px;margin-top:14px;padding:0 18px;border-radius:999px;border:1px solid var(--line2);color:var(--text);font-weight:600}
+.src-more summary::-webkit-details-marker{display:none}
+.src-more summary::after{content:"+";color:var(--gold);font-size:18px}
+.src-more[open] summary::after{content:"−"}
+.src-more[open] .src{margin-top:20px}
+.cs-list{margin:16px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 28px}
+.cs-list li{color:var(--muted);font-size:15px;line-height:1.45}
+.cs-list a{color:var(--teal);font-weight:600;text-decoration:none}
+.cs-list a:hover{text-decoration:underline}
+@media (max-width:760px){.links{gap:0 9px;font-size:13px;letter-spacing:-.005em}.links.is-scroll{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}.links a.nav-code{display:none}}
+@media (max-width:720px){.vids{justify-content:flex-start}}
+@media (max-width:760px){.links a.lang-link{min-width:36px;padding:3px 9px;font-size:13px}}
 </style>
 <!-- Vercel Web Analytics: visitas sin cookies -->
 <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};</script>
@@ -218,7 +238,7 @@ footer nav a{color:var(--soft)}
       <a href="#ciencia">Preguntas</a>
       <a href="#fuentes">Cómo sabe</a>
       <a href="#talleres">Súmate</a>
-      <a href="https://github.com/cvasconezp/teseo">Código</a>
+      <a class="nav-code" href="https://github.com/cvasconezp/teseo">Código</a>
     </nav>
     <div class="top__ctas">
       <a class="btn btn--ghost btn--sm btn--give" href="#apoya"><svg width="16" height="16" viewBox="0 0 24 24" fill="#F2C46D" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.1 4.3 2.4h2c.7-1.3 2.2-2.4 4.3-2.4 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg>Apoya</a>
@@ -278,15 +298,12 @@ footer nav a{color:var(--soft)}
           <h2>Tu cielo, no un cielo cualquiera</h2>
           <p class="soft">La mayoría de planetarios dibujan un horizonte plano, igual para Quito que para Madrid. Teseo calcula el tuyo.</p>
           <ul class="ticks">
-            <li><span><b>Horizonte real en 3D.</b> El relieve de hasta 300 km a la redonda, con la curvatura de la Tierra y la imagen del satélite: los nombres de montañas y volcanes, las erupciones activas según el Smithsonian y la hora a la que asoma el Sol o la Luna tras tu montaña, no solo su salida en el libro.</span></li>
-            <li><span><b>Sitios arqueológicos y monumentos.</b> Teotihuacan, Chichén Itzá, Guiza, Machu Picchu, Cochasquí, Ingapirca y decenas más sobre su paisaje, varios en 3D con su luz y sus sombras.</span></li>
-            <li><span><b>El tiempo de tu lugar.</b> Temperatura, viento, nubes previstas por alturas e imagen del satélite, para saber cuándo conviene salir a mirar.</span></li>
-            <li><span><b>Capas que se suman.</b> Nuestro vecindario (Sol, Luna, planetas, meteoros, cometas, asteroides y sondas como la Voyager), el cielo profundo (galaxias, nebulosas, agujeros negros, púlsares y exoplanetas) y la contaminación lumínica de tu lugar.</span></li>
-            <li><span><b>Astronomía andina.</b> Por dónde sale el Sol en solsticios y equinoccios sobre tus montañas y, cerca de Quito, los sitios quitu-caranquis según Cristóbal Cobo (2012).</span></li>
-            <li><span><b>Fichas que se escuchan.</b> Cada estrella con su composición, su espectro y su ciclo de vida, contada en voz alta.</span></li>
-            <li><span><b>Participa en la ciencia.</b> Desde las fichas, proyectos de ciencia ciudadana vigentes de la NASA, Zooniverse o Globe at Night.</span></li>
-            <li><span><b>Fotos 360° y postales</b> con los créditos de los datos, listas para compartir.</span></li>
+            <li><span><b>Horizonte real.</b> Tus montañas en 3D, con sus nombres y la hora en que el Sol o la Luna asoman tras ellas.</span></li>
+            <li><span><b>Monumentos.</b> Cochasquí, Machu Picchu, Teotihuacan y decenas más sobre su paisaje.</span></li>
+            <li><span><b>Tu clima.</b> Temperatura, viento y nubes por alturas, para saber cuándo salir a mirar.</span></li>
+            <li><span><b>Capas.</b> Planetas, cometas, sondas, galaxias, púlsares, exoplanetas y la contaminación lumínica.</span></li>
           </ul>
+          <div class="tags"><span>Astronomía andina</span><span>Fichas con voz</span><span>Profundidad real de las constelaciones</span><span>Fotos 360° y postales</span></div>
           <div class="ctas"><a class="btn btn--gold btn--sm" href="/#sky">Abrir el cielo en tu lugar</a></div>
         </div>
         <div class="split-vid">
@@ -422,10 +439,10 @@ footer nav a{color:var(--soft)}
         <p class="soft">Todo lo que muestra Teseo sale de datos públicos de agencias espaciales, observatorios y comunidades de voluntarios. Aquí están, para que puedas comprobarlos, usarlos o sumarte.</p>
       </div>
       <div class="pillars">
-        <div><h3>Datos oficiales y física real</h3><p>Efemérides contrastadas con el Observatorio Naval de EE. UU., la NASA y catálogos abiertos. Cada número dice de dónde viene.</p></div>
-        <div><h3>La IA narra, nunca calcula</h3><p>Cuando la app usa inteligencia artificial, solo describe resultados que ya calculó la física.</p></div>
-        <div><h3>Tu lugar es tuyo</h3><p>Sin cuenta ni registro. Tu ubicación se usa para calcular tu cielo, no para perfilarte.</p></div>
-        <div><h3>Código abierto</h3><p>Licencia AGPL-3.0 y pruebas automáticas: cualquiera puede revisar, usar y mejorar el código, y las mejoras vuelven a ser abiertas.</p></div>
+        <div><h3>Datos oficiales y física real</h3><p>Efemérides comprobadas con la NASA y el Observatorio Naval de EE. UU.</p></div>
+        <div><h3>La IA narra, nunca calcula</h3><p>La IA solo describe lo que ya calculó la física.</p></div>
+        <div><h3>Tu lugar es tuyo</h3><p>Sin cuenta ni registro: tu ubicación solo sirve para calcular tu cielo.</p></div>
+        <div><h3>Código abierto</h3><p>Licencia AGPL-3.0: cualquiera puede revisarlo y mejorarlo.</p></div>
       </div>
       <h3 class="sub-h">De dónde sale cada cosa</h3>
       <p class="soft">Toca un número de la imagen para ver de dónde sale lo que muestra.</p>
@@ -433,7 +450,7 @@ footer nav a{color:var(--soft)}
         <figure class="hot__fig">
           <img src="/acerca/img/cielo-cayambe-noche.webp" width="1280" height="800" loading="lazy" alt="El cielo de Cayambe en Teseo, con números sobre las estrellas, las constelaciones, las montañas, los nombres de las cumbres, el lugar, la hora y las capas.">
           <a class="hot__pt" href="#dato-1" style="left:19.4%;top:61.2%" aria-label="1: Las estrellas">1</a>
-          <a class="hot__pt" href="#dato-2" style="left:35.8%;top:44.8%" aria-label="2: Las figuras de las constelaciones">2</a>
+          <a class="hot__pt" href="#dato-2" style="left:35.8%;top:44.8%" aria-label="2: Las constelaciones">2</a>
           <a class="hot__pt" href="#dato-3" style="left:46.9%;top:66.0%" aria-label="3: Las montañas">3</a>
           <a class="hot__pt" href="#dato-4" style="left:75.2%;top:46.6%" aria-label="4: Los nombres de las cumbres">4</a>
           <a class="hot__pt" href="#dato-5" style="left:15.9%;top:21.1%" aria-label="5: Tu lugar">5</a>
@@ -441,17 +458,18 @@ footer nav a{color:var(--soft)}
           <a class="hot__pt" href="#dato-7" style="left:90.6%;top:40.0%" aria-label="7: Las capas">7</a>
         </figure>
         <ol class="hot__list">
-          <li id="dato-1"><b>Las estrellas</b><span>Posición, brillo, color y distancia: HYG Database. El error de cada distancia: Hipparcos (ESA), vía HEASARC de la NASA.</span></li>
-          <li id="dato-2"><b>Las figuras de las constelaciones</b><span>Stellarium, con los límites y nombres de la Unión Astronómica Internacional.</span></li>
-          <li id="dato-3"><b>Las montañas</b><span>El relieve: AWS Terrain Tiles (SRTM de la NASA). Sus colores: Sentinel-2 cloudless (EOX, Copernicus).</span></li>
-          <li id="dato-4"><b>Los nombres de las cumbres</b><span>Wikidata y OpenStreetMap, con su altura.</span></li>
-          <li id="dato-5"><b>Tu lugar</b><span>El GPS del teléfono o la búsqueda con GeoNames y Open-Meteo. No se guarda en ningún servidor.</span></li>
-          <li id="dato-6"><b>La hora, el Sol, la Luna y los planetas</b><span>Cálculo propio en el teléfono, comprobado con NASA JPL Horizons y el Almanaque Astronómico del USNO.</span></li>
-          <li id="dato-7"><b>Las capas</b><span>Cada una dice su fuente. Las nubes, por ejemplo: Meteosat, GOES o Himawari, y el pronóstico de Open-Meteo.</span></li>
+          <li id="dato-1"><b>Las estrellas</b><span>HYG Database y Hipparcos.</span></li>
+          <li id="dato-2"><b>Las constelaciones</b><span>Stellarium, con la Unión Astronómica Internacional.</span></li>
+          <li id="dato-3"><b>Las montañas</b><span>AWS Terrain Tiles y Sentinel-2.</span></li>
+          <li id="dato-4"><b>Los nombres de las cumbres</b><span>Wikidata y OpenStreetMap.</span></li>
+          <li id="dato-5"><b>Tu lugar</b><span>El GPS del teléfono o la búsqueda con GeoNames.</span></li>
+          <li id="dato-6"><b>La hora, el Sol, la Luna y los planetas</b><span>Cálculo propio, comprobado con NASA JPL Horizons.</span></li>
+          <li id="dato-7"><b>Las capas</b><span>Cada una dice su fuente; las nubes, Meteosat, GOES o Himawari.</span></li>
         </ol>
       </div>
-      <h3 class="sub-h">Todas las fuentes</h3>
-      <div class="src">
+      <details class="src-more">
+        <summary>Ver las 32 fuentes</summary>
+        <div class="src">
         <div><h3>Estrellas y cielo profundo</h3><ul>
           <li><a href="https://github.com/astronexus/HYG-Database" rel="noopener">HYG Database</a><span>posición, brillo, color y distancia de cada estrella</span></li>
           <li><a href="https://heasarc.gsfc.nasa.gov/W3Browse/all/hipnewcat.html" rel="noopener">Hipparcos (HEASARC, NASA)</a><span>el error de cada distancia en la profundidad real</span></li>
@@ -493,6 +511,7 @@ footer nav a{color:var(--soft)}
           <li><a href="https://photon.komoot.io/" rel="noopener">Photon · Komoot</a><span>la búsqueda de cumbres</span></li>
         </ul></div>
       </div>
+      </details>
       <p class="src-foot">La lista completa, con la licencia y el uso de cada dato, está en <a href="https://github.com/cvasconezp/teseo/blob/main/CREDITS.md" rel="noopener">CREDITS.md</a>. ¿Viste un dato que no cuadra? <a href="https://github.com/cvasconezp/teseo/issues" rel="noopener">Cuéntanos en GitHub</a>.</p>
     </div>
   </section>
@@ -534,14 +553,14 @@ footer nav a{color:var(--soft)}
       </div>
       <h3 class="sub-h">Participa en la ciencia</h3>
       <p class="soft" style="margin-top:6px">Mirar el cielo también sirve a la ciencia. Estos proyectos reciben observaciones de cualquier persona, sin ser astrónoma.</p>
-      <div class="cs">
-        <a href="https://globeatnight.org/" rel="noopener"><b>Globe at Night</b><span>Cuenta las estrellas que ves desde tu casa y ayuda a medir la contaminación lumínica del mundo.</span></a>
-        <a href="https://www.zooniverse.org/" rel="noopener"><b>Zooniverse</b><span>Clasifica galaxias, busca planetas y supernovas en datos reales de telescopios, desde el celular.</span></a>
-        <a href="https://backyardworlds.org/" rel="noopener"><b>Backyard Worlds</b><span>Busca enanas marrones y mundos cercanos al Sol en imágenes de la NASA.</span></a>
-        <a href="https://www.aavso.org/" rel="noopener"><b>AAVSO</b><span>Observa estrellas variables y envía tus medidas a una base que usan los astrónomos.</span></a>
-        <a href="https://www.imo.net/" rel="noopener"><b>Organización Internacional de Meteoros</b><span>Cuenta estrellas fugaces durante las lluvias de meteoros y comparte tus conteos.</span></a>
-        <a href="https://science.nasa.gov/citizen-science/" rel="noopener"><b>Ciencia ciudadana de la NASA</b><span>Decenas de proyectos abiertos: del Sol y los asteroides a la Tierra vista desde el espacio.</span></a>
-      </div>
+      <ul class="cs-list">
+        <li><a href="https://globeatnight.org/" rel="noopener">Globe at Night</a> — cuenta estrellas y mide la contaminación lumínica</li>
+        <li><a href="https://www.zooniverse.org/" rel="noopener">Zooniverse</a> — clasifica galaxias y busca planetas</li>
+        <li><a href="https://backyardworlds.org/" rel="noopener">Backyard Worlds</a> — busca mundos cercanos al Sol</li>
+        <li><a href="https://www.aavso.org/" rel="noopener">AAVSO</a> — observa estrellas variables</li>
+        <li><a href="https://www.imo.net/" rel="noopener">Organización Internacional de Meteoros</a> — cuenta estrellas fugaces</li>
+        <li><a href="https://science.nasa.gov/citizen-science/" rel="noopener">Ciencia ciudadana de la NASA</a> — decenas de proyectos abiertos</li>
+      </ul>
     </div>
   </section>
 
@@ -683,6 +702,10 @@ footer nav a{color:var(--soft)}
     document.head.appendChild(s);
   });
 })();
+</script>
+<script>
+(function(){var n=document.querySelector(".links");if(!n)return;function f(){var over=n.scrollWidth>n.clientWidth+2&&n.scrollLeft+n.clientWidth<n.scrollWidth-4;n.classList.toggle("is-scroll",over);}
+f();n.addEventListener("scroll",f,{passive:true});window.addEventListener("resize",f);})();
 </script>
 </body>
 </html>

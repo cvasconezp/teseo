@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.72.1 — 2026-11-23
+
+- **«Acerca de» más liviana** (también /about). En el celular pasa de unas 26 pantallas a unas 17.
+  - **Tu cielo:** 4 frases cortas y una fila de etiquetas.
+  - **Principios:** una línea cada uno.
+  - **Imagen numerada:** cada número dice solo su fuente.
+  - **Las 32 fuentes:** plegadas bajo «Ver las 32 fuentes».
+  - **Ciencia ciudadana:** una lista compacta.
+  - **Videos en el celular:** una franja que se desliza de lado.
+- **Menú del celular:** caben las cinco secciones (Tu cielo · Viajes · Preguntas · Cómo sabe · Súmate). «Código» queda en el pie de página, y si la fila no cabe, un desvanecido indica que se desliza.
+
 ## 1.72.0 — 2026-11-23
 
 - **«Acerca de» con una línea narrativa** (también /about). La página sigue el hilo de Teseo, desde donde estás parado hasta el fin del universo:
