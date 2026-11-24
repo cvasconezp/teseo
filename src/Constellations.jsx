@@ -57,6 +57,10 @@ import { skyState, visibility, starsHidden, countVisibleNow, moonMagV, phaseAngl
 import { createAtmosphereLayer } from "./sky/atmosphereLayer.js";
 import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
 import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/cloudsLayer.js";
+import { createAuroraLayer } from "./sky/auroraLayer.js";
+import { dipole, decodeOvation, bandsFromGrid, bandsFromKp, lookAt, darkness, kpAt, hemiOf, geoToMag, probGrid, probModel, mlt as magLocalTime } from "./sky/aurora.js";
+import { AuroraControl } from "./sky/AuroraControl.jsx";
+import { KP_TYPICAL } from "./sky/auroraPlan.js";
 import { rainLook, thickenForRain, weatherSky, withPointRain } from "./sky/rainLook.js";
 import { CompassChip, MountSheet, FlatPhone } from "./sky/MountSheet.jsx";
 import { createMountLines } from "./sky/mountLinesLayer.js";
@@ -161,6 +165,7 @@ const CONS_KEY = "teseo_cons";          // "Constelaciones" (líneas y nombres; 
 const ANDEAN_KEY = "teseo_andean";     // "Astronomía andina": Sol en solsticios/equinoccios + sitios quitu-caranquis (apagado)
 const PEAKS_KEY = "teseo_peaks";        // "Nombres de las montañas" (OpenStreetMap; apagado por defecto)
 const MONUMENTS_KEY = "teseo_monuments"; // "Monumentos" (pirámides, Stonehenge…; encendido por defecto)
+const AURORA_KEY = "teseo_aurora";     // interruptor "Auroras" (1/0; encendido por defecto: solo se dibuja si hay aurora)
 const CLOUDS_KEY = "teseo_clouds";      // interruptor "Nubes" (1/0; apagado por defecto: un cielo cubierto no deja ver nada)
 // Penalización (mag) para objetos extensos: su luz se reparte en un área, así que se ven peor que una
 // estrella de la misma magnitud integrada. APROXIMACIÓN declarada en la interfaz (deepNote).
@@ -679,6 +684,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [atmOn, setAtmOn] = useState(() => { try { return localStorage.getItem(ATM_KEY) !== "0"; } catch { return true; } });
   const [bortleMap, setBortleMap] = useState(loadBortleMap);
   const [cloudsOn, setCloudsOn] = useState(() => { try { return localStorage.getItem(CLOUDS_KEY) === "1"; } catch { return false; } });
+  const [auroraOn, setAuroraOn] = useState(() => { try { return localStorage.getItem(AURORA_KEY) !== "0"; } catch { return true; } });
+  const [au, setAu] = useState({ key: null, status: "idle", data: null });   // auroras de NOAA (/api/aurora)
+  const [auRetry, setAuRetry] = useState(0);
   const [wx, setWx] = useState({ status: "idle", data: null, key: null });   // pronóstico de nubes (Open-Meteo)
   const [wxWanted, setWxWanted] = useState(false);                             // el panel de Nubes y clima se abrió
   const [wxRetry, setWxRetry] = useState(0);
@@ -1378,6 +1386,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     // nubes del pronóstico (src/sky/cloudsLayer.js): tapan estrellas, planetas y Sol; solo en Mi cielo
     const clouds = createCloudsLayer();
     scene.add(clouds.mesh);
+    // auroras (src/sky/auroraLayer.js): solo donde de verdad las hay (NOAA OVATION, o el óvalo estimado por el Kp)
+    const aurora = createAuroraLayer();
+    scene.add(aurora.mesh);
 
     // Sol, Luna y planetas (efemérides reales)
     const solarGroup = new THREE.Group(); scene.add(solarGroup);
@@ -1628,7 +1639,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       posFlat, posDeep, posAttr, segHips, hipIndex, conMeta, lPos, lCol, byHip, sizes, N,
       // "resaltar colores": vuelve a teñir las estrellas sin reconstruir la escena
       recolorStars: () => paintStars(),
-      atm, clouds, terrain, monuments, plume, mountLines, depthView, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat, groundMesh: ground, horizonLine, near3d,
+      atm, clouds, aurora, terrain, monuments, plume, mountLines, depthView, milky, skyImages, hips, hipsFine, hipsOn: true, ngcOn: true, cometLayer, atmAlpha, starVis, atmOn: false, visOn: false, lineBase: 0.55, groundMat, groundMesh: ground, horizonLine, near3d,
       markerTex: starTex, layerObjs: [], namedStars, conCentroid, horizon, localQuat: new THREE.Quaternion(), localModeOn: false, earth, solarGroup, solarSprites, moonGroup, moonSprites, moonSky: [], realSprites, paintReal, updateRealPlanets, bodies: [], showSolar: true,
       sunSprite, applyViewpoint, redrawMoon, setSunReal, sunSlot: undefined, moonPhase: null, cardinals, guides, issLayer, issFmt: null, lang: langRef.current, sizeSolar, applyArFov, applyFov, ground,
       // ── la mirada desde dentro: "in" = en el centro (por defecto); "depth" y "out" = OrbitControls ──
@@ -1769,6 +1780,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         near3dGeo: () => { const m = r.near3d.group.children[0]; if (!m) return null; const P = m.geometry.attributes.position.array, H = m.geometry.attributes.aHD.array, out = []; for (const k of [399 * 160 + 40, 400 * 160 + 80, 400 * 160 + 120, 400 * 160 + 159, 159]) out.push([P[k * 3], P[k * 3 + 1], P[k * 3 + 2], H[k * 2], H[k * 2 + 1]].map((x) => Math.round(x * 10) / 10)); return out; },
         near3d: (k, v) => { const m = r.near3d.group.children[0]; if (!m) return null; const u = m.material.uniforms, o = {}; if (k) { u[k].value = v; r.wake(); } for (const k in u) if (typeof u[k].value === "number") o[k] = u[k].value; return o; },
         tex: (on) => { for (const m of r.terrain.group.children) if (m.material && m.material.userData && m.material.userData.tex) m.material.userData.tex.value = on ? 1 : 0; r.near3d.setEnabled(!!on); r.terrain.setCovered(r.near3d.coverKm); r.monuments.setSkirt(!(r.near3d.coverKm > 0)); r.wake(); },
+        aurora: (k, v) => (r.aurora ? (k && (r.aurora.uniforms[k].value = v, r.wake()), { visible: r.aurora.visible, vis: r.aurora.uniforms.uVis.value, act: r.aurora.uniforms.uAct.value, hemi: r.aurora.uniforms.uHemi.value, gain: r.aurora.uniforms.uGain.value }) : null),
         hips: () => (r.hips ? { ...r.hips.stats, active: r.hips.active, fine: r.hipsFine ? { ...r.hipsFine.stats, level: r.hipsFine.level } : null } : null),
         // estado de cada capa (pruebas): puntos a la vista por capa, mapa fotográfico, cometas dibujados
         layers: () => { const o = {}; for (const l of (r.layerObjs || [])) { o[l.key] = o[l.key] || { n: 0, visible: false }; o[l.key].n += l.points.userData.objs.length; o[l.key].visible = o[l.key].visible || l.points.visible; } return { pts: o, photo: !!r.hipsOn, img: r.skyImages ? r.skyImages.state : null, cometItems: r.cometLayer ? r.cometLayer.group.children.length : 0, fov: r.camera.fov }; },
@@ -1990,7 +2002,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       const far = (a, b, e) => !(Math.abs(a - b) <= e);
       // columnas de ceniza: se mueven solas (mientras haya alguna, se dibuja cada cuadro)
       const plumeOn = !!(ref.plume && ref.plume.group.parent && ref.plume.group.parent.visible && ref.plume.update(tStart));
-      const moved = rebuild || ar.on || issMoved || plumeOn || !!ref.look.fly || tStart < wakeUntil || far(cp.x, lastCam.px, 0.01) || far(cp.y, lastCam.py, 0.01) || far(cp.z, lastCam.pz, 0.01)
+      // auroras: se mueven solas (mientras se vea alguna, se dibuja cada cuadro)
+      const auroraOn = !!(ref.aurora && ref.aurora.tick(tStart));
+      const moved = rebuild || ar.on || issMoved || plumeOn || auroraOn || !!ref.look.fly || tStart < wakeUntil || far(cp.x, lastCam.px, 0.01) || far(cp.y, lastCam.py, 0.01) || far(cp.z, lastCam.pz, 0.01)
         || far(cq.x, lastCam.qx, 1e-6) || far(cq.y, lastCam.qy, 1e-6) || far(cq.z, lastCam.qz, 1e-6) || far(cq.w, lastCam.qw, 1e-6) || ref.camera.fov !== lastCam.fov || far(vs.cx, lastCam.vx, 0.25) || far(vs.cy, lastCam.vy, 0.25) || us !== lastCam.us;
       // resolución adaptativa: al moverse puede bajar; quieto más de 0,6 s, se dibuja a la resolución completa
       // (si no, la imagen quieta quedaría en escalones) y al volver a moverse se recupera la adaptativa
@@ -2004,6 +2018,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         lastCam.px = cp.x; lastCam.py = cp.y; lastCam.pz = cp.z; lastCam.qx = cq.x; lastCam.qy = cq.y; lastCam.qz = cq.z; lastCam.qw = cq.w; lastCam.fov = ref.camera.fov; lastCam.vx = vs.cx; lastCam.vy = vs.cy; lastCam.us = us;
         if (ref.atm.visible) ref.atm.follow(ref.camera);
         if (ref.clouds.visible) ref.clouds.follow(ref.camera);
+        if (ref.aurora && ref.aurora.visible) ref.aurora.follow(ref.camera);
         if (ref.updateRealPlanets) ref.updateRealPlanets();      // el eje de cada planeta, como se ve en el cielo (a cualquier zoom)
         ref.renderer.render(ref.depthView && ref.depthView.active && ref.mode === "depth" ? ref.depthView.scene : ref.scene, ref.camera);
         drawnN++;
@@ -3105,6 +3120,65 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.clouds.setEnabled(show);
   }, [cloudsOn, atmState, atmSky, cfNow, wxData, satData, whenStr, ready, cloudLiftKm, hzData]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── auroras: datos de NOAA (OVATION y Kp) para el lugar, el óvalo de la hora del cielo y la capa ──
+  useEffect(() => { try { localStorage.setItem(AURORA_KEY, auroraOn ? "1" : "0"); } catch { /* no-op */ } }, [auroraOn]);
+  const auPlace = auroraOn && localActive && !viewFrom && lat != null && lon != null;
+  // se pide a NOAA donde una tormenta podría llegar a verse (≥ 35° geomagnéticos) o al abrir «Capas»
+  const auNear = auPlace ? Math.abs(geoToMag(lat, lon, dipole(new Date())).mlat) >= 35 : false;
+  const auKey = auPlace && (auNear || panel === "layers") ? `${Math.round(lat * 2)},${Math.round(lon * 2)}` : null;
+  useEffect(() => {
+    if (!auKey) return;
+    let alive = true;
+    const ask = () => {
+      setAu((a) => (a.key === auKey && a.status === "ok" ? a : { key: auKey, status: "loading", data: null }));
+      fetch(`${API}/api/aurora?lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+        .then((data) => { if (alive) setAu({ key: auKey, status: "ok", data }); },
+          (e) => { if (alive) setAu((a) => (a.key === auKey && a.data ? a : { key: auKey, status: "error", data: null, error: String(e && e.message || e) })); });
+    };
+    ask();
+    const id = setInterval(ask, 10 * 60 * 1000);   // OVATION se renueva cada pocos minutos
+    return () => { alive = false; clearInterval(id); };
+  }, [auKey, auRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const auData = au.key === auKey && au.status === "ok" ? au.data : null;
+  const auGrid = useMemo(() => (auData && auData.ovation ? decodeOvation(auData.ovation) : null), [auData]);
+  const auKpSeries = auData && auData.kp ? auData.kp.series : null;
+  const auView = useMemo(() => {
+    if (!auPlace) return null;
+    try {
+      const d = new Date(whenStr), dp = dipole(d), hemi = hemiOf(lat, lon, dp);
+      const live = !!(auGrid && Math.abs(d.getTime() - Date.now()) <= 75 * 60e3);
+      const me = geoToMag(lat, lon, dp);
+      let bands, mode, here, kp = null, kpKind = null;
+      const k = kpAt(auKpSeries, d);
+      if (live) {
+        bands = bandsFromGrid(auGrid, dp, hemi); mode = "live"; here = probGrid(auGrid, lat, lon);
+        const kn = k || (auData.kp && auData.kp.now);
+        if (kn) { kp = kn.kp; kpKind = kn.kind; }
+      } else {
+        kp = k ? k.kp : KP_TYPICAL; kpKind = k ? k.kind : null; mode = k ? "kp" : "typical";
+        bands = bandsFromKp(kp, d, dp, hemi);
+        here = probModel(kp, Math.abs(me.mlat), magLocalTime(me.mlon, d, dp));
+      }
+      const look = lookAt(bands, dp, hemi, { lat, lon, elevKm: (elev || 0) / 1000 });
+      const eph = ephemeris(d), sn = eph.find((b) => b.name === "Sol"), mn = eph.find((b) => b.name === "Luna");
+      const sA = altAz(sn.nx, sn.ny, sn.nz, lat, lon, d).alt, mA = mn ? altAz(mn.nx, mn.ny, mn.nz, lat, lon, d).alt : -90;
+      const vis = darkness(sA, mA, mn && mn.illum != null ? mn.illum : 0);
+      return { dp, hemi, bands, mode, here, kp, kpKind, look, vis, nearest: live ? auData.ovation.nearest : null, observed: live ? auData.ovation.observed : null };
+    } catch { return null; }
+  }, [auPlace, whenStr, lat, lon, elev, auGrid, auKpSeries, auData]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const ref = sceneRef.current; if (!ref || !ref.aurora) return;
+    try {
+      if (!auView) { ref.aurora.setEnabled(false); return; }
+      ref.aurora.setObserver(lat, lon, (elev || 0) / 1000, auView.dp);
+      ref.aurora.setBands(auView.look.visible ? auView.bands : null, auView.hemi);
+      ref.aurora.setLook({ vis: auView.vis, act: auView.kp != null ? auView.kp / 9 : 0.2 });
+      ref.aurora.setEnabled(true);
+      ref._dirty = true;
+    } catch { ref.aurora.setEnabled(false); }   // nunca debe romper la vista
+  }, [auView, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   // animar el tiempo (play)
   // (con una pasada de la ISS en el cielo, el tiempo lo lleva su reloj, al segundo y a ×1/×10/×60: ver el bucle)
   useEffect(() => {
@@ -3619,11 +3693,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     if (view && hzData && landData) vc.push(es ? "colores Sentinel-2 cloudless (EOX, CC BY 4.0)" : "colours Sentinel-2 cloudless (EOX, CC BY 4.0)");
     if (view && peakList && peakList.length) vc.push(es ? "nombres de montañas Wikidata y © OpenStreetMap" : "mountain names Wikidata and © OpenStreetMap");
     if (view && cloudsOn && wxData) vc.push(es ? "nubes Open-Meteo" : "clouds Open-Meteo");
+    if (view && auView && auView.look.visible && auView.vis > 0.05) vc.push(auView.mode === "live" ? (es ? "auroras NOAA SWPC" : "aurora NOAA SWPC") : (es ? "aurora estimada (Kp NOAA)" : "estimated aurora (NOAA Kp)"));
     if (view && cloudsOn && satWeight(satData, new Date(whenStr).getTime() / 1000) > 0) vc.push(es ? `nubes de ahora ${satCredit(satData)}` : `clouds now ${satCredit(satData)}`);
     const out = buildPostcard({ ...base, center, view, viewCredit: vc.join(" · ") });
     if (E2E) out.then((r) => { window.__teseoPostcard = r && r.report; }).catch(() => {});
     return out;
-  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars, hzData, peakList, cloudsOn, wxData, placeTz, landData, satData]);
+  }, [selObj, sel, lang, wiki, credit, sky, conDirs, whenStr, localMode, lat, lon, placeKind, showSolar, viewFrom, vividStars, hzData, peakList, cloudsOn, wxData, placeTz, landData, satData, auView]);
   const openShare = useCallback(() => { setShareState(null); setShare(true); }, []);
   // «atrás» del teléfono (src/ui/backGuard.js): cierra lo que esté abierto, de lo más encima a lo más abajo
   const backRef = useRef({});
@@ -3685,6 +3760,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         ref.horizon.position.set(0.003, 0, 0.003);
         if (ref.atm.visible) ref.atm.follow(cam);
         if (ref.clouds.visible) ref.clouds.follow(cam);
+        if (ref.aurora && ref.aurora.visible) ref.aurora.follow(cam);
       },
       after: () => {
         [u.uScale.value, u.uPx.value, u.uDpr.value, u.map.value] = saved;
@@ -3694,6 +3770,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         ref.horizon.position.set(0, 0, 0);
         if (ref.atm.visible) ref.atm.follow(ref.camera);
         if (ref.clouds.visible) ref.clouds.follow(ref.camera);
+        if (ref.aurora && ref.aurora.visible) ref.aurora.follow(ref.camera);
         if (ref.wake) ref.wake();
       } });
     await new Promise((r) => setTimeout(r, 0));
@@ -4339,6 +4416,13 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       onTogglePeaks={() => { const nv = !peaksOn; setPeaksOn(nv); track("sky_setting", { setting: "peaks", state: nv ? "on" : "off" }); }}
       andOn={andOn} andean={andean} onToggleAnd={() => { const nv = !andOn; setAndOn(nv); track("sky_setting", { setting: "andean", state: nv ? "on" : "off" }); }} />
   );
+  const auroraCtl = (
+    <AuroraControl lang={lang} available={localActive && !viewFrom} on={auroraOn}
+      onToggle={() => { const nv = !auroraOn; setAuroraOn(nv); track("sky_setting", { setting: "aurora", state: nv ? "on" : "off" }); }}
+      info={auView ? { ...auView, status: auKey && au.key === auKey && (au.status === "loading" || au.status === "error") && !auData ? au.status : "ok" } : { status: auKey ? au.status : "idle" }}
+      onRetry={() => setAuRetry((n) => n + 1)} lat={lat} lon={lon} tz={placeTz} when={new Date(whenStr)} dp={auView ? auView.dp : null} kpSeries={auKpSeries}
+      onPickNight={(t) => { track("sky_aurora", { kind: "night" }); setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(t)); if (!isWide) setPanel(null); }} />
+  );
   const wxPill = wxNow && localMode && !viewFrom ? (() => {
     const k = wxKind(wxNow.code, wxNow.day), nm = (WX_NAMES[lang] || WX_NAMES.es)[k];
     return (
@@ -4423,7 +4507,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       {sky && (
         <p className="sk-credit" aria-hidden="true">
           <b>Teseo</b> · teseo.yachaydeep.com
-          <small>{shortCredits({ terrain: !!(inMySky && hzData), landsat: !!(inMySky && hzData && landData), peaks: !!(peakList && peakList.length), clouds: !!(inMySky && cloudsOn && wxData), sat: inMySky && cloudsOn && satWeight(satData, new Date(whenStr).getTime() / 1000) > 0 ? satCredit(satData) : "", planets: showSolar, andean: !!(inMySky && andean && andean.sites.length) }, lang)}</small>
+          <small>{shortCredits({ terrain: !!(inMySky && hzData), landsat: !!(inMySky && hzData && landData), peaks: !!(peakList && peakList.length), clouds: !!(inMySky && cloudsOn && wxData), sat: inMySky && cloudsOn && satWeight(satData, new Date(whenStr).getTime() / 1000) > 0 ? satCredit(satData) : "", planets: showSolar, andean: !!(inMySky && andean && andean.sites.length), aurora: auView && auView.look.visible && auView.vis > 0.05 ? (auView.mode === "live" ? "live" : "kp") : null }, lang)}</small>
         </p>
       )}
       {PERF_ON && <PerfMeter t={t} lang={lang} apiRef={perfApiRef} />}
@@ -4628,7 +4712,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           onToggle={toggleLayer} onRetry={loadLayer} showSolar={showSolar} onToggleSolar={() => setShowSolar(v => !v)}
           consOn={consOn} onToggleCons={() => { const nv = !consOn; setConsOn(nv); track("sky_setting", { setting: "lines", state: nv ? "on" : "off" }); }}
           constellations={sortedCons} sel={sel} onPick={onPick} labelDensity={labelDensity} onDensity={(v) => { track("sky_setting", { setting: "labels", state: "ok" }); setLabelDensity(v); }}
-          vivid={vividStars} onVivid={() => setVividStars(v => !v)} atmosphere={<>{atmControls}{terrainCtl}{wxPanel}</>}
+          vivid={vividStars} onVivid={() => setVividStars(v => !v)} atmosphere={<>{atmControls}{terrainCtl}{wxPanel}{auroraCtl}</>}
           guides={<GuidesControls lang={lang} value={guidesOn} localAvailable={localActive} onToggle={(k, on) => { track("sky_setting", { setting: "guides", state: on ? "on" : "off" }); toggleGuide(k, on); }} />}
           outside={outside} onOutside={inMySky ? null : () => { setOutside(o => !o); setSel(null); setDepth(0); if (!isWideRef.current) setPanel(null); }}
           preset={presetOf(enabled, LAYERS.map((c) => c.key), showSolar)}

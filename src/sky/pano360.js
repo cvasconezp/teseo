@@ -261,6 +261,7 @@ export function shortCredits(f = {}, lang = "es") {
   if (f.peaks) parts.push("© OpenStreetMap", "Wikidata");
   if (f.clouds) parts.push("Open-Meteo");
   if (f.sat) parts.push(f.sat);
+  if (f.aurora) parts.push(f.aurora === "kp" ? (lang === "en" ? "estimated aurora (NOAA Kp)" : "aurora estimada (Kp NOAA)") : "NOAA SWPC OVATION");
   if (f.planets) parts.push("Solar System Scope");
   if (f.andean) parts.push("Cobo (2012)");
   return `${lang === "en" ? "Data" : "Datos"}: ${parts.join(" · ")}`;

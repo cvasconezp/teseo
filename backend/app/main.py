@@ -63,6 +63,7 @@ from app import asteroids
 from app import iss
 from app import push
 from app import sun
+from app import aurora
 from app import metrics
 from app import lambert
 from app import mga
@@ -76,7 +77,7 @@ from app import terrain3d
 from app import lightpollution
 from app.cache import ProviderError, iso_utc
 
-VERSION = "1.74.3"
+VERSION = "1.75.0"
 _STARTED = time.time()
 
 app = FastAPI(
@@ -223,6 +224,7 @@ def api_health():
             "horizon": {"provider": horizon.SOURCE, "cells_cached": len(horizon._results), "tiles_cached": len(horizon._tiles), **{k: v for k, v in horizon.stats.items()}},
             "peaks": {"provider": peaks.SOURCE, "cells_cached": len(peaks._results), **{k: v for k, v in peaks.stats.items()}},
             "sun": {"provider": "SILSO / NOAA SWPC / NASA SDO", **sun.status()},
+            "aurora": {"provider": "NOAA SWPC (OVATION, Kp)", **aurora.status()},
             "exoplanets": {"provider": "NASA Exoplanet Archive", **exoplanets.resource.status()},
             "positions": {"provider": "NASA JPL Horizons", **nasa_horizons.positions_status()},
             "probes": {"provider": "NASA JPL Horizons", **nasa_horizons._probe_set.status()},
@@ -369,6 +371,7 @@ async def _metrics_flusher():
     app.state.metrics_task = asyncio.create_task(loop())
 
 
+app.include_router(aurora.router)  # auroras de ahora y Kp: /api/aurora (app/aurora.py, NOAA SWPC OVATION)
 app.include_router(sun.router)  # «El Sol hoy»: /api/sun/today (app/sun.py)
 app.include_router(push.router)  # «Recordarme»: /api/push/* y su bucle de envío (arranque/parada en app/push.py)
 app.include_router(lightpollution.router)  # contaminación lumínica estimada del lugar: /api/lightpollution (app/lightpollution.py, NASA Black Marble)

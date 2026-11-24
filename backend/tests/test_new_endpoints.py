@@ -617,7 +617,7 @@ def test_health_reports_caches_without_calling_providers(monkeypatch):
     d = client.get("/api/health").json()
     assert p.n == 0
     assert d["status"] == "ok" and d["version"] == app.version
-    assert set(d["caches"]) == {"launches", "asteroids", "iss", "horizon", "peaks", "sun", "exoplanets", "positions", "probes", "comets"}
+    assert set(d["caches"]) == {"launches", "asteroids", "iss", "horizon", "peaks", "sun", "aurora", "exoplanets", "positions", "probes", "comets"}
     assert d["caches"]["launches"]["has_data"] is False and d["caches"]["launches"]["age_s"] is None
     client.get("/api/launches")
     d = client.get("/api/health").json()

@@ -1,5 +1,18 @@
 # Cambios
 
+## 1.75.0 — 2026-11-24
+
+- **Auroras en el Cielo:** una capa nueva, encendida por defecto, que dibuja auroras boreales y australes solo donde de verdad las hay.
+  - **Datos:** ahora, el pronóstico OVATION de NOAA SWPC, que se renueva cada pocos minutos (servidor: `/api/aurora`). En otras horas, un óvalo estimado con el índice Kp de NOAA, medido o pronosticado a unos 3 días. Más allá, un ejemplo con actividad habitual (Kp 2), marcado como tal.
+  - **Física del dibujo:**
+    - Cada cortina es una lámina a latitud geomagnética constante (eje del dipolo del World Magnetic Model 2025), y el rayo de visión la corta de forma exacta, con la curvatura de la Tierra.
+    - El color sale de la altura: verde del oxígeno de ~100 a ~200 km, con un borde inferior nítido; rojo del oxígeno más arriba; borde violeta y rosado con actividad fuerte.
+    - Rayos que se desplazan, pulsación, extinción y enrojecimiento cerca del horizonte, y menos color cuando es tenue, como la ve el ojo.
+    - Se apaga con el cielo claro y pierde contraste con la Luna. Las nubes y las montañas la tapan.
+  - **En «Capas»:** probabilidad sobre ti, hacia dónde mirar y entre qué alturas, actividad Kp y la fuente con su hora. Si no se ve, la distancia y el rumbo al óvalo más cercano.
+- **Planificador de noches de aurora:** siete noches para el lugar y la fecha del cielo. Cruza oscuridad, Luna, nubes de Open-Meteo (hasta 16 días) y actividad. Muestra la mejor hora de cada noche, si es pronóstico de NOAA o estimado, y al tocarla lleva el cielo a esa hora.
+- Los créditos del Cielo y de las postales citan a NOAA cuando hay aurora dibujada; la salud del servidor informa del estado de sus datos.
+
 ## 1.74.3 — 2026-11-23
 
 - **Apoya a Teseo:** en pantallas anchas, las tarjetas van en dos columnas independientes: PayPal y GitHub a la izquierda, Ecuador y «Comparte y colabora» a la derecha. Al abrir el botón de PayPal ya no aparece espacio vacío en la tarjeta de Ecuador. En el teléfono, el orden sigue igual.
