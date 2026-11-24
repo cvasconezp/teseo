@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.72.6 — 2026-11-23
+
+- **Pie de página con íconos:** las redes y el contacto de Killa Ñan y Yachay Deep ahora son botones con íconos (sitio web, Instagram, Facebook, X, correo y WhatsApp), con su nombre para lectores de pantalla. En el teléfono cada grupo ocupa su propia fila.
+
 ## 1.72.5 — 2026-11-23
 
 - **Buscadores al día:** los datos estructurados de la app, de «Acerca de» y de /about cuentan que Teseo nació de una necesidad de Killa Ñan. Describen a Yachay Deep, con sus redes, el correo teseo@yachaydeep.com y el WhatsApp, y a Killa Ñan, con su sitio y sus redes. «Acerca de» se declara como página «Acerca de» de la app. El sitemap lleva la fecha de hoy, y llms.txt suma el origen, el contacto y las redes. Hay pruebas nuevas para todo esto.
