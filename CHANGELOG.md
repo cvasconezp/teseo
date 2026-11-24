@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.74.2 — 2026-11-23
+
+- **«Acerca de» (también /about):** la cabecera dice «Un producto de Yachay Deep Labs · con Killa Ñan», cada uno enlazado a su sitio.
+- **Tarjetas de «Apoya a Teseo» sin espacio vacío:**
+  - En la computadora van en dos columnas, y el QR de Ecuador queda al lado del texto.
+  - En tabletas, PayPal y GitHub se apilan junto a la tarjeta de Ecuador, y «Comparte y colabora» ocupa todo el ancho.
+
 ## 1.74.1 — 2026-11-23
 
 - **Cabecera del teléfono:** «Acerca de» queda solo como ícono y se suma el corazón de «Apoya a Teseo». Los cinco botones miden 40 px en pantallas angostas, «Navegación interplanetaria» pasa a dos líneas si hace falta y «con Killa Ñan» ya no se parte. En la computadora, el corazón aparece junto a «Acerca de».

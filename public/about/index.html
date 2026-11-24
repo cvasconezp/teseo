@@ -227,6 +227,12 @@ footer nav a{color:var(--soft)}
 .give .qr{margin:4px 0 0;align-self:center;text-align:center}
 .give .qr img{width:200px;height:200px;border-radius:14px;background:#fff;padding:6px}
 .give .qr figcaption{margin-top:6px;font-size:14px}
+.brand small a:first-child{color:var(--muted)}
+@media (min-width:760px){.give{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:760px) and (max-width:999px){.give article.ec{grid-row:span 2}.give article:last-child{grid-column:1/-1}}
+@media (min-width:1000px){.give article.ec{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:22px;row-gap:12px;align-content:start}
+.give article.ec>*:not(.qr){grid-column:1}.give article.ec .qr{grid-column:2;grid-row:1/span 5;align-self:center;margin:0}
+.give article.ec .btn{justify-self:start}}
 </style>
 <!-- Vercel Web Analytics: visitas sin cookies -->
 <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};</script>
@@ -240,7 +246,7 @@ footer nav a{color:var(--soft)}
   <div class="wrap">
     <div class="brand">
       <a href="/about" aria-label="Teseo, top of this page"><b>Teseo</b></a>
-      <small>Interplanetary navigation · <a href="https://sites.google.com/view/killanan/inicio" rel="noopener">with Killa Ñan</a></small>
+      <small><a href="https://www.yachaydeep.com/" rel="noopener">A Yachay Deep Labs product</a> · <a href="https://sites.google.com/view/killanan/inicio" rel="noopener">with Killa Ñan</a></small>
     </div>
     <nav class="links" aria-label="Sections">
       <a class="lang-link" href="/acerca" hreflang="es" lang="es" data-lang="es" aria-label="Versión en español" title="Versión en español">ES</a>
@@ -595,7 +601,7 @@ footer nav a{color:var(--soft)}
           <div id="paypal-box" aria-live="polite"></div>
           <p class="fine">The PayPal button only loads when you press it. Not working? <a href="https://www.paypal.com/ncp/payment/ZLGL2E3JZUHG2" target="_blank" rel="noopener noreferrer">Open PayPal in a new tab</a>.</p>
         </article>
-        <article>
+        <article class="ec">
           <p class="tag">In Ecuador</p>
           <h3>QR code or bank transfer</h3>
           <p class="grow">Scan the code with DeUna or the Banco Pichincha app, enter the amount and you're done. Rather transfer from another bank? We'll send you the details by WhatsApp.</p>
