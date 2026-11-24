@@ -238,6 +238,8 @@ const T = {
     reportMail:     "Send by email",
     reportGh:       "Use GitHub? Open an issue",
     reportCard:     ["Report a problem", "Something not working? Tell us by WhatsApp or email."],
+    supportCard:    ["Support Teseo", "Free and ad-free. Your support pays for the servers."],
+    supportLink:    "Support Teseo",
     creditsIntro:   "Teseo uses real data from official sources. Free software under the AGPL-3.0 licence.",
     sourceLink:     "Source code on GitHub",
     sourcesAll:     "All data sources and citizen science", sourcesHref: "/about#fuentes",
@@ -445,6 +447,8 @@ const T = {
     reportMail:     "Enviar por correo",
     reportGh:       "¿Usas GitHub? Abre un aviso",
     reportCard:     ["Reportar un problema", "¿Algo no funciona? Cuéntanos por WhatsApp o correo."],
+    supportCard:    ["Apoya a Teseo", "Gratis y sin publicidad. Tu aporte paga los servidores."],
+    supportLink:    "Apoya a Teseo",
     creditsIntro:   "Teseo usa datos reales de fuentes oficiales. Software libre con licencia AGPL-3.0.",
     sourceLink:     "Código fuente en GitHub",
     sourcesAll:     "Todas las fuentes de datos y ciencia ciudadana", sourcesHref: "/acerca#fuentes",
@@ -1485,6 +1489,7 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
           </button>
         </div>
+        <div className="app-menu__cards">
         <a href={aboutHref(lang)} className="app-menu__about" onClick={()=>track("about_open", { from: "menu" })}>
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg>
           <span><b>{t.aboutCard[0]}</b><small>{t.aboutCard[1]}</small></span>
@@ -1493,6 +1498,11 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V4h11l-1 4 5 1-2 6H6"/></svg>
           <span><b>{t.reportCard[0]}</b><small>{t.reportCard[1]}</small></span>
         </button>
+        <a href={`${aboutHref(lang)}#apoya`} className="app-menu__about app-menu__report" onClick={()=>track("support_open", { from: "menu" })}>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg>
+          <span><b>{t.supportCard[0]}</b><small>{t.supportCard[1]}</small></span>
+        </a>
+        </div>
         <nav className="app-menu__tabs" aria-label={t.sections}>
           {TABS.map(({ id, Icon })=>(
             <button key={id} type="button" aria-current={tab===id ? "page" : undefined} className={tab===id ? "is-active" : ""}
@@ -2287,6 +2297,8 @@ export default function Teseo() {
               <a href={aboutHref(lang)} className="footer__link" onClick={()=>track("about_open", { from: "footer" })}>{t.aboutLink}</a>
               <span aria-hidden="true" className="footer__sep"/>
               <button type="button" onClick={openReport} className="footer__link">{t.reportLink}</button>
+              <span aria-hidden="true" className="footer__sep"/>
+              <a href={`${aboutHref(lang)}#apoya`} className="footer__link" onClick={()=>track("support_open", { from: "footer" })}>{t.supportLink}</a>
             </footer>
           )}
         </div>

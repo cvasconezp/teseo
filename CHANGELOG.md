@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.73.1 — 2026-11-23
+
+- **«Apoya a Teseo» en la app:** se agregó al menú del teléfono, debajo de «Reportar un problema», con un estilo sobrio. También está en el botón «…» del Cielo, con un corazón, y en el pie de las otras secciones. Lleva directo a las formas de donar en «Acerca de».
+- **Menú más compacto:** se quitó el espacio grande entre las tarjetas y las secciones.
+
 ## 1.73.0 — 2026-11-23
 
 - **Reportar un problema sin GitHub:** en el menú del teléfono, en los créditos (también desde el Cielo) y en el pie de la app, «Reportar un problema» abre WhatsApp o el correo. El mensaje ya trae la versión, la sección, el equipo, la pantalla y el idioma, nunca la ubicación. GitHub queda como opción para quien lo use. En «Acerca de», «Proponer una mejora» y «Cuéntanos en GitHub» pasan a WhatsApp y correo.
