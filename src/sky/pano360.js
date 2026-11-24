@@ -100,6 +100,78 @@ export function captureFaces({ THREE, renderer, scene, near = 0.1, far = 5000, s
 }
 
 /**
+ * Recortes centrados en cada astro redondo (Sol, Luna, planetas). Los dibujos de three.js (Sprite) siempre miran
+ * de frente a la pantalla: lejos del centro de una cara de 90° quedan más chicos de lo que la perspectiva exige en la
+ * dirección radial (hasta un 30 % en el borde, un 42 % en las esquinas), y al desplegar la foto salían como óvalos.
+ * Con la cámara apuntando justo al astro esa distorsión desaparece: este recorte se pega encima (pastePatches).
+ * patches: [{ dir: [x, y, z] unitario, fov (grados) }]; pxPerDeg: la misma densidad que las caras.
+ */
+export function capturePatches({ THREE, renderer, scene, near = 0.1, far = 5000, patches, pxPerDeg, before, after }) {
+  const out = [];
+  if (!patches || !patches.length) return out;
+  const prevSize = renderer.getSize(new THREE.Vector2()), prevPR = renderer.getPixelRatio();
+  try {
+    renderer.setPixelRatio(1);
+    for (const pt of patches) {
+      const size = Math.max(32, Math.min(1024, Math.ceil(pt.fov * pxPerDeg)));
+      const cam = new THREE.PerspectiveCamera(pt.fov, 1, near, far);
+      const d = pt.dir, up = Math.abs(d[1]) > 0.98 ? [0, 0, d[1] > 0 ? 1 : -1] : [0, 1, 0];
+      cam.position.set(0, 0, 0); cam.up.set(up[0], up[1], up[2]); cam.lookAt(d[0], d[1], d[2]); cam.updateMatrixWorld(true);
+      renderer.setSize(size, size, false);
+      if (before) before(cam);
+      renderer.render(scene, cam);
+      const c = document.createElement("canvas"); c.width = size; c.height = size;
+      const g = c.getContext("2d", { willReadFrequently: true });
+      g.fillStyle = "#03060d"; g.fillRect(0, 0, size, size);
+      g.drawImage(renderer.domElement, 0, 0, size, size);
+      const e = cam.matrixWorld.elements;                       // ejes de la cámara: derecha, arriba, adelante (−z)
+      out.push({ dir: d, fov: pt.fov, size, data: g.getImageData(0, 0, size, size), r: [e[0], e[1], e[2]], u: [e[4], e[5], e[6]], f: [-e[8], -e[9], -e[10]] });
+    }
+  } finally {
+    renderer.setPixelRatio(prevPR);
+    renderer.setSize(prevSize.x, prevSize.y, false);
+    if (after) after();
+  }
+  return out;
+}
+
+/** Pega los recortes de capturePatches sobre la imagen equirectangular (con un borde suave). Modifica `img`. */
+export function pastePatches(img, W, H, heading, patches) {
+  const out = img.data;
+  for (const pt of patches) {
+    const half = (pt.fov / 2) * R, rIn = half * 0.62, rOut = half * 0.85, t = Math.tan(half), size = pt.size, src = pt.data.data;
+    const c = altAzOf(pt.f), aR = rOut / R;
+    const y0 = Math.max(0, Math.floor(((90 - (c.alt + aR)) / 180) * H)), y1 = Math.min(H - 1, Math.ceil(((90 - (c.alt - aR)) / 180) * H));
+    const polar = Math.abs(c.alt) + aR > 85;
+    const dLon = polar ? 180 : aR / Math.max(0.05, Math.cos(Math.min(85, Math.abs(c.alt) + aR) * R));
+    const cx = (((c.az - heading) / 360 + 0.5) % 1 + 1) % 1 * W, wx = Math.ceil((dLon / 360) * W);
+    for (let y = y0; y <= y1; y++) {
+      const alt = (90 - ((y + 0.5) / H) * 180) * R, ca = Math.cos(alt), sa = Math.sin(alt);
+      for (let k = -wx; k <= wx; k++) {
+        const x = ((Math.floor(cx) + k) % W + W) % W;
+        const az = (heading + ((x + 0.5) / W - 0.5) * 360) * R;
+        const d = [ca * Math.sin(az), sa, -ca * Math.cos(az)];
+        const z = dot(d, pt.f);
+        if (z <= 0) continue;
+        const ang = Math.acos(Math.min(1, z));
+        if (ang >= rOut) continue;
+        const w = ang <= rIn ? 1 : 1 - (ang - rIn) / (rOut - rIn);
+        const fx = ((dot(d, pt.r) / z / t + 1) / 2) * size - 0.5, fy = ((1 - dot(d, pt.u) / z / t) / 2) * size - 0.5;
+        const x0 = Math.max(0, Math.min(size - 1, Math.floor(fx))), y0b = Math.max(0, Math.min(size - 1, Math.floor(fy)));
+        const x1 = Math.min(size - 1, x0 + 1), y1b = Math.min(size - 1, y0b + 1);
+        const tx = Math.max(0, Math.min(1, fx - x0)), ty = Math.max(0, Math.min(1, fy - y0b));
+        const a = (y0b * size + x0) * 4, b = (y0b * size + x1) * 4, cc = (y1b * size + x0) * 4, e = (y1b * size + x1) * 4, o = (y * W + x) * 4;
+        for (let q = 0; q < 3; q++) {
+          const top = src[a + q] + (src[b + q] - src[a + q]) * tx, bot = src[cc + q] + (src[e + q] - src[cc + q]) * tx;
+          out[o + q] = out[o + q] + ((top + (bot - top) * ty) - out[o + q]) * w;
+        }
+      }
+    }
+  }
+  return img;
+}
+
+/**
  * Une las seis caras en una imagen equirectangular W × H (W = 2H), con interpolación bilineal dentro de cada
  * cara. `heading`: el acimut que queda en el centro de la imagen (lo primero que muestra un visor).
  */

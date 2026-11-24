@@ -1,6 +1,6 @@
 // Pruebas de la foto 360° (src/sky/pano360.js): geometría de las caras, unión equirectangular, nombres,
 // metadatos GPano y nombre del archivo.
-import { dirOf, altAzOf, FACES, rightOf, faceOf, equirectXY, equirectFromFaces, stretchAt, layoutPanoLabels, gpanoXmp, withGPano, panoFileName, panoSize, panoCredits, shortCredits } from "../src/sky/pano360.js";
+import { pastePatches, dirOf, altAzOf, FACES, rightOf, faceOf, equirectXY, equirectFromFaces, stretchAt, layoutPanoLabels, gpanoXmp, withGPano, panoFileName, panoSize, panoCredits, shortCredits } from "../src/sky/pano360.js";
 import { readFileSync } from "node:fs";
 
 let pass = 0, fail = 0;
@@ -94,6 +94,20 @@ ok(/inMySky && <button type="button" className="is-extra sk-pano-btn"/.test(cons
 ok(/captureFaces\(\{ THREE, renderer: ref\.renderer, scene: ref\.scene/.test(cons) && /withGPano\(/.test(cons) && /small: credits/.test(cons) && /title: `/.test(cons), "captura desde el observador, sello con créditos y metadatos");
 ok(/ref\.horizon\.position\.set\(0\.003, 0, 0\.003\)/.test(cons) && /ref\.horizon\.position\.set\(0, 0, 0\)/.test(cons), "el suelo se dibuja también en el borde de las caras laterales (sin costuras)");
 ok(/res\.blob \|\| await canvasBlob\(canvas\)/.test(share) && /res\.type \|\| "image\/png"/.test(share), "el diálogo acepta un archivo ya hecho (JPEG)");
+
+// recortes centrados en cada astro (Sol, Luna, planetas): se pegan en su sitio, redondos y con borde suave
+{
+  const W = 800, H = 400, img = { data: new Uint8ClampedArray(W * H * 4), width: W, height: H };
+  const f = dirOf(26, 135), cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const nz = (a) => { const l = Math.hypot(...a); return a.map((v) => v / l); };
+  const r = nz(cr(f, [0, 1, 0])), u = cr(r, f), size = 32, data = new Uint8ClampedArray(size * size * 4).fill(255);
+  pastePatches(img, W, H, 90, [{ dir: f, fov: 10, size, data: { data }, r, u, f }]);
+  let n = 0, x0 = W, x1 = 0, y0 = H, y1 = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (img.data[(y * W + x) * 4] > 200) { n++; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, ratio = (x1 - x0 + 1) / (y1 - y0 + 1);
+  ok(n > 100 && Math.abs(cx - 500) < 2 && Math.abs(cy - 142) < 2, "el recorte cae sobre el astro (acimut 135°, altura 26°)");
+  ok(ratio > 1.0 && ratio < 1.25, `y queda redondo (solo el ensanche propio de la proyección a 26°: ${ratio.toFixed(2)}×)`);
+}
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

@@ -41,7 +41,7 @@ import { RATES, REAL } from "./sky/timeDial.js";
 import { stepFieldTz, setMinuteTz, fetchTimeZone, cachedTimeZone, tzParts } from "./sky/placeTime.js";
 import { buildPostcard } from "./sky/postcard.js";
 import { snapshotView } from "./sky/viewSnapshot.js";
-import { captureFaces, equirectFromFaces, layoutPanoLabels, drawPanoLabels, drawNadirStamp, withGPano, panoFileName, panoSize, altAzOf, panoCredits, shortCredits } from "./sky/pano360.js";
+import { captureFaces, capturePatches, pastePatches, equirectFromFaces, layoutPanoLabels, drawPanoLabels, drawNadirStamp, withGPano, panoFileName, panoSize, altAzOf, panoCredits, shortCredits } from "./sky/pano360.js";
 import { labelStyle } from "./sky/viewSnapshot.js";
 import { starHex } from "./sky/starColor.js";
 import { perfFlag, createFrameStats, createAdaptive } from "./sky/perf.js";
@@ -3749,34 +3749,54 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.scene.traverse((o) => { if ((o.isSprite || o.isPoints || o.isMesh || o.isLine) && o.frustumCulled) { culled.push(o); o.frustumCulled = false; } });
     // planetas, Sol y Luna del tamaño de una vista de 90° en un teléfono (~800 px de alto), con el zoom que haya
     if (ref.sizeSolar) ref.sizeSolar({ fov: 90, h: 800 });
-    const faces = captureFaces({ THREE, renderer: ref.renderer, scene: ref.scene, near: ref.camera.near, far: ref.camera.far, size: face,
-      before: (cam) => {
-        // estrellas del mismo tamaño aparente que en el teléfono; atmósfera y nubes centradas en el observador
-        // …pero con un núcleo nítido: al hacer zoom en el visor se ven como un punto con su halo y no como una mancha
-        // (la textura de la vista es un degradado suave de 64 px)
-        u.uScale.value = starScaleFor(90); u.uPx.value = 1; u.uDpr.value = face / 1024; u.map.value = ref._sharpStar;
-        // las caras miran justo al horizonte: el centro del suelo (bajo el observador) caería en su plano (w = 0)
-        // y la GPU descartaría sus triángulos; 3 mm de corrimiento lo evitan sin que se note
-        ref.horizon.position.set(0.003, 0, 0.003);
-        if (ref.atm.visible) ref.atm.follow(cam);
-        if (ref.clouds.visible) ref.clouds.follow(cam);
-        if (ref.aurora && ref.aurora.visible) ref.aurora.follow(cam);
-      },
-      after: () => {
-        [u.uScale.value, u.uPx.value, u.uDpr.value, u.map.value] = saved;
-        for (const o of culled) o.frustumCulled = true;
-        if (ref.sizeSolar) ref.sizeSolar();
-        if (restoreHd) restoreHd();
-        ref.horizon.position.set(0, 0, 0);
-        if (ref.atm.visible) ref.atm.follow(ref.camera);
-        if (ref.clouds.visible) ref.clouds.follow(ref.camera);
-        if (ref.aurora && ref.aurora.visible) ref.aurora.follow(ref.camera);
-        if (ref.wake) ref.wake();
-      } });
+    const before = (cam) => {
+      // estrellas del mismo tamaño aparente que en el teléfono; atmósfera y nubes centradas en el observador
+      // …pero con un núcleo nítido: al hacer zoom en el visor se ven como un punto con su halo y no como una mancha
+      // (la textura de la vista es un degradado suave de 64 px)
+      u.uScale.value = starScaleFor(90); u.uPx.value = 1; u.uDpr.value = face / 1024; u.map.value = ref._sharpStar;
+      // las caras miran justo al horizonte: el centro del suelo (bajo el observador) caería en su plano (w = 0)
+      // y la GPU descartaría sus triángulos; 3 mm de corrimiento lo evitan sin que se note
+      ref.horizon.position.set(0.003, 0, 0.003);
+      if (ref.atm.visible) ref.atm.follow(cam);
+      if (ref.clouds.visible) ref.clouds.follow(cam);
+      if (ref.aurora && ref.aurora.visible) ref.aurora.follow(cam);
+    };
+    let restored = false;
+    const after = () => {
+      if (restored) return; restored = true;
+      [u.uScale.value, u.uPx.value, u.uDpr.value, u.map.value] = saved;
+      for (const o of culled) o.frustumCulled = true;
+      if (ref.sizeSolar) ref.sizeSolar();
+      if (restoreHd) restoreHd();
+      ref.horizon.position.set(0, 0, 0);
+      if (ref.atm.visible) ref.atm.follow(ref.camera);
+      if (ref.clouds.visible) ref.clouds.follow(ref.camera);
+      if (ref.aurora && ref.aurora.visible) ref.aurora.follow(ref.camera);
+      if (ref.wake) ref.wake();
+    };
+    let faces, patches = [];
+    try {
+      faces = captureFaces({ THREE, renderer: ref.renderer, scene: ref.scene, near: ref.camera.near, far: ref.camera.far, size: face, before });
+      // Sol, Luna y planetas: un recorte con la cámara apuntando justo a cada uno (si no, cerca del borde de una
+      // cara salían como óvalos al desplegar la foto: ver capturePatches)
+      const wanted = [];
+      const addSp = (sp) => {
+        if (!sp || !sp.visible || (sp.parent && !sp.parent.visible)) return;
+        const pos = sp.getWorldPosition(new THREE.Vector3()), dist = pos.length();
+        if (!(dist > 0)) return;
+        const ws = sp.getWorldScale(new THREE.Vector3()), sz = Math.max(ws.x, ws.y);
+        // con sizeAttenuation: false (Sol, Luna, planetas) la escala ya es el tamaño angular (radianes, a 1 de distancia)
+        const diamDeg = THREE.MathUtils.radToDeg(sp.material && sp.material.sizeAttenuation === false ? sz : 2 * Math.atan2(sz / 2, dist));
+        wanted.push({ dir: [pos.x / dist, pos.y / dist, pos.z / dist], fov: Math.min(40, Math.max(3, diamDeg * 1.9)) });
+      };
+      for (const nm in ref.solarSprites) addSp(ref.solarSprites[nm]);
+      for (const nm in ref.realSprites) addSp(ref.realSprites[nm].sp);
+      patches = capturePatches({ THREE, renderer: ref.renderer, scene: ref.scene, near: ref.camera.near, far: ref.camera.far, patches: wanted, pxPerDeg: face / 90, before });
+    } finally { after(); }
     await new Promise((r) => setTimeout(r, 0));
     const c = document.createElement("canvas"); c.width = W; c.height = H;
     const g = c.getContext("2d");
-    g.putImageData(equirectFromFaces(faces, W, H, heading), 0, 0);
+    g.putImageData(pastePatches(equirectFromFaces(faces, W, H, heading), W, H, heading, patches), 0, 0);
     // nombres de ~1,6° de alto (como unos 16 px en el visor de un teléfono); sello de ~35° de ancho
     const f = (W / 4096) * 1.4;
     const measure = (text, cls) => { const st = labelStyle(cls); g.font = st.font; return g.measureText(st.upper ? String(text).toUpperCase() : String(text)).width * (st.spacing ? 1.15 : 1); };

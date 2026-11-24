@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.75.1 — 2026-11-24
+
+- **Foto 360°: Sol, Luna y planetas redondos.** Se dibujan siempre de frente a la pantalla. En las seis caras de 90° de la foto, lejos del centro de cada cara, quedaban más chicos de lo debido hacia afuera (hasta un 30 % en el borde y un 42 % en las esquinas). Al desplegar la foto salían como óvalos inclinados. Ahora cada astro se vuelve a fotografiar con la cámara apuntando justo a él, y ese recorte se pega en su sitio con un borde suave. En la imagen plana solo queda el ensanche propio de la proyección según la altura, que el visor 360° deshace. Hay pruebas nuevas.
+
 ## 1.75.0 — 2026-11-24
 
 - **Auroras en el Cielo:** una capa nueva, encendida por defecto, que dibuja auroras boreales y australes solo donde de verdad las hay.
