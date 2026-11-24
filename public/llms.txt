@@ -4,11 +4,13 @@
 
 Teseo is a free, open-source (AGPL-3.0) astronomy app made in Cayambe, Ecuador, by Yachay Deep Labs with the community astronomy initiative Killa Ñan. It works as a planetarium, an interplanetary navigator, a sky calendar and a science lab, in English and Spanish.
 
+Teseo nació de una necesidad de Killa Ñan: contar y divulgar mejor la astronomía desde una sola herramienta. / Teseo was born out of a need at Killa Ñan: to tell and share astronomy better from a single tool.
+
 Principios: las cifras salen de datos oficiales y física real (efemérides contrastadas con el Observatorio Naval de EE. UU., NASA/JPL y catálogos abiertos); cuando la app usa IA, solo narra resultados ya calculados, nunca calcula.
 
 ## Páginas
 
-- [Acerca de Teseo (español)](https://teseo.yachaydeep.com/acerca): qué es, la ciencia, videos, podcast, talleres y cómo apoyar
+- [Acerca de Teseo (español)](https://teseo.yachaydeep.com/acerca): qué es, la ciencia, videos, podcast, talleres, redes, contacto y cómo apoyar
 - [About Teseo (English)](https://teseo.yachaydeep.com/about): the same page in English
 - [La app](https://teseo.yachaydeep.com/): abre en la pestaña Cielo
 
@@ -18,6 +20,13 @@ Principios: las cifras salen de datos oficiales y física real (efemérides cont
 - [Ruta](https://teseo.yachaydeep.com/#ruta): viajes por el sistema solar con mecánica orbital (transferencias de Hohmann, ventanas de lanzamiento, trayectorias realistas)
 - [Ahora](https://teseo.yachaydeep.com/#ahora): lo que pasa hoy en el espacio y calendario del cielo por ciudad (eclipses, lluvias de meteoros, solsticios, lanzamientos, hitos como la Voyager 1 a un día-luz), suscribible en Google Calendar, iPhone y Outlook
 - [Preguntas](https://teseo.yachaydeep.com/#preguntas): diez recorridos interactivos con datos publicados: tamaño del universo, masa, agujeros negros, expansión, materia oscura, viajes en el tiempo, ondas gravitacionales, ecuación de Drake, espectro de las estrellas y el final del universo
+
+## Contacto y redes
+
+- Correo: teseo@yachaydeep.com
+- WhatsApp: +593 98 748 9892
+- [Yachay Deep](https://www.yachaydeep.com/): [Instagram](https://www.instagram.com/yachaydeep) · [Facebook](https://www.facebook.com/yachaydeep) · [X](https://x.com/yachaydeep)
+- [Killa Ñan](https://sites.google.com/view/killanan/inicio): [Instagram](https://www.instagram.com/killananec/) · [Facebook](https://www.facebook.com/share/1A65WV66FH/)
 
 ## Opcional
 

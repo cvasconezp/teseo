@@ -30,6 +30,14 @@ const ld = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/s
 const app = ld.find(x => x["@type"] === "WebApplication");
 ok(app && app.applicationCategory === "EducationalApplication" && app.isAccessibleForFree === true && app.offers.price === "0", "datos estructurados: app educativa y gratuita");
 ok(ld.some(x => x["@type"] === "WebSite"), "datos estructurados: sitio web");
+ok(app && app.publisher && app.publisher.sameAs.includes("https://www.instagram.com/yachaydeep") && app.publisher.contactPoint.email === "teseo@yachaydeep.com" && /^\+593/.test(app.publisher.contactPoint.telephone), "datos estructurados: Yachay Deep con redes y contacto");
+ok(app && app.contributor && app.contributor.name === "Killa Ñan" && app.contributor.sameAs.includes("https://www.instagram.com/killananec/") && /necesidad de Killa Ñan/.test(app.description), "datos estructurados: Killa Ñan con sus redes y el origen de Teseo");
+for (const [f, lang] of [["acerca", "es"], ["about", "en"]]) {
+  const h = readFileSync(new URL(`../public/${f}/index.html`, import.meta.url), "utf8");
+  const g = JSON.parse(h.match(/<script type="application\/ld\+json">\n?(.*?)\n?<\/script>/s)[1])["@graph"] || [];
+  const pg = g.find(x => x["@type"] === "AboutPage"), org = g.find(x => x.name === "Yachay Deep"), kn = g.find(x => x.name === "Killa Ñan");
+  ok(pg && pg.inLanguage === lang && org && org.contactPoint && org.sameAs.length >= 3 && kn && kn.sameAs.length >= 2, `/${f}: página, Yachay Deep y Killa Ñan en los datos estructurados`);
+}
 ok(/<div id="root">\s*<!--[\s\S]*?<h1[^>]*>Teseo<\/h1>/.test(html), "portada estática con h1 para quien no ejecuta JavaScript");
 
 console.log("sitemap, robots y servidor");

@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.72.5 — 2026-11-23
+
+- **Buscadores al día:** los datos estructurados de la app, de «Acerca de» y de /about cuentan que Teseo nació de una necesidad de Killa Ñan. Describen a Yachay Deep, con sus redes, el correo teseo@yachaydeep.com y el WhatsApp, y a Killa Ñan, con su sitio y sus redes. «Acerca de» se declara como página «Acerca de» de la app. El sitemap lleva la fecha de hoy, y llms.txt suma el origen, el contacto y las redes. Hay pruebas nuevas para todo esto.
+
 ## 1.72.4 — 2026-11-23
 
 - **«con Killa Ñan» lleva a Killa Ñan:** en la cabecera de «Acerca de» (también /about), ese texto ahora abre el sitio de Killa Ñan. Antes formaba parte del enlace de inicio de la página y no llevaba a ningún lado.
