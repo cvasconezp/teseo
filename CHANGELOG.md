@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.76.3 — 2026-11-24
+
+- **Aviso de cookies en el idioma del enlace.** El aviso miraba solo la preferencia guardada y el idioma del navegador, así que con https://teseo.yachaydeep.com/?lang=en salía en español si la persona ya había usado Teseo en español o tenía el navegador en español. Ahora sigue la misma regla que la app (`?lang=` > preferencia guardada > navegador) y cambia de idioma junto con la app si alguien usa el botón ES/EN mientras el aviso está a la vista.
+
 ## 1.76.2 — 2026-11-24
 
 - **H-alfa: la foto más reciente de verdad.** En las fotos de los últimos minutos, GONG aún no publica la versión de 2048 px (responde «none»), y el servidor las descartaba: terminaba mostrando una de hace más de una hora. Ahora acepta la de 512 px mientras la grande no exista. Si otro observatorio ya tiene la grande y es como mucho 30 minutos más vieja, prefiere esa, porque se ve mucho mejor.
