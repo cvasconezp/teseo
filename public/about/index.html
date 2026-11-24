@@ -224,12 +224,13 @@ footer nav a{color:var(--soft)}
 @media (max-width:520px){.fs-g{flex-wrap:wrap}.fs-g b{flex-basis:100%;margin:0 0 2px}}
 .fs-g a{display:grid;place-items:center;width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);color:var(--soft);transition:color .15s,border-color .15s,background .15s}
 .fs-g a:hover{color:var(--gold);border-color:rgba(242,196,109,.6);background:rgba(242,196,109,.08)}
+.give-col{display:contents}
+.give .is-main{order:1}.give article.ec{order:2}.give .give-col:first-child article:not(.is-main){order:3}.give .give-col:last-child article:not(.ec){order:4}
+@media (min-width:760px){.give{display:flex;align-items:flex-start;gap:18px}.give-col{display:flex;flex-direction:column;gap:18px;flex:1 1 0;min-width:0}}
 .give .qr{margin:4px 0 0;align-self:center;text-align:center}
 .give .qr img{width:200px;height:200px;border-radius:14px;background:#fff;padding:6px}
 .give .qr figcaption{margin-top:6px;font-size:14px}
 .brand small a:first-child{color:var(--muted)}
-@media (min-width:760px){.give{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (min-width:760px) and (max-width:999px){.give article.ec{grid-row:span 2}.give article:last-child{grid-column:1/-1}}
 @media (min-width:1000px){.give article.ec{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:22px;row-gap:12px;align-content:start}
 .give article.ec>*:not(.qr){grid-column:1}.give article.ec .qr{grid-column:2;grid-row:1/span 5;align-self:center;margin:0}
 .give article.ec .btn{justify-self:start}}
@@ -593,6 +594,7 @@ footer nav a{color:var(--soft)}
         <p class="soft">Teseo is and will stay free, with no ads and no data collection. Donations pay for the servers, the domain and the time to keep improving it.</p>
       </div>
       <div class="give">
+        <div class="give-col">
         <article class="is-main">
           <p class="tag">One-off, from any country</p>
           <h3>Donate with PayPal</h3>
@@ -601,6 +603,14 @@ footer nav a{color:var(--soft)}
           <div id="paypal-box" aria-live="polite"></div>
           <p class="fine">The PayPal button only loads when you press it. Not working? <a href="https://www.paypal.com/ncp/payment/ZLGL2E3JZUHG2" target="_blank" rel="noopener noreferrer">Open PayPal in a new tab</a>.</p>
         </article>
+        <article>
+          <p class="tag">Monthly</p>
+          <h3>GitHub Sponsors</h3>
+          <p class="grow">A monthly contribution from your GitHub account, from USD 5, to keep the project going over time. GitHub charges no fees.</p>
+          <a class="btn btn--ghost btn--sm btn--give" href="https://github.com/sponsors/cvasconezp" target="_blank" rel="noopener noreferrer">Sponsor on GitHub</a>
+        </article>
+        </div>
+        <div class="give-col">
         <article class="ec">
           <p class="tag">In Ecuador</p>
           <h3>QR code or bank transfer</h3>
@@ -610,18 +620,13 @@ footer nav a{color:var(--soft)}
           <p class="fine">The account is in the name of Carlos Vásconez-Paredes, who created Teseo.</p>
         </article>
         <article>
-          <p class="tag">Monthly</p>
-          <h3>GitHub Sponsors</h3>
-          <p class="grow">A monthly contribution from your GitHub account, from USD 5, to keep the project going over time. GitHub charges no fees.</p>
-          <a class="btn btn--ghost btn--sm btn--give" href="https://github.com/sponsors/cvasconezp" target="_blank" rel="noopener noreferrer">Sponsor on GitHub</a>
-        </article>
-        <article>
           <p class="tag">No money needed</p>
           <h3>Share and contribute</h3>
           <p class="grow">Share a postcard or a 360° photo, or tell us about a bug or an idea. Everything helps.</p>
           <a class="btn btn--ghost btn--sm" href="https://wa.me/593987489892?text=Hi%2C%20I%20want%20to%20tell%20you%20something%20about%20Teseo%20%28a%20problem%20or%20an%20idea%29%3A%0A%0A" data-report target="_blank" rel="noopener noreferrer">Report a problem</a>
           <p class="fine">Also by <a href="mailto:teseo@yachaydeep.com?subject=Teseo%3A%20a%20problem%20or%20an%20idea" data-report>email</a>. Do you code? <a href="https://github.com/cvasconezp/teseo" target="_blank" rel="noopener noreferrer">See the code</a>.</p>
         </article>
+        </div>
       </div>
     </div>
   </section>

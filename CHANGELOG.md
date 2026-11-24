@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.74.3 — 2026-11-23
+
+- **Apoya a Teseo:** en pantallas anchas, las tarjetas van en dos columnas independientes: PayPal y GitHub a la izquierda, Ecuador y «Comparte y colabora» a la derecha. Al abrir el botón de PayPal ya no aparece espacio vacío en la tarjeta de Ecuador. En el teléfono, el orden sigue igual.
+
 ## 1.74.2 — 2026-11-23
 
 - **«Acerca de» (también /about):** la cabecera dice «Un producto de Yachay Deep Labs · con Killa Ñan», cada uno enlazado a su sitio.

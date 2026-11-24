@@ -227,12 +227,13 @@ footer nav a{color:var(--soft)}
 @media (max-width:520px){.fs-g{flex-wrap:wrap}.fs-g b{flex-basis:100%;margin:0 0 2px}}
 .fs-g a{display:grid;place-items:center;width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);color:var(--soft);transition:color .15s,border-color .15s,background .15s}
 .fs-g a:hover{color:var(--gold);border-color:rgba(242,196,109,.6);background:rgba(242,196,109,.08)}
+.give-col{display:contents}
+.give .is-main{order:1}.give article.ec{order:2}.give .give-col:first-child article:not(.is-main){order:3}.give .give-col:last-child article:not(.ec){order:4}
+@media (min-width:760px){.give{display:flex;align-items:flex-start;gap:18px}.give-col{display:flex;flex-direction:column;gap:18px;flex:1 1 0;min-width:0}}
 .give .qr{margin:4px 0 0;align-self:center;text-align:center}
 .give .qr img{width:200px;height:200px;border-radius:14px;background:#fff;padding:6px}
 .give .qr figcaption{margin-top:6px;font-size:14px}
 .brand small a:first-child{color:var(--muted)}
-@media (min-width:760px){.give{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (min-width:760px) and (max-width:999px){.give article.ec{grid-row:span 2}.give article:last-child{grid-column:1/-1}}
 @media (min-width:1000px){.give article.ec{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:22px;row-gap:12px;align-content:start}
 .give article.ec>*:not(.qr){grid-column:1}.give article.ec .qr{grid-column:2;grid-row:1/span 5;align-self:center;margin:0}
 .give article.ec .btn{justify-self:start}}
@@ -596,6 +597,7 @@ footer nav a{color:var(--soft)}
         <p class="soft">Teseo es y seguirá siendo gratis, sin publicidad y sin pedirte datos. Las donaciones pagan los servidores, el dominio y el tiempo para seguir mejorándolo.</p>
       </div>
       <div class="give">
+        <div class="give-col">
         <article class="is-main">
           <p class="tag">Una vez, desde cualquier país</p>
           <h3>Donar con PayPal</h3>
@@ -604,6 +606,14 @@ footer nav a{color:var(--soft)}
           <div id="paypal-box" aria-live="polite"></div>
           <p class="fine">El botón de PayPal se carga solo cuando lo pulsas. ¿No funciona? <a href="https://www.paypal.com/ncp/payment/ZLGL2E3JZUHG2" target="_blank" rel="noopener noreferrer">Abrir PayPal en otra pestaña</a>.</p>
         </article>
+        <article>
+          <p class="tag">Mensual</p>
+          <h3>GitHub Sponsors</h3>
+          <p class="grow">Un aporte mensual desde tu cuenta de GitHub, desde USD 5, para sostener el proyecto en el tiempo. GitHub no cobra comisión.</p>
+          <a class="btn btn--ghost btn--sm btn--give" href="https://github.com/sponsors/cvasconezp" target="_blank" rel="noopener noreferrer">Patrocinar en GitHub</a>
+        </article>
+        </div>
+        <div class="give-col">
         <article class="ec">
           <p class="tag">En Ecuador</p>
           <h3>Con código QR o transferencia</h3>
@@ -613,18 +623,13 @@ footer nav a{color:var(--soft)}
           <p class="fine">La cuenta está a nombre de Carlos Vásconez-Paredes, creador de Teseo.</p>
         </article>
         <article>
-          <p class="tag">Mensual</p>
-          <h3>GitHub Sponsors</h3>
-          <p class="grow">Un aporte mensual desde tu cuenta de GitHub, desde USD 5, para sostener el proyecto en el tiempo. GitHub no cobra comisión.</p>
-          <a class="btn btn--ghost btn--sm btn--give" href="https://github.com/sponsors/cvasconezp" target="_blank" rel="noopener noreferrer">Patrocinar en GitHub</a>
-        </article>
-        <article>
           <p class="tag">Sin dinero</p>
           <h3>Comparte y colabora</h3>
           <p class="grow">Comparte una postal o una foto 360°, o cuéntanos un error o una idea. Todo suma.</p>
           <a class="btn btn--ghost btn--sm" href="https://wa.me/593987489892?text=Hola%2C%20quiero%20contarles%20algo%20sobre%20Teseo%20%28un%20problema%20o%20una%20idea%29%3A%0A%0A" data-report target="_blank" rel="noopener noreferrer">Reportar un problema</a>
           <p class="fine">También por <a href="mailto:teseo@yachaydeep.com?subject=Teseo%3A%20un%20problema%20o%20una%20idea" data-report>correo</a>. ¿Programas? <a href="https://github.com/cvasconezp/teseo" target="_blank" rel="noopener noreferrer">Mira el código</a>.</p>
         </article>
+        </div>
       </div>
     </div>
   </section>
