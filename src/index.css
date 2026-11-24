@@ -716,3 +716,13 @@ html.night-vision .night-vision-dim { filter: brightness(.7); }
   .topbar__ctl .lang span.is-on { background: transparent; }
   .topbar__ctl .lang { min-width: 44px; justify-content: center; }
 }
+/* Reportar un problema */
+.app-menu__report { width: 100%; margin-top: -6px; font: inherit; text-align: left; cursor: pointer; border-color: var(--line); background: transparent; color: var(--soft); }
+.app-menu__report:hover { background: rgba(255, 255, 255, 0.06); }
+.who__card--report { width: 100%; margin: -8px 0 18px; font: inherit; text-align: left; cursor: pointer; }
+.who__card--report:hover { border-color: rgba(167, 139, 250, 0.5); }
+.report__btns { display: grid; gap: 10px; margin-top: 14px; }
+.report__btn { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--line2, rgba(255,255,255,.22)); color: var(--text, #eef0fa); font-weight: 600; font-size: 15px; text-decoration: none; }
+.report__btn:hover { background: rgba(255, 255, 255, 0.06); }
+.report__btn--main { background: #f2c46d; border-color: #f2c46d; color: #04080f; }
+.report__btn--main:hover { background: #ffd98c; }

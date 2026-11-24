@@ -1,0 +1,23 @@
+// Pruebas del reporte de problemas sin GitHub (WhatsApp y correo con datos útiles, sin ubicación).
+import { deviceSummary, reportText, reportLinks } from "../src/ui/report.js";
+let pass = 0, fail = 0;
+const ok = (c, m) => { if (c) { pass++; console.log("  ok   ", m); } else { fail++; console.log("  FALLA", m); } };
+const AND = "Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
+const IOS = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
+const WIN = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0";
+const SAM = "Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/26.0 Chrome/122.0.0.0 Mobile Safari/537.36";
+ok(deviceSummary(AND) === "Android 14 · Chrome 131", "Android con Chrome");
+ok(deviceSummary(IOS) === "iPhone · iOS 18.1 · Safari 18.1", "iPhone con Safari");
+ok(deviceSummary(WIN) === "Windows · Edge 130", "Windows con Edge (no se confunde con Chrome)");
+ok(deviceSummary(SAM) === "Android 13 · Samsung Internet 26", "Samsung Internet");
+ok(deviceSummary("") === "desconocido", "sin datos del equipo");
+const txt = reportText({ lang: "es", version: "1.72.7", section: "Cielo", ua: AND, w: 390, h: 844 });
+ok(/Versión: 1\.72\.7/.test(txt) && /Sección: Cielo/.test(txt) && /Equipo: Android 14/.test(txt) && /Pantalla: 390×844/.test(txt), "el mensaje trae versión, sección, equipo y pantalla");
+ok(!/lat|lon|ubicaci|location/i.test(txt), "el mensaje no lleva la ubicación");
+ok(/What happened:/.test(reportText({ lang: "en", ua: IOS })), "mensaje en inglés");
+const L = reportLinks({ lang: "es", version: "1.72.7", section: "Ruta", ua: WIN, w: 1366, h: 768 });
+ok(L.wa.startsWith("https://wa.me/593987489892?text=") && decodeURIComponent(L.wa.split("text=")[1]).includes("Sección: Ruta"), "enlace de WhatsApp con el mensaje");
+ok(L.mail.startsWith("mailto:teseo@yachaydeep.com?subject=Problema%20en%20Teseo%201.72.7&body="), "enlace de correo con asunto y versión");
+ok(L.gh.endsWith("/issues/new"), "GitHub queda como opción para quien lo use");
+console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
+process.exit(fail ? 1 : 0);

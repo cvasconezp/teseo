@@ -1,3 +1,4 @@
+import { reportLinks } from "./ui/report.js";
 import { useState, useEffect, useRef, useCallback, useMemo, useId, lazy, Suspense } from "react";
 // loadSky separado para poder recrear el componente lazy al reintentar: React.lazy
 // memoriza un import fallido, así que "Reintentar" necesita un lazy nuevo.
@@ -230,6 +231,13 @@ const T = {
     usageErrTitle:  "Teseo in numbers did not load",
     usageErrBody:   "Check your connection and try again. The rest of Teseo keeps working.",
     creditsTitle:   "Credits and data sources",
+    reportLink:     "Report a problem",
+    reportTitle:    "Report a problem",
+    reportBody:     "Tell us what happened. The message already includes the version, your device and the section, so we can find it faster. It never includes your location.",
+    reportWa:       "Send by WhatsApp",
+    reportMail:     "Send by email",
+    reportGh:       "Use GitHub? Open an issue",
+    reportCard:     ["Report a problem", "Something not working? Tell us by WhatsApp or email."],
     creditsIntro:   "Teseo uses real data from official sources. Free software under the AGPL-3.0 licence.",
     sourceLink:     "Source code on GitHub",
     sourcesAll:     "All data sources and citizen science", sourcesHref: "/about#fuentes",
@@ -430,6 +438,13 @@ const T = {
     usageErrTitle:  "No se pudo abrir «Teseo en números»",
     usageErrBody:   "Revisa tu conexión y vuelve a intentarlo. El resto de Teseo sigue funcionando.",
     creditsTitle:   "Créditos y fuentes de datos",
+    reportLink:     "Reportar un problema",
+    reportTitle:    "Reportar un problema",
+    reportBody:     "Cuéntanos qué pasó. El mensaje ya lleva la versión, tu equipo y la sección, para encontrarlo más rápido. Nunca incluye tu ubicación.",
+    reportWa:       "Enviar por WhatsApp",
+    reportMail:     "Enviar por correo",
+    reportGh:       "¿Usas GitHub? Abre un aviso",
+    reportCard:     ["Reportar un problema", "¿Algo no funciona? Cuéntanos por WhatsApp o correo."],
     creditsIntro:   "Teseo usa datos reales de fuentes oficiales. Software libre con licencia AGPL-3.0.",
     sourceLink:     "Código fuente en GitHub",
     sourcesAll:     "Todas las fuentes de datos y ciencia ciudadana", sourcesHref: "/acerca#fuentes",
@@ -1446,7 +1461,7 @@ function Tabs({ tab, onChange, lang }) {
 // ─── MENÚ (teléfono, en Cielo) ────────────────────────────────────────────────
 // En el teléfono, la vista Cielo ocupa toda la pantalla: la cabecera (marca, música, visión nocturna, idioma) y
 // las pestañas pasan a este panel lateral, que se abre con el botón ☰ de la propia vista.
-function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight, onLang }) {
+function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight, onLang, onReport }) {
   const t = T[lang];
   const boxRef = useRef(null);
   useEffect(()=>{
@@ -1474,6 +1489,10 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg>
           <span><b>{t.aboutCard[0]}</b><small>{t.aboutCard[1]}</small></span>
         </a>
+        <button type="button" className="app-menu__about app-menu__report" onClick={()=>{ onClose(); onReport(); }}>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V4h11l-1 4 5 1-2 6H6"/></svg>
+          <span><b>{t.reportCard[0]}</b><small>{t.reportCard[1]}</small></span>
+        </button>
         <nav className="app-menu__tabs" aria-label={t.sections}>
           {TABS.map(({ id, Icon })=>(
             <button key={id} type="button" aria-current={tab===id ? "page" : undefined} className={tab===id ? "is-active" : ""}
@@ -1506,9 +1525,52 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
 // Página «Acerca de»: /acerca en español, /about en inglés
 const aboutHref = (lang) => (lang === "en" ? "/about" : "/acerca");
 
+// ─── REPORTAR UN PROBLEMA ────────────────────────────────────────────────────
+// Para quien no usa GitHub: WhatsApp o correo con un mensaje que ya trae la versión,
+// el equipo, la pantalla y la sección. Sin ubicación ni datos de la persona.
+/* global __APP_VERSION__ */
+const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
+function ReportModal({ lang, section, onClose }) {
+  const t = T[lang];
+  const closeRef = useRef(null);
+  useEffect(()=>{
+    const before = document.activeElement;
+    closeRef.current?.focus();
+    const onKey = e => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return ()=>{ document.removeEventListener("keydown", onKey); try { before?.focus?.(); } catch { /* no-op */ } };
+  },[onClose]);
+  const L = reportLinks({ lang, version: APP_VERSION, section, ua: navigator.userAgent || "",
+    w: window.screen?.width || 0, h: window.screen?.height || 0 });
+  return (
+    <div className="modal" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-labelledby="report-title" className="modal__box" onClick={e=>e.stopPropagation()}>
+        <div className="modal__head">
+          <h2 id="report-title" className="modal__title">{t.reportTitle}</h2>
+          <button ref={closeRef} type="button" className="icon-btn" aria-label={t.close} onClick={onClose}>
+            <IconClose width={20} height={20}/>
+          </button>
+        </div>
+        <p className="modal__p">{t.reportBody}</p>
+        <div className="report__btns">
+          <a className="report__btn report__btn--main" href={L.wa} target="_blank" rel="noopener noreferrer" onClick={()=>track("report_open", { via: "whatsapp" })}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 0 1-12.6 7.4L3.5 20.5l1.2-4.2A8.5 8.5 0 1 1 20.5 12z"/><path d="M9 8.3c.2-.4.5-.4.8-.4l.6 1.5c0 .3-.2.6-.6 1 .6 1.3 1.6 2.3 2.9 2.9.4-.4.7-.6 1-.6l1.5.6c0 .3 0 .6-.4.8-1.4 1-5.6-1.5-5.8-5.8z" fill="currentColor" stroke="none"/></svg>
+            {t.reportWa}
+          </a>
+          <a className="report__btn" href={L.mail} onClick={()=>track("report_open", { via: "email" })}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M4 7l8 6 8-6"/></svg>
+            {t.reportMail}
+          </a>
+        </div>
+        <p className="modal__p modal__p--fine"><a href={L.gh} target="_blank" rel="noopener noreferrer" onClick={()=>track("report_open", { via: "github" })}>{t.reportGh}</a></p>
+      </div>
+    </div>
+  );
+}
+
 // ─── CRÉDITOS ────────────────────────────────────────────────────────────────
 
-function CreditsModal({ lang, onClose }) {
+function CreditsModal({ lang, onClose, onReport }) {
   const t = T[lang];
   const closeRef = useRef(null);
   useEffect(()=>{
@@ -1540,6 +1602,10 @@ function CreditsModal({ lang, onClose }) {
           <span className="who__name">{t.aboutCard[0]}</span>
           <span className="who__text">{t.aboutCard[1]}</span>
         </a>
+        <button type="button" className="who__card who__card--report" onClick={onReport}>
+          <span className="who__name">{t.reportCard[0]}</span>
+          <span className="who__text">{t.reportCard[1]}</span>
+        </button>
         <h3 className="credits__h">{t.whoTitle}</h3>
         <div className="who">
           <a className="who__card who__card--kn" href="https://sites.google.com/view/killanan/inicio" target="_blank" rel="noopener noreferrer" onClick={()=>track("coop_open", { from: "credits" })}>
@@ -1655,6 +1721,7 @@ export default function Teseo() {
   // enlace directo (#ventanas, #sky?..., #preguntas?...) se va directo al contenido.
   const [intro,    setIntro]    = useState(()=>!reducedMotion() && !(typeof location!=="undefined" && location.hash.length>1));
   const [showCredits, setShowCredits] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   // «Teseo en números»: null (cerrada) o { days } con el periodo inicial (7, 30, 90 o null = por defecto)
   const [usage, setUsage] = useState(null);
   const [lang,     setLang]     = useState(initialLang);
@@ -1760,6 +1827,8 @@ export default function Teseo() {
   const t = T[lang];
   const onDone = useCallback(()=>setIntro(false),[]);
   const closeCredits = useCallback(()=>setShowCredits(false),[]);
+  const closeReport = useCallback(()=>setShowReport(false),[]);
+  const openReport = useCallback(()=>{ track("report_dialog"); setShowCredits(false); setShowReport(true); },[]);
   // «Teseo en números»: componente lazy recreable si su chunk no cargó (como el Cielo o Preguntas)
   const [UsageView, setUsageView] = useState(()=>UsageLazy);
   const retryUsage = useCallback(()=>setUsageView(()=>lazy(loadUsage)),[]);
@@ -1977,12 +2046,13 @@ export default function Teseo() {
   }, []);
   // lo de la app va antes que el Cielo (fase de captura): el menú, los créditos y el panel de métricas
   const backRef = useRef({});
-  backRef.current = { menuOpen, showCredits, usage };
+  backRef.current = { menuOpen, showCredits, showReport, usage };
   useEffect(() => {
     const onBack = (e) => {
       const b = backRef.current;
       if (b.menuOpen) setMenuOpen(false);
       else if (b.usage) setUsage(null);
+      else if (b.showReport) setShowReport(false);
       else if (b.showCredits) setShowCredits(false);
       else return;
       e.preventDefault(); e.stopImmediatePropagation();
@@ -2047,7 +2117,7 @@ export default function Teseo() {
       {night && <div className="night-vision-layer" aria-hidden="true"/>}
 
       {menuOpen && <AppMenu lang={lang} tab={tab} onTab={changeTab} onClose={closeMenu} ambient={ambient} onAmbient={toggleAmbient}
-        night={night} onNight={()=>{ track("night_vision", { state: night ? "off" : "on" }); setNight(v=>!v); }} onLang={toggleLang}/>}
+        night={night} onNight={()=>{ track("night_vision", { state: night ? "off" : "on" }); setNight(v=>!v); }} onLang={toggleLang} onReport={openReport}/>}
       <div className={`app app--${tab}`}>
         <SpaceTravel/>
 
@@ -2215,12 +2285,15 @@ export default function Teseo() {
               </button>
               <span aria-hidden="true" className="footer__sep"/>
               <a href={aboutHref(lang)} className="footer__link" onClick={()=>track("about_open", { from: "footer" })}>{t.aboutLink}</a>
+              <span aria-hidden="true" className="footer__sep"/>
+              <button type="button" onClick={openReport} className="footer__link">{t.reportLink}</button>
             </footer>
           )}
         </div>
       </div>
 
-      {showCredits && <CreditsModal lang={lang} onClose={closeCredits}/>}
+      {showCredits && <CreditsModal lang={lang} onClose={closeCredits} onReport={openReport}/>}
+      {showReport && <ReportModal lang={lang} section={T[lang][tab] || tab} onClose={closeReport}/>}
       {usage && (
         <div className="usage-host">
           <SectionBoundary name="Teseo en números" onReset={retryUsage} title={t.usageErrTitle} message={t.usageErrBody} retryLabel={t.retry}>

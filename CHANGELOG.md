@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.73.0 — 2026-11-23
+
+- **Reportar un problema sin GitHub:** en el menú del teléfono, en los créditos (también desde el Cielo) y en el pie de la app, «Reportar un problema» abre WhatsApp o el correo. El mensaje ya trae la versión, la sección, el equipo, la pantalla y el idioma, nunca la ubicación. GitHub queda como opción para quien lo use. En «Acerca de», «Proponer una mejora» y «Cuéntanos en GitHub» pasan a WhatsApp y correo.
+- **Donar desde Ecuador:** nueva tarjeta en «Apoya a Teseo» con el código QR de DeUna (se paga con DeUna o con la app de Banco Pichincha), un enlace para guardar el código y un botón para pedir los datos de transferencia por WhatsApp.
+
 ## 1.72.6 — 2026-11-23
 
 - **Pie de página con íconos:** las redes y el contacto de Killa Ñan y Yachay Deep ahora son botones con íconos (sitio web, Instagram, Facebook, X, correo y WhatsApp), con su nombre para lectores de pantalla. En el teléfono cada grupo ocupa su propia fila.
