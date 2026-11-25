@@ -2940,8 +2940,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         const spec = (monNear.find((m) => m.reliefGrid) || {}).reliefGrid || null, rp = reliefPoints(lat, lon, reach, spec), parts = [];
         for (let i = 0; i < rp.length; i += 72) parts.push(fetchElevations(rp.slice(i, i + 72), { api: API }));
         Promise.all(parts).then((gs) => {
-          const g = gs.flat();
-          if (alive) setMonBase((s0) => (s0.key === monKey && s0.status === "ok" ? { ...s0, relief: { reach, h: g.map((v) => v - ground - 1.7), ...(spec || {}) } } : s0));
+          // (un sitio puede corregir el modelo global con cotas propias —m.reliefFix—: se suma en cada punto y a los pies)
+          const fix = (monNear.find((m) => m.reliefFix) || {}).reliefFix || null, f0 = fix ? fix(lat, lon) : 0;
+          const g = gs.flat().map((v, i) => (fix ? v + fix(rp[i][0], rp[i][1]) : v));
+          if (alive) setMonBase((s0) => (s0.key === monKey && s0.status === "ok" ? { ...s0, relief: { reach, h: g.map((v) => v - ground - f0 - 1.7), ...(spec || {}) } } : s0));
         }, () => { /* sin relieve cercano */ });
       }
     }, (e) => { if (alive) setMonBase({ status: "error", key: monKey, bases: null, ground: null, error: String(e && e.message || e) }); });

@@ -131,6 +131,26 @@ const COCHASQUI_MOUNDS = CQM.map(([id, e, n, radius, h, L]) => ({
 // (coronación del Templo Principal, 2.440,0–2.440,6). El modelo global da 2.429,0 y 2.437,8 en esos dos puntos: menos
 // de 1 m de diferencia, así que el relieve se usa tal cual.
 export const MP_CONTROL = [{ id: "templo-del-sol", e: 100.7, n: -108.6, m: 2429.59 }, { id: "plaza-sagrada", e: 38.6, n: -60.8, m: 2436.8 }];
+// CORRECCIÓN DEL RELIEVE DEL SITIO. El modelo global (30 m) alisa la ciudad: deja la plaza 10 m alta y la colina del
+// Intihuatana apenas 9 m sobre ella. Puntos de control [este, norte, corrección en m, fuente]:
+//  · "jica": cota medida (ver MP_CONTROL);
+//  · "maqueta": nivel del grupo en la maqueta «Machupicchu» del Ministerio de Cultura del Perú (Sketchfab, CC BY 4.0),
+//    encajada sobre la planta de OpenStreetMap (escala 0,989; la mitad de sus muros, a menos de 2 m) y puesta en altura
+//    con la cota de JICA del Templo del Sol. Es una reconstrucción, no una medición: da la plaza a 2.430 m.
+// Entre puntos se interpola por distancia; a más de 130 m del control más cercano no se corrige nada.
+export const MP_RELIEF_FIX = [
+  [100.7, -108.6, 0.6, "jica"], [38.6, -60.8, -1.0, "jica"],
+  [0, 0, 3.6, "maqueta"], [70, 5, -10.2, "maqueta"], [78.8, 49.4, -6.6, "maqueta"], [125.7, -50, -5.9, "maqueta"],
+  [123.4, -20.7, -4.4, "maqueta"], [50, 85, -4.3, "maqueta"], [230, -190, 3.1, "maqueta"], [-12.6, 151.9, -19.0, "maqueta"],
+];
+/** Corrección (m) que se suma a la cota del modelo global en [lat, lon]. */
+export function mpReliefDelta(lat, lon) {
+  const e = (lon - MP0[1]) * 111320 * Math.cos(MP0[0] * RAD), n = (lat - MP0[0]) * 110574;
+  let sw = 0, sv = 0, dmin = 1e9;
+  for (const [ce, cn, dv] of MP_RELIEF_FIX) { const d = Math.hypot(e - ce, n - cn), w = 1 / (d * d + 100); sw += w; sv += w * dv; dmin = Math.min(dmin, d); }
+  const k = Math.min(1, Math.max(0, (130 - dmin) / 90)), fade = k * k * (3 - 2 * k);
+  return (sv / sw) * fade;
+}
 // [este, norte] en metros desde el punto de vista (el Intihuatana).
 const MP0 = [-13.16312, -72.545683];
 const mpAt = (e, n) => ({ lat: +(MP0[0] + n / mPerLat).toFixed(6), lon: +(MP0[1] + e / mPerLon(MP0[0])).toFixed(6) });
@@ -150,6 +170,7 @@ const machu = [
     fine: [[100, -105, 20], [88, -81, 16], [38, -56, 20]],
     // recintos restaurados con techo de paja: los cinco depósitos junto a la entrada, la wayrana de la Roca Sagrada y la
     // casa aislada sobre los andenes altos (la Casa del Guardián, según su posición en OSM)
+    reliefFix: (lat, lon) => mpReliefDelta(lat, lon),
     clear: [[-9.5, -18, 12.5, 15.5]],   // huella del escaneo de la cima del Intihuatana
     roofs: [[217, -200, 3], [222, -195, 3], [231, -188, 3], [236, -184, 3], [244, -179, 3], [-9, 162, 4], [155, -242, 4]] },
   // muro de las tres ventanas hacia el noreste (la Plaza Principal y la salida del Sol); abierto a la Plaza Sagrada

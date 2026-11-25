@@ -2,7 +2,7 @@
 // verían desde el sitio, silueta para ocultar lo que queda detrás e integración en el cielo.
 import { MONUMENTS, monumentsNear, buildFaces, toLocal, altAzOf, offsetOf, silhouette, withMonuments, groundRing, median, apexOf, footprintRadius, SH_STANDING, SH_LINTELS } from "../src/sky/monuments.js";
 import { placeMonuments, onPlatform, monumentLabels, faceUV, toneAt, groundHeight, reliefAt, reliefPoints, RELIEF_R, RELIEF_NA } from "../src/sky/monumentLayer.js";
-import { tierEdges, stairSteps, detailFor, tolaRings, llaqtaPlan, LLAQTA, MP_CONTROL } from "../src/sky/monuments.js";
+import { tierEdges, stairSteps, detailFor, tolaRings, llaqtaPlan, LLAQTA, MP_CONTROL, MP_RELIEF_FIX, mpReliefDelta } from "../src/sky/monuments.js";
 import { SITES } from "../src/sky/places.js";
 import { readFileSync } from "node:fs";
 
@@ -185,6 +185,9 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
     ok(items.length === mp.length && it("intihuatana").dz > -6 && it("intihuatana").dz < -1.5 && it("mp-roca-sagrada").dz < -15 && near(it("mp-llaqta").dz, -1.7, 0.2), "a los pies manda el suelo del observador; lejos, el relieve (la Roca Sagrada, 20 m más abajo)");
     ok(mp.length === 13 && mp.filter((m) => m.kind === "mark").every((m) => buildFaces(m).length === 0 && /OpenStreetMap|explanada/.test(m.sub.es)) && mp.filter((m) => m.label !== false).length === 12, "13 piezas: la llaqta, cuatro con forma propia, el Intihuatana y siete rótulos de lugares");
     ok(f1.filter((f) => f.mat === "thatch").length === 7 * 4 && f1.filter((f) => f.mat === "door").length > 300 && byId("mp-torreon").height === 3.2, "siete recintos restaurados con techo de paja a dos aguas; puertas y ventanas de hastial en los recintos; Torreón de 3,2 m (JICA)");
+    { const at = (e, n) => mpReliefDelta(-13.16312 + n / 110574, -72.545683 + e / (111320 * Math.cos(13.16312 * Math.PI / 180)));
+      ok(MP_RELIEF_FIX.every((c) => c[3] === "jica" || c[3] === "maqueta") && MP_RELIEF_FIX.filter((c) => c[3] === "jica").every((c) => Math.abs(c[2]) <= 1) && at(0, 0) - at(70, 5) > 11 && at(0, 0) - at(70, 5) < 14.5 && at(104.9, -250.6) === 0 && at(500, 400) === 0 && Math.abs(at(100.7, -108.6)) < 1,
+        "corrección del relieve: cada punto con su fuente; la colina del Intihuatana sube unos 12–14 m respecto a la plaza; las cotas de JICA casi no se tocan; fuera del sitio, nada"); }
     ok(MP_CONTROL.length === 2 && near(MP_CONTROL[0].m, 2429.59, 1e-9) && MP_CONTROL[1].m > 2436 && MP_CONTROL[1].m < 2437.5, "cotas de control de JICA: Templo del Sol y Plaza Sagrada");
     ok(near(byId("mp-templo-principal").height, 4.05, 1e-9) && byId("mp-templo-principal").w === 11 && byId("mp-roca-sagrada").w === 7 && byId("mp-roca-sagrada").height === 3 && near(LLAQTA.wallT, 0.85, 1e-9), "medidas publicadas: Templo Principal 11 × 8 × 4,05 m, Roca Sagrada 7 × 3 m, muros de 0,85 m"); }
   // rótulos y relieve cercano

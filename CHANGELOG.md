@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.81.0 — Machu Picchu: relieve del sitio corregido
+
+- El modelo global de elevación (30 m) alisaba la ciudad: dejaba la plaza unos 10 m alta y la colina del Intihuatana apenas 9 m sobre ella, así que desde el Intihuatana casi no se veía la ciudad. Ahora el relieve del sitio se corrige con diez puntos de control: dos cotas medidas por JICA y ocho niveles de la maqueta «Machupicchu» del Ministerio de Cultura del Perú (Sketchfab, CC BY 4.0), encajada sobre la planta de OpenStreetMap y referida a la cota de JICA del Templo del Sol.
+- Resultado: la plaza queda a unos 2.430 m y la colina del Intihuatana unos 22 m más arriba. La maqueta es una reconstrucción, no una medición, y así se declara en la nota del lugar y en CREDITS.md. Fuera del sitio no se corrige nada.
+
 ## 1.80.0 — Licencia no comercial y la cima del Intihuatana medida con láser
 
 - **Licencia:** desde esta versión el código de Teseo se publica bajo PolyForm Noncommercial 1.0.0: cualquiera puede usarlo, estudiarlo, modificarlo y compartirlo sin fines comerciales; nadie puede venderlo. Las versiones hasta la 1.79.0 conservan la AGPL-3.0 o posterior (texto en `LICENSES/AGPL-3.0.txt`). Se actualizan LICENSE, NOTICE, README, CREDITS, las páginas «Acerca de» y el texto de créditos de la app.
