@@ -154,6 +154,19 @@ ok(/Open-Meteo/.test(credits) && /GIBS/.test(credits), "créditos de Open-Meteo 
 
 console.log("Nubes desde una cumbre");
 ok(cloudLift(5788, 3600) === 2.188 && cloudLift(2850, 3500) === 0 && cloudLift(null, 3000) === 0, "cuánto subes sobre el suelo del pronóstico (nunca baja de 0)");
+{
+  const W = await import("../src/sky/weather.js"), CL = await import("../src/sky/cloudsLayer.js");
+  ok(near(W.cloudBaseKm(15, 9), 0.75, 1e-12) && W.cloudBaseKm(12, 12) === 0.2 && W.cloudBaseKm(35, 0) === 3.5 && W.cloudBaseKm(null, 5) === null, "base de las nubes por la temperatura y el punto de rocío (125 m por grado, entre 0,2 y 3,5 km)");
+  const K = CL.layerKm(0.75), K2 = CL.layerKm(3.5), K0 = CL.layerKm(null);
+  ok(K.low === 0.75 && K.mid === 4.5 && K.high === 9 && K2.mid === 5 && K2.high === 9 && K0.low === 1.5, "las medias y las altas quedan por encima de las bajas; sin datos, 1,5 km");
+  ok(near(CL.layerHeight("low", 0.2, 0.75), 0.55, 1e-12) && CL.layerHeight("low", 1, 0.75) < 0, "la base calculada, respecto a ti (desde una cumbre, debajo)");
+  const T2 = 1795420800;
+  const fcB = W.parseForecast({ latitude: 0, longitude: -78.1, elevation: 2850, hourly: { time: [T2, T2 + 3600], cloud_cover: [100, 100], cloud_cover_low: [100, 100], cloud_cover_mid: [30, 30], cloud_cover_high: [90, 90], temperature_2m: [14, 16], dew_point_2m: [9, 9] } });
+  ok(near(W.cloudsAt(fcB, T2 + 1800).baseKm, 0.125 * 6, 1e-9) && W.cloudsAt(W.parseForecast({ hourly: { time: [T2], cloud_cover: [50] } }), T2).baseKm === null, "cada instante trae su base (interpolada); sin datos, null");
+  ok(/temperature_2m/.test(new URL(W.forecastUrl(0, -78)).searchParams.get("hourly")) && /dew_point_2m/.test(new URL(W.forecastUrl(0, -78)).searchParams.get("hourly")), "el pronóstico de la zona pide temperatura y punto de rocío");
+  const P = CL.layerParams({ low: 0.5, mid: 0.2, high: 0.1, baseKm: 0.75, wind: { low: [0, 0], mid: [0, 0], high: [0, 0] } }, T2, 0);
+  ok(near(P[0].h, 0.75, 1e-12) && P[1].h === 4.5, "las capas del dibujo usan la base calculada");
+}
 ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("mid", 2.2) > 0 && Math.abs(layerHeight("low", 1.5)) === 0.12, "desde la cumbre las bajas quedan debajo y las medias encima (nunca dentro)");
 {
   const allLow = { low: 1, mid: 0, high: 0, wind: { low: [5, 0], mid: [0, 0], high: [0, 0] } };

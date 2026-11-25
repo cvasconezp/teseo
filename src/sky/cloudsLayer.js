@@ -19,12 +19,16 @@
 // Marco: el del cielo local de Teseo: Y = cenit, −Z = norte, +X = este.
 import * as THREE from "three";
 import { GLSL_NOISE, LAYER_STYLE, threshold, fbm } from "./cloudNoise.js";
-import { LAYERS, LAYER_KM } from "./weather.js";
+import { LAYERS, LAYER_KM, BASE_KM_DEFAULT } from "./weather.js";
 import { TH_LO, TH_HI, thresholdTexture, sampleThreshold } from "./satClouds.js";
 
 const f1 = (v) => (Number.isInteger(v) ? `${v}.0` : String(v));
 const NB = 6;                 // bandas del horizonte (backend/app/horizon.py, BANDS_KM)
 const THICK = { low: 0.85, mid: 0.55, high: 0.1 };   // cuánto se oscurece la base de una nube gruesa
+// las nubes lejanas, de canto: el borde se ensancha (×2 a 25 km), los huecos de un manto denso (más de ~55 %) se
+// cierran desde 10 km hasta 50 km, y todas se desvanecen solo en los últimos ~1,7° sobre el horizonte
+export const FAR = { edgeKm: 25, fill0: 10, fill1: 50, cov0: 0.55, cov1: 0.9, fillMax: 0.9, fadeY: 0.03 };
+const sstepJs = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
 // celdas del estratocúmulo y del altocúmulo (km: a lo ancho y a lo largo del viento, donde se alinean en rodillos) y
 // cuánto marcan: el centro de cada celda, más grueso, se ve más oscuro desde abajo; los bordes, más finos, más claros.
 // Solo cambian el color (y adelgazan algo el borde de una nube suelta), no cuánto cielo tapa la capa
@@ -69,7 +73,7 @@ function layerGlsl(l, k) {
       && (uH[${k}] > 0.0 || terrainFront(d, uH[${k}] / d.y, uObs + uH[${k}] * 1000.0) < 0.5)
       && (uSide < 1.5 || terrainBehind(d, uH[${k}] / d.y) > 0.5)) {
     float dist = min(uH[${k}] / d.y, 240.0);
-    float horizonFade = smoothstep(0.004, 0.06, abs(d.y));
+    float horizonFade = smoothstep(0.004, ${f1(FAR.fadeY)}, abs(d.y));
     vec2 pe = vec2(d.x, -d.z) * dist - uOff[${k}];
     vec2 w = uDir[${k}];
     vec2 q = vec2(dot(pe, w) / ${f1(s.scaleKm * s.stretch)}, (-pe.x * w.y + pe.y * w.x) / ${f1(s.scaleKm)});
@@ -88,8 +92,12 @@ function layerGlsl(l, k) {
         th = mix(th, ${f1(TH_LO)} + m.${ch} * ${f1(TH_HI - TH_LO)}, m.a * f * uMapW);
       }
     }
-    float t = clamp((n - (th - ${f1(s.edge / 2)})) / ${f1(s.edge * 2)}, 0.0, 1.0);
+    // a lo lejos la capa se ve de canto: los bordes se suavizan y, en un manto denso, los huecos se cierran (se ven
+    // los costados de las celdas). Lo mismo en makeOccluder (farEdge, farFill)
+    float eW = ${f1(s.edge)} * (1.0 + dist / ${f1(FAR.edgeKm)});
+    float t = clamp((n - (th - eW * 0.5)) / (eW * 2.0), 0.0, 1.0);
     t = t * t * (3.0 - 2.0 * t);
+    ${l === "high" ? "" : `t = max(t, smoothstep(${f1(FAR.fill0)}, ${f1(FAR.fill1)}, dist) * smoothstep(${f1(FAR.cov0)}, ${f1(FAR.cov1)}, uCov[${k}]) * ${f1(FAR.fillMax)});`}
     float a = t * ${f1(s.maxAlpha)} * horizonFade;
     vec3 col = mix(lit, uShade, pow(t, 1.5) * (uH[${k}] > 0.0 ? ${f1(THICK[l])} : 0.12));   // desde arriba, la cima de la nube, al sol
 ${CELLS[l] ? cellGlsl(CELLS[l], k) : ""}
@@ -126,6 +134,7 @@ uniform float uMapHalf;
 uniform vec2 uMapOff[3];
 uniform sampler2D uMap;
 uniform float uOver[3];
+uniform float uCov[3];
 uniform float uOverR;
 uniform float uFogB;
 uniform float uRain;
@@ -299,9 +308,18 @@ export const OCC_HIDE = 0.8;
 export function cloudLift(obsM, refM) {
   return Number.isFinite(obsM) && Number.isFinite(refM) ? Math.max(0, obsM - refM) / 1000 : 0;
 }
+/**
+ * Altura de cada capa sobre el suelo del pronóstico (km). La de las bajas es su base calculada (cloudBaseKm: por la
+ * temperatura y el punto de rocío); sin ella, 1,5 km. Las medias y las altas quedan siempre por encima de las bajas.
+ */
+export function layerKm(baseKm) {
+  const low = Number.isFinite(baseKm) ? baseKm : BASE_KM_DEFAULT;
+  const mid = Math.max(LAYER_KM.mid, low + 1.5);
+  return { low, mid, high: Math.max(LAYER_KM.high, mid + 2) };
+}
 /** Altura de una capa respecto a ti (km): positiva encima, negativa debajo (nunca a menos de 120 m: no se entra en ella). */
-export function layerHeight(l, lift = 0) {
-  const h = LAYER_KM[l] - lift;
+export function layerHeight(l, lift = 0, baseKm = null) {
+  const h = layerKm(baseKm)[l] - lift;
   return Math.abs(h) < 0.12 ? (h < 0 ? -0.12 : 0.12) : h;
 }
 
@@ -314,7 +332,7 @@ export function layerParams(clouds, tSec, lift = 0) {
   return LAYERS.map((l) => {
     const c = clouds ? clouds[l] || 0 : 0, dr = drift((clouds && clouds.wind && clouds.wind[l]) || [0, 0], dt);
     const over = clouds && clouds.over ? clouds.over[l] || 0 : 0;
-    return { layer: l, on: c > 0.003, th: threshold(l, c), off: dr.off, dir: dr.dir, h: layerHeight(l, lift), over };
+    return { layer: l, on: c > 0.003, cover: c, th: threshold(l, c), off: dr.off, dir: dr.dir, h: layerHeight(l, lift, clouds ? clouds.baseKm : null), over };
   });
 }
 
@@ -329,7 +347,7 @@ export function makeOccluder(clouds, tSec, lift = 0, map = null) {
   const R2 = (clouds.overR || 25) ** 2;
   return (d) => {
     if (!(d[1] > 0.004)) return 0;
-    const fade = Math.min(1, Math.max(0, (d[1] - 0.004) / 0.056)), hf = fade * fade * (3 - 2 * fade);
+    const hf = sstepJs(0.004, FAR.fadeY, d[1]);
     let a = 0;
     for (const p of P) {
       const st = LAYER_STYLE[p.layer], dist = Math.min(p.h / d[1], 240);
@@ -342,8 +360,10 @@ export function makeOccluder(clouds, tSec, lift = 0, map = null) {
         const m = sampleThreshold(map.tex, map.n, map.half, k, d[0] * dist - o[0], -d[2] * dist - o[1]);
         if (m) th += (m.th - th) * m.w * map.w;
       }
-      let t = Math.min(1, Math.max(0, (n - (th - st.edge / 2)) / (st.edge * 2)));
+      const eW = st.edge * (1 + dist / FAR.edgeKm);
+      let t = Math.min(1, Math.max(0, (n - (th - eW / 2)) / (eW * 2)));
       t = t * t * (3 - 2 * t);
+      if (p.layer !== "high") t = Math.max(t, sstepJs(FAR.fill0, FAR.fill1, dist) * sstepJs(FAR.cov0, FAR.cov1, p.cover) * FAR.fillMax);
       const al = t * st.maxAlpha * hf;
       a += (1 - a) * al;
     }
@@ -366,7 +386,7 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
     uSun: { value: new THREE.Vector3(0, 1, 0) }, uRim: { value: 0 }, uHaze: { value: 0 },
     uMapOn: { value: 0 }, uMapW: { value: 0 }, uMapHalf: { value: 151.5 }, uMap: { value: null },
     uMapOff: { value: [new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2()] },
-    uOver: { value: [0, 0, 0] }, uOverR: { value: 25 }, uFogB: { value: 0 }, uRain: { value: 0 }, uMottle: { value: 0 }, uRainCol: { value: new THREE.Color(0.5, 0.52, 0.56) },
+    uOver: { value: [0, 0, 0] }, uCov: { value: [0, 0, 0] }, uOverR: { value: 25 }, uFogB: { value: 0 }, uRain: { value: 0 }, uMottle: { value: 0 }, uRainCol: { value: new THREE.Color(0.5, 0.52, 0.56) },
   };
   let mapTex = null, mapSat = null;
   const mat = (side) => new THREE.ShaderMaterial({
@@ -416,6 +436,7 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
           uniforms.uOff.value[k].set(p.off[0], p.off[1]);
           uniforms.uDir.value[k].set(p.dir[0], p.dir[1]);
           uniforms.uOver.value[k] = p.over;
+          uniforms.uCov.value[k] = p.cover;
           if (p.on) any = true;
         });
         uniforms.uOverR.value = clouds.overR || 25;

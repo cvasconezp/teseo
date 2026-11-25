@@ -18,7 +18,7 @@ export const LAYERS = ["low", "mid", "high"];
 export const LAYER_KM = { low: 1.5, mid: 4.5, high: 9 };
 const WIND_LEVEL = { low: "850hPa", mid: "500hPa", high: "250hPa" };
 const HOURLY = ["cloud_cover", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high", "precipitation_probability",
-  "weather_code", "precipitation", "visibility",
+  "weather_code", "precipitation", "visibility", "temperature_2m", "dew_point_2m",
   ...LAYERS.flatMap((l) => [`wind_speed_${WIND_LEVEL[l]}`, `wind_direction_${WIND_LEVEL[l]}`])];
 
 const round1 = (v) => Math.round(v * 10) / 10;
@@ -31,7 +31,8 @@ export function forecastUrl(lat, lon) {
     timezone: "GMT", timeformat: "unixtime", wind_speed_unit: "ms",
     // sin «downscaling»: la altura que devuelve es la media de la celda del modelo, el suelo desde el que se miden
     // las capas de nubes (con ella, desde una cumbre las bajas quedan por debajo; ver cloudLift en cloudsLayer.js).
-    // Solo cambia la temperatura, que aquí no se usa.
+    // La temperatura y el punto de rocío son, así, los de ese mismo suelo: con ellos se calcula la base de las nubes
+    // (cloudBaseKm) en el mismo marco que las capas.
     elevation: "nan",
   });
   return `${OPEN_METEO}?${q}`;
@@ -61,18 +62,31 @@ export function parseForecast(json) {
   }
   const raw = (k, f = 1) => { const a = h[k]; return Array.from({ length: n }, (_, i) => { const v = num(a && a[i]); return v == null ? null : v * f; }); };
   return {
-    code: raw("weather_code"), mm: raw("precipitation"), visKm: raw("visibility", 0.001),
+    code: raw("weather_code"), mm: raw("precipitation"), visKm: raw("visibility", 0.001), tC: raw("temperature_2m"), dewC: raw("dew_point_2m"),
     t: h.time.map(Number), total: frac("cloud_cover"), low: frac("cloud_cover_low"), mid: frac("cloud_cover_mid"),
     high: frac("cloud_cover_high"), precip: frac("precipitation_probability"), wind,
     lat: num(json.latitude), lon: num(json.longitude), elevation: num(json.elevation),
   };
 }
 
+/** Base de las nubes bajas usada cuando no hay temperatura y punto de rocío (km sobre el suelo del pronóstico). */
+export const BASE_KM_DEFAULT = 1.5;
+/**
+ * Base de las nubes bajas (km sobre el suelo) por la temperatura y el punto de rocío a 2 m: el nivel de condensación por
+ * ascenso, ≈ 125 m por cada grado de diferencia (fórmula de Espy; el aire que sube se enfría hasta saturarse).
+ * Entre 0,2 y 3,5 km; null sin datos. Con 15 °C y punto de rocío de 9 °C: 0,75 km.
+ */
+export function cloudBaseKm(tC, dewC) {
+  if (!Number.isFinite(tC) || !Number.isFinite(dewC)) return null;
+  return Math.min(3.5, Math.max(0.2, 0.125 * Math.max(0, tC - dewC)));
+}
+
 /** Lineal entre dos valores que pueden faltar. */
 const lerp = (a, b, f) => (a == null ? b : b == null ? a : a + (b - a) * f);
 
 /**
- * Nubes en un instante (Date o s Unix): { total, low, mid, high, precip, code, mm, visKm, wind: {low:[ve,vn],…}, t } interpolado
+ * Nubes en un instante (Date o s Unix): { total, low, mid, high, precip, code, mm, visKm, baseKm (base de las bajas, km
+ * sobre el suelo del pronóstico, o null), wind: {low:[ve,vn],…}, t } interpolado
  * (el código de tiempo, el de la hora más cercana)
  * entre horas, o null si cae fuera del pronóstico (más de una hora antes del primer dato o después del último).
  */
@@ -90,6 +104,7 @@ export function cloudsAt(fc, when) {
   const cd = fc.code ? (f < 0.5 ? fc.code[i] : fc.code[j]) : null;
   out.code = cd == null ? null : Math.round(cd);
   out.mm = fc.mm ? pick(fc.mm) : null; out.visKm = fc.visKm ? pick(fc.visKm) : null;
+  out.baseKm = fc.tC && fc.dewC ? cloudBaseKm(pick(fc.tC), pick(fc.dewC)) : null;
   for (const l of LAYERS) { const a = fc.wind[l][i], b = fc.wind[l][j]; out.wind[l] = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }
   if (out.total == null) {   // sin total: el de capas que se solapan al azar
     const p = LAYERS.map((l) => out[l]).filter((v) => v != null);

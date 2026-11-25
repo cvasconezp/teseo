@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.77.2 — 2026-11-25
+
+- **La base de las nubes se calcula.** Antes las nubes bajas iban siempre a 1,5 km sobre el suelo. Ahora su base sale de la temperatura y el punto de rocío del pronóstico (≈ 125 m por grado de diferencia, la fórmula de Espy) y queda entre 0,2 y 3,5 km: unos 300 m en una costa húmeda, unos 3 km en un desierto. De eso depende qué cumbres quedan dentro de las nubes. Las capas medias y altas siempre quedan por encima. La temperatura y el punto de rocío son los del suelo del pronóstico, así que desde una cumbre sobre un mar de nubes estas siguen viéndose abajo.
+- **Sin claros blancos recortados en el horizonte.** A lo lejos las nubes se ven de canto: los bordes se suavizan con la distancia y, en un manto denso (más de ~55 %), los huecos se cierran entre 10 y 50 km, porque se ven los costados de las celdas. Además, las capas se desvanecen solo en el último grado y medio sobre el horizonte. Antes, por los huecos lejanos asomaba el color claro del horizonte.
+
 ## 1.77.1 — 2026-11-25
 
 Ajustes de realismo, comparando con fotos reales del cielo de Cayambe a las 9:40:
