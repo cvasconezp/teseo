@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.77.1 — 2026-11-25
+
+Ajustes de realismo, comparando con fotos reales del cielo de Cayambe a las 9:40:
+- **Una lluvia posible ya no oscurece el cielo.** El dibujo tomaba la lluvia de la hora (por ejemplo, chubascos) sin mirar su probabilidad: con un 25 % de chance, Teseo «llovía» a media intensidad y la bruma de esa lluvia borraba las montañas. Ahora la lluvia cuenta según su probabilidad (casi nada al 25 %, toda desde ~60 %). La visibilidad baja que el modelo da junto con la lluvia también cuenta según esa probabilidad, así que las montañas lejanas vuelven a verse nítidas, como en la realidad.
+- **Cumbres dentro de las nubes.** Una montaña más alta que la base de las nubes, vista desde abajo, queda dentro de ellas: el Cayambe se esconde tras un manto bajo cerrado y Fuya Fuya, debajo de la base, sigue a la vista. Antes las montañas se dibujaban siempre encima de las nubes.
+- **Textura de estratocúmulo.** El manto bajo y el medio tienen ahora celdas y rodillos alineados con el viento (centros más gruesos y oscuros, vetas más claras entre ellos), en lugar de manchas suaves. Las celdas se borran a lo lejos para no dibujar arcos.
+
 ## 1.77.0 — 2026-11-25
 
 - **Tarjeta del tiempo renovada**, inspirada en lo útil de las apps del tiempo de los teléfonos:

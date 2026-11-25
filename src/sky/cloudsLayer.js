@@ -25,6 +25,10 @@ import { TH_LO, TH_HI, thresholdTexture, sampleThreshold } from "./satClouds.js"
 const f1 = (v) => (Number.isInteger(v) ? `${v}.0` : String(v));
 const NB = 6;                 // bandas del horizonte (backend/app/horizon.py, BANDS_KM)
 const THICK = { low: 0.85, mid: 0.55, high: 0.1 };   // cuánto se oscurece la base de una nube gruesa
+// celdas del estratocúmulo y del altocúmulo (km: a lo ancho y a lo largo del viento, donde se alinean en rodillos) y
+// cuánto marcan: el centro de cada celda, más grueso, se ve más oscuro desde abajo; los bordes, más finos, más claros.
+// Solo cambian el color (y adelgazan algo el borde de una nube suelta), no cuánto cielo tapa la capa
+const CELLS = { low: { across: 1.6, along: 2.6, dark: 0.3, light: 0.3 }, mid: { across: 0.7, along: 1.0, dark: 0.18, light: 0.22 } };
 
 const VERT = `
 varying vec3 vWorld;
@@ -34,13 +38,36 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
 
+// celdas (ver CELLS): Worley con los bordes deformados por ruido; se apagan a lo lejos (más allá de ~40 km serían
+// más finas que un píxel) y vistas desde arriba (desde una cumbre se ve la cima, lisa y al sol)
+function cellGlsl(c, k) {
+  return `
+    {
+      vec2 qc = vec2(dot(pe, w) / ${f1(c.along)}, (-pe.x * w.y + pe.y * w.x) / ${f1(c.across)});
+      // bordes deformados con dos escalas de ruido: celdas irregulares, no un panal
+      qc += 0.9 * vec2(vnoise(qc * 0.45 + 3.1), vnoise(qc * 0.45 + 11.7)) + 0.35 * vec2(vnoise(qc * 1.7 + 5.3), vnoise(qc * 1.7 + 8.9)) - 0.625;
+      vec2 wc = worley(qc);
+      // el grosor: centro de la celda y grumos más pequeños (lo que se ve desde abajo como manchas oscuras)
+      float thick = mix(1.0 - smoothstep(0.0, 1.05, wc.x), vnoise(qc * 3.1 + 2.7), 0.35);
+      // vetas claras entre celdas: anchas, difusas y cortadas (no una red de líneas)
+      float seam = (1.0 - smoothstep(0.0, 0.5, wc.y - wc.x)) * smoothstep(0.35, 0.8, vnoise(qc * 0.9 + 21.3));
+      float cf = (1.0 - smoothstep(18.0, 45.0, dist)) * (uH[${k}] > 0.0 ? 1.0 : 0.0);
+      col *= 1.0 - ${f1(c.dark)} * cf * thick * t;
+      // las vetas, solo cerca (a lo lejos, comprimidas por la perspectiva, dibujarían arcos)
+      float cs = cf * (1.0 - smoothstep(5.0, 16.0, dist));
+      col = mix(col, lit, ${f1(c.light)} * cs * seam * t);
+      a *= 1.0 - 0.4 * cs * seam * (1.0 - t * t);
+    }`;
+}
+
 function layerGlsl(l, k) {
   const s = LAYER_STYLE[l], ch = "rgb"[k];
   // uH: altura de la capa respecto a ti (km): por encima, se ve mirando arriba; por debajo (desde una cumbre),
   // mirando abajo, y ahí la tapan las montañas que asoman sobre ella (terrainFront)
   return `
   if (uOn[${k}] > 0.5 && uH[${k}] * uSide > 0.0 && uH[${k}] * d.y > 0.0 && abs(d.y) > 0.004
-      && (uH[${k}] > 0.0 || terrainFront(d, uH[${k}] / d.y, uObs + uH[${k}] * 1000.0) < 0.5)) {
+      && (uH[${k}] > 0.0 || terrainFront(d, uH[${k}] / d.y, uObs + uH[${k}] * 1000.0) < 0.5)
+      && (uSide < 1.5 || terrainBehind(d, uH[${k}] / d.y) > 0.5)) {
     float dist = min(uH[${k}] / d.y, 240.0);
     float horizonFade = smoothstep(0.004, 0.06, abs(d.y));
     vec2 pe = vec2(d.x, -d.z) * dist - uOff[${k}];
@@ -65,6 +92,7 @@ function layerGlsl(l, k) {
     t = t * t * (3.0 - 2.0 * t);
     float a = t * ${f1(s.maxAlpha)} * horizonFade;
     vec3 col = mix(lit, uShade, pow(t, 1.5) * (uH[${k}] > 0.0 ? ${f1(THICK[l])} : 0.12));   // desde arriba, la cima de la nube, al sol
+${CELLS[l] ? cellGlsl(CELLS[l], k) : ""}
     col += uSunGlow * rim * (1.0 - t);
     // cielo cubierto: donde la nube es más gruesa, la base es más oscura (manchas del nimboestrato)
     col *= 1.0 - uMottle * ${l === "high" ? "0.0" : "0.34"} * t * smoothstep(0.32, 0.72, n);
@@ -105,6 +133,20 @@ uniform float uMottle;
 uniform vec3 uRainCol;
 varying vec3 vWorld;
 ${GLSL_NOISE}
+// celdas de Worley: distancia al punto más cercano (x) y al segundo (y) de una malla de puntos al azar
+vec2 worley(vec2 p) {
+  vec2 i = floor(p), f = p - i;
+  float d1 = 8.0, d2 = 8.0;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 g = vec2(float(x), float(y));
+      vec2 r = g + vec2(hash12(i + g), hash12(i + g + vec2(41.3, 17.9))) - f;
+      float dd = dot(r, r);
+      if (dd < d1) { d2 = d1; d1 = dd; } else if (dd < d2) { d2 = dd; }
+    }
+  }
+  return vec2(sqrt(d1), sqrt(d2));
+}
 float rhash(float x) { return fract(sin(x * 127.1) * 43758.5453); }
 // densidad (0–1) de la capa baja en un punto del plano (km respecto a ti), con el mismo umbral que su dibujo
 float lowDens(vec2 pw) {
@@ -134,8 +176,27 @@ float terrainFront(vec3 d, float distKm, float cloudM) {
   }
   return 0.0;
 }
+// ¿la montaña que se ve en esta dirección está MÁS LEJOS que el punto donde la mirada entra en la capa? Entonces la
+// nube va delante: una cumbre más alta que la base de las nubes queda dentro de ellas (vista desde abajo)
+float terrainBehind(vec3 d, float distKm) {
+  if (uTerrOn < 0.5) return 0.0;
+  float alt = degrees(asin(clamp(d.y, -1.0, 1.0)));
+  float az = mod(degrees(atan(d.x, -d.z)) + 360.0, 360.0);
+  for (int k = 0; k < ${NB}; k++) {
+    float v = (float(k) + 0.5) / ${f1(NB)};
+    vec4 b = texture2D(uTerr, vec2(az / 360.0, v));
+    // el filo guardado va en pasos de 0,2° de acimut, y la montaña dibujada (las franjas y el relieve 3D cercano)
+    // sigue su borde exacto, algo más alto: se toma el más alto de los pasos vecinos y 0,3° de margen, para que el
+    // filo, su línea y la nieve de la cumbre también queden dentro de la nube
+    float top = max(b.x, max(texture2D(uTerr, vec2((az - 0.2) / 360.0, v)).x, texture2D(uTerr, vec2((az + 0.2) / 360.0, v)).x));
+    if (top + 0.3 >= alt) return b.z > distKm ? 1.0 : 0.0;
+  }
+  return 0.0;
+}
 void main() {
   vec3 d = normalize(vWorld - cameraPosition);
+  // la pasada sobre las montañas solo pinta donde hay relieve en esta dirección
+  if (uSide > 1.5 && (uTerrOn < 0.5 || d.y <= 0.004)) discard;
   if (abs(d.y) <= 0.004) discard;
   float rim = pow(max(dot(d, normalize(uSun)), 0.0), 10.0) * uRim;
   // lado del Sol: en el crepúsculo las nubes hacia el Sol se encienden y las del lado opuesto quedan grises
@@ -145,7 +206,7 @@ void main() {
   vec4 acc = vec4(0.0);
   // lluvia: cortinas grises que bajan de las nubes bajas densas hasta el suelo (se ven de lado, hacia el horizonte)
   // y, si llueve donde estás, las gotas que caen (hilos que convergen en el cenit). Delante de las nubes
-  if (uSide > 0.0 && uRain > 0.01 && uOn[0] > 0.5 && uH[0] > 0.0 && d.y > -0.03) {
+  if (uSide > 0.0 && uSide < 1.5 && uRain > 0.01 && uOn[0] > 0.5 && uH[0] > 0.0 && d.y > -0.03) {
     float e = max(d.y, 0.0), tg = e / max(sqrt(1.0 - e * e), 1e-3);
     vec2 hd = normalize(vec2(d.x, -d.z) + vec2(1e-6));
     float az = atan(hd.x, hd.y);
@@ -312,7 +373,7 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
     uniforms: { ...uniforms, uSide: { value: side } }, vertexShader: VERT, fragmentShader: FRAG,
     side: THREE.BackSide, transparent: true, depthWrite: false, depthTest: false, fog: false,
   });
-  const material = mat(1), matBelow = mat(-1);
+  const material = mat(1), matBelow = mat(-1), matOver = mat(2);
   const geo = new THREE.SphereGeometry(radius, segments, Math.round(segments / 2));
   const mesh = new THREE.Mesh(geo, material);
   mesh.name = "clouds";
@@ -327,6 +388,14 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
   below.frustumCulled = false;
   below.visible = false;
   mesh.add(below);
+  // las capas de encima, otra vez, sobre las montañas: donde la mirada entra en la nube antes de llegar a la ladera
+  // (una cumbre más alta que la base de las nubes, vista desde abajo, queda dentro de ellas)
+  const over = new THREE.Mesh(geo, matOver);
+  over.name = "clouds-over-terrain";
+  over.renderOrder = 2.79;          // después del relieve (2,69–2,78); antes de las capas de abajo (2,8)
+  over.frustumCulled = false;
+  over.visible = false;
+  mesh.add(over);
   let enabled = false, any = false, last = null, lift = 0;
   const setC = (u, c) => u.value.setRGB(Math.min(1, c[0]), Math.min(1, c[1]), Math.min(1, c[2]));
 
@@ -336,12 +405,13 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
     update(clouds, st, tSec) {
       last = clouds || null;
       any = false;
-      let anyBelow = false;
+      let anyBelow = false, anyAbove = false;
       if (clouds && st) {
         layerParams(clouds, tSec, lift).forEach((p, k) => {
           uniforms.uOn.value[k] = p.on ? 1 : 0;
           uniforms.uH.value[k] = p.h;
           if (p.on && p.h < 0) anyBelow = true;
+          if (p.on && p.h > 0) anyAbove = true;
           uniforms.uTh.value[k] = p.th;
           uniforms.uOff.value[k].set(p.off[0], p.off[1]);
           uniforms.uDir.value[k].set(p.dir[0], p.dir[1]);
@@ -360,6 +430,7 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
         setC(uniforms.uRainCol, L.rain);
       }
       below.visible = anyBelow;
+      over.visible = anyAbove && uniforms.uTerrOn.value > 0.5;
       mesh.visible = enabled && any;
     },
     /**

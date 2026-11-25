@@ -59,6 +59,18 @@ export function visBeta(visKm) {
 }
 
 /**
+ * La bruma esperada cuando la visibilidad baja solo con probabilidad `p`: la extinción que, a 15 km (la distancia de
+ * las montañas que se ven), borra lo mismo que la media entre «con lluvia» (β) y «sin ella» (0).
+ */
+export function expectedBeta(beta, p) {
+  if (!(beta > 0)) return 0;
+  const pp = clamp01(p);
+  if (pp >= 1) return beta;
+  const h = pp * (1 - Math.exp(-beta * 15));
+  return h > 0 ? -Math.log(1 - h) / 15 : 0;
+}
+
+/**
  * Nubes sobre ti según el satélite (0–1): la cobertura media de las celdas a menos de `rKm` del centro de la malla
  * (cualquier capa: el satélite ve el tope). null si no hay malla.
  */
@@ -84,12 +96,18 @@ export function satOverhead(sat, rKm = 12) {
  */
 export function rainLook(fc, sat = null, w = 0) {
   if (!fc) return null;
-  let rain = rainAmount(fc);
+  // el código y los milímetros de la hora dicen cómo llovería SI llueve; con poca probabilidad no se dibuja
+  // (25 % → casi nada; desde ~60 %, toda): un chubasco posible no oscurece el cielo ni borra las montañas
+  const pRain = Number.isFinite(fc.precip) ? sstep(0.15, 0.6, fc.precip) : 1;
+  let rain = rainAmount(fc) * pRain;
   const over = w > 0 ? satOverhead(sat) : null;
   if (over != null) rain *= 1 - w + w * sstep(0.25, 0.7, over);
   const shower = SHOWER.has(fc.code);
   // la lluvia también quita visibilidad aunque el modelo no la dé (fuerte: ~2 km; débil: ~10 km)
-  let beta = Math.max(visBeta(fc.visKm), 2 * Math.pow(rain, 2.2));
+  // la visibilidad baja que el modelo da junto con lluvia es la de cuando llueve: cuenta según su probabilidad
+  let vb = visBeta(fc.visKm);
+  if (vb > 0 && RAIN_BY_CODE[fc.code] && Number.isFinite(fc.precip)) vb = expectedBeta(vb, fc.precip);
+  let beta = Math.max(vb, 2 * Math.pow(rain, 2.2));
   if (FOG.has(fc.code) && !Number.isFinite(fc.visKm)) beta = Math.max(beta, K / 0.5);
   if (over != null && w > 0) beta *= 1 - w + w * sstep(0.15, 0.6, over);
   return { rain, shower, beta };

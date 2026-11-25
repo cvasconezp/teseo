@@ -265,6 +265,13 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
   const n = 9, empty = () => new Uint8Array(n * n), full = () => new Uint8Array(n * n).fill(80);
   const clear = { n, res: 3, layers: { low: empty(), mid: empty(), high: empty() } }, cloudy = { n, res: 3, layers: { low: full(), mid: empty(), high: full() } };
   ok(rl.rainLook(fc, clear, 1).rain < 0.01 && near(rl.rainLook(fc, cloudy, 1).rain, 0.7, 1e-9) && near(rl.rainLook(fc, clear, 0).rain, 0.7, 1e-9), "el satélite reciente manda: sin nubes encima, sin lluvia");
+  // la probabilidad: un chubasco al 25 % casi no se dibuja ni borra las montañas; al 80 %, entero
+  const sh = { ...fc, code: 80, mm: 0.1, visKm: 4.88 };
+  const l25 = rl.rainLook({ ...sh, precip: 0.25 }), l80 = rl.rainLook({ ...sh, precip: 0.8 }), lNo = rl.rainLook(sh);
+  ok(l25.rain < 0.1 && near(l80.rain, 0.5, 1e-9) && near(lNo.rain, 0.5, 1e-9), "la lluvia del dibujo cuenta según su probabilidad (sin ella, como antes)");
+  ok(rl.hazeAt(l25, 15) < 0.3 && rl.hazeAt(l80, 15) > 0.7 && rl.hazeAt(lNo, 15) > 0.9, "la bruma de la lluvia, también: al 25 %, las montañas a 15 km se ven");
+  ok(near(rl.expectedBeta(0.6, 1), 0.6, 1e-12) && rl.expectedBeta(0.6, 0) === 0 && rl.expectedBeta(0, 0.5) === 0 && near(rl.hazeAt({ beta: rl.expectedBeta(0.6, 0.5) }, 15), 0.5 * (1 - Math.exp(-9)), 1e-9), "la bruma esperada a 15 km es la media");
+  ok(near(rl.rainLook({ ...fc, code: 45, visKm: 0.4, precip: 0.05 }).beta, rl.visBeta(0.4), 1e-12), "la niebla no depende de la probabilidad de lluvia");
   ok(rl.hazeAt({ beta: 0.6 }, 15) > 0.9 && rl.hazeAt({ beta: 0.6 }, 15) <= 0.95 && rl.hazeAt({ beta: 0 }, 50) === 0 && rl.hazeAt(null, 5) === 0, "la bruma borra lo lejano (sin pasar de 95 %)");
   const st = { sunAlt: 50, cls: 5, moonAlt: -10, moonIllum: 0, colors: { zenith: [0.17, 0.44, 0.82], horizon: [0.66, 0.8, 0.94], sunGlow: [1, 0.96, 0.87], glow: 0.6, ground: [0.1, 0.1, 0.1], alpha: 1 } };
   const ws = rl.weatherSky(st, th, look);
