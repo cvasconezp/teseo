@@ -19,6 +19,7 @@
 // Marco local: E (este), N (norte), U (arriba), en metros desde el centro de la base del monumento.
 
 import { INTI_SCAN } from "./intiScan.js";
+import { machuModel, eachModelFace, MODEL_BASE_M } from "./machuModel.js";
 import { MP_BUILDINGS, MP_TERRACES, MP_WALLS, MP_STEPS } from "./machuData.js";
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
@@ -170,13 +171,13 @@ const machu = [
     fine: [[100, -105, 20], [88, -81, 16], [38, -56, 20]],
     // recintos restaurados con techo de paja: los cinco depósitos junto a la entrada, la wayrana de la Roca Sagrada y la
     // casa aislada sobre los andenes altos (la Casa del Guardián, según su posición en OSM)
-    reliefFix: (lat, lon) => mpReliefDelta(lat, lon),
+    reliefFix: (lat, lon) => mpReliefDelta(lat, lon), model: "machu", absBase: MODEL_BASE_M,
     clear: [[-9.5, -18, 12.5, 15.5]],   // huella del escaneo de la cima del Intihuatana
     roofs: [[217, -200, 3], [222, -195, 3], [231, -188, 3], [236, -184, 3], [244, -179, 3], [-9, 162, 4], [155, -242, 4]] },
   // muro de las tres ventanas hacia el noreste (la Plaza Principal y la salida del Sol); abierto a la Plaza Sagrada
   { ...mpBase, id: "mp-tres-ventanas", name: { es: "Templo de las Tres Ventanas", en: "Temple of the Three Windows", mat: "incafine" }, sub: { es: "muro de 11 m con tres ventanas", en: "11 m wall with three windows" }, ...mpAt(46.5, -54.4), w: 5.6, d: 10.8, height: 3.6, rot: -41, open: "w", windows: 3, foot: 6, mat: "incafine" },
   { ...mpBase, id: "mp-templo-principal", name: { es: "Templo Principal", en: "Main Temple", mat: "incafine" }, sub: { es: "11 × 8 m · muros de 4 m", en: "11 × 8 m · 4 m walls" }, ...mpAt(33.5, -53.2), w: 11, d: 8, height: 4.05, rot: -30, open: "s", windows: 0, foot: 7, mat: "incafine" },
-  { ...mpBase, id: "mp-torreon", name: { es: "Torreón · Templo del Sol", en: "Torreón · Temple of the Sun", mat: "incafine" }, sub: { es: "muro curvo sobre la roca · 3,2 m", en: "curved wall on the rock · 3.2 m" }, ...mpAt(100.7, -108.6), kind: "torreon", radius: 5, height: 3.2, rot: -35, foot: 6, mat: "incafine" },
+  { ...mpBase, id: "mp-torreon", name: { es: "Torreón · Templo del Sol", en: "Torreón · Temple of the Sun", mat: "incafine" }, sub: { es: "muro curvo sobre la roca · 3,2 m", en: "curved wall on the rock · 3.2 m" }, ...mpAt(100.7, -108.6), kind: "torreon", modelDup: true, radius: 5, height: 3.2, rot: -35, foot: 6, mat: "incafine" },
   { ...mpBase, id: "mp-roca-sagrada", name: { es: "Roca Sagrada", en: "Sacred Rock" }, sub: { es: "3 m de alto · 7 m de ancho", en: "3 m tall · 7 m wide" }, ...mpAt(-12.6, 151.9), kind: "stela", w: 7, d: 1.1, height: 3, rot: 40, foot: 4, mat: "granite" },
   // lugares con nombre (solo el rótulo: el edificio está en la llaqta)
   mpMark("condor", "Templo del Cóndor", "Temple of the Condor", 125.7, -50.0),
@@ -293,23 +294,24 @@ export const MONUMENTS = [
   // datos CC BY-NC 3.0, con su crédito). Posición: la del nodo de OpenStreetMap. Orientación: la del sistema de
   // coordenadas del escaneo, que coincide con los andenes de OpenStreetMap con 7° de margen.
   { id: "intihuatana", site: "machupicchu", name: { es: "Intihuatana", en: "Intihuatana" }, sub: { es: "escaneo láser de 2009", en: "2009 laser scan" }, lat: -13.163075, lon: -72.545683,
-    kind: "scan", scan: INTI_SCAN, wallMat: "inca", floorMat: "earth", height: INTI_SCAN.gnomonTop, rot: 0, lift: 0.22, foot: 1.6, far: 300, level: true, relief: true, seat: "ground", color: GRANITE, mat: "granite", ground: "heath", solid: true },
+    kind: "scan", scan: INTI_SCAN, wallMat: "inca", floorMat: "earth", height: INTI_SCAN.gnomonTop, rot: 0, lift: 0.22, absLevel: 2452.8, foot: 1.6, far: 300, level: true, relief: true, seat: "ground", color: GRANITE, mat: "granite", ground: "heath", solid: true },
 ];
 
 /** Radio (m) de la planta: hasta él no se puede estar «dentro» del monumento. */
 // PUNTOS DE VISITA: lugares despejados del sitio donde pararse (no dentro de un recinto ni pegados a un muro), con el
 // rótulo o los rótulos de la escena que llevan a cada uno (`at`). Altitud: la del relieve corregido del sitio.
 export const SITE_STOPS = {
+  // (posiciones: sobre el suelo de la maqueta, a más de 3,9 m de cualquier muro; `look`: rumbo hacia lo que se viene a ver)
   machupicchu: [
-    { id: "intihuatana", name: { es: "Intihuatana", en: "Intihuatana" }, lat: -13.16312, lon: -72.545683, elev: 2452, at: ["intihuatana"] },
-    { id: "mirador", name: { es: "Mirador", en: "Viewpoint" }, lat: -13.165386, lon: -72.544715, elev: 2470, at: ["mp-roca-funeraria"] },
-    { id: "plaza", name: { es: "Plaza principal", en: "Main plaza" }, lat: -13.163061, lon: -72.544984, elev: 2431, at: ["mp-plaza"] },
-    { id: "sagrada", name: { es: "Plaza Sagrada", en: "Sacred Plaza" }, lat: -13.163683, lon: -72.545314, elev: 2437, at: ["mp-templo-principal", "mp-tres-ventanas"] },
-    { id: "sol", name: { es: "Templo del Sol", en: "Temple of the Sun" }, lat: -13.164006, lon: -72.544728, elev: 2428, at: ["mp-torreon", "mp-casa-inca"] },
-    { id: "condor", name: { es: "Templo del Cóndor", en: "Temple of the Condor" }, lat: -13.163473, lon: -72.544523, elev: 2421, at: ["mp-condor", "mp-espejos"] },
-    { id: "portadas", name: { es: "Tres Portadas", en: "Three Doorways" }, lat: -13.162705, lon: -72.545012, elev: 2434, at: ["mp-tres-portadas"] },
-    { id: "roca", name: { es: "Roca Sagrada", en: "Sacred Rock" }, lat: -13.161797, lon: -72.545747, elev: 2427, at: ["mp-roca-sagrada"] },
-    { id: "puerta", name: { es: "Puerta de la Ciudad", en: "City Gate" }, lat: -13.164779, lon: -72.545009, elev: 2454, at: ["mp-puerta"] },
+    { id: "intihuatana", name: { es: "Intihuatana", en: "Intihuatana" }, lat: -13.16312, lon: -72.545683, elev: 2453, look: 0, at: ["intihuatana"] },
+    { id: "mirador", name: { es: "Mirador", en: "Viewpoint" }, lat: -13.165386, lon: -72.544715, elev: 2470, look: 347, lookAlt: -8, at: ["mp-roca-funeraria"] },
+    { id: "plaza", name: { es: "Plaza principal", en: "Main plaza" }, lat: -13.163097, lon: -72.544997, elev: 2426, look: 265, lookAlt: 8, at: ["mp-plaza"] },
+    { id: "sagrada", name: { es: "Plaza Sagrada", en: "Sacred Plaza" }, lat: -13.16369, lon: -72.545314, elev: 2444, look: 325, at: ["mp-templo-principal", "mp-tres-ventanas"] },
+    { id: "sol", name: { es: "Templo del Sol", en: "Temple of the Sun" }, lat: -13.163998, lon: -72.544627, elev: 2426, look: 230, lookAlt: 12, at: ["mp-torreon", "mp-casa-inca"] },
+    { id: "condor", name: { es: "Templo del Cóndor", en: "Temple of the Condor" }, lat: -13.16351, lon: -72.544486, elev: 2423, look: 210, at: ["mp-condor", "mp-espejos"] },
+    { id: "portadas", name: { es: "Tres Portadas", en: "Three Doorways" }, lat: -13.162755, lon: -72.545055, elev: 2440, look: 50, at: ["mp-tres-portadas"] },
+    { id: "roca", name: { es: "Roca Sagrada", en: "Sacred Rock" }, lat: -13.1618, lon: -72.545853, elev: 2426, look: 45, lookAlt: 6, at: ["mp-roca-sagrada"] },
+    // (la Puerta de la Ciudad no tiene punto: en la maqueta ese borde del sitio está recortado y su nivel no es fiable)
   ],
 };
 /** Los puntos de visita del sitio donde está el observador (a menos de `reach` m de alguno) y en cuál está de pie. */
@@ -501,7 +503,25 @@ export function llaqtaPlan(skip = [], clear = []) {
   const cut = (A) => A.map(pairs).flatMap((q) => clipOut(q, clear));
   return { rooms, terraces: cut(MP_TERRACES), walls: cut(MP_WALLS), steps: cut(MP_STEPS) };
 }
+// La llaqta con la maqueta del Ministerio de Cultura (machuModel.js): terreno, andenes, muros y techos de una sola
+// pieza, a su altura sobre el nivel del mar (las alturas de las caras van referidas a MODEL_BASE_M). La piedra: fina
+// en los conjuntos de `fine` (Templo del Sol, Casa del Inca, Plaza Sagrada), rústica en el resto y en los andenes.
+function llaqtaModel(out, m) {
+  const col = m.color, fine = m.fine || [], skipW = m.modelSkip || [];
+  const MAT = [null, "heath", "incarustic", "earth", "thatch", "thatch", "incafine"];
+  eachModelFace((a, b, c, cls) => {
+    let mat = MAT[cls];
+    if (cls === 0) {
+      const e = (a[0] + b[0] + c[0]) / 3, n = (a[1] + b[1] + c[1]) / 3;
+      if (skipW.some(([x, y, r]) => Math.hypot(e - x, n - y) <= r)) return;
+      mat = fine.some(([x, y, r]) => Math.hypot(e - x, n - y) <= r) ? "incafine" : "incarustic";
+    }
+    out.push({ v: [a, b, c], c: col, mat });
+  });
+}
+
 function llaqta(out, m, ground) {
+  if (m.model && machuModel()) { llaqtaModel(out, m); return; }
   const g = ground || (() => 0), col = m.color, plan = llaqtaPlan(m.skip, m.clear), K = LLAQTA;
   const grad = (p) => [(g(p[0] + 3, p[1]) - g(p[0] - 3, p[1])) / 6, (g(p[0], p[1] + 3) - g(p[0], p[1] - 3)) / 6];
   // recintos: muros de 0,85 m con la coronación a nivel (más altos por el lado bajo) y hastiales en los lados cortos
@@ -836,6 +856,8 @@ export function detailFor(d = 300) {
  * (m) desde donde se mira (decide el detalle de hiladas y escalones).
  */
 export function buildFaces(m, opt = {}) {
+  // (una pieza que la maqueta del sitio ya trae —el Torreón— no se dibuja dos veces: queda solo su rótulo)
+  if (m.modelDup && machuModel()) return [];
   const out = [], col = m.color, det = detailFor(opt.d);
   if (m.kind === "pyramid") {
     const top = m.top || 0, wAt = (z) => m.base + ((top - m.base) * z) / m.height;
@@ -1190,7 +1212,8 @@ export const altAzOf = (v) => ({ az: ((Math.atan2(v[0], -v[2]) / RAD) + 360) % 3
 export function silhouette(items, step = 0.2) {
   const n = Math.round(360 / step), out = new Float32Array(n).fill(-90);
   for (const { m, o, dz, faces } of items) {
-    if (!m.solid) continue;
+    // (la maqueta de un sitio —terreno, andenes y muros— también tapa el cielo)
+    if (!m.solid && !(m.model && machuModel())) continue;
     for (const f of faces || buildFaces(m)) {
       for (let i = 0; i < 3; i++) {
         const a = toLocal(f.v[i], o, dz), b = toLocal(f.v[(i + 1) % 3], o, dz);

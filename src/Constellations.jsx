@@ -74,7 +74,8 @@ import { DEFAULT_LAYERS, presetState, presetOf } from "./sky/layerPresets.js";
 import { useKeepAwake } from "./sky/keepAwake.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit, fetchLandColors } from "./sky/horizon.js";
 import { monumentsNear, stopsAt, stopOf, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
-import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints } from "./sky/monumentLayer.js";
+import { loadMachuModel, machuModel, modelGround } from "./sky/machuModel.js";
+import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints, groundSilhouette } from "./sky/monumentLayer.js";
 const NEAR_RELIEF_R = [0.03, 0.06, 0.1, 0.15, 0.22, 0.3, 0.4, 0.52, 0.68, 0.9];
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
 import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
@@ -2923,9 +2924,19 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // puntos de visita del sitio (para saltar de uno a otro) y el que se ofreció al tocar su rótulo en la escena
   const siteStops = useMemo(() => (localActive && !viewFrom ? stopsAt(lat, lon) : null), [localActive, viewFrom, lat, lon]);
   const [stopAsk, setStopAsk] = useState(null);
+  // saltar a un punto de visita: te sitúa allí mirando hacia lo que se viene a ver (`look`)
+  const goStop = useCallback((s0, from) => {
+    track("sky_stop", { stop: s0.id, from });
+    pickPlace({ name: s0.name[lang] || s0.name.es, lat: s0.lat, lon: s0.lon, elev: s0.elev, exact: true });
+    if (s0.look != null) setTimeout(() => { const r = sceneRef.current; if (r && r.lookAt) { const v = altAzToLocal(s0.lookAlt != null ? s0.lookAlt : 2, s0.look); r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), Math.max(r.look.spanT, 70), true); if (r.wake) r.wake(); } }, 500);
+  }, [lang]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!stopAsk) return undefined; const id = setTimeout(() => setStopAsk(null), 7000); return () => clearTimeout(id); }, [stopAsk]);
   useEffect(() => { setStopAsk(null); }, [lat, lon]);
   const monKey = monNear.length ? `${lat},${lon}|${monNear.map((m) => m.id).join(",")}` : null;
+  // la maqueta de un sitio (Machu Picchu: src/sky/machuModel.js) se descarga solo al estar allí
+  const [modelRev, setModelRev] = useState(0);
+  const wantsModel = monNear.some((m) => m.model);
+  useEffect(() => { if (!wantsModel) return undefined; let alive = true; loadMachuModel(import.meta.env.BASE_URL.replace(/\/$/, "")).then((m) => { if (alive && m) setModelRev((v) => v + 1); }); return () => { alive = false; }; }, [wantsModel]);
   useEffect(() => {
     if (!monOn || !hzData || !monKey) return;
     let alive = true;
@@ -2954,24 +2965,38 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           // (un sitio puede corregir el modelo global con cotas propias —m.reliefFix—: se suma en cada punto y a los pies)
           const fix = (monNear.find((m) => m.reliefFix) || {}).reliefFix || null, f0 = fix ? fix(lat, lon) : 0;
           const g = gs.flat().map((v, i) => (fix ? v + fix(rp[i][0], rp[i][1]) : v));
-          if (alive) setMonBase((s0) => (s0.key === monKey && s0.status === "ok" ? { ...s0, relief: { reach, h: g.map((v) => v - ground - f0 - 1.7), ...(spec || {}) } } : s0));
+          if (alive) setMonBase((s0) => (s0.key === monKey && s0.status === "ok" ? { ...s0, relief: { reach, h: g.map((v) => v - ground - f0 - 1.7), abs0dem: ground + f0, ...(spec || {}) } } : s0));
         }, () => { /* sin relieve cercano */ });
       }
     }, (e) => { if (alive) setMonBase({ status: "error", key: monKey, bases: null, ground: null, error: String(e && e.message || e) }); });
     return () => { alive = false; };
   }, [monOn, monKey, !!hzData, hzRetry]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // el relieve del sitio; con su maqueta cargada, el suelo dentro de ella es el de la maqueta (exacto) y los pies del
+  // observador se apoyan en él
+  const siteRelief = useMemo(() => {
+    const rl = monBase.relief; if (!rl) return null;
+    const mm = monNear.find((m) => m.model); if (!mm || !machuModel() || rl.abs0dem == null) return rl;
+    const o = offsetOf(mm.lat, mm.lon, lat, lon), here = modelGround(o.e, o.n), abs0 = here != null ? here : rl.abs0dem, sh = rl.abs0dem - abs0;
+    return { ...rl, h: sh ? rl.h.map((v) => v + sh) : rl.h, abs0, exact: (e, n) => { const a = modelGround(o.e + e, o.n + n); return a == null ? null : a - abs0 - 1.7; } };
+  }, [monBase.relief, monNear, lat, lon, modelRev]);   // eslint-disable-line react-hooks/exhaustive-deps
   const monItems = useMemo(() => (monOn && hzData && monBase.status === "ok" && monBase.key === monKey
-    ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases, monBase.relief || null) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon]);
+    ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases, siteRelief) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon, siteRelief, modelRev]);   // eslint-disable-line react-hooks/exhaustive-deps
   const summitLift = placeSummit && nearData && monItems.length === 0 ? SUMMIT_LIFT_M : 0;
   // sin relieve propio del sitio, el piso de los monumentos sigue el relieve 3D (una loma no queda como un llano)
   // (más fina que la de /api/elevation: 10 anillos × 72 acimuts; cada edificio queda en su explanada)
   const monRelief = useMemo(() => {
-    if (monBase.relief) return monBase.relief;
+    if (siteRelief) return siteRelief;
     if (!nearData || !monItems.length || monBase.ground == null) return null;
     return reliefFromNear(nearData.data || nearData, groundReach(monItems), monBase.ground, NEAR_RELIEF_R, 72);
-  }, [monBase.relief, monBase.ground, nearData, monItems]);
+  }, [siteRelief, monBase.ground, nearData, monItems]);
   // el horizonte con los monumentos macizos: lo que queda detrás de una pirámide tampoco se ve
-  const monSil = useMemo(() => (hzData && monItems.length ? silhouette(monItems, hzData.step_deg || 0.2) : null), [hzData, monItems]);
+  // (y el suelo del propio sitio: una ladera o un andén que sube sobre el horizonte lejano tapa el cielo que queda detrás)
+  const monSil = useMemo(() => {
+    if (!hzData || !monItems.length) return null;
+    const st = hzData.step_deg || 0.2, a = silhouette(monItems, st), g = monRelief ? groundSilhouette(monItems, monRelief, st) : null;
+    if (g && g.length === a.length) for (let i = 0; i < a.length; i++) if (g[i] > a[i]) a[i] = g[i];
+    return a;
+  }, [hzData, monItems, monRelief]);
   const hzEff = useMemo(() => (hzData && monSil ? withMonuments(hzData, monSil) : hzData), [hzData, monSil]);
   useEffect(() => {
     const ref = sceneRef.current; if (!ref || !ref.monuments) return;
@@ -4741,14 +4766,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       {sky && !tourActive && siteStops && inMySky && !panel && !selObj && !peakSheet && !issSheet && !full && !pano && (
           <nav className={`sk-stops${railView ? " is-rail" : ""}`} aria-label={t.stopsAria}>
             {stopAsk && stopAsk.id !== siteStops.here && (
-              <button type="button" className="sk-stop sk-stop-go" onClick={() => { const s0 = stopAsk; setStopAsk(null); track("sky_stop", { site: siteStops.site, stop: s0.id, from: "label" }); pickPlace({ name: s0.name[lang] || s0.name.es, lat: s0.lat, lon: s0.lon, elev: s0.elev, exact: true }); }}>
+              <button type="button" className="sk-stop sk-stop-go" onClick={() => { const s0 = stopAsk; setStopAsk(null); goStop(s0, "label"); }}>
                 <Icon name="pin" size={16} /><span>{t.stopGo(stopAsk.name[lang] || stopAsk.name.es)}</span>
               </button>
             )}
             <div className="sk-stops-row">
               {siteStops.stops.map((s0) => (
                 <button type="button" key={s0.id} className={`sk-stop${s0.id === siteStops.here ? " is-here" : ""}`} aria-current={s0.id === siteStops.here ? "location" : undefined}
-                  onClick={() => { if (s0.id === siteStops.here) return; track("sky_stop", { site: siteStops.site, stop: s0.id, from: "strip" }); pickPlace({ name: s0.name[lang] || s0.name.es, lat: s0.lat, lon: s0.lon, elev: s0.elev, exact: true }); }}>
+                  onClick={() => { if (s0.id === siteStops.here) return; goStop(s0, "strip"); }}>
                   {s0.name[lang] || s0.name.es}
                 </button>
               ))}

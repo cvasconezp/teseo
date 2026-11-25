@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.83.0 — Machu Picchu con la maqueta del Ministerio de Cultura
+
+- **La ciudad es ahora la maqueta «Machupicchu» del Ministerio de Cultura del Perú** (Sketchfab, CC BY 4.0): su terreno escalonado, los andenes con sus muros, los recintos con vanos, hornacinas y hastiales de verdad, y los techos de paja. Sustituye a los recintos levantados desde la planta de OpenStreetMap. Se descarga (0,3 MB) solo al estar en Machu Picchu; si falla, Teseo sigue con la planta de OpenStreetMap.
+- Cambios hechos a la maqueta, todos declarados en CREDITS.md: encaje sobre la planta de OpenStreetMap, altura referida a la cota de JICA del Templo del Sol, el sector oeste corrido 15 m hasta el nodo del Intihuatana, sin zócalo y sin sus texturas (se usan las piedras de Teseo: fina en el Templo del Sol, la Casa del Inca y la Plaza Sagrada; rústica en el resto).
+- La cima del Intihuatana conserva el escaneo láser, apoyado en la plataforma de la maqueta. El Templo Principal, el de las Tres Ventanas y la Roca Sagrada siguen siendo piezas propias (la maqueta no los trae).
+- **El suelo del sitio tapa el cielo:** estrellas, objetos y rótulos que quedan detrás de una ladera, un andén o un muro ya no se ven a través (en todos los sitios con relieve propio, no solo Machu Picchu).
+- **Puntos de visita:** al saltar a uno, la mirada queda hacia lo que se viene a ver (la Roca Sagrada, de frente a sus 7 m de ancho). Los puntos se recolocaron sobre el suelo de la maqueta, lejos de los muros. La Puerta de la Ciudad deja de ser punto: ese borde de la maqueta está recortado.
+- En el celular, la tira de puntos sube para no quedar bajo «Esta noche» y «Apuntar al cielo».
+
 ## 1.82.1 — La ficha del clima no desaparece al saltar entre puntos
 
 - Al saltar entre puntos de un sitio se repetía la consulta del clima; si el servicio rechazaba una, la ficha desaparecía. Ahora se conserva el último dato y se reintenta a los 30 s, y la consulta ya no se repite por diferencias de altitud menores de 150 m.

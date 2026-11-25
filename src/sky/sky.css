@@ -150,7 +150,7 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-stops .sk-stop:hover { border-color: var(--violet); }
 .sk-stops .sk-stop.is-here { background: rgba(64, 44, 140, 0.88); border-color: var(--violet); color: #e6deff; font-weight: 500; }
 .sk-stops .sk-stop-go { background: #e9e4ff; color: #1b1440; border-color: transparent; font-weight: 500; }
-.sk-stops.is-rail { bottom: calc(16px + var(--sk-safe, 0px) + env(safe-area-inset-bottom, 0px)); }
+.sk-stops.is-rail { bottom: calc(74px + var(--sk-safe, 0px) + env(safe-area-inset-bottom, 0px)); }
 @media (min-width: 900px) { .sk-stops.is-rail { bottom: 62px; } .sk-stops { left: 50%; right: auto; transform: translateX(-50%); max-width: min(760px, calc(100% - 420px)); align-items: center; } }
 
 /* botones */
@@ -476,10 +476,10 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 
 /* móvil: con una hoja abierta el dock y la fila de acciones se ocultan */
 @media (max-width: 899.98px) {
-  .sk-stage.is-covered .sk-dock, .sk-stage.is-covered .sk-depth, .sk-stage.is-covered .sk-onboard, .sk-stage.is-covered .sk-cta { opacity: 0; pointer-events: none; }
+  .sk-stage.is-covered .sk-stops, .sk-stage.is-covered .sk-dock, .sk-stage.is-covered .sk-depth, .sk-stage.is-covered .sk-onboard, .sk-stage.is-covered .sk-cta { opacity: 0; pointer-events: none; }
   .sk-stage.is-covered .sk-chips { display: none; }
   /* apuntar al cielo = inmersivo: solo queda la píldora; "Controles" trae de vuelta buscar, capas y zoom */
-  .sk-stage.is-immersive .sk-dock, .sk-stage.is-immersive .sk-cta, .sk-stage.is-immersive .sk-depth { display: none; }
+  .sk-stage.is-immersive .sk-stops, .sk-stage.is-immersive .sk-dock, .sk-stage.is-immersive .sk-cta, .sk-stage.is-immersive .sk-depth { display: none; }
   .sk-stage.is-immersive:not(.ar-ctl) .sk-top, .sk-stage.is-immersive:not(.ar-ctl) .sk-rail { display: none; }
   .sk-stage.is-immersive.ar-ctl .sk-guide-msg { top: 64px; }
   /* con una hoja abierta la píldora sube para que "Salir" siga a mano */

@@ -50,15 +50,36 @@ export function placeMonuments(list, { lat, lon, ground }, bases, relief = null)
     // `seat`: en una ladera con muchas piezas (Cochasquí), cada una se asienta sobre el MISMO relieve con el que se
     // dibuja el suelo (la rejilla cercana), no sobre su propia medida: así ninguna queda en el aire ni sobre un pedestal
     // (`seat: "ground"`: sobre el suelo tal como se dibuja —también junto al observador, donde manda el de sus pies—)
-    const dz0 = relief && m.seat ? (m.seat === "ground" ? groundHeight(o.e, o.n, NO_ITEMS, relief) : reliefAt(relief, o.e, o.n)) : b - (ground + EYE_M);
+    // (con la maqueta del sitio cargada —relief.exact— las piezas con cota propia van a su altura sobre el nivel del
+    // mar: la maqueta entera (`absBase`) y lo que se apoya en un nivel suyo conocido (`absLevel`))
+    const abs = relief && relief.exact && relief.abs0 != null ? (m.absBase != null && m.kind === "llaqta" ? m.absBase : m.absLevel != null ? m.absLevel : null) : null;
+    const dz0 = abs != null ? abs - relief.abs0 - EYE_M : relief && m.seat ? (m.seat === "ground" ? groundHeight(o.e, o.n, NO_ITEMS, relief) : reliefAt(relief, o.e, o.n)) : b - (ground + EYE_M);
     // una pieza extensa (la llaqta de Machu Picchu) sigue el relieve punto a punto: recibe el suelo respecto a su origen
     const gnd = relief && m.kind === "llaqta" ? (e, n) => groundHeight(o.e + e, o.n + n, NO_ITEMS, relief) - dz0 : null;
-    out.push({ m, o, dz: dz0 + (m.lift || 0) - (m.drop || 0), faces: buildFaces(m, { d: o.d, ground: gnd }) });
+    out.push({ m, o, dz: dz0 + (abs != null ? 0 : (m.lift || 0)) - (m.drop || 0), faces: buildFaces(m, { d: o.d, ground: gnd }) });
   }
   // Subido a una plataforma (`standOn`): si el lugar cae dentro de la plataforma de una pirámide, los ojos van a 1,7 m
   // sobre ella, así que todo lo demás (y el suelo) baja lo que haga falta.
   const st = out.find((it) => onPlatform(it.m, it.o));
   if (st) { const up = st.dz + st.m.height + EYE_M; if (up > 0.01) { for (const it of out) it.dz -= up; out.up = up; } }
+  return out;
+}
+
+/**
+ * Silueta del SUELO del sitio (grados sobre el horizonte por acimut, como monuments.silhouette): donde el terreno
+ * cercano sube por encima del horizonte lejano (una ladera, un andén), tapa las estrellas y los rótulos del cielo.
+ */
+export function groundSilhouette(items, relief, step = 0.2, reach = 440) {
+  if (!relief) return null;
+  const n = Math.round(360 / step), out = new Float32Array(n).fill(-90), NA = 360, tmp = new Float32Array(NA).fill(-90), far = Math.min(reach, relief.reach || reach);
+  for (let i = 0; i < NA; i++) {
+    const a = (i / NA) * 2 * Math.PI, sa = Math.sin(a), ca = Math.cos(a);
+    for (let k = 0; k < 44; k++) {
+      const r = 4 * Math.pow(far / 4, k / 43), h = groundHeight(r * sa, r * ca, items || NO_ITEMS, relief), alt = (Math.atan2(h, r) * 180) / Math.PI;
+      if (alt > tmp[i]) tmp[i] = alt;
+    }
+  }
+  for (let j = 0; j < n; j++) { const x = (j * step) % 360, i0 = Math.floor(x) % NA, f = x - Math.floor(x); out[j] = tmp[i0] * (1 - f) + tmp[(i0 + 1) % NA] * f - 0.3; }
   return out;
 }
 
@@ -180,6 +201,8 @@ export function groundHeight(e, n, items, grid = null) {
   let sw, sh;
   // `items.up`: el observador está subido a una plataforma (placeMonuments): todo el suelo queda esos metros más abajo
   const up = (items && items.up) || 0;
+  // (dentro de la maqueta de un sitio el suelo es el suyo, exacto: no se interpola)
+  if (grid && grid.exact) { const x = grid.exact(e, n); if (x != null) return x - up; }
   // (a los pies del observador manda siempre su propio suelo: si no, un monumento cercano y más alto podría
   // levantar el suelo por encima de sus ojos)
   // (`grid.flat`: radio del llano a los pies; 22 m si el sitio no dice otra cosa)
@@ -340,7 +363,9 @@ export function createMonumentLayer({ onReady = null } = {}) {
       const put = (i, e, n, r) => {
         // (en el faldón, la altura es la del borde de la malla en esa dirección)
         const q = r > reach ? reach / r : 1;
-        const h = groundHeight(e * q, n * q, items, grid && grid.reach === reach ? grid : null) - (r * r * (1 - K_REFR)) / (2 * R_E);
+        // (donde la maqueta del sitio pone su propio terreno, el piso del sitio queda 4 m por debajo: solo rellena)
+        const under = grid && grid.exact && grid.exact(e * q, n * q) != null ? 4 : 0;
+        const h = groundHeight(e * q, n * q, items, grid && grid.reach === reach ? grid : null) - under - (r * r * (1 - K_REFR)) / (2 * R_E);
         // lo que caería más lejos que la esfera del cielo se acerca por su misma línea de visión (se ve igual, pero
         // queda DELANTE de las líneas de las constelaciones y de las estrellas bajo el horizonte, que si no se verían encima)
         let px = e * k, py = h * k, pz = -n * k; const pl = Math.hypot(px, py, pz); if (pl > MAX_R) { const q2 = MAX_R / pl; px *= q2; py *= q2; pz *= q2; }
