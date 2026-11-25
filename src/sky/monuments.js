@@ -297,6 +297,32 @@ export const MONUMENTS = [
 ];
 
 /** Radio (m) de la planta: hasta él no se puede estar «dentro» del monumento. */
+// PUNTOS DE VISITA: lugares despejados del sitio donde pararse (no dentro de un recinto ni pegados a un muro), con el
+// rótulo o los rótulos de la escena que llevan a cada uno (`at`). Altitud: la del relieve corregido del sitio.
+export const SITE_STOPS = {
+  machupicchu: [
+    { id: "intihuatana", name: { es: "Intihuatana", en: "Intihuatana" }, lat: -13.16312, lon: -72.545683, elev: 2452, at: ["intihuatana"] },
+    { id: "mirador", name: { es: "Mirador", en: "Viewpoint" }, lat: -13.165386, lon: -72.544715, elev: 2470, at: ["mp-roca-funeraria"] },
+    { id: "plaza", name: { es: "Plaza principal", en: "Main plaza" }, lat: -13.163061, lon: -72.544984, elev: 2431, at: ["mp-plaza"] },
+    { id: "sagrada", name: { es: "Plaza Sagrada", en: "Sacred Plaza" }, lat: -13.163683, lon: -72.545314, elev: 2437, at: ["mp-templo-principal", "mp-tres-ventanas"] },
+    { id: "sol", name: { es: "Templo del Sol", en: "Temple of the Sun" }, lat: -13.164006, lon: -72.544728, elev: 2428, at: ["mp-torreon", "mp-casa-inca"] },
+    { id: "condor", name: { es: "Templo del Cóndor", en: "Temple of the Condor" }, lat: -13.163473, lon: -72.544523, elev: 2421, at: ["mp-condor", "mp-espejos"] },
+    { id: "portadas", name: { es: "Tres Portadas", en: "Three Doorways" }, lat: -13.162705, lon: -72.545012, elev: 2434, at: ["mp-tres-portadas"] },
+    { id: "roca", name: { es: "Roca Sagrada", en: "Sacred Rock" }, lat: -13.161797, lon: -72.545747, elev: 2427, at: ["mp-roca-sagrada"] },
+    { id: "puerta", name: { es: "Puerta de la Ciudad", en: "City Gate" }, lat: -13.164779, lon: -72.545009, elev: 2454, at: ["mp-puerta"] },
+  ],
+};
+/** Los puntos de visita del sitio donde está el observador (a menos de `reach` m de alguno) y en cuál está de pie. */
+export function stopsAt(lat, lon, reach = 700) {
+  for (const [site, stops] of Object.entries(SITE_STOPS)) {
+    const d = stops.map((s) => offsetOf(lat, lon, s.lat, s.lon).d), k = d.indexOf(Math.min(...d));
+    if (d[k] <= reach) return { site, stops, here: d[k] < 12 ? stops[k].id : null };
+  }
+  return null;
+}
+/** El punto de visita al que lleva el rótulo de un monumento (o null). */
+export const stopOf = (monId) => { for (const stops of Object.values(SITE_STOPS)) { const s = stops.find((q) => q.at.includes(monId)); if (s) return s; } return null; };
+
 export function footprintRadius(m) {
   if (m.foot != null) return m.foot;
   if (m.kind === "mound") return m.radius;

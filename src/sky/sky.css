@@ -142,6 +142,17 @@ html.sk-lock, html.sk-lock body { overflow: hidden; overscroll-behavior: none; }
 .sk-badge { position: absolute; top: 2px; left: calc(50% + 7px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--violet-strong); color: #fff; font-size: 11px; font-style: normal; font-weight: 600; line-height: 18px; text-align: center; }
 .sk-badge.warn { min-width: 10px; width: 10px; height: 10px; padding: 0; top: 5px; left: calc(50% + 8px); background: #ff8b7a; }
 
+/* puntos de visita de un sitio: tira deslizable sobre la barra inferior */
+.sk-stops { position: absolute; left: 10px; right: 10px; bottom: calc(84px + var(--sk-safe, 0px) + env(safe-area-inset-bottom, 0px)); z-index: 19; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+.sk-stops-row { display: flex; gap: 6px; max-width: 100%; overflow-x: auto; scrollbar-width: none; pointer-events: auto; padding: 2px; }
+.sk-stops-row::-webkit-scrollbar { display: none; }
+.sk-stops .sk-stop { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 13px; border-radius: 999px; font-size: 13px; color: var(--text); background: rgba(10, 14, 28, 0.82); border: 1px solid rgba(255, 255, 255, 0.16); white-space: nowrap; pointer-events: auto; }
+.sk-stops .sk-stop:hover { border-color: var(--violet); }
+.sk-stops .sk-stop.is-here { background: rgba(64, 44, 140, 0.88); border-color: var(--violet); color: #e6deff; font-weight: 500; }
+.sk-stops .sk-stop-go { background: #e9e4ff; color: #1b1440; border-color: transparent; font-weight: 500; }
+.sk-stops.is-rail { bottom: calc(16px + var(--sk-safe, 0px) + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 900px) { .sk-stops.is-rail { bottom: 62px; } .sk-stops { left: 50%; right: auto; transform: translateX(-50%); max-width: min(760px, calc(100% - 420px)); align-items: center; } }
+
 /* botones */
 .sk-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 13px; border: 1px solid var(--line-soft) !important; background: rgba(255, 255, 255, 0.05) !important; color: var(--text) !important; font-size: 14px; font-weight: 500; white-space: nowrap; transition: border-color 0.15s, background 0.15s, transform 0.1s; }
 .sk-btn:hover:not(:disabled) { border-color: var(--violet) !important; }

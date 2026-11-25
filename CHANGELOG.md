@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.82.0 — Recorrer un sitio saltando entre sus puntos
+
+- En Machu Picchu aparece una tira deslizable con nueve puntos de visita (Intihuatana, mirador, Plaza principal, Plaza Sagrada, Templo del Sol, Templo del Cóndor, Tres Portadas, Roca Sagrada y Puerta de la Ciudad): al tocar uno, Teseo te sitúa ahí. El punto donde estás queda resaltado.
+- También se puede tocar el rótulo de un lugar en el paisaje: aparece «Ir a…» y te lleva a su punto de visita.
+- Cada punto está en un lugar despejado (ninguno cae dentro de un recinto) y lleva la altitud del relieve corregido del sitio.
+- El mecanismo sirve para cualquier sitio (`SITE_STOPS` en `src/sky/monuments.js`); por ahora solo Machu Picchu tiene puntos definidos.
+
 ## 1.81.0 — Machu Picchu: relieve del sitio corregido
 
 - El modelo global de elevación (30 m) alisaba la ciudad: dejaba la plaza unos 10 m alta y la colina del Intihuatana apenas 9 m sobre ella, así que desde el Intihuatana casi no se veía la ciudad. Ahora el relieve del sitio se corrige con diez puntos de control: dos cotas medidas por JICA y ocho niveles de la maqueta «Machupicchu» del Ministerio de Cultura del Perú (Sketchfab, CC BY 4.0), encajada sobre la planta de OpenStreetMap y referida a la cota de JICA del Templo del Sol.

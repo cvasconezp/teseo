@@ -2,7 +2,7 @@
 // verían desde el sitio, silueta para ocultar lo que queda detrás e integración en el cielo.
 import { MONUMENTS, monumentsNear, buildFaces, toLocal, altAzOf, offsetOf, silhouette, withMonuments, groundRing, median, apexOf, footprintRadius, SH_STANDING, SH_LINTELS } from "../src/sky/monuments.js";
 import { placeMonuments, onPlatform, monumentLabels, faceUV, toneAt, groundHeight, reliefAt, reliefPoints, RELIEF_R, RELIEF_NA } from "../src/sky/monumentLayer.js";
-import { tierEdges, stairSteps, detailFor, tolaRings, llaqtaPlan, LLAQTA, MP_CONTROL, MP_RELIEF_FIX, mpReliefDelta } from "../src/sky/monuments.js";
+import { tierEdges, stairSteps, detailFor, tolaRings, llaqtaPlan, LLAQTA, MP_CONTROL, MP_RELIEF_FIX, mpReliefDelta, SITE_STOPS, stopsAt, stopOf } from "../src/sky/monuments.js";
 import { SITES } from "../src/sky/places.js";
 import { readFileSync } from "node:fs";
 
@@ -188,6 +188,11 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
     { const at = (e, n) => mpReliefDelta(-13.16312 + n / 110574, -72.545683 + e / (111320 * Math.cos(13.16312 * Math.PI / 180)));
       ok(MP_RELIEF_FIX.every((c) => c[3] === "jica" || c[3] === "maqueta") && MP_RELIEF_FIX.filter((c) => c[3] === "jica").every((c) => Math.abs(c[2]) <= 1) && at(0, 0) - at(70, 5) > 11 && at(0, 0) - at(70, 5) < 14.5 && at(104.9, -250.6) === 0 && at(500, 400) === 0 && Math.abs(at(100.7, -108.6)) < 1,
         "corrección del relieve: cada punto con su fuente; la colina del Intihuatana sube unos 12–14 m respecto a la plaza; las cotas de JICA casi no se tocan; fuera del sitio, nada"); }
+    { const st = SITE_STOPS.machupicchu, pin = (q, poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const u = poly[i], v = poly[j]; if ((u[1] > q[1]) !== (v[1] > q[1]) && q[0] < ((v[0] - u[0]) * (q[1] - u[1])) / (v[1] - u[1]) + u[0]) c = !c; } return c; };
+      const ll2 = byId("mp-llaqta"), rooms = llaqtaPlan(ll2.skip, ll2.clear).rooms, en = (s0) => { const o = offsetOf(ll2.lat, ll2.lon, s0.lat, s0.lon); return [o.e, o.n]; };
+      ok(st.length === 9 && new Set(st.map((s0) => s0.id)).size === 9 && st.every((s0) => s0.name.es && s0.name.en && s0.elev > 2400 && s0.elev < 2500 && s0.at.every((id) => byId(id))), "puntos de visita de Machu Picchu: nueve, con nombre en los dos idiomas, altitud y rótulos que existen");
+      ok(st.every((s0) => !rooms.some((r) => pin(en(s0), r.pts))), "ningún punto de visita cae dentro de un recinto");
+      ok(stopsAt(st[2].lat, st[2].lon).here === "plaza" && stopsAt(st[0].lat + 0.0003, st[0].lon).here === null && stopsAt(0, -78) === null && stopOf("mp-torreon").id === "sol" && stopOf("ponce") === null, "stopsAt dice en qué punto se está; stopOf lleva de un rótulo a su punto"); }
     ok(MP_CONTROL.length === 2 && near(MP_CONTROL[0].m, 2429.59, 1e-9) && MP_CONTROL[1].m > 2436 && MP_CONTROL[1].m < 2437.5, "cotas de control de JICA: Templo del Sol y Plaza Sagrada");
     ok(near(byId("mp-templo-principal").height, 4.05, 1e-9) && byId("mp-templo-principal").w === 11 && byId("mp-roca-sagrada").w === 7 && byId("mp-roca-sagrada").height === 3 && near(LLAQTA.wallT, 0.85, 1e-9), "medidas publicadas: Templo Principal 11 × 8 × 4,05 m, Roca Sagrada 7 × 3 m, muros de 0,85 m"); }
   // rótulos y relieve cercano

@@ -73,7 +73,7 @@ import { fetchNearTerrain, createNearTerrainLayer, SUMMIT_LIFT_M, reliefFromNear
 import { DEFAULT_LAYERS, presetState, presetOf } from "./sky/layerPresets.js";
 import { useKeepAwake } from "./sky/keepAwake.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit, fetchLandColors } from "./sky/horizon.js";
-import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
+import { monumentsNear, stopsAt, stopOf, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints } from "./sky/monumentLayer.js";
 const NEAR_RELIEF_R = [0.03, 0.06, 0.1, 0.15, 0.22, 0.3, 0.4, 0.52, 0.68, 0.9];
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
@@ -344,7 +344,7 @@ const TC = {
     canvasAria: "Sky map seen from Earth, from the centre of the celestial sphere: stars, constellations and objects in their real positions. Arrow keys look around, + and − zoom, Escape closes the open panel.",
     skyFrom: "Sky seen from", backToEarth: "Back to Earth",
     zoomIn: "Zoom in", zoomOut: "Zoom out", centerView: "Center the view", centerObj: "Center on the object",
-    pano360Aria: "Save a 360° photo of this sky (JPEG)", pano360Title: "360° photo", pano360Making: "Taking the 360° photo… (a few seconds)", pano360Alt: "Preview of the 360° photo", pano360Text: "This sky in 360°, made with Teseo", pano360Hint: "Google Photos, Facebook and 360° viewers open it so you can look around.",
+    stopsAria: "Places to stand at this site", stopGo: (n) => `Go to ${n}`, pano360Aria: "Save a 360° photo of this sky (JPEG)", pano360Title: "360° photo", pano360Making: "Taking the 360° photo… (a few seconds)", pano360Alt: "Preview of the 360° photo", pano360Text: "This sky in 360°, made with Teseo", pano360Hint: "Google Photos, Facebook and 360° viewers open it so you can look around.",
     postcardAria: "Save a postcard of this sky (PNG)", fullOn: "Full screen", fullOff: "Exit full screen",
     close: "Close", now: "Now", west: "W",
     kinds: { con: "Constellation", star: "Star", solar: "Solar system" },
@@ -493,7 +493,7 @@ const TC = {
     canvasAria: "Mapa del cielo visto desde la Tierra, desde el centro de la esfera celeste: estrellas, constelaciones y objetos en su posición real. Flechas para mirar alrededor, + y − para acercar, Escape para cerrar el panel abierto.",
     skyFrom: "Cielo visto desde", backToEarth: "Volver a la Tierra",
     zoomIn: "Acercar", zoomOut: "Alejar", centerView: "Centrar la vista", centerObj: "Centrar en el objeto",
-    pano360Aria: "Guardar una foto 360° de este cielo (JPEG)", pano360Title: "Foto 360°", pano360Making: "Tomando la foto 360°… (unos segundos)", pano360Alt: "Vista previa de la foto 360°", pano360Text: "Este cielo en 360°, hecho con Teseo", pano360Hint: "Google Fotos, Facebook y los visores 360° la abren para mirar alrededor.",
+    stopsAria: "Puntos del sitio donde pararse", stopGo: (n) => `Ir a ${n}`, pano360Aria: "Guardar una foto 360° de este cielo (JPEG)", pano360Title: "Foto 360°", pano360Making: "Tomando la foto 360°… (unos segundos)", pano360Alt: "Vista previa de la foto 360°", pano360Text: "Este cielo en 360°, hecho con Teseo", pano360Hint: "Google Fotos, Facebook y los visores 360° la abren para mirar alrededor.",
     postcardAria: "Guardar una postal de este cielo (PNG)", fullOn: "Pantalla completa", fullOff: "Salir de pantalla completa",
     close: "Cerrar", now: "Ahora", west: "O",
     kinds: { con: "Constelación", star: "Estrella", solar: "Sistema solar" },
@@ -2092,7 +2092,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         // zonas tapadas por la ficha o un panel: ahí no se dibujan nombres (ni a medias)
         if (ref._occN++ % 6 === 0) {
           const stEl = mount.parentElement, sr = stEl.getBoundingClientRect();
-          ref.occl = [...stEl.querySelectorAll(".sk-sheet, .sk-panel, .sk-search-field, .sk-menu-btn, .sk-rail button, .sk-dock, .sk-cta-btn, .sk-arpill, .sk-artray, .sk-arrail, .sk-ts, .sk-guide-msg, .sk-depth, .sk-tour, .sk-onboard, .sk-chip")].map(el => { const r = el.getBoundingClientRect(); return [r.left - sr.left - 8, r.top - sr.top - 6, r.right - sr.left + 8, r.bottom - sr.top]; });
+          ref.occl = [...stEl.querySelectorAll(".sk-sheet, .sk-panel, .sk-search-field, .sk-menu-btn, .sk-rail button, .sk-dock, .sk-stop, .sk-cta-btn, .sk-arpill, .sk-artray, .sk-arrail, .sk-ts, .sk-guide-msg, .sk-depth, .sk-tour, .sk-onboard, .sk-chip")].map(el => { const r = el.getBoundingClientRect(); return [r.left - sr.left - 8, r.top - sr.top - 6, r.right - sr.left + 8, r.bottom - sr.top]; });
         }
         const occl = ref.occl;
         const free = (x0, y0, x1, y1) => {
@@ -2228,7 +2228,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             if (top < 4 || !free(sx - w / 2, top, sx + w / 2, bot) || (!p.cls && !(p.volcano && p.volcano.erupting) && !clear(sx - w / 2, top, sx + w / 2, bot))) continue;   // (un volcán en erupción se nombra aunque roce otro rótulo)   // las de «Astronomía andina» pueden pasar junto al disco del Sol: son su referencia
             boxes.push(sx - w / 2, top, sx + w / 2, bot);
             out.push({ key: "peak:" + p.az + ":" + p.name, name: p.label, cls: p.cls || "peak", sub: null, subText: p.subText != null ? p.subText : p.ele_m, x: sx, y: sy, dx: 0, flip: false,
-              ...(p.volc ? { volc: true } : {}), ...(!p.cls && !p.monument ? { pk: { peak: p } } : {}) });
+              ...(p.volc ? { volc: true } : {}), ...(!p.cls && !p.monument ? { pk: { peak: p } } : {}), ...(p.stop ? { pk: { stop: p.stop } } : {}) });
             np++;
           }
         }
@@ -2914,6 +2914,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // del terreno alrededor de cada uno y bajo el observador, de /api/elevation)
   useEffect(() => { try { localStorage.setItem(MONUMENTS_KEY, monOn ? "1" : "0"); } catch { /* no-op */ } }, [monOn]);
   const monNear = useMemo(() => (localActive && !viewFrom ? monumentsNear(lat, lon, 25) : []), [localActive, viewFrom, lat, lon]);
+  // puntos de visita del sitio (para saltar de uno a otro) y el que se ofreció al tocar su rótulo en la escena
+  const siteStops = useMemo(() => (localActive && !viewFrom ? stopsAt(lat, lon) : null), [localActive, viewFrom, lat, lon]);
+  const [stopAsk, setStopAsk] = useState(null);
+  useEffect(() => { if (!stopAsk) return undefined; const id = setTimeout(() => setStopAsk(null), 7000); return () => clearTimeout(id); }, [stopAsk]);
+  useEffect(() => { setStopAsk(null); }, [lat, lon]);
   const monKey = monNear.length ? `${lat},${lon}|${monNear.map((m) => m.id).join(",")}` : null;
   useEffect(() => {
     if (!monOn || !hzData || !monKey) return;
@@ -2966,7 +2971,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const ref = sceneRef.current; if (!ref || !ref.monuments) return;
     ref.monuments.set(monItems, atmSky, monRelief);
     ref.monGround = monItems.length > 0;
-    ref.monLabels = monItems.length ? monumentLabels(monItems, lang, monSil, hzData ? hzData.step_deg || 0.2 : 0.2).map((p) => ({ ...p, label: p.name, subText: p.sub || (lang === "es" ? `${String(p.ele_m).replace(".", ",")} m de alto` : `${p.ele_m} m tall`) })) : null;
+    ref.monLabels = monItems.length ? monumentLabels(monItems, lang, monSil, hzData ? hzData.step_deg || 0.2 : 0.2).map((p) => ({ ...p, stop: stopOf(p.id), label: p.name, subText: p.sub || (lang === "es" ? `${String(p.ele_m).replace(".", ",")} m de alto` : `${p.ele_m} m tall`) })) : null;
     ref._dirty = true;
   }, [monItems, monSil, lang, ready, monRelief]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -4269,7 +4274,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           if (lb.cls.startsWith("guide_")) continue;               // las marcas de las líneas guía no se tocan
           const cw = lb.cls === "con" ? (r.width >= 900 ? 12.5 : 11) : lb.cls === "solar" ? (r.width >= 900 ? 9 : 8) : (r.width >= 900 ? 7.8 : 6.9);
           const w = String(lb.name).length * cw + 14, dx = lb.dx || 8;
-          if (lb.pk && lb.pk.peak) {
+          if (lb.pk && (lb.pk.peak || lb.pk.stop)) {
             // nombre de una montaña: centrado encima de su cumbre (el texto y su altura, a 2–46 px sobre el punto)
             const dyp = py < lb.y - 50 ? lb.y - 50 - py : py > lb.y + 4 ? py - lb.y - 4 : 0;
             if (Math.abs(px - lb.x) <= w / 2 + 6 && dyp <= (touch ? 8 : 2) && dyp < bestDy) { bestDy = dyp; lbHit = lb; }
@@ -4286,6 +4291,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         else if (lbHit.pk && lbHit.pk.si != null) o = starObj(stars[lbHit.pk.si], lbHit.pk.si);
         else if (lbHit.pk && lbHit.pk.layer === "solar") o = { ...lbHit.pk.ob, layer: "solar" };
         else if (lbHit.pk && lbHit.pk.iss) o = { layer: "iss" };
+        else if (lbHit.pk && lbHit.pk.stop) { setPick(null); setSelObj(null); setIssSheet(false); setPeakSheet(null); setStopAsk(lbHit.pk.stop); return; }
         else if (lbHit.pk && lbHit.pk.peak) { setPick(null); setSelObj(null); setIssSheet(false); setPeakSheet(lbHit.pk.peak); track("sky_peak", { volcano: !!lbHit.pk.peak.volcano }); return; }
         else if (lbHit.pk && lbHit.pk.ob) o = { ...lbHit.pk.ob, layer: lbHit.pk.layer };
         if (o && o.layer === "iss") { openIssRef.current(); return; }
@@ -4726,6 +4732,23 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         <TimeSheet lang={lang} date={when} lat={localMode ? lat : null} lon={localMode ? lon : null} tz={placeTz} place={tzPlace} isNow={!timeMoved} rateIdx={rateIdx}
           onRate={setRate} onStep={tsStep} onNow={tsNow} onNight={tsNight} onSetMinute={tsMinute} onClose={() => setTsOpen(false)} />
       )}
+      {sky && !tourActive && siteStops && inMySky && !panel && !selObj && !peakSheet && !issSheet && !full && !pano && (
+          <nav className={`sk-stops${railView ? " is-rail" : ""}`} aria-label={t.stopsAria}>
+            {stopAsk && stopAsk.id !== siteStops.here && (
+              <button type="button" className="sk-stop sk-stop-go" onClick={() => { const s0 = stopAsk; setStopAsk(null); track("sky_stop", { site: siteStops.site, stop: s0.id, from: "label" }); pickPlace({ name: s0.name[lang] || s0.name.es, lat: s0.lat, lon: s0.lon, elev: s0.elev, exact: true }); }}>
+                <Icon name="pin" size={16} /><span>{t.stopGo(stopAsk.name[lang] || stopAsk.name.es)}</span>
+              </button>
+            )}
+            <div className="sk-stops-row">
+              {siteStops.stops.map((s0) => (
+                <button type="button" key={s0.id} className={`sk-stop${s0.id === siteStops.here ? " is-here" : ""}`} aria-current={s0.id === siteStops.here ? "location" : undefined}
+                  onClick={() => { if (s0.id === siteStops.here) return; track("sky_stop", { site: siteStops.site, stop: s0.id, from: "strip" }); pickPlace({ name: s0.name[lang] || s0.name.es, lat: s0.lat, lon: s0.lon, elev: s0.elev, exact: true }); }}>
+                  {s0.name[lang] || s0.name.es}
+                </button>
+              ))}
+            </div>
+          </nav>
+        )}
       {sky && !tourActive && !railView && (
         <Dock t={t} panel={panel} onPanel={openPanel} localMode={localMode} tourReady={tourReady} onTour={startTour}
           timeLabel={timeMoved ? fmtWhenShort(when, lang, localMode ? placeTz : null) : t.now} isNow={!timeMoved} playing={playing}
