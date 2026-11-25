@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.77.0 — 2026-11-25
+
+- **Tarjeta del tiempo renovada**, inspirada en lo útil de las apps del tiempo de los teléfonos:
+  - **Por hora**: franja de 24 horas que se desliza de lado, con icono, temperatura, probabilidad de lluvia y nubes. La mejor ventana para observar de noche sale en verde y, al tocar una hora, el cielo salta a ese momento. Reemplaza las barras de nubosidad de 12 horas, que repetían lo mismo.
+  - **Próximos 7 días**: también deslizable, con máxima, mínima, lluvia en mm y las nubes de cada noche (19–24 h). Si quedan por debajo del 30 %, la casilla se pinta de verde como «noche para observar». Al tocar un día, el cielo salta a las 21:00 de ese día.
+  - **Más datos**: temperatura grande con la lluvia del día, punto de rocío, flecha del viento, índice UV con su nivel y escala, presión, y la salida y puesta del Sol calculadas por Teseo.
+- **Mediana de siete modelos.** La temperatura (también la de la pastilla) y la lluvia salen de la mediana de ECMWF, GFS, ICON, Météo-France, UKMO, JMA y GEM, que suele fallar menos que un modelo solo. Si discrepan en 3 °C o más, o en 10 mm de lluvia, la tarjeta avisa con el rango, por ejemplo «Poca certeza: 7 modelos dan de 13 a 16 °C a esta hora y de 2 a 23 mm hoy».
+- El pronóstico del punto cubre ahora 7 días hora a hora y en la hora local del lugar, así que la tarjeta sigue al cielo aunque se mueva varios días adelante.
+
 ## 1.76.3 — 2026-11-24
 
 - **Aviso de cookies en el idioma del enlace.** El aviso miraba solo la preferencia guardada y el idioma del navegador, así que con https://teseo.yachaydeep.com/?lang=en salía en español si la persona ya había usado Teseo en español o tenía el navegador en español. Ahora sigue la misma regla que la app (`?lang=` > preferencia guardada > navegador) y cambia de idioma junto con la app si alguien usa el botón ES/EN mientras el aviso está a la vista.

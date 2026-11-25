@@ -222,12 +222,19 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
 {
   const nw = await import("../src/sky/nowWeather.js");
   const u = new URL(nw.nowUrl(0.07, -78.13, 2830));
-  ok(u.searchParams.get("hourly") === u.searchParams.get("current") && u.searchParams.get("forecast_hours") === "26" && u.searchParams.get("elevation") === "2830", "las horas se piden con las mismas variables y la altura del lugar");
+  ok(u.searchParams.get("hourly") === u.searchParams.get("current") && u.searchParams.get("forecast_hours") === "168" && u.searchParams.get("elevation") === "2830", "las horas se piden con las mismas variables y la altura del lugar");
+  ok(u.searchParams.get("timezone") === "auto" && u.searchParams.get("forecast_days") === "7" && /precipitation_sum/.test(u.searchParams.get("daily")) && /dew_point_2m/.test(u.searchParams.get("hourly")) && /pressure_msl/.test(u.searchParams.get("hourly")), "pide los 7 días en la hora local, el punto de rocío y la presión");
   const T0 = 1795420800;
   const r = nw.parseNow({ current: { time: T0, temperature_2m: 13, weather_code: 3, is_day: 1, wind_speed_10m: 2, wind_direction_10m: 45, precipitation_probability: 0 },
     hourly: { time: [T0, T0 + 3600, T0 + 7200], temperature_2m: [13, 14, 12], apparent_temperature: [12, 13, 11], relative_humidity_2m: [82, 90, 140], precipitation_probability: [0, 100, 60], precipitation: [0, 2.5, null],
       uv_index: [2, 3, 0], visibility: [2200, 900, null], wind_speed_10m: [2, 6, 0], wind_direction_10m: [45, 200, 10], weather_code: [3, 63, 61], is_day: [1, 1, 0], cloud_cover: [85, 100, 90] } });
   ok(r.at === T0 * 1000 && r.hours.length === 3 && r.hours[1].pop === 100 && r.hours[1].code === 63 && near(r.hours[1].visKm, 0.9, 1e-9) && r.hours[2].rh === null && r.hours[2].day === false, "lee las horas (y descarta lo que no es creíble)");
+  const r2 = nw.parseNow({ current: { time: T0, temperature_2m: 13, dew_point_2m: 9.4, pressure_msl: 1016.3 },
+    hourly: { time: [T0], temperature_2m: [13], dew_point_2m: [9], pressure_msl: [1500] },
+    daily: { time: [T0, T0 + 86400], weather_code: [80, 51], temperature_2m_max: [17.5, 18.5], temperature_2m_min: [9.6, null], precipitation_sum: [8.6, -1] } });
+  ok(r2.dew === 9.4 && r2.hPa === 1016.3 && r2.hours[0].dew === 9 && r2.hours[0].hPa === null, "lee el punto de rocío y la presión (y descarta una presión imposible)");
+  ok(r2.days.length === 2 && r2.days[0].code === 80 && r2.days[0].tmax === 17.5 && r2.days[0].mm === 8.6 && r2.days[1].tmin === null && r2.days[1].mm === null, "lee los días");
+  ok(nw.parseNow({ current: { time: T0, temperature_2m: 13 } }).days.length === 0, "sin días, la lista va vacía");
   ok(nw.hourAt(r.hours, T0 + 3600 + 600).t === T0 + 3600 && nw.hourAt(r.hours, T0 + 5 * 3600) === null && nw.hourAt([], T0) === null, "la hora que contiene un instante, o ninguna");
 }
 

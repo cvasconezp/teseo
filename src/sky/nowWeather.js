@@ -6,16 +6,18 @@
 export const OPEN_METEO = "https://api.open-meteo.com/v1/forecast";
 
 /** URL de la consulta: lugar con 2 decimales (≈ 1 km) y, si se sabe, la altitud (m). */
-const NOW_VARS = "temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,apparent_temperature,relative_humidity_2m,precipitation_probability,precipitation,uv_index,visibility,cloud_cover";
+const NOW_VARS = "temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,apparent_temperature,relative_humidity_2m,precipitation_probability,precipitation,uv_index,visibility,cloud_cover,dew_point_2m,pressure_msl";
+// y los próximos 7 días (en la hora local del lugar: timezone=auto; las horas siguen en s Unix)
+const DAY_VARS = "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum";
 export function nowUrl(lat, lon, elev) {
-  // lo de ahora y, con la misma altura del lugar, las mismas variables hora a hora (de 1 h antes a 26 h después):
-  // la tarjeta del tiempo las muestra cuando eliges otra hora
-  const q = new URLSearchParams({ latitude: lat.toFixed(2), longitude: lon.toFixed(2), current: NOW_VARS, hourly: NOW_VARS, past_hours: "1", forecast_hours: "26", timeformat: "unixtime", wind_speed_unit: "kmh", timezone: "GMT" });
+  // lo de ahora y, con la misma altura del lugar, las mismas variables hora a hora (de 1 h antes a 7 días después):
+  // la tarjeta del tiempo las muestra cuando eliges otra hora; y los 7 días, para su franja de días
+  const q = new URLSearchParams({ latitude: lat.toFixed(2), longitude: lon.toFixed(2), current: NOW_VARS, hourly: NOW_VARS, daily: DAY_VARS, past_hours: "1", forecast_hours: "168", forecast_days: "7", timeformat: "unixtime", wind_speed_unit: "kmh", timezone: "auto" });
   if (Number.isFinite(elev)) q.set("elevation", String(Math.round(elev)));
   return `${OPEN_METEO}?${q}`;
 }
 
-/** Las horas del pronóstico del lugar: [{ t (s), temp, feels, rh, pop, mm (lluvia en la hora), uv, visKm, windKmh, windFrom, code, day, cloud }] (o []). */
+/** Las horas del pronóstico del lugar: [{ t (s), temp, feels, rh, dew (punto de rocío), hPa (presión a nivel del mar), pop, mm (lluvia en la hora), uv, visKm, windKmh, windFrom, code, day, cloud }] (o []). */
 function parseHours(h, n) {
   if (!h || !Array.isArray(h.time)) return [];
   const g = (k, i, lo, hi) => n(h[k] && h[k][i], lo, hi);
@@ -23,11 +25,22 @@ function parseHours(h, n) {
     const ws = g("wind_speed_10m", i, 0), wd = g("wind_direction_10m", i, -360, 720), vis = g("visibility", i, 0);
     return {
       t: Number(t), temp: g("temperature_2m", i, -90, 70), feels: g("apparent_temperature", i, -90, 70), rh: g("relative_humidity_2m", i, 0, 100),
+      dew: g("dew_point_2m", i, -90, 50), hPa: g("pressure_msl", i, 800, 1100),
       pop: g("precipitation_probability", i, 0, 100), mm: g("precipitation", i, 0, 500), uv: g("uv_index", i, 0, 30), visKm: vis != null ? vis / 1000 : null, cloud: g("cloud_cover", i, 0, 100),
       windKmh: ws, windFrom: ws != null && wd != null ? ((wd % 360) + 360) % 360 : null,
       code: Number.isFinite(h.weather_code && h.weather_code[i]) ? h.weather_code[i] : null, day: !(h.is_day && h.is_day[i] === 0),
     };
   }).filter((x) => Number.isFinite(x.t));
+}
+
+/** Los días del pronóstico del lugar: [{ t (s, medianoche local), code, tmax, tmin, mm (lluvia del día) }] (o []). */
+function parseDays(d, n) {
+  if (!d || !Array.isArray(d.time)) return [];
+  const g = (k, i, lo, hi) => n(d[k] && d[k][i], lo, hi);
+  return d.time.map((t, i) => ({
+    t: Number(t), code: Number.isFinite(d.weather_code && d.weather_code[i]) ? d.weather_code[i] : null,
+    tmax: g("temperature_2m_max", i, -90, 70), tmin: g("temperature_2m_min", i, -90, 70), mm: g("precipitation_sum", i, 0, 2000),
+  })).filter((x) => Number.isFinite(x.t));
 }
 
 /** La hora del pronóstico que corresponde a `s` (s Unix): la que la contiene (±30 min), o null. */
@@ -53,8 +66,10 @@ export function parseNow(json) {
     temp: c.temperature_2m, code: Number.isFinite(c.weather_code) ? c.weather_code : null, day: c.is_day !== 0, windKmh: ws, windFrom: wd,
     feels: n(c.apparent_temperature, -90, 70), rh: n(c.relative_humidity_2m, 0, 100), pop: n(c.precipitation_probability, 0, 100),
     uv: n(c.uv_index, 0, 30), visKm: n(c.visibility, 0) != null ? c.visibility / 1000 : null, cloud: n(c.cloud_cover, 0, 100),
+    dew: n(c.dew_point_2m, -90, 50), hPa: n(c.pressure_msl, 800, 1100),
     at: Number.isFinite(at) ? at : null,
     hours: parseHours(json.hourly, n),
+    days: parseDays(json.daily, n),
   };
 }
 

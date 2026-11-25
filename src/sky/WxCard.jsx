@@ -1,21 +1,28 @@
 // WxCard.jsx — la tarjeta que se abre al tocar la pastilla del tiempo («13 °C · 1 km/h») sobre el cielo.
-// Arriba, el interruptor de las nubes y el estado del cielo; luego sensación y viento, la nubosidad total y por
-// capas, la de las próximas 12 horas (con la mejor ventana para observar de noche; tocar una hora lleva el cielo a
-// esa hora), lluvia, humedad, UV y visibilidad. Temperatura y viento no se repiten: ya están en la pastilla.
+// De arriba abajo: el interruptor de las nubes y el estado del cielo; la temperatura grande con la sensación y la
+// lluvia del día; un aviso si los modelos no coinciden; la nubosidad total y por capas; la franja POR HORA (24 h, se
+// desliza de lado: icono, temperatura, lluvia y nubes; la mejor ventana para observar de noche, en verde; tocar una
+// hora lleva el cielo a esa hora); lluvia, humedad con punto de rocío, viento con flecha, UV con su escala,
+// visibilidad, presión y el Sol del día; y la franja de los PRÓXIMOS 7 DÍAS (máxima, mínima, lluvia y nubes de la
+// noche: bajo 30 %, noche para observar; tocar un día lleva el cielo a esa noche).
 //
 // Props:
-//   lang · now: el tiempo de ahora (parseNow de nowWeather.js, con fetchedAt) · fc: { status, data } del pronóstico
+//   lang · now: el tiempo del punto (parseNow de nowWeather.js, con fetchedAt: horas y días) · fc: { status, data } del pronóstico
+//   mod: los siete modelos del punto (models.js) o null: la temperatura y la lluvia que se muestran son su mediana
 //   sat: las nubes del satélite (satClouds.js) o null: si su barrido es reciente, la nubosidad de ahora es la suya
 //   rainDrawn: el cielo dibuja ahora la lluvia prevista (rainLook.js)
 //   cloudsOn, canDraw (las nubes se dibujan con la Atmósfera), onToggleClouds
-// De dónde sale cada dato: nubosidad por capas, del pronóstico de la zona (weather.js, ~11 km); lo demás —también la
-// lluvia de la línea bajo las barras—, del pronóstico de tu punto exacto (nowWeather.js), el mismo que dibuja la lluvia.
-//   isNight(s) → bool · tz: zona horaria del lugar (para las horas) · skyT: hora del cielo (s) · skyIsNow: el cielo va en «ahora»
+// De dónde sale cada dato: nubosidad por capas y de cada hora y noche, del pronóstico de la zona (weather.js, ~11 km);
+// temperatura y lluvia, de la mediana de los modelos en tu punto (models.js; si no llegan, el modelo por defecto);
+// lo demás, del pronóstico de tu punto exacto (nowWeather.js), el mismo que dibuja la lluvia. El Sol lo calcula Teseo.
+//   isNight(s) → bool · sunDay(s0) → { rise, set } del día que empieza en s0 (riseset.js) · tz: zona horaria del lugar
+//   skyT: hora del cielo (s) · skyIsNow: el cielo va en «ahora»
 //   onPickHour(s): llevar el cielo a esa hora · anchorRef: la pastilla · stageRef: el contenedor · onClose()
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { WX } from "./i18n-wx.js";
 import { cloudsAt, hourlySeries, bestWindow, coverClass } from "./weather.js";
+import { tempAt, dayAt, disagreement } from "./models.js";
 import { satWeight, mergeClouds, fuseSat } from "./satClouds.js";
 import { wxKind, WX_NAMES, compass8, fmtWind, hourAt } from "./nowWeather.js";
 import "./weather.css";
@@ -23,7 +30,7 @@ import "./weather.css";
 const pct = (f) => `${Math.round(f * 100)} %`;
 const fmtT = (t) => `${Math.round(t) === 0 ? 0 : Math.round(t)}`.replace("-", "−") + " °C";
 
-export function WxCard({ lang = "es", now, fc, sat, rainDrawn = false, cloudsOn, canDraw, onToggleClouds, isNight, tz, skyT, skyIsNow, onPickHour, onNow, anchorRef, stageRef, onClose }) {
+export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = false, cloudsOn, canDraw, onToggleClouds, isNight, sunDay, tz, skyT, skyIsNow, onPickHour, onNow, anchorRef, stageRef, onClose }) {
   const tw = (WX[lang] || WX.es).card;
   const cardRef = useRef(null);
   const [pos, setPos] = useState(null);
@@ -62,31 +69,73 @@ export function WxCard({ lang = "es", now, fc, sat, rainDrawn = false, cloudsOn,
   // ahora: el satélite si su barrido es reciente (dónde están de verdad las nubes); si no, el pronóstico
   const satW = satWeight(sat, nowS);
   const c = useMemo(() => { const f = data ? cloudsAt(data, nowS) : null; return satW > 0 ? mergeClouds(f, fuseSat(sat, f), 1) : f; }, [data, nowS, sat, satW]);
-  const series = useMemo(() => (data ? hourlySeries(data, nowS, 12) : null), [data, nowS]);
+  const h0 = Math.floor(nowS / 3600) * 3600;
+  // nubosidad de la zona hora a hora (24 h) y la mejor ventana de noche
+  const series = useMemo(() => (data ? hourlySeries(data, h0, 24) : null), [data, h0]);
   const win = useMemo(() => (series ? bestWindow(series, isNight) : null), [series, isNight]);
   const anyNight = !!(series && isNight && series.some((p) => isNight(p.t)));
-  const hh = (s) => new Date(s * 1000).toLocaleTimeString(lang === "es" ? "es-EC" : "en-US", { hour: "numeric", minute: "2-digit", hourCycle: "h23", ...(tz ? { timeZone: tz } : {}) });
-  // con el cielo en «ahora» no hay hora elegida: se ve la invitación a tocar una
-  const selIdx = series && !skyIsNow && Number.isFinite(skyT) ? series.findIndex((p) => skyT >= p.t && skyT < p.t + 3600) : -1;
-  const sel = selIdx >= 0 ? series[selIdx] : null;
-  const selC = sel && data ? cloudsAt(data, sel.t) : null;
-  const selH = sel && now ? hourAt(now.hours, sel.t) : null;   // la lluvia de esa hora en tu punto (como la casilla)
-  const selPop = selH && selH.pop != null ? selH.pop / 100 : selC ? selC.precip : null;
+  const loc = lang === "es" ? "es-EC" : "en-US";
+  const hh = (s) => new Date(s * 1000).toLocaleTimeString(loc, { hour: "numeric", minute: "2-digit", hourCycle: "h23", ...(tz ? { timeZone: tz } : {}) });
+  const hours = useMemo(() => (now && now.hours ? now.hours.filter((x) => x.t >= h0 && x.t < h0 + 24 * 3600) : []), [now, h0]);
+  const days = now && now.days ? now.days.slice(0, 7) : [];
+  const stripRef = useRef(null);
+
+  // con otra hora en el cielo, la tarjeta entera pasa a esa hora (pronóstico del lugar); si no, ahora
+  const hr = now && !skyIsNow && Number.isFinite(skyT) ? hourAt(now.hours, skyT) : null;
+  const shownT = hr ? hr.t : nowS;
+  const selHour = hr ? Math.floor(hr.t / 3600) * 3600 : null;
+  // la franja por hora se desliza hasta la hora elegida
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    const on = el.querySelector(".is-on");
+    if (on) el.scrollLeft = Math.max(0, on.offsetLeft - el.clientWidth / 2 + on.offsetWidth / 2);
+    else el.scrollLeft = 0;
+  }, [selHour, hours.length]);
+  const dayIdx = days.findIndex((d, i) => shownT >= d.t && shownT < (days[i + 1] ? days[i + 1].t : d.t + 86400));
+  const day = dayIdx >= 0 ? days[dayIdx] : null;
+  const sunT = useMemo(() => (day && sunDay ? sunDay(day.t) : null), [day && day.t, sunDay]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!now) return null;
-  // con otra hora en el cielo, la tarjeta entera pasa a esa hora (pronóstico del lugar); si no, ahora
-  const hr = !skyIsNow && Number.isFinite(skyT) ? hourAt(now.hours, skyT) : null;
   const v = hr || now;
   // ahora, con satélite: la nubosidad que se ve desde tu sitio (pesada por la bóveda del cielo), no la media de 300 km
   const cc = hr ? (data ? cloudsAt(data, hr.t) : null) : c && c.dome ? { ...c, ...c.dome } : c;
   const k = wxKind(v.code, v.day);
   // con el satélite reciente, cuántas nubes hay lo dice él (octas de la OMM); lluvia, niebla, nieve o tormenta, el código
   const name = !hr && satW > 0 && cc && ["sun", "moon", "partly", "cloud"].includes(k) ? (WX[lang] || WX.es).cover[coverClass(cc.total)] : (WX_NAMES[lang] || WX_NAMES.es)[k];
-  const windTxt = v.windKmh == null ? "—" : v.windKmh < 1 || v.windFrom == null ? tw.calm : `${fmtWind(v.windKmh)} ${compass8(v.windFrom, lang)}`;
-  const total = cc ? cc.total : v.cloud != null ? v.cloud / 100 : null;
   const dec = (x) => (lang === "es" ? String(x).replace(".", ",") : String(x));
+  // temperatura y lluvia del día: la mediana de los modelos (si hay al menos 3); si no, la del modelo por defecto
+  const mT = tempAt(mod, shownT), mDay = dayAt(mod, shownT);
+  const temp = mT && mT.n >= 3 ? mT.med : v.temp;
+  const dayMm = mDay && mDay.mm && mDay.mm.n >= 3 ? mDay.mm.med : day ? day.mm : null;
+  const mmTxt = (x) => (x == null ? "—" : x < 0.05 ? "0 mm" : x < 10 ? `${dec(Math.round(x * 10) / 10)} mm` : `${Math.round(x)} mm`);
+  const dis = disagreement(mT, mDay && mDay.mm);
+  const isToday = !!(day && nowS >= day.t && nowS < day.t + 86400);
+  const nModels = Math.max(mT ? mT.n : 0, mDay && mDay.mm ? mDay.mm.n : 0);
+  const windTxt = v.windKmh == null ? "—" : v.windKmh < 1 || v.windFrom == null ? tw.calm : fmtWind(v.windKmh);
+  const total = cc ? cc.total : v.cloud != null ? v.cloud / 100 : null;
   const vis = v.visKm == null ? "—" : v.visKm >= 10 ? `${Math.round(v.visKm)} km` : `${dec(Math.round(v.visKm * 10) / 10)} km`;
+  const uvLv = v.uv == null ? null : v.uv < 3 ? 0 : v.uv < 6 ? 1 : v.uv < 8 ? 2 : v.uv < 11 ? 3 : 4;
   const ago = now.fetchedAt ? tw.ago((Date.now() - now.fetchedAt) / 60000) : null;
+  const tempH = (x) => { const m = tempAt(mod, x.t); return m && m.n >= 3 ? m.med : x.temp; };
+  // nubes de cada noche (19–24 h, hora local): media de la zona; bajo 30 %, noche para observar
+  const nightCloud = (d) => {
+    if (!data) return null;
+    const vs = [];
+    for (let k2 = 19; k2 < 24; k2++) { const q = cloudsAt(data, d.t + k2 * 3600); if (q && q.total != null) vs.push(q.total); }
+    return vs.length ? vs.reduce((p, q) => p + q, 0) / vs.length : null;
+  };
+  const nights = days.map(nightCloud);
+  const nClear = nights.filter((x) => x != null && x < 0.3).length;
+  // «jue 26» / «Thu 26»: día de la semana y número, en ese orden en los dos idiomas (a mediodía, lejos del cambio de día)
+  const dayName = (d, i) => {
+    if (i === 0 && nowS >= d.t && nowS < d.t + 86400) return tw.today;
+    const ps = new Intl.DateTimeFormat(loc, { weekday: "short", day: "numeric", ...(tz ? { timeZone: tz } : {}) }).formatToParts(new Date((d.t + 12 * 3600) * 1000));
+    const get = (ty) => (ps.find((p) => p.type === ty) || {}).value || "";
+    return `${get("weekday").replace(".", "")} ${get("day")}`;
+  };
+  const dayMed = (d) => { const m = dayAt(mod, d.t + 3600); const ok3 = (x) => x && x.n >= 3; return { hi: m && ok3(m.tmax) ? m.tmax.med : d.tmax, lo: m && ok3(m.tmin) ? m.tmin.med : d.tmin, mm: m && ok3(m.mm) ? m.mm.med : d.mm }; };
+  const deg = (x) => (x == null ? "—" : `${Math.round(x) === 0 ? 0 : Math.round(x)}°`.replace("-", "−"));
 
   return (
     <div ref={cardRef} className="sk-wxc" role="dialog" aria-label={tw.aria}
@@ -100,16 +149,23 @@ export function WxCard({ lang = "es", now, fc, sat, rainDrawn = false, cloudsOn,
       </div>
       {hr && (
         <div className="sk-wxc-at">
-          <span><Icon name="clock" size={14} />{tw.atHead(hh(hr.t))}</span>
+          <span><Icon name="clock" size={14} />{tw.atHead(hh(hr.t), day && !isToday ? dayName(day, 1) : null)}</span>
           <button type="button" className="sk-wxc-now" onClick={onNow}>{tw.backNow}</button>
         </div>
       )}
       <p className="sk-wxc-src">{!hr && satW > 0 ? tw.srcSat(sat.sat, tw.ago((Date.now() / 1000 - sat.t) / 60)) : tw.srcFc}{rainDrawn && cloudsOn ? ` ${tw.srcRain}` : ""}</p>
 
-      <div className="sk-wxc-grid">
-        <div className="sk-wxc-tile"><small><Icon name="thermo" size={14} />{tw.feels}</small><b>{v.feels != null ? fmtT(v.feels) : "—"}</b></div>
-        <div className="sk-wxc-tile"><small><Icon name="wind" size={14} />{tw.wind}</small><b>{windTxt}</b></div>
+      <div className="sk-wxc-hero">
+        <div>
+          <span className="sk-wxc-big"><Icon name={`wx_${k}`} size={26} />{fmtT(temp)}</span>
+          <small>{tw.feels} {v.feels != null ? fmtT(v.feels) : "—"}</small>
+        </div>
+        <div className="sk-wxc-hero-r"><small>{tw.dayRain}</small><b>{mmTxt(dayMm)}</b></div>
       </div>
+      {dis && (
+        <p className="sk-wxc-unsure" role="note"><Icon name="warn" size={14} />
+          {tw.unsure(dis.t ? dis.t.map((x) => Math.round(x)) : null, dis.mm ? dis.mm.map((x) => Math.round(x)) : null, dis.n, isToday)}</p>
+      )}
 
       <div className="sk-wxc-row"><small><Icon name="wx_cloud" size={14} />{tw.cover}</small><b>{total != null ? pct(total) : "—"}</b></div>
       {cc ? (
@@ -122,39 +178,79 @@ export function WxCard({ lang = "es", now, fc, sat, rainDrawn = false, cloudsOn,
         <p className="sk-wxc-fine" role="status">{fc && fc.status === "error" ? "—" : tw.loading}</p>
       )}
 
-      {series && (
-        <div className="sk-wxc-next">
+      {hours.length > 0 && (
+        <div className="sk-wxc-sec">
           <div className="sk-wxc-row">
-            <small>{tw.next}</small>
+            <small>{tw.hourly}</small>
             {win ? <em className="sk-wxc-best"><Icon name="sparkle" size={13} />{tw.best(hh(win.t0), hh(win.t1))}</em> : anyNight ? <em className="sk-wxc-nobest">{tw.noBest}</em> : null}
           </div>
-          <div className="sk-wxc-bars">
-            {series.map((p, i) => {
-              const best = win && i >= win.i0 && i <= win.i1;
+          <div className="sk-wxc-strip" ref={stripRef}>
+            {hours.map((x, i) => {
+              const sIdx = series ? series.findIndex((p) => p.t === x.t) : -1;
+              const cl = sIdx >= 0 && series[sIdx].total != null ? series[sIdx].total : x.cloud != null ? x.cloud / 100 : null;
+              const best = win && sIdx >= win.i0 && sIdx <= win.i1;
+              const on = selHour === x.t;
+              const t = tempH(x);
               return (
-                <button key={p.t} type="button" disabled={p.total == null}
-                  className={`sk-wxc-bar${best ? " is-best" : ""}${i === selIdx ? " is-on" : ""}${isNight && isNight(p.t) ? " is-night" : ""}`}
-                  aria-label={tw.barAria(hh(p.t), p.total != null ? pct(p.total) : "—")} aria-pressed={i === selIdx}
-                  onClick={() => onPickHour(p.t)}>
-                  <i style={{ height: `${Math.max(4, (p.total || 0) * 100)}%` }} />
+                <button key={x.t} type="button" className={`sk-wxc-cell${on ? " is-on" : ""}${best ? " is-best" : ""}`} aria-pressed={on}
+                  aria-label={tw.hourAria(hh(x.t), t != null ? fmtT(t) : "—", x.pop != null ? `${Math.round(x.pop)} %` : "—", cl != null ? pct(cl) : "—")}
+                  onClick={() => onPickHour(x.t)}>
+                  <small>{i === 0 && x.t <= nowS ? tw.nowH : hh(x.t)}</small>
+                  <Icon name={`wx_${wxKind(x.code, x.day)}`} size={22} />
+                  <b>{deg(t)}</b>
+                  <span><Icon name="umbrella" size={11} />{x.pop != null ? `${Math.round(x.pop)} %` : "—"}</span>
+                  <span className="sk-wxc-cl"><Icon name="wx_cloud" size={11} />{cl != null ? pct(cl) : "—"}</span>
                 </button>
               );
             })}
           </div>
-          <div className="sk-wxc-ticks"><span>{hh(series[0].t)}</span><span>{hh(series[6].t)}</span><span>{hh(series[series.length - 1].t)}</span></div>
-          <p className="sk-wxc-read" aria-live="polite">
-            {sel && selC ? tw.at(hh(sel.t), pct(selC.total), selPop != null ? pct(selPop) : null) : <><Icon name="hand" size={13} />{tw.tap}</>}
-          </p>
         </div>
       )}
 
       <div className="sk-wxc-grid">
-        <div className="sk-wxc-tile"><small><Icon name="umbrella" size={14} />{tw.rain}</small><b>{v.pop != null ? `${Math.round(v.pop)} %` : "—"}</b></div>
-        <div className="sk-wxc-tile"><small><Icon name="droplet" size={14} />{tw.rh}</small><b>{v.rh != null ? `${Math.round(v.rh)} %` : "—"}</b></div>
-        <div className="sk-wxc-tile"><small><Icon name="sun" size={14} />{tw.uv}</small><b>{v.uv != null ? Math.round(v.uv) : "—"}{!v.day && <em>{tw.uvNight}</em>}</b></div>
+        <div className="sk-wxc-tile"><small><Icon name="umbrella" size={14} />{tw.rain}</small><b>{v.pop != null ? `${Math.round(v.pop)} %` : "—"}</b>
+          {v.mm != null && <em>{tw.rainHour(dec(Math.round(v.mm * 10) / 10))}</em>}</div>
+        <div className="sk-wxc-tile"><small><Icon name="droplet" size={14} />{tw.rh}</small><b>{v.rh != null ? `${Math.round(v.rh)} %` : "—"}</b>
+          {v.dew != null && <em>{tw.dew(deg(v.dew))}</em>}</div>
+        <div className="sk-wxc-tile"><small><Icon name="wind" size={14} />{tw.wind}</small>
+          <b>{v.windKmh != null && v.windKmh >= 1 && v.windFrom != null && <span className="sk-wxc-arrow" style={{ transform: `rotate(${Math.round(v.windFrom)}deg)` }}><Icon name="arrow_down" size={15} /></span>}{windTxt}</b>
+          {v.windKmh != null && v.windKmh >= 1 && v.windFrom != null && <em>{tw.windFrom(compass8(v.windFrom, lang))}</em>}</div>
+        <div className="sk-wxc-tile"><small><Icon name="sun" size={14} />{tw.uv}</small>
+          <b>{v.uv != null ? Math.round(v.uv) : "—"}{uvLv != null && v.day ? <em>{tw.uvLevels[uvLv]}</em> : !v.day ? <em>{tw.uvNight}</em> : null}</b>
+          {v.uv != null && <i className="sk-wxc-uv" aria-hidden="true"><i style={{ left: `${Math.min(100, (v.uv / 12) * 100)}%` }} /></i>}</div>
         <div className="sk-wxc-tile"><small><Icon name="eye" size={14} />{tw.vis}</small><b>{vis}</b></div>
+        <div className="sk-wxc-tile"><small><Icon name="gauge" size={14} />{tw.pressure}</small><b>{v.hPa != null ? `${Math.round(v.hPa)} hPa` : "—"}</b><em>{tw.seaLevel}</em></div>
+        {sunT && sunT.rise && sunT.set && (
+          <div className="sk-wxc-tile wide"><small><Icon name="sunrise" size={14} />{tw.sun}</small>
+            <b>{tw.sunTimes(hh(sunT.rise.date.getTime() / 1000), hh(sunT.set.date.getTime() / 1000))}</b><em>{tw.sunBy}</em></div>
+        )}
       </div>
-      {hr ? <p className="sk-wxc-fine">{tw.sourceAt(hh(hr.t))}</p> : ago && <p className="sk-wxc-fine">{tw.source(ago)}</p>}
+
+      {days.length > 0 && (
+        <div className="sk-wxc-sec">
+          <div className="sk-wxc-row"><small>{tw.days}</small>{data && <em className={nClear ? "sk-wxc-best" : "sk-wxc-nobest"}>{tw.clearNights(nClear)}</em>}</div>
+          <div className="sk-wxc-strip days">
+            {days.map((d, i) => {
+              const m = dayMed(d), nc = nights[i], good = nc != null && nc < 0.3, on = i === dayIdx && !!hr;
+              return (
+                <button key={d.t} type="button" className={`sk-wxc-cell day${on ? " is-on" : ""}${good ? " is-best" : ""}`} aria-pressed={on}
+                  aria-label={tw.dayAria(dayName(d, i), deg(m.hi), deg(m.lo), mmTxt(m.mm), nc != null ? pct(nc) : null)}
+                  title={good ? tw.nightGood : undefined}
+                  onClick={() => onPickHour(d.t + 21 * 3600)}>
+                  <small>{dayName(d, i)}</small>
+                  <Icon name={`wx_${wxKind(d.code, true)}`} size={24} />
+                  <b>{deg(m.hi)}</b>
+                  <span>{deg(m.lo)}</span>
+                  <span><Icon name="droplet" size={11} />{mmTxt(m.mm)}</span>
+                  <span className="sk-wxc-cl"><Icon name="moon" size={11} />{nc != null ? pct(nc) : "—"}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="sk-wxc-fine tight"><Icon name="moon" size={11} /> {tw.nightLegend} · <span className="sk-wxc-good">{tw.nightGood}</span></p>
+        </div>
+      )}
+      <p className="sk-wxc-fine">{hr ? tw.sourceAt(hh(hr.t)) : ago ? tw.source(ago) : null}{nModels >= 3 ? ` · ${tw.median(nModels)}` : ""}</p>
     </div>
   );
 }

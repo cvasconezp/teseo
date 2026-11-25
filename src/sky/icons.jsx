@@ -54,6 +54,10 @@ const P = {
   heart: <path d="M12 19.500s-7-4.300-7-9.500a4 4 0 0 1 7-2.400 4 4 0 0 1 7 2.400c0 5.200-7 9.500-7 9.500z" />,
   info: <><circle cx="12" cy="12" r="8.500" /><path d="M12 11v5.500M12 7.600v.2" /></>,
   chart: <><path d="M4 4v16h16" /><path d="M8 16v-4M12 16V8M16 16v-6" strokeWidth="2" /></>,
+  // hacia dónde va el viento: la flecha apunta abajo (sur) y se gira según el rumbo
+  arrow_down: <><path d="M12 4v15" /><path d="m6.5 13.5 5.5 5.5 5.5-5.5" /></>,
+  gauge: <><path d="M4.2 17a8.5 8.5 0 1 1 15.6 0" /><path d="m12 13.5 3.8-4.3" /><circle cx="12" cy="14" r="1.2" /></>,
+  sunrise: <><path d="M4 18h16M7 21h10" /><path d="M7.5 18a4.5 4.5 0 0 1 9 0" /><path d="M12 4v4M9.5 6.5 12 4l2.5 2.5M4.6 12.3l1.4 1M19.4 12.3l-1.4 1" /></>,
   constellation: <><circle cx="5" cy="7" r="1.4" fill="currentColor" /><circle cx="11" cy="11" r="1.4" fill="currentColor" /><circle cx="18" cy="6" r="1.4" fill="currentColor" /><circle cx="15" cy="18" r="1.4" fill="currentColor" /><path d="m5 7 6 4 7-5M11 11l4 7" strokeWidth="1.1" /></>,
 };
 

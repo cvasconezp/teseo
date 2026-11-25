@@ -96,6 +96,8 @@ import { IssLayer, ISS_COLORS, ISS_RATES, stepClock as stepIssClock } from "./sk
 import IssSheet from "./sky/IssSheet.jsx";
 import PeakSheet from "./sky/PeakSheet.jsx";
 import { WxCard } from "./sky/WxCard.jsx";
+import { fetchModels, tempAt } from "./sky/models.js";
+import { riseTransitSet, H0_SUN } from "./sky/riseset.js";
 import { TOUR_STOPS, TOUR_T, CANDIDATES, pickVisible, sunsetAt, gizaView, KHUFU, VOLCANO_VIEW, SANGAY, bearing, deepKind, nameOf } from "./sky/tour.js";
 import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp, fmtWind, windText, windVector, hourAt } from "./sky/nowWeather.js";
 import { fetchVolcanoes, matchVolcanoes, recentEruption, eruptingInView, volcanoesOnSkyline, VT as VOLC_T } from "./sky/volcanoes.js";
@@ -2851,6 +2853,17 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const id = setInterval(ask, 15 * 60 * 1000);
     return () => { alive = false; clearInterval(id); };
   }, [wxNowKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // siete modelos del mismo punto (src/sky/models.js): la pastilla y la tarjeta muestran su mediana y avisan si no
+  // coinciden. Cada 30 minutos (Open-Meteo actualiza cada hora); si fallan, queda el modelo por defecto
+  const [wxMod, setWxMod] = useState(null);
+  useEffect(() => {
+    if (!wxNowKey) { setWxMod(null); return undefined; }
+    let alive = true;
+    const ask = () => fetchModels(lat, lon, wxElev).then((m) => { if (alive) setWxMod(m); }).catch(() => {});
+    ask();
+    const id = setInterval(ask, 30 * 60 * 1000);
+    return () => { alive = false; clearInterval(id); };
+  }, [wxNowKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   // nubes: pronóstico de Open-Meteo para el lugar (solo si se piden o se abre su panel) y capa del cielo
   useEffect(() => { try { localStorage.setItem(CLOUDS_KEY, cloudsOn ? "1" : "0"); } catch { /* no-op */ } }, [cloudsOn]);
   const wxKey = localActive && !viewFrom && lat != null && lon != null ? `${Math.round(lat * 10)},${Math.round(lon * 10)}` : null;
@@ -4425,6 +4438,16 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       return memo.get(k);
     };
   }, [lat, lon]);
+  // salida y puesta del Sol del día que empieza en s0 (s Unix, medianoche local), para la tarjeta del tiempo
+  const sunDay = useMemo(() => {
+    if (lat == null || lon == null) return null;
+    const dirAt = (d) => { const sn = ephemeris(d).find((b) => b.name === "Sol"); return [sn.nx, sn.ny, sn.nz]; };
+    const memo = new Map();
+    return (s0) => {
+      if (!memo.has(s0)) { try { memo.set(s0, riseTransitSet(dirAt, lat, lon, new Date(s0 * 1000), { minAlt: H0_SUN })); } catch { memo.set(s0, null); } }
+      return memo.get(s0);
+    };
+  }, [lat, lon]);
   const terrainCtl = (
     <TerrainControl lang={lang} available={localActive && !viewFrom} on={terrainOn} lift={summitLift}
       onToggle={() => { const nv = !terrainOn; setTerrainOn(nv); track("sky_setting", { setting: "horizon", state: nv ? "on" : "off" }); }}
@@ -4445,12 +4468,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   );
   const wxPill = wxNow && localMode && !viewFrom ? (() => {
     const k = wxKind(wxNow.code, wxNow.day), nm = (WX_NAMES[lang] || WX_NAMES.es)[k];
+    // la temperatura de ahora: la mediana de los modelos (si hay al menos 3), como en la tarjeta
+    const mt = wxMod ? tempAt(wxMod, Date.now() / 1000) : null, tNow = mt && mt.n >= 3 ? mt.med : wxNow.temp;
     return (
       <button ref={wxPillRef} type="button" data-tour="weather" className="sk-chip sk-wx-pill" aria-expanded={wxOpen} aria-haspopup="dialog"
         onClick={() => { setWxWanted(true); setMountOpen(false); setWxOpen((o) => { if (!o) track("sky_weather_card", { kind: "open" }); return !o; }); }}
-        aria-label={`${nm}, ${fmtTemp(wxNow.temp)}${wxNow.windKmh != null ? `. ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}
+        aria-label={`${nm}, ${fmtTemp(tNow)}${wxNow.windKmh != null ? `. ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}
         title={`${nm}${wxNow.windKmh != null ? ` · ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}>
-        <Icon name={`wx_${k}`} size={18} /><span>{fmtTemp(wxNow.temp)}</span>
+        <Icon name={`wx_${k}`} size={18} /><span>{fmtTemp(tNow)}</span>
         {wxNow.windKmh != null && (
           // el icono dice que es el viento; de dónde viene, en la tarjeta
           <span className="sk-wx-wind"><Icon name="wind" size={13} />{fmtWind(wxNow.windKmh)}</span>
@@ -4616,11 +4641,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       )}
       {sky && flatMode && <FlatPhone lang={lang} mode={flatMode} lat={lat} lon={lon} tz={placeTz} decl={decl && decl.valid ? decl.decl : 0} hz={hzData} onClose={() => setFlatMode(null)} />}
       {sky && wxPill && wxOpen && (
-        <WxCard lang={lang} now={wxNow} fc={wxKey ? (wx.key === wxKey ? wx : { status: "loading" }) : null} sat={satData}
+        <WxCard lang={lang} now={wxNow} mod={wxMod} fc={wxKey ? (wx.key === wxKey ? wx : { status: "loading" }) : null} sat={satData}
           rainDrawn={!!(atmSky && atmSky.wx && atmSky.wx.rain > 0.02)}
           cloudsOn={cloudsOn} canDraw={localActive && !viewFrom && atmOn}
           onToggleClouds={() => { const nv = !cloudsOn; setCloudsOn(nv); track("sky_setting", { setting: "clouds", state: nv ? "on" : "off" }); }}
-          isNight={isNight} tz={placeTz} skyT={new Date(whenStr).getTime() / 1000} skyIsNow={!timeMoved}
+          isNight={isNight} sunDay={sunDay} tz={placeTz} skyT={new Date(whenStr).getTime() / 1000} skyIsNow={!timeMoved}
           onPickHour={(t) => { track("sky_time", { kind: "weather_card" }); setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(new Date(t * 1000))); }}
           onNow={tsNow}
           anchorRef={wxPillRef} stageRef={stageRef} onClose={() => setWxOpen(false)} />
