@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.79.0 — Machu Picchu: puertas, ventanas, techos de paja y cotas medidas
+
+- Los recintos de la llaqta tienen puerta trapezoidal en el lado largo que mira ladera abajo y ventana trapezoidal en cada hastial. La posición de cada vano es una reconstrucción: el plano de OpenStreetMap no la registra.
+- Techo de paja a dos aguas en los siete recintos que hoy están restaurados con techo: los cinco depósitos junto a la entrada, la wayrana de la Roca Sagrada y la Casa del Guardián.
+- El Torreón baja de 5 m a 3,2 m, la altura que midió JICA (piso 2.429,59 m; coronación 2.432,79 m).
+- Relieve: se comparó el modelo de elevación con las cotas del levantamiento de JICA en el Templo del Sol y la Plaza Sagrada; la diferencia es menor de 1 m, así que el relieve no se modifica. Las cotas quedan guardadas como puntos de control.
+
 ## 1.78.0 — 2026-11-25
 
 - **Machu Picchu completo en 3D.** Antes había tres templos y 16 casas «en posición aproximada». Ahora está la llaqta entera con su planta real, de © colaboradores de OpenStreetMap: 101 recintos, 171 muros de andenes, 18 muros y 24 escalinatas, además del Templo del Sol, el Templo Principal, el de las Tres Ventanas, la Roca Sagrada y el Intihuatana en su sitio, y rótulos para el Templo del Cóndor, la Puerta de la Ciudad, la Casa del Inca, las Tres Portadas, los Espejos de Agua, la Roca Funeraria y la Plaza Principal.

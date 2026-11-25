@@ -125,6 +125,11 @@ const COCHASQUI_MOUNDS = CQM.map(([id, e, n, radius, h, L]) => ({
 // Machupijchu», Ministerio de Cultura del Perú), Templo Principal de 11 × 8 m y 4,05 m de alto (ídem), Roca Sagrada de
 // 3 m de alto y 7 de ancho. Los recintos van sin techo, como hoy. El RELIEVE es el del modelo global (SRTM, ~30 m): los
 // andenes se dibujan como bancales sobre esa ladera suavizada, no con su cota real.
+// COTAS DE CONTROL (levantamiento de JICA, «Estudio de conservación de Machu Picchu», figs. 2.2.2-3 y 2.2.3-1): piso
+// del Templo del Sol, 2.429,59 m (coronación del muro, 2.432,79: 3,2 m de alto), y Plaza Sagrada, 2.436,3–2.437,2 m
+// (coronación del Templo Principal, 2.440,0–2.440,6). El modelo global da 2.429,0 y 2.437,8 en esos dos puntos: menos
+// de 1 m de diferencia, así que el relieve se usa tal cual.
+export const MP_CONTROL = [{ id: "templo-del-sol", e: 100.7, n: -108.6, m: 2429.59 }, { id: "plaza-sagrada", e: 38.6, n: -60.8, m: 2436.8 }];
 // [este, norte] en metros desde el punto de vista (el Intihuatana).
 const MP0 = [-13.16312, -72.545683];
 const mpAt = (e, n) => ({ lat: +(MP0[0] + n / mPerLat).toFixed(6), lon: +(MP0[1] + e / mPerLon(MP0[0])).toFixed(6) });
@@ -141,11 +146,14 @@ const machu = [
     // recintos que tienen su propia pieza (Tres Ventanas, Templo Principal, Templo del Sol): centro [e, n] y radio
     skip: [[46.5, -54.4, 4], [33.5, -53.2, 4], [100.7, -108.6, 4]],
     // dónde la labra es fina (sillares pulidos): Templo del Sol y Casa del Inca, y la Plaza Sagrada; el resto, rústica
-    fine: [[100, -105, 20], [88, -81, 16], [38, -56, 20]] },
+    fine: [[100, -105, 20], [88, -81, 16], [38, -56, 20]],
+    // recintos restaurados con techo de paja: los cinco depósitos junto a la entrada, la wayrana de la Roca Sagrada y la
+    // casa aislada sobre los andenes altos (la Casa del Guardián, según su posición en OSM)
+    roofs: [[217, -200, 3], [222, -195, 3], [231, -188, 3], [236, -184, 3], [244, -179, 3], [-9, 162, 4], [155, -242, 4]] },
   // muro de las tres ventanas hacia el noreste (la Plaza Principal y la salida del Sol); abierto a la Plaza Sagrada
-  { ...mpBase, id: "mp-tres-ventanas", name: { es: "Templo de las Tres Ventanas", en: "Temple of the Three Windows", mat: "incafine" }, sub: { es: "muro de 11 m con tres ventanas", en: "11 m wall with three windows", mat: "incafine" }, ...mpAt(46.5, -54.4), w: 5.6, d: 10.8, height: 3.6, rot: -41, open: "w", windows: 3, foot: 6, mat: "incafine" },
-  { ...mpBase, id: "mp-templo-principal", name: { es: "Templo Principal", en: "Main Temple", mat: "incafine" }, sub: { es: "11 × 8 m · muros de 4 m", en: "11 × 8 m · 4 m walls", mat: "incafine" }, ...mpAt(33.5, -53.2), w: 11, d: 8, height: 4.05, rot: -30, open: "s", windows: 0, foot: 7, mat: "incafine" },
-  { ...mpBase, id: "mp-torreon", name: { es: "Torreón · Templo del Sol", en: "Torreón · Temple of the Sun", mat: "incafine" }, sub: { es: "muro curvo sobre la roca", en: "curved wall on the rock", mat: "incafine" }, ...mpAt(100.7, -108.6), kind: "torreon", radius: 5, height: 5, rot: -35, foot: 6, mat: "incafine" },
+  { ...mpBase, id: "mp-tres-ventanas", name: { es: "Templo de las Tres Ventanas", en: "Temple of the Three Windows", mat: "incafine" }, sub: { es: "muro de 11 m con tres ventanas", en: "11 m wall with three windows" }, ...mpAt(46.5, -54.4), w: 5.6, d: 10.8, height: 3.6, rot: -41, open: "w", windows: 3, foot: 6, mat: "incafine" },
+  { ...mpBase, id: "mp-templo-principal", name: { es: "Templo Principal", en: "Main Temple", mat: "incafine" }, sub: { es: "11 × 8 m · muros de 4 m", en: "11 × 8 m · 4 m walls" }, ...mpAt(33.5, -53.2), w: 11, d: 8, height: 4.05, rot: -30, open: "s", windows: 0, foot: 7, mat: "incafine" },
+  { ...mpBase, id: "mp-torreon", name: { es: "Torreón · Templo del Sol", en: "Torreón · Temple of the Sun", mat: "incafine" }, sub: { es: "muro curvo sobre la roca · 3,2 m", en: "curved wall on the rock · 3.2 m" }, ...mpAt(100.7, -108.6), kind: "torreon", radius: 5, height: 3.2, rot: -35, foot: 6, mat: "incafine" },
   { ...mpBase, id: "mp-roca-sagrada", name: { es: "Roca Sagrada", en: "Sacred Rock" }, sub: { es: "3 m de alto · 7 m de ancho", en: "3 m tall · 7 m wide" }, ...mpAt(-12.6, 151.9), kind: "stela", w: 7, d: 1.1, height: 3, rot: 40, foot: 4, mat: "granite" },
   // lugares con nombre (solo el rótulo: el edificio está en la llaqta)
   mpMark("condor", "Templo del Cóndor", "Temple of the Condor", 125.7, -50.0),
@@ -439,15 +447,44 @@ function llaqta(out, m, ground) {
     const gs = pts.map((p) => g(p[0], p[1])), gmin = Math.min(...gs), gmean = gs.reduce((a, b) => a + b, 0) / gs.length;
     const top = gmean + K.wallH + ((k * 7) % 5) * 0.12, n = pts.length;
     const mat = (m.fine || []).some(([e, nn, r]) => Math.hypot(c[0] - e, c[1] - nn) <= r) ? "incafine" : m.mat;
+    // puerta trapezoidal en el lado largo que mira ladera abajo (reconstrucción: OSM no dice dónde está cada puerta)
+    let doorSide = -1;
+    if (n === 4 && gables.length === 2) {
+      const lg = [0, 1, 2, 3].filter((i) => !gables.includes(i)), mid = (i) => [(pts[i][0] + pts[(i + 1) % 4][0]) / 2, (pts[i][1] + pts[(i + 1) % 4][1]) / 2];
+      doorSide = g(...mid(lg[0])) <= g(...mid(lg[1])) ? lg[0] : lg[1];
+    }
+    const trap = (a, b, t0, w0, w1, z0, z1) => {   // vano oscuro en las dos caras del muro a–b, centrado a t0 (0–1)
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]), u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], c0 = [a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0];
+      for (const sg of [-1, 1]) {
+        const off = sg * (K.wallT / 2 + 0.04), P = (t, z) => [c0[0] + u[0] * t - u[1] * off, c0[1] + u[1] * t + u[0] * off, z];
+        quad(out, P(-w0 / 2, z0), P(w0 / 2, z0), P(w1 / 2, z1), P(-w1 / 2, z1), [0.05, 0.05, 0.05], "door");
+      }
+    };
+    const roofed = gables.length === 2 && (m.roofs || []).some(([e, nn, r]) => Math.hypot(c[0] - e, c[1] - nn) <= r);
+    const apex = {};
     for (let i = 0; i < n; i++) {
       const a = pts[i], b = pts[(i + 1) % n];
       wallSeg(out, a, b, K.wallT, [gmin - 2, gmin - 2], [top, top], col, mat);
+      if (i === doorSide) { const gm = g((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); if (top - gm >= 2.2) trap(a, b, 0.5, 1.15, 0.9, gm + 0.05, gm + 1.95); }
       if (gables.includes(i)) {
         const L = Math.hypot(b[0] - a[0], b[1] - a[1]), h = Math.min(K.gableMax, K.gableK * L), u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], nx = -u[1] * K.wallT / 2, ny = u[0] * K.wallT / 2;
         const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], P = (q, sg, z) => [q[0] + sg * nx, q[1] + sg * ny, z];
         for (const sg of [-1, 1]) out.push({ v: [P(a, sg, top), P(b, sg, top), P(mid, sg, top + h)], c: col, mat });
         quad(out, P(a, -1, top), P(a, 1, top), P(mid, 1, top + h), P(mid, -1, top + h), col, mat);
         quad(out, P(b, -1, top), P(b, 1, top), P(mid, 1, top + h), P(mid, -1, top + h), col, mat);
+        // ventana trapezoidal en el hastial
+        if (h > 2.2) trap(a, b, 0.5, 0.6, 0.48, top + h * 0.28, top + h * 0.28 + 0.7);
+        apex[i] = { mid, h };
+      }
+    }
+    // techo de paja a dos aguas (solo en los recintos restaurados): de los aleros, 0,6 m fuera del muro, a la cumbrera
+    if (roofed) {
+      const [i0, i1] = gables, A = apex[i0], B = apex[i1], dx = B.mid[0] - A.mid[0], dy = B.mid[1] - A.mid[1], L = Math.hypot(dx, dy) || 1, u = [dx / L, dy / L], ov = 0.6;
+      const r0 = [A.mid[0] - u[0] * ov, A.mid[1] - u[1] * ov, top + A.h + 0.25], r1 = [B.mid[0] + u[0] * ov, B.mid[1] + u[1] * ov, top + B.h + 0.25];
+      const half = Math.hypot(pts[i0][0] - pts[(i0 + 1) % 4][0], pts[i0][1] - pts[(i0 + 1) % 4][1]) / 2 + ov, drop = (A.h + 0.25) * (half / (half - ov));
+      for (const sg of [-1, 1]) {
+        const nx = -u[1] * sg * half, ny = u[0] * sg * half;
+        quad(out, [r0[0] + nx, r0[1] + ny, r0[2] - drop], [r1[0] + nx, r1[1] + ny, r1[2] - drop], r1, r0, col, "thatch");
       }
     }
   });

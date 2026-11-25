@@ -42,6 +42,7 @@ export const MON_MATS = {
   // de piedra de campo con mortero de barro (casas, depósitos y andenes)
   incafine: { src: "casing", tile: 3.4, tint: [0.8, 0.84, 0.95], normal: 0.6, macro: 0.45, blend: 0 },
   incarustic: { src: "basalt", tile: 2.8, tint: [2.7, 2.68, 2.6], normal: 1.4, macro: 0.5, blend: 0.5 },
+  thatch: { src: "sand", tile: 2.4, tint: [0.72, 0.6, 0.4], normal: 1.2, macro: 0.6, blend: 0.6, matte: true },      // techos de paja (ichu)
   heath: { src: "grass", tile: 2.2, tint: [0.78, 0.9, 0.66], normal: 1.0, macro: 0.85, blend: 1, matte: true },         // Cochasquí: hierba más oscura sobre las pirámides
   // suelos de cada lugar
   desert: { src: "sand", tile: 4.5, tint: [1.02, 0.84, 0.7], normal: 1.0, macro: 0.6, blend: 1, matte: true },       // Atacama: grava rojiza
