@@ -105,3 +105,9 @@
 .sk-sheet.is-peak .peak-sheet-hot { border-left-color: #ffb27a; color: #ffe3cc; }
 .sk-sheet.is-peak .peak-sheet-src { margin: 0; font-size: 12px; line-height: 1.4; color: var(--mute, rgba(238, 240, 250, 0.72)); }
 .sk-sheet.is-peak a.sk-btn { text-decoration: none; }
+
+/* ficha de una estructura (MonSheet) */
+.sk-sheet.is-mon .mon-sheet-p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text); }
+.sk-sheet.is-mon .mon-sheet-here { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--mute, rgba(238, 240, 250, 0.72)); }
+.sk-sheet.is-mon .mon-sheet-srcs ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.45; }
+.sk-sheet.is-mon .mon-sheet-srcs a, .sk-sheet.is-mon .peak-sheet-src a { color: #b9a8ff; }

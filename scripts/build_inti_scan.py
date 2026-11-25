@@ -8,8 +8,8 @@ Spatial Technologies (University of Arkansas) y Cotsen Institute for Archaeology
 
 Uso:  python3 -I scripts/build_inti_scan.py /ruta/Intiwatana_50.zip        (necesita numpy y fast-simplification)
 
-Qué hace: simplifica la malla a TARGET triángulos, pone el origen en la punta del gnomon (planta) y en el piso que lo
-rodea (altura), y guarda vértices en centímetros (int16) e índices (uint16) en base64. No se retoca la forma.
+Qué hace: simplifica la malla (la roca tallada, a STONE triángulos; el resto, a TARGET), pone el origen en la punta del gnomon (planta) y en el piso que lo
+rodea (altura), y guarda vértices en centímetros (int16) e índices (uint16) en public/data/inti-scan.bin. No se retoca la forma.
 Orientación: se conserva la del sistema de coordenadas del escaneo (eje Y = norte). Comprobación: el rumbo de sus
 muros (157°) difiere 7° del de los andenes vecinos en OpenStreetMap (150°); esa es la incertidumbre que se declara.
 """
@@ -17,7 +17,8 @@ import base64, sys, zipfile
 import numpy as np
 import fast_simplification as fs
 
-TARGET = 16000
+TARGET = 9000        # piso y muros de la cima
+STONE = 14000        # la roca tallada (en el original, unos 28.000 triángulos)
 V, F = [], []
 with zipfile.ZipFile(sys.argv[1]) as z:
     name = next(n for n in z.namelist() if n.lower().endswith(".obj"))
@@ -32,14 +33,22 @@ c = np.array([-113.6, 224.6]); near = np.hypot(V[:, 0] - c[0], V[:, 1] - c[1]) <
 top = V[near][V[near][:, 2].argmax()]
 ring = np.hypot(V[:, 0] - top[0], V[:, 1] - top[1]) < 2.75      # la roca y el piso que la rodea
 floor = float(np.percentile(V[ring][:, 2], 10))
-v, f = fs.simplify(V, F, target_count=TARGET)
+# La ROCA TALLADA se simplifica aparte y mucho menos que el resto: sus planos y aristas son lo que se viene a ver
+# (y lo que da la sombra). El resto (piso y muros de la cima) va con menos triángulos.
+cF = V[F].mean(1); rock = (np.hypot(cF[:, 0] - top[0], cF[:, 1] - top[1]) < 3.7) & (cF[:, 2] > floor - 0.25) & (cF[:, 2] < top[2] + 0.05)
+def sub(mask, target):
+    Fm = F[mask]; used = np.unique(Fm); remap = np.full(len(V), -1); remap[used] = np.arange(len(used))
+    return fs.simplify(V[used], remap[Fm], target_count=target)
+v1, f1 = sub(rock, STONE); v2, f2 = sub(~rock, TARGET)
+n_stone = len(f1)
+v = np.vstack([v1, v2]); f = np.vstack([f1, f2 + len(v1)])
 v = v - np.array([top[0], top[1], floor])
 # clase de cada triángulo: 0 roca tallada (a menos de 3,3 m del gnomon y sobre el piso), 1 muro (cara empinada), 2 piso
 a, b, c3 = v[f[:, 0]], v[f[:, 1]], v[f[:, 2]]
 nrm = np.cross(b - a, c3 - a); nrm /= (np.linalg.norm(nrm, axis=1)[:, None] + 1e-12)
 cen = (a + b + c3) / 3
 cls = np.where(np.abs(nrm[:, 2]) < 0.6, 1, 2)
-cls[(np.hypot(cen[:, 0], cen[:, 1]) < 3.3) & (cen[:, 2] > 0.12) & (cen[:, 2] < top[2] - floor + 0.05)] = 0
+cls[:n_stone] = np.where((cen[:n_stone, 2] > 0.06) & (np.hypot(cen[:n_stone, 0], cen[:n_stone, 1]) < 3.4), 0, cls[:n_stone])          # la roca; lo que queda a ras de suelo, piso
 # RELLENO: el láser no ve el piso que tapan los muros. Esos huecos se cierran con una losa por celdas de 0,5 m, al
 # nivel del piso medido más cercano y 3 cm por debajo (clase 3: es inferida, no medida).
 C = 0.5
@@ -72,20 +81,22 @@ n_fill = len(ff)
 v = np.vstack([v, np.array(fv)]); f = np.vstack([f, np.array(ff, np.int64)]); cls = np.r_[cls, np.full(n_fill, 3)]
 assert len(v) < 65536
 vi = np.round(v * 100).astype("<i2"); fi = f.astype("<u2")
-b64 = lambda x: base64.b64encode(x.tobytes()).decode()
+import struct
+binout = struct.pack("<II", len(vi), len(fi)) + vi.tobytes() + fi.tobytes() + cls.astype("u1").tobytes()
+open("public/data/inti-scan.bin", "wb").write(binout)
 out = f"""// GENERADO por scripts/build_inti_scan.py — no editar a mano.
-// Cima del Intihuatana de Machu Picchu: malla del escaneo láser de 2009, simplificada de {n_src} a {len(f) - n_fill} triángulos,\n// más {n_fill} de relleno donde el láser no alcanzó el piso (inferido: al nivel del piso medido más cercano).
+// Cima del Intihuatana de Machu Picchu: malla del escaneo láser de 2009, simplificada de {n_src} a {len(f) - n_fill} triángulos ({n_stone} en la roca tallada),
+// más {n_fill} de relleno donde el láser no alcanzó el piso (inferido: al nivel del piso medido más cercano).
+// Los datos van en public/data/inti-scan.bin (se descargan solo al estar en Machu Picchu; los lee machuModel.js):
+//   Uint32[nv, nt] · Int16[nv·3] (este, norte, altura en cm desde la punta del gnomon —planta— y el piso) · Uint16[nt·3] · Uint8[nt] clase
+//   clases: 0 roca tallada · 1 muro · 2 piso · 3 relleno inferido
 // DATOS CON LICENCIA PROPIA: Creative Commons BY-NC 3.0 (https://creativecommons.org/licenses/by-nc/3.0/).
 // Crédito: Instituto Nacional de Cultura, Center for Advanced Spatial Technologies (University of Arkansas) y
 // Cotsen Institute for Archaeology (UCLA). Cambios: simplificación de la malla y cambio de origen; la forma no se retoca.
-const dec = (s, T) => {{ const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new T(u.buffer); }};
 export const INTI_SCAN = {{
   credit: "Instituto Nacional de Cultura · CAST (University of Arkansas) · Cotsen Institute for Archaeology (UCLA) · CC BY-NC 3.0",
   gnomonTop: {top[2] - floor:.2f},          // m sobre el piso que rodea la roca
-  v: dec("{b64(vi)}", Int16Array),          // [este, norte, altura] en cm desde la punta del gnomon (planta) y el piso
-  f: dec("{b64(fi)}", Uint16Array),
-  cls: dec("{b64(cls.astype('u1'))}", Uint8Array),   // 0 roca tallada · 1 muro · 2 piso · 3 relleno inferido
 }};
 """
 open("src/sky/intiScan.js", "w", encoding="utf-8").write(out)
-print(len(v), len(f), "gnomon", round(top[2] - floor, 2), "clases", np.bincount(cls), "bytes", len(out))
+print(len(v), len(f), "gnomon", round(top[2] - floor, 2), "clases", np.bincount(cls), "bytes", len(binout))

@@ -100,7 +100,7 @@ export function monumentLabels(items, lang = "es", sil = null, step = 0.2) {
       for (let j = c - w; j <= c + w; j++) alt = Math.max(alt, sil[((j % n) + n) % n]);
     }
     const hgt = m.height != null && m.kind !== "stepped" ? m.height : apexOf(m)[2];
-    return { id: m.id, name: m.name[lang] || m.name.es, ele_m: hgt < 30 ? Math.round(hgt * 10) / 10 : Math.round(hgt), sub: m.sub ? (m.sub[lang] || m.sub.es) : null, az: q.az, alt, dist_km: o.d / 1000, monument: true };
+    return { id: m.id, site: m.site, name: m.name[lang] || m.name.es, ele_m: hgt < 30 ? Math.round(hgt * 10) / 10 : Math.round(hgt), sub: m.sub ? (m.sub[lang] || m.sub.es) : null, az: q.az, alt, dist_km: o.d / 1000, monument: true };
   });
 }
 
@@ -410,12 +410,16 @@ export function createMonumentLayer({ onReady = null } = {}) {
       meshes.push(mesh); group.add(mesh);
     }
     // la cámara de sombras abarca los monumentos
-    const c = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2 + 5 * k;
+    // (junto a un gnomon —el Intihuatana—, el mapa de sombras se concentra en él: 28 m alrededor, 1,4 cm por punto,
+    // para que la sombra del prisma salga nítida; a cambio, lo que queda más lejos no proyecta sombra desde ahí)
+    const gn = list.find((it) => it.m.gnomon && it.o.d < 45 && it.faces && it.faces.length);
+    const c = gn ? new THREE.Vector3(gn.o.e * k, gn.dz * k, -gn.o.n * k) : box.getCenter(new THREE.Vector3());
+    const r = gn ? 28 * k : box.getSize(new THREE.Vector3()).length() / 2 + 5 * k;
     sunTarget.position.copy(c);
     Object.assign(sun.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: 0.1, far: r * 4 });
     sun.shadow.camera.updateProjectionMatrix();
     // el sesgo sigue al tamaño del píxel de sombra: con hiladas de 1 m a 1 km, sin él cada escalón se mancharía
-    sun.shadow.normalBias = Math.max(0.1 * k, (2.2 * 2 * r) / sun.shadow.mapSize.x);
+    sun.shadow.normalBias = Math.max((gn ? 0.02 : 0.1) * k, (2.2 * 2 * r) / sun.shadow.mapSize.x);
     sun.userData.center = c; sun.userData.r = r;
   }
 

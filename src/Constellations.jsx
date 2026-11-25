@@ -75,7 +75,7 @@ import { useKeepAwake } from "./sky/keepAwake.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit, fetchLandColors } from "./sky/horizon.js";
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
 import { stopsAt, stopOf } from "./sky/stops.js";
-import { loadMachuModel, machuModel, modelGround } from "./sky/machuModel.js";
+import { loadMachuModel, loadIntiScan, machuModel, modelGround } from "./sky/machuModel.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints, groundSilhouette, RELIEF_R, RELIEF_NA } from "./sky/monumentLayer.js";
 const NEAR_RELIEF_R = [0.03, 0.06, 0.1, 0.15, 0.22, 0.3, 0.4, 0.52, 0.68, 0.9];
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
@@ -97,6 +97,7 @@ import { GuidesControls, useGuides } from "./sky/GuidesControls.jsx";
 import { IssLayer, ISS_COLORS, ISS_RATES, stepClock as stepIssClock } from "./sky/issLayer.js";
 import IssSheet from "./sky/IssSheet.jsx";
 import PeakSheet from "./sky/PeakSheet.jsx";
+import MonSheet from "./sky/MonSheet.jsx";
 import { WxCard, WxIco } from "./sky/WxCard.jsx";
 import { fetchModels, tempAt } from "./sky/models.js";
 import { riseTransitSet, H0_SUN } from "./sky/riseset.js";
@@ -781,6 +782,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const [issSel, setIssSel] = useState(null);
   const [issSheet, setIssSheet] = useState(false);
   const [peakSheet, setPeakSheet] = useState(null);
+  const [monSheet, setMonSheet] = useState(null);     // la estructura de un sitio cuyo nombre se tocó (MonSheet)
   const [plumeSim, setPlumeSim] = useState(null);     // la simulación de erupción en curso: la cumbre (de peakLabels)   // la montaña del horizonte cuyo nombre se tocó (PeakSheet)
   const [issRate, setIssRate] = useState(ISS_RATE_DEF);
   const issClock = useRef({ t: Date.now(), live: true, playing: false, rate: ISS_RATE_DEF, lastMin: 0, hudSec: null, endMs: null, onMinute: null, onEnd: null });
@@ -2240,7 +2242,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             if (top < 4 || !free(sx - w / 2, top, sx + w / 2, bot) || (!p.cls && !(p.volcano && p.volcano.erupting) && !clear(sx - w / 2, top, sx + w / 2, bot))) continue;   // (un volcán en erupción se nombra aunque roce otro rótulo)   // las de «Astronomía andina» pueden pasar junto al disco del Sol: son su referencia
             boxes.push(sx - w / 2, top, sx + w / 2, bot);
             out.push({ key: "peak:" + p.az + ":" + p.name, name: p.label, cls: p.cls || "peak", sub: null, subText: p.subText != null ? p.subText : p.ele_m, x: sx, y: sy, dx: 0, flip: false,
-              ...(p.volc ? { volc: true } : {}), ...(!p.cls && !p.monument ? { pk: { peak: p } } : {}), ...(p.stop ? { pk: { stop: p.stop } } : {}) });
+              ...(p.volc ? { volc: true } : {}), ...(!p.cls && !p.monument ? { pk: { peak: p } } : {}), ...(p.monument ? { pk: { mon: p } } : {}) });
             np++;
           }
         }
@@ -2934,20 +2936,19 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const monNear = useMemo(() => (localActive && !viewFrom ? monumentsNear(lat, lon, 25) : []), [localActive, viewFrom, lat, lon]);
   // puntos de visita del sitio (para saltar de uno a otro) y el que se ofreció al tocar su rótulo en la escena
   const siteStops = useMemo(() => (localActive && !viewFrom ? stopsAt(lat, lon) : null), [localActive, viewFrom, lat, lon]);
-  const [stopAsk, setStopAsk] = useState(null);
   // saltar a un punto de visita: te sitúa allí mirando hacia lo que se viene a ver (`look`)
-  const goStop = useCallback((s0, from) => {
+  const goStop = useCallback((s0, from, nameAs = null) => {
     track("sky_stop", { stop: s0.id, from });
-    pickPlace({ name: s0.name[lang] || s0.name.es, lat: s0.lat, lon: s0.lon, elev: s0.elev, exact: true });
+    // (desde la ficha de una estructura, el lugar lleva el nombre de esa estructura: el mismo título en todas partes)
+    pickPlace({ name: nameAs || s0.name[lang] || s0.name.es, lat: s0.lat, lon: s0.lon, elev: s0.elev, exact: true });
     if (s0.look != null) setTimeout(() => { const r = sceneRef.current; if (r && r.lookAt) { const v = altAzToLocal(s0.lookAlt != null ? s0.lookAlt : 2, s0.look); r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), Math.max(r.look.spanT, 70), true); if (r.wake) r.wake(); } }, 500);
   }, [lang]);   // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!stopAsk) return undefined; const id = setTimeout(() => setStopAsk(null), 7000); return () => clearTimeout(id); }, [stopAsk]);
-  useEffect(() => { setStopAsk(null); }, [lat, lon]);
+  useEffect(() => { setMonSheet(null); }, [lat, lon]);
   const monKey = monNear.length ? `${lat},${lon}|${monNear.map((m) => m.id).join(",")}` : null;
   // la maqueta de un sitio (Machu Picchu: src/sky/machuModel.js) se descarga solo al estar allí
   const [modelRev, setModelRev] = useState(0);
   const wantsModel = monNear.some((m) => m.model);
-  useEffect(() => { if (!wantsModel) return undefined; let alive = true; loadMachuModel(import.meta.env.BASE_URL.replace(/\/$/, "")).then((m) => { if (alive && m) setModelRev((v) => v + 1); }); return () => { alive = false; }; }, [wantsModel]);
+  useEffect(() => { if (!wantsModel) return undefined; let alive = true; const b0 = import.meta.env.BASE_URL.replace(/\/$/, ""); loadMachuModel(b0).then((m) => { if (alive && m) setModelRev((v) => v + 1); }); loadIntiScan(b0).then((m) => { if (alive && m) setModelRev((v) => v + 1); }); return () => { alive = false; }; }, [wantsModel]);
   useEffect(() => {
     if (!monOn || !hzData || !monKey) return;
     let alive = true;
@@ -3437,8 +3438,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, []);
   const openIssRef = useRef(openIss);
   openIssRef.current = openIss;
-  useEffect(() => { if (selObj) { setIssSheet(false); setPeakSheet(null); } }, [selObj]);
-  useEffect(() => { if (issSheet) setPeakSheet(null); }, [issSheet]);
+  useEffect(() => { if (selObj) { setIssSheet(false); setPeakSheet(null); setMonSheet(null); } }, [selObj]);
+  useEffect(() => { if (issSheet) { setPeakSheet(null); setMonSheet(null); } }, [issSheet]);
+  useEffect(() => { if (peakSheet) setMonSheet(null); }, [peakSheet]);
   // cometas: coma y cola (si la capa está encendida) y la órbita del cometa abierto
   useEffect(() => {
     if (!enabled.comets || cometOrbits) return;
@@ -4261,8 +4263,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [enabled]);
   const onStageKey = useCallback((e) => {
     if (e.key !== "Escape" || e.defaultPrevented) return;
-    if (share) setShare(false); else if (railOpen) setRailOpen(false); else if (pick) setPick(null); else if (panel) setPanel(null); else if (selObj) setSelObj(null); else if (issSheet) setIssSheet(false); else if (peakSheet) setPeakSheet(null); else if (guide) setGuide(null); else if (toast) setToast(null); else if (full) setFull(false);
-  }, [panel, selObj, full, railOpen, guide, pick, toast, share, issSheet, peakSheet]);
+    if (share) setShare(false); else if (railOpen) setRailOpen(false); else if (pick) setPick(null); else if (panel) setPanel(null); else if (selObj) setSelObj(null); else if (issSheet) setIssSheet(false); else if (peakSheet) setPeakSheet(null); else if (monSheet) setMonSheet(null); else if (guide) setGuide(null); else if (toast) setToast(null); else if (full) setFull(false);
+  }, [panel, selObj, full, railOpen, guide, pick, toast, share, issSheet, peakSheet, monSheet]);
 
   // tocar para identificar un objeto: se proyecta en pantalla todo lo visible POR DELANTE de la cámara
   // (nunca lo que queda detrás del observador ni, desde fuera, la cara oculta de la esfera) y gana el
@@ -4340,7 +4342,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           if (lb.cls.startsWith("guide_")) continue;               // las marcas de las líneas guía no se tocan
           const cw = lb.cls === "con" ? (r.width >= 900 ? 12.5 : 11) : lb.cls === "solar" ? (r.width >= 900 ? 9 : 8) : (r.width >= 900 ? 7.8 : 6.9);
           const w = String(lb.name).length * cw + 14, dx = lb.dx || 8;
-          if (lb.pk && (lb.pk.peak || lb.pk.stop)) {
+          if (lb.pk && (lb.pk.peak || lb.pk.mon)) {
             // nombre de una montaña: centrado encima de su cumbre (el texto y su altura, a 2–46 px sobre el punto)
             const dyp = py < lb.y - 50 ? lb.y - 50 - py : py > lb.y + 4 ? py - lb.y - 4 : 0;
             if (Math.abs(px - lb.x) <= w / 2 + 6 && dyp <= (touch ? 8 : 2) && dyp < bestDy) { bestDy = dyp; lbHit = lb; }
@@ -4357,7 +4359,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         else if (lbHit.pk && lbHit.pk.si != null) o = starObj(stars[lbHit.pk.si], lbHit.pk.si);
         else if (lbHit.pk && lbHit.pk.layer === "solar") o = { ...lbHit.pk.ob, layer: "solar" };
         else if (lbHit.pk && lbHit.pk.iss) o = { layer: "iss" };
-        else if (lbHit.pk && lbHit.pk.stop) { setPick(null); setSelObj(null); setIssSheet(false); setPeakSheet(null); setStopAsk(lbHit.pk.stop); return; }
+        else if (lbHit.pk && lbHit.pk.mon) { setPick(null); setSelObj(null); setIssSheet(false); setPeakSheet(null); setMonSheet(lbHit.pk.mon); track("sky_monument", { id: lbHit.pk.mon.id }); return; }
         else if (lbHit.pk && lbHit.pk.peak) { setPick(null); setSelObj(null); setIssSheet(false); setPeakSheet(lbHit.pk.peak); track("sky_peak", { volcano: !!lbHit.pk.peak.volcano }); return; }
         else if (lbHit.pk && lbHit.pk.ob) o = { ...lbHit.pk.ob, layer: lbHit.pk.layer };
         if (o && o.layer === "iss") { openIssRef.current(); return; }
@@ -4396,14 +4398,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   useEffect(() => {
     const ref = sceneRef.current; if (!ref) return;
     let x = 0, yf = 0;
-    const sheet = !!selObj || issSheet || !!peakSheet;
+    const sheet = !!selObj || issSheet || !!peakSheet || !!monSheet;
     if (isWide) { if (sheet) x += 208; if (panel) x -= 198; if (!sheet && !panel && sel && !localMode) x -= 196; }   // la tarjeta de profundidad va a la izquierda
     else if (sheet) yf = 0.24;
     else if (panel) yf = 0.3;
     else if (tourActive) yf = 0.14;
     else if (sel && !localMode) yf = 0.21;      // tarjeta de profundidad sobre el dock (con sus opciones)
     ref.viewShift.x = x; ref.viewShift.yf = yf;
-  }, [selObj, panel, tourActive, isWide, ready, sel, localMode, issSheet, peakSheet]);
+  }, [selObj, panel, tourActive, isWide, ready, sel, localMode, issSheet, peakSheet, monSheet]);
 
   // atajos del buscador vacío
   const quick = useMemo(() => {
@@ -4450,7 +4452,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const placeLabel = placeKind === "me" ? t.myLocation : placeKind === "custom" ? t.customPlace : placeDefault ? t.placeDefault(placeKind) : placeKind;
   const tourReady = !!(ready && datasets.messier && datasets.blackholes);
   const issSheetOn = !!(issSheet && issSel && issSel.pass && !selObj);
-  const covered = !isWide && (!!selObj || !!panel || !!pick || issSheetOn || !!peakSheet);
+  const covered = !isWide && (!!selObj || !!panel || !!pick || issSheetOn || !!peakSheet || !!monSheet);
   useEffect(() => { if (welcomePlace && sky) setPanel("location"); }, [!!sky]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (welcomePlace && !placeDefault) { endWelcome(); setPanel(null); } }, [placeDefault]);   // eslint-disable-line react-hooks/exhaustive-deps
   const showDepth = !!(sky && selMeta && !localMode && !tourActive);
@@ -4798,13 +4800,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         <TimeSheet lang={lang} date={when} lat={localMode ? lat : null} lon={localMode ? lon : null} tz={placeTz} place={tzPlace} isNow={!timeMoved} rateIdx={rateIdx}
           onRate={setRate} onStep={tsStep} onNow={tsNow} onNight={tsNight} onSetMinute={tsMinute} onClose={() => setTsOpen(false)} />
       )}
-      {sky && !tourActive && siteStops && inMySky && !panel && !selObj && !peakSheet && !issSheet && !full && !pano && (
+      {sky && !tourActive && siteStops && inMySky && !panel && !selObj && !peakSheet && !monSheet && !issSheet && !full && !pano && (
           <nav className={`sk-stops${railView ? " is-rail" : ""}`} aria-label={t.stopsAria}>
-            {stopAsk && stopAsk.id !== siteStops.here && (
-              <button type="button" className="sk-stop sk-stop-go" onClick={() => { const s0 = stopAsk; setStopAsk(null); goStop(s0, "label"); }}>
-                <Icon name="pin" size={16} /><span>{t.stopGo(stopAsk.name[lang] || stopAsk.name.es)}</span>
-              </button>
-            )}
             <div className="sk-stops-row">
               {siteStops.stops.map((s0) => (
                 <button type="button" key={s0.id} className={`sk-stop${s0.id === siteStops.here ? " is-here" : ""}`} aria-current={s0.id === siteStops.here ? "location" : undefined}
@@ -4918,6 +4915,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
 
       {issSheetOn && (
         <IssSheet t={t} lang={lang} pass={issSel.pass} data={issSel.data} onClose={() => setIssSheet(false)} onCenter={centerIss} onRemove={() => removeIss()} />
+      )}
+      {monSheet && !selObj && (
+        <MonSheet t={t} lang={lang} mon={monSheet} onClose={() => setMonSheet(null)} here={!!(monSheet.stop && siteStops && siteStops.here === monSheet.stop.id)}
+          onGo={monSheet.stop ? () => { const s0 = monSheet.stop, nm = monSheet.name; setMonSheet(null); goStop(s0, "card", nm); } : null} />
       )}
       {peakSheet && !selObj && (
         <PeakSheet t={t} lang={lang} peak={peakSheet} onClose={() => setPeakSheet(null)}

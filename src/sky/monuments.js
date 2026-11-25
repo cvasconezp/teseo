@@ -19,7 +19,7 @@
 // Marco local: E (este), N (norte), U (arriba), en metros desde el centro de la base del monumento.
 
 import { INTI_SCAN } from "./intiScan.js";
-import { machuModel, eachModelFace, MODEL_BASE_M } from "./machuModel.js";
+import { machuModel, eachModelFace, MODEL_BASE_M, intiScan } from "./machuModel.js";
 import { MP_BUILDINGS, MP_TERRACES, MP_WALLS, MP_STEPS } from "./machuData.js";
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
@@ -294,7 +294,7 @@ export const MONUMENTS = [
   // datos CC BY-NC 3.0, con su crédito). Posición: la del nodo de OpenStreetMap. Orientación: la del sistema de
   // coordenadas del escaneo, que coincide con los andenes de OpenStreetMap con 7° de margen.
   { id: "intihuatana", site: "machupicchu", name: { es: "Intihuatana", en: "Intihuatana" }, sub: { es: "escaneo láser de 2009", en: "2009 laser scan" }, lat: -13.163075, lon: -72.545683,
-    kind: "scan", scan: INTI_SCAN, wallMat: "inca", floorMat: "earth", height: INTI_SCAN.gnomonTop, rot: 0, lift: 0.22, absLevel: 2452.8, foot: 1.6, far: 300, level: true, relief: true, seat: "ground", color: GRANITE, mat: "granite", ground: "heath", solid: true },
+    kind: "scan", scan: intiScan, gnomon: true, wallMat: "granitefine", floorMat: "earth", height: INTI_SCAN.gnomonTop, rot: 0, lift: 0.22, absLevel: 2452.8, foot: 1.6, far: 300, level: true, relief: true, seat: "ground", color: GRANITE, mat: "granitefine", ground: "heath", solid: true },
 ];
 
 /** Radio (m) de la planta: hasta él no se puede estar «dentro» del monumento. */
@@ -305,11 +305,11 @@ export const SITE_STOPS = {
   machupicchu: [
     { id: "intihuatana", name: { es: "Intihuatana", en: "Intihuatana" }, lat: -13.16312, lon: -72.545683, elev: 2453, look: 0, at: ["intihuatana"] },
     { id: "mirador", name: { es: "Mirador", en: "Viewpoint" }, lat: -13.164856, lon: -72.544457, elev: 2463, look: 333, lookAlt: -9, at: [] },
-    { id: "plaza", name: { es: "Plaza principal", en: "Main plaza" }, lat: -13.163097, lon: -72.544997, elev: 2426, look: 265, lookAlt: 8, at: ["mp-plaza"] },
-    { id: "sagrada", name: { es: "Plaza Sagrada", en: "Sacred Plaza" }, lat: -13.16369, lon: -72.545314, elev: 2444, look: 325, at: ["mp-templo-principal", "mp-tres-ventanas"] },
-    { id: "sol", name: { es: "Templo del Sol", en: "Temple of the Sun" }, lat: -13.163998, lon: -72.544627, elev: 2426, look: 230, lookAlt: 12, at: ["mp-torreon", "mp-casa-inca"] },
+    { id: "plaza", name: { es: "Plaza Principal", en: "Main Plaza" }, lat: -13.163097, lon: -72.544997, elev: 2426, look: 265, lookAlt: 8, at: ["mp-plaza"] },
+    { id: "sagrada", name: { es: "Templo Principal", en: "Main Temple" }, lat: -13.16369, lon: -72.545314, elev: 2444, look: 325, at: ["mp-templo-principal", "mp-tres-ventanas"] },
+    { id: "sol", name: { es: "Torreón · Templo del Sol", en: "Torreón · Temple of the Sun" }, lat: -13.163998, lon: -72.544627, elev: 2426, look: 230, lookAlt: 12, at: ["mp-torreon", "mp-casa-inca"] },
     { id: "condor", name: { es: "Templo del Cóndor", en: "Temple of the Condor" }, lat: -13.16351, lon: -72.544486, elev: 2423, look: 210, at: ["mp-condor", "mp-espejos"] },
-    { id: "portadas", name: { es: "Tres Portadas", en: "Three Doorways" }, lat: -13.162755, lon: -72.545055, elev: 2440, look: 50, at: ["mp-tres-portadas"] },
+    { id: "portadas", name: { es: "Grupo de las Tres Portadas", en: "Group of the Three Doorways" }, lat: -13.162755, lon: -72.545055, elev: 2440, look: 50, at: ["mp-tres-portadas"] },
     { id: "roca", name: { es: "Roca Sagrada", en: "Sacred Rock" }, lat: -13.1618, lon: -72.545853, elev: 2426, look: 45, lookAlt: 6, at: ["mp-roca-sagrada"] },
     // (la Puerta de la Ciudad no tiene punto: en la maqueta ese borde del sitio está recortado y su nivel no es fiable)
   ],
@@ -1132,8 +1132,17 @@ export function buildFaces(m, opt = {}) {
     rock(out, 0, 0, 0, m.height, m.w, m.d, m.rot, col, m.mat, 41, { ns: 14, nz: 8, pw: 6, taper: 0.05, sink: 0.05 });
   } else if (m.kind === "scan") {
     // malla medida (escaneo láser): se dibuja tal cual, sin retocar la forma
-    const S = m.scan, mats = [m.mat, m.wallMat || m.mat, m.floorMat || m.mat, m.floorMat || m.mat], P = (i) => [S.v[3 * i] / 100, S.v[3 * i + 1] / 100, S.v[3 * i + 2] / 100];
-    for (let k = 0; k < S.cls.length; k++) out.push({ v: [P(S.f[3 * k]), P(S.f[3 * k + 1]), P(S.f[3 * k + 2])], c: col, mat: mats[S.cls[k]] });
+    const S = m.scan(); if (!S) return out;      // (aún no se ha descargado)
+    const mats = [m.mat, m.wallMat || m.mat, m.floorMat || m.mat, m.floorMat || m.mat], P = (i) => [S.v[3 * i] / 100, S.v[3 * i + 1] / 100, S.v[3 * i + 2] / 100];
+    // (luz suave —la normal de cada vértice es la media de sus caras— y textura proyectada por el plano dominante de
+    // cada cara: sin eso, los miles de triángulos del escaneo se veían como papel arrugado)
+    for (let k = 0; k < S.cls.length; k++) {
+      const a = P(S.f[3 * k]), b = P(S.f[3 * k + 1]), c = P(S.f[3 * k + 2]);
+      const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], wx = c[0] - a[0], wy = c[1] - a[1], wz = c[2] - a[2];
+      const nx = Math.abs(uy * wz - uz * wy), ny = Math.abs(uz * wx - ux * wz), nz = Math.abs(ux * wy - uy * wx);
+      const uvOf = nz >= nx && nz >= ny ? (q) => [q[0], q[1]] : nx >= ny ? (q) => [q[1], q[2]] : (q) => [q[0], q[2]];
+      out.push({ v: [a, b, c], c: col, mat: mats[S.cls[k]], smooth: S.cls[k] !== 3, uv: [uvOf(a), uvOf(b), uvOf(c)] });
+    }
   } else if (m.kind === "intihuatana") {
     // tres cuerpos de la misma roca: el afloramiento tallado, la mesa y el prisma
     const q = (x, y) => { const r = rotP([x, y, 0], m.rot); return [r[0], r[1]]; };

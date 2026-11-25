@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.85.0 — Intihuatana: forma, sombra y ficha; fichas de las estructuras
+
+- **Forma del Intihuatana:** la roca tallada pasa de unos 570 a 10.500 triángulos del escaneo láser (se simplifica aparte del piso y los muros), con luz suave y granito pulido: se distinguen la base, la mesa y el prisma. El escaneo deja de ir dentro del programa: se descarga (0,25 MB) solo al estar en Machu Picchu.
+- **Sombra del prisma:** junto al Intihuatana el mapa de sombras se concentra en la roca (28 m alrededor, 1,4 cm por punto), así que la sombra del prisma sale nítida y sigue al Sol de la fecha y la hora elegidas. Con cielo cubierto no hay sombras.
+- **Fichas de las estructuras:** al tocar el nombre de una estructura se abre su ficha, como en estrellas y volcanes, con «Ir aquí» si tiene punto de visita (sustituye al botón «Ir a…»). La primera con contenido es la del Intihuatana: qué es, las interpretaciones que se discuten, lo que Teseo permite comprobar (el Sol pasa por el cénit hacia el 28 de octubre y el 13 de febrero, no en los equinoccios) y las fuentes: Ministerio de Cultura del Perú (Millones; Kauffmann Doig), Ziółkowski y Kościuk (Springer, 2022) y Magli (arXiv).
+- También tienen ficha el Torreón · Templo del Sol (solsticio de junio, Pléyades y paso cenital según Dearborn y White; cotas de JICA), el Templo de las Tres Ventanas (orientación al ocaso del solsticio de junio, NASA) y el Templo Principal (medidas y cotas de JICA). Todas las fichas, tengan o no contenido, dicen de dónde sale la forma de la estructura y con qué licencia.
+- **Títulos unificados:** los puntos de visita se llaman igual que sus rótulos (Templo Principal, Torreón · Templo del Sol, Plaza Principal, Grupo de las Tres Portadas); al ir desde una ficha, el lugar toma el nombre de esa estructura.
+
 ## 1.84.2 — Puntos de visita: Tiwanaku y distancias
 
 - **Tiwanaku:** los tres puntos daban casi la misma vista (quedaban a 16 m uno de otro). La vista general ya es el frente de Kalasasaya, así que ese punto se quita; Akapana se mira ahora desde el este, a unos 190 m de la vista general.

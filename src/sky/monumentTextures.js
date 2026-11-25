@@ -35,6 +35,7 @@ export const MON_MATS = {
   pircalight: { src: "basalt", tile: 2.6, tint: [1.9, 1.85, 1.7], normal: 1.2, macro: 0.3, blend: 0.6 },
   redstone: { src: "blocks", tile: 3.2, tint: [1.0, 0.76, 0.66], normal: 1.4, macro: 0.6, blend: 0.4 },             // Tiwanaku: arenisca
   andesite: { src: "sarsen", tile: 2.4, tint: [0.8, 0.82, 0.86], normal: 1.0, macro: 0.4, blend: 0.3 },             // Tiwanaku: andesita
+  granitefine: { src: "sarsen", tile: 5.5, tint: [1.22, 1.2, 1.15], normal: 0.45, macro: 0.25, blend: 0.3 },       // Intihuatana: granito labrado y pulido
   granite: { src: "sarsen", tile: 2.2, tint: [1.15, 1.15, 1.12], normal: 1.2, macro: 0.4, blend: 0.3 },             // Machu Picchu
   earth: { src: "dirt", tile: 3.5, tint: [0.98, 0.86, 0.68], normal: 1.0, macro: 0.7, blend: 1, matte: true },       // Akapana
   inca: { src: "yucatan", tile: 3.2, tint: [0.72, 0.73, 0.72], normal: 1.5, macro: 0.5, blend: 0.3 },                // Machu Picchu: sillares de granito

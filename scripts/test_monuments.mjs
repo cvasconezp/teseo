@@ -2,7 +2,8 @@
 // verían desde el sitio, silueta para ocultar lo que queda detrás e integración en el cielo.
 import { MONUMENTS, monumentsNear, buildFaces, toLocal, altAzOf, offsetOf, silhouette, withMonuments, groundRing, median, apexOf, footprintRadius, SH_STANDING, SH_LINTELS } from "../src/sky/monuments.js";
 import { placeMonuments, onPlatform, monumentLabels, faceUV, toneAt, groundHeight, reliefAt, reliefPoints, RELIEF_R, RELIEF_NA, groundSilhouette } from "../src/sky/monumentLayer.js";
-import { parseMachuModel, setMachuModel, modelGround } from "../src/sky/machuModel.js";
+import { parseMachuModel, setMachuModel, modelGround, parseIntiScan, setIntiScan, intiScan } from "../src/sky/machuModel.js";
+import { INTI_SCAN } from "../src/sky/intiScan.js";
 import { allStops, stopsAt as allStopsAt, stopOf as allStopOf, onPiece } from "../src/sky/stops.js";
 import { tierEdges, stairSteps, detailFor, tolaRings, llaqtaPlan, LLAQTA, MP_CONTROL, MP_RELIEF_FIX, mpReliefDelta, SITE_STOPS, stopsAt, stopOf } from "../src/sky/monuments.js";
 import { SITES } from "../src/sky/places.js";
@@ -121,12 +122,14 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   ok(near(itemsT[1].dz - itemsT[0].dz, ka.height, 1e-9) && near(bbox(buildFaces(ps)).u1, 3, 1e-9), "Tiwanaku: la Puerta del Sol (3 m) está sobre la plataforma de Kalasasaya");
   ok(tw2.lat === ka.lat && byId("ponce").lat === ka.lat && near(offsetOf(tw2.lat, tw2.lon, byId("ponce").lat, byId("ponce").lon).az, 270, 0.01), "Tiwanaku: el punto de vista, la portada de Kalasasaya y la estela Ponce están en el mismo eje este–oeste");
   // Machu Picchu
+  ok(buildFaces(byId("intihuatana")).length === 0, "sin el escaneo descargado, el Intihuatana no dibuja nada (queda su rótulo)");
+  { const sb = readFileSync(new URL("../public/data/inti-scan.bin", import.meta.url)); setIntiScan(parseIntiScan(sb.buffer.slice(sb.byteOffset, sb.byteOffset + sb.byteLength))); }
   const ih = bbox(buildFaces(byId("intihuatana")));
   void ih;
-  { const S = byId("intihuatana").scan, f = buildFaces(byId("intihuatana"));
-    ok(byId("intihuatana").kind === "scan" && f.length === S.cls.length && S.f.length === 3 * S.cls.length && Math.max(...S.f) < S.v.length / 3 && /CC BY-NC 3\.0/.test(S.credit) && /Arkansas/.test(S.credit), "Machu Picchu: la cima del Intihuatana es la malla del escaneo láser, con su crédito y su licencia");
-    ok(f.filter((x) => x.mat === "granite").length > 300 && f.some((x) => x.mat === "inca") && f.some((x) => x.mat === "earth"), "la malla separa la roca tallada, los muros y el piso"); }
-  ok(near(Math.max(...buildFaces(byId("intihuatana")).filter((x) => x.mat === "granite").flatMap((x) => x.v.map((v) => v[2]))), 1.68, 0.03) && ih.u1 < 3 && near(offsetOf(site("machupicchu-intihuatana").lat, site("machupicchu-intihuatana").lon, byId("intihuatana").lat, byId("intihuatana").lon).d, 5, 0.5), "Machu Picchu: el gnomon del Intihuatana, 1,68 m sobre el piso (medido), a 5 m del punto de vista");
+  { const S = intiScan(), f = buildFaces(byId("intihuatana"));
+    ok(byId("intihuatana").kind === "scan" && f.length === S.cls.length && S.f.length === 3 * S.cls.length && Math.max(...S.f) < S.v.length / 3 && /CC BY-NC 3\.0/.test(INTI_SCAN.credit) && /Arkansas/.test(INTI_SCAN.credit), "Machu Picchu: la cima del Intihuatana es la malla del escaneo láser, con su crédito y su licencia");
+    ok(S.cls.filter((c) => c === 0).length > 9000 && S.cls.includes(1) && S.cls.includes(2) && f.some((x) => x.mat === "earth") && f.every((x) => x.uv && x.uv.length === 3) && f.some((x) => x.smooth), "la malla separa la roca tallada (más de 9.000 triángulos), los muros y el piso; va con luz suave y textura proyectada"); }
+  ok(near(Math.max(...Array.from(intiScan().cls).flatMap((c, t) => (c === 0 ? [0, 1, 2].map((j) => intiScan().v[3 * intiScan().f[3 * t + j] + 2] / 100) : []))), 1.68, 0.03) && ih.u1 < 3 && near(offsetOf(site("machupicchu-intihuatana").lat, site("machupicchu-intihuatana").lon, byId("intihuatana").lat, byId("intihuatana").lon).d, 5, 0.5), "Machu Picchu: el gnomon del Intihuatana, 1,68 m sobre el piso (medido), a 5 m del punto de vista");
   // Cochasquí y Machu Picchu (aproximados)
   const cq = MONUMENTS.filter((m) => m.site === "cochasqui"), mp = MONUMENTS.filter((m) => m.site === "machupicchu");
   { const pyr = cq.filter((m) => m.kind === "tola"), mounds = cq.filter((m) => m.kind === "mound"), L = (x) => byId("cq-" + x);
@@ -237,6 +240,16 @@ console.log("Integración");
 const sky = readFileSync(new URL("../src/Constellations.jsx", import.meta.url), "utf8");
 ok(/createMonumentLayer\(/.test(sky) && /teseo_monuments/.test(sky) && /ref\.hzData = hzEff/.test(sky) && /monLabels/.test(sky), "el cielo dibuja los monumentos, oculta lo que tapan, los nombra y recuerda el interruptor");
 ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) sigue con el relieve solo");
+
+
+// fichas de las estructuras
+{ const { MON_INFO, shapeCredit } = await import("../src/sky/monumentInfo.js"); const ck = ok;
+  console.log("Fichas de las estructuras");
+  ck(Object.keys(MON_INFO).every((id) => MONUMENTS.some((m) => m.id === id)), "cada ficha es de una estructura que existe");
+  ck(Object.values(MON_INFO).every((f) => f.kind.es && f.kind.en && f.body.es.length === f.body.en.length && f.facts.es.length === f.facts.en.length && f.sources.length >= 2 && f.sources.every((q) => /^https:\/\//.test(q.url) && q.label)), "cada ficha va en los dos idiomas y con al menos dos fuentes enlazadas");
+  ck(/28 de octubre/.test(MON_INFO.intihuatana.teseo.es) && /13 de febrero/.test(MON_INFO.intihuatana.teseo.es) && /equinoccios no/.test(MON_INFO.intihuatana.teseo.es), "Intihuatana: el paso cenital (28 de octubre y 13 de febrero), no los equinoccios");
+  ck(shapeCredit("intihuatana", "machupicchu") === null && /CC BY 4\.0/.test(shapeCredit("mp-condor", "machupicchu").text) && /reconstrucción de Teseo/.test(shapeCredit("mp-templo-principal", "machupicchu").text) && /reconstrucción de Teseo/.test(shapeCredit("akapana", "tiwanaku").text) && /Teseo’s reconstruction/.test(shapeCredit("keops", "giza", "en").text), "toda estructura dice de dónde sale su forma: la maqueta (CC BY 4.0) o una reconstrucción propia");
+}
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

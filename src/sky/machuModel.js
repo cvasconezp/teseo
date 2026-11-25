@@ -61,3 +61,18 @@ export function eachModelFace(cb, m = model) {
   const P = (i) => [m.v[3 * i] * U, m.v[3 * i + 1] * U, m.v[3 * i + 2] * U];
   for (let t = 0; t < m.nt; t++) cb(P(m.f[3 * t]), P(m.f[3 * t + 1]), P(m.f[3 * t + 2]), m.cls[t]);
 }
+
+// El escaneo láser de la cima del Intihuatana (public/data/inti-scan.bin; crédito y licencia en intiScan.js): mismo
+// formato, en centímetros desde la punta del gnomon (planta) y el piso que rodea la roca.
+let scan = null, scanPending = null;
+export function parseIntiScan(buf) {
+  const dv = new DataView(buf), nv = dv.getUint32(0, true), nt = dv.getUint32(4, true);
+  return { nv, nt, v: new Int16Array(buf.slice(8, 8 + nv * 6)), f: new Uint16Array(buf.slice(8 + nv * 6, 8 + nv * 6 + nt * 6)), cls: new Uint8Array(buf, 8 + nv * 6 + nt * 6, nt) };
+}
+export function setIntiScan(s) { scan = s; }
+export const intiScan = () => scan;
+export function loadIntiScan(base = "") {
+  if (scan) return Promise.resolve(scan);
+  if (!scanPending) scanPending = fetch(`${base}/data/inti-scan.bin`).then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => (b ? (scan = parseIntiScan(b)) : null)).catch(() => null).then((m) => { if (!m) scanPending = null; return m; });
+  return scanPending;
+}
