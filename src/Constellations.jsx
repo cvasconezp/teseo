@@ -2936,8 +2936,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       // sitios sobre una cresta o en ladera: además, el relieve del suelo cercano (si falla, el suelo queda llano)
       if (monNear.some((m) => m.relief)) {
         const reach = groundReach(monNear.map((m) => ({ m, o: offsetOf(lat, lon, m.lat, m.lon) })));
-        fetchElevations(reliefPoints(lat, lon, reach), { api: API }).then((g) => {
-          if (alive) setMonBase((s0) => (s0.key === monKey && s0.status === "ok" ? { ...s0, relief: { reach, h: g.map((v) => v - ground - 1.7) } } : s0));
+        // (un sitio extenso pide su propia rejilla, más fina —m.reliefGrid—; en tandas de 72 puntos: el servicio admite 80 por consulta)
+        const spec = (monNear.find((m) => m.reliefGrid) || {}).reliefGrid || null, rp = reliefPoints(lat, lon, reach, spec), parts = [];
+        for (let i = 0; i < rp.length; i += 72) parts.push(fetchElevations(rp.slice(i, i + 72), { api: API }));
+        Promise.all(parts).then((gs) => {
+          const g = gs.flat();
+          if (alive) setMonBase((s0) => (s0.key === monKey && s0.status === "ok" ? { ...s0, relief: { reach, h: g.map((v) => v - ground - 1.7), ...(spec || {}) } } : s0));
         }, () => { /* sin relieve cercano */ });
       }
     }, (e) => { if (alive) setMonBase({ status: "error", key: monKey, bases: null, ground: null, error: String(e && e.message || e) }); });

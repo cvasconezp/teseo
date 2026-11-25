@@ -18,6 +18,7 @@
 //
 // Marco local: E (este), N (norte), U (arriba), en metros desde el centro de la base del monumento.
 
+import { MP_BUILDINGS, MP_TERRACES, MP_WALLS, MP_STEPS } from "./machuData.js";
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
 export const EYE_M = 1.7;
@@ -115,25 +116,46 @@ const COCHASQUI_MOUNDS = CQM.map(([id, e, n, radius, h, L]) => ({
   sub: { es: L === "a" ? "40 m de diámetro" : "alto estimado", en: L === "a" ? "40 m across" : "height estimated" },
   ...cqAt(e, n), kind: "mound", radius, wall: 0, skirt: 8, seg: 28, rings: 5, height: h, ring: 3, far: 2500, relief: true, seat: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
 }));
-// Machu Picchu, desde la cima del Intihuatana. APROXIMADO (posición ±10 m sobre la imagen satelital de Google
-// Maps, 18-nov-2026; medidas redondeadas): el Templo de las Tres Ventanas y el Templo Principal en la Plaza
-// Sagrada, unos 15 m más abajo; al otro lado de la plaza, el sector urbano oriental, representado por filas de
-// casas de piedra sin techo sobre terrazas (no es el plano real casa por casa), y el Torreón o Templo del Sol.
-// [este, norte] en metros desde el punto de vista; `drop`: metros por debajo de la cima.
+// Machu Picchu, desde la cima del Intihuatana: la llaqta entera sobre el relieve.
+// PLANTA: © colaboradores de OpenStreetMap (ODbL), en machuData.js (scripts/build_machu_data.py): 101 recintos, 171 muros
+// de contención de los andenes, 18 muros y 24 escalinatas, ya georreferenciados; también de OSM la posición del Templo
+// del Sol, el Templo Principal, el de las Tres Ventanas, la Roca Sagrada y los demás lugares con nombre.
+// ALZADO: no hay un levantamiento abierto de alturas, así que es una reconstrucción con medidas publicadas: muros de
+// 0,85 m de grueso y unos 2,5–2,8 m de alto con hastiales de ~55–57° (Puelles Escalante, «Ingeniería inka de
+// Machupijchu», Ministerio de Cultura del Perú), Templo Principal de 11 × 8 m y 4,05 m de alto (ídem), Roca Sagrada de
+// 3 m de alto y 7 de ancho. Los recintos van sin techo, como hoy. El RELIEVE es el del modelo global (SRTM, ~30 m): los
+// andenes se dibujan como bancales sobre esa ladera suavizada, no con su cota real.
+// [este, norte] en metros desde el punto de vista (el Intihuatana).
 const MP0 = [-13.16312, -72.545683];
 const mpAt = (e, n) => ({ lat: +(MP0[0] + n / mPerLat).toFixed(6), lon: +(MP0[1] + e / mPerLon(MP0[0])).toFixed(6) });
-const mpBase = { site: "machupicchu", kind: "inca", rot: -35, far: 700, level: true, color: GRANITE, mat: "inca", ground: "grass", solid: true };
+// `seat: "ground"`: cada pieza se asienta sobre el mismo suelo que se dibuja (también a los pies del observador)
+const mpBase = { site: "machupicchu", kind: "inca", far: 900, level: true, levelR: 5000, relief: true, seat: "ground", color: GRANITE, mat: "incarustic", ground: "heath", solid: true };
+const mpMark = (id, es, en, e, n, sub = null, h = 4) => ({ ...mpBase, id: `mp-${id}`, name: { es, en }, sub: sub || { es: "planta: OpenStreetMap", en: "plan: OpenStreetMap" }, ...mpAt(e, n), kind: "mark", height: h, foot: 1, solid: false });
+// rejilla del relieve del sitio: 12 anillos × 36 acimuts (la de por defecto, 5 × 12, no ve una cresta de 150 m de ancho)
+// `flat`: radio (m) del llano a los pies del observador (22 por defecto): la plataforma del Intihuatana es pequeña
+export const MP_RELIEF_GRID = { radii: [0.02, 0.045, 0.075, 0.11, 0.155, 0.21, 0.28, 0.37, 0.48, 0.62, 0.78, 0.95], na: 36, flat: 7 };
 const machu = [
-  { ...mpBase, id: "mp-tres-ventanas", name: { es: "Templo de las Tres Ventanas", en: "Temple of the Three Windows" }, sub: { es: "posición aproximada", en: "approximate position" }, ...mpAt(46, -46), w: 10.6, d: 4.2, height: 3.6, open: "w", windows: 3, drop: 15, foot: 6 },
-  { ...mpBase, id: "mp-templo-principal", name: { es: "Templo Principal", en: "Main Temple" }, sub: { es: "posición aproximada", en: "approximate position" }, ...mpAt(30, -34), w: 11, d: 8, height: 4, open: "s", windows: 0, drop: 15, foot: 7, rot: 55 },
-  { ...mpBase, id: "mp-torreon", name: { es: "Torreón · Templo del Sol", en: "Torreón · Temple of the Sun" }, sub: { es: "posición aproximada", en: "approximate position" }, ...mpAt(103, -89), kind: "torreon", radius: 5, height: 5, drop: 32, foot: 6 },
+  // la llaqta: todo lo de la planta de OSM en una sola pieza (sin rótulo propio)
+  { ...mpBase, id: "mp-llaqta", name: { es: "Machu Picchu", en: "Machu Picchu" }, sub: { es: "planta: OpenStreetMap · alzado reconstruido", en: "plan: OpenStreetMap · elevation reconstructed" }, label: false,
+    ...mpAt(0, 0), kind: "llaqta", height: 3, foot: 440, far: 6000, walkIn: true, solid: false, reliefGrid: MP_RELIEF_GRID,
+    // recintos que tienen su propia pieza (Tres Ventanas, Templo Principal, Templo del Sol): centro [e, n] y radio
+    skip: [[46.5, -54.4, 4], [33.5, -53.2, 4], [100.7, -108.6, 4]],
+    // dónde la labra es fina (sillares pulidos): Templo del Sol y Casa del Inca, y la Plaza Sagrada; el resto, rústica
+    fine: [[100, -105, 20], [88, -81, 16], [38, -56, 20]] },
+  // muro de las tres ventanas hacia el noreste (la Plaza Principal y la salida del Sol); abierto a la Plaza Sagrada
+  { ...mpBase, id: "mp-tres-ventanas", name: { es: "Templo de las Tres Ventanas", en: "Temple of the Three Windows", mat: "incafine" }, sub: { es: "muro de 11 m con tres ventanas", en: "11 m wall with three windows", mat: "incafine" }, ...mpAt(46.5, -54.4), w: 5.6, d: 10.8, height: 3.6, rot: -41, open: "w", windows: 3, foot: 6, mat: "incafine" },
+  { ...mpBase, id: "mp-templo-principal", name: { es: "Templo Principal", en: "Main Temple", mat: "incafine" }, sub: { es: "11 × 8 m · muros de 4 m", en: "11 × 8 m · 4 m walls", mat: "incafine" }, ...mpAt(33.5, -53.2), w: 11, d: 8, height: 4.05, rot: -30, open: "s", windows: 0, foot: 7, mat: "incafine" },
+  { ...mpBase, id: "mp-torreon", name: { es: "Torreón · Templo del Sol", en: "Torreón · Temple of the Sun", mat: "incafine" }, sub: { es: "muro curvo sobre la roca", en: "curved wall on the rock", mat: "incafine" }, ...mpAt(100.7, -108.6), kind: "torreon", radius: 5, height: 5, rot: -35, foot: 6, mat: "incafine" },
+  { ...mpBase, id: "mp-roca-sagrada", name: { es: "Roca Sagrada", en: "Sacred Rock" }, sub: { es: "3 m de alto · 7 m de ancho", en: "3 m tall · 7 m wide" }, ...mpAt(-12.6, 151.9), kind: "stela", w: 7, d: 1.1, height: 3, rot: 40, foot: 4, mat: "granite" },
+  // lugares con nombre (solo el rótulo: el edificio está en la llaqta)
+  mpMark("condor", "Templo del Cóndor", "Temple of the Condor", 125.7, -50.0),
+  mpMark("puerta", "Puerta de la Ciudad", "City Gate", 69.5, -179.9),
+  mpMark("casa-inca", "Casa del Inca", "Royal Residence", 88.4, -80.8),
+  mpMark("tres-portadas", "Grupo de las Tres Portadas", "Group of the Three Doorways", 78.8, 49.4),
+  mpMark("espejos", "Espejos de Agua", "Water Mirrors", 123.4, -20.7),
+  mpMark("roca-funeraria", "Roca Funeraria", "Funerary Rock", 104.9, -250.6),
+  mpMark("plaza", "Plaza Principal", "Main Plaza", 70, 5, { es: "explanada entre los dos sectores", en: "esplanade between the two sectors" }, 2),
 ];
-for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) {
-  // filas a lo largo del eje de la ciudad (noroeste–sureste), cada una en una terraza más baja hacia el este
-  const u = 8 - k * 17 - (r % 2) * 5, v = r * 13, a = -35 * RAD, e = 78 + v * Math.cos(a) + u * Math.sin(a), n = 40 - v * Math.sin(a) + u * Math.cos(a);
-  machu.push({ ...mpBase, id: `mp-casa-${r * 4 + k + 1}`, name: { es: "Sector urbano", en: "Urban sector" }, sub: { es: "casas sin techo · representación aproximada", en: "roofless houses · approximate rendering" }, label: r === 1 && k === 1,
-    ...mpAt(e, n), w: 9 + ((r + k) % 3), d: 5.5, height: 2.6, gable: 2.2, door: true, drop: 21 + r * 3.2, foot: 6 });
-}
 
 /**
  * Monumentos. `kind`: stepped (cuerpos escalonados), pyramid (caras lisas), stonehenge, mound (túmulo), tower
@@ -237,9 +259,9 @@ export const MONUMENTS = [
   { id: "ponce", site: "tiwanaku", name: { es: "Estela Ponce", en: "Ponce Stela" }, lat: -16.554757, lon: -68.673331,   // en el eje este–oeste de Kalasasaya, tras su portada
     kind: "stela", w: 0.75, d: 0.6, height: 3.0, rot: 0, lift: 3.2, foot: 0.6, far: 800, level: true, color: ANDESITE, mat: "andesite", ground: "puna", solid: true },
   // Machu Picchu: el Intihuatana, tallado en la roca de la cima: unos 1,8 m en total, con un prisma vertical de
-  // 0,66 m. Forma simplificada (tres cuerpos) y posición aproximada (±20 m).
+  // 0,66 m. Forma simplificada (tres cuerpos); posición: la del nodo de OpenStreetMap.
   { id: "intihuatana", site: "machupicchu", name: { es: "Intihuatana", en: "Intihuatana" }, lat: -13.163075, lon: -72.545683,
-    kind: "intihuatana", height: 1.8, rot: 20, foot: 1.6, far: 300, level: true, color: GRANITE, mat: "granite", ground: "grass", solid: true },
+    kind: "intihuatana", height: 1.8, rot: 20, foot: 1.6, far: 300, level: true, relief: true, seat: "ground", color: GRANITE, mat: "granite", ground: "heath", solid: true },
 ];
 
 /** Radio (m) de la planta: hasta él no se puede estar «dentro» del monumento. */
@@ -363,6 +385,110 @@ function rampLoft(out, { rot, col, mat, st, T }) {
     const A = R[k][i], B = R[k][i + 1], C = R[k + 1][i + 1], D = R[k + 1][i];
     out.push({ v: [A, C, B], uv: [uvOf(A), uvOf(C), uvOf(B)], c: col, mat, smooth: true }, { v: [A, D, C], uv: [uvOf(A), uvOf(D), uvOf(C)], c: col, mat, smooth: true });
   }
+}
+
+// ── la llaqta de Machu Picchu (planta de OpenStreetMap, machuData.js) ─────────────────────────────────────
+const pairs = (a) => { const p = []; for (let i = 0; i + 1 < a.length; i += 2) p.push([a[i] / 10, a[i + 1] / 10]); return p; };
+/** Parte una línea en tramos de `step` m como mucho (para que siga el relieve). */
+function resample(pts, step) {
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], k = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+    for (let j = 1; j <= k; j++) out.push([a[0] + ((b[0] - a[0]) * j) / k, a[1] + ((b[1] - a[1]) * j) / k]);
+  }
+  return out;
+}
+/** Muro de piedra de grueso T entre a y b (alargado T/2 en cada punta), de la cota zb (por punta) a la zt (por punta). */
+function wallSeg(out, a, b, T, zb, zt, col, mat) {
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 0.05) return;
+  const u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], nx = -u[1] * T / 2, ny = u[0] * T / 2, ex = u[0] * T / 2, ey = u[1] * T / 2;
+  const A = [a[0] - ex, a[1] - ey], B = [b[0] + ex, b[1] + ey];
+  const P = (q, sg, z) => [q[0] + sg * nx, q[1] + sg * ny, z];
+  for (const sg of [-1, 1]) quad(out, P(A, sg, zb[0]), P(B, sg, zb[1]), P(B, sg, zt[1]), P(A, sg, zt[0]), col, mat);
+  quad(out, P(A, -1, zt[0]), P(B, -1, zt[1]), P(B, 1, zt[1]), P(A, 1, zt[0]), col, mat);
+  quad(out, P(A, -1, zb[0]), P(A, 1, zb[0]), P(A, 1, zt[0]), P(A, -1, zt[0]), col, mat);
+  quad(out, P(B, -1, zb[1]), P(B, 1, zb[1]), P(B, 1, zt[1]), P(B, -1, zt[1]), col, mat);
+}
+/** Medidas del alzado reconstruido de la llaqta (m). */
+export const LLAQTA = { wallT: 0.85, wallH: 2.6, gableK: 0.62, gableMax: 3.6, roomMax: 8, terraceMax: 2.6, terraceRise: 3.2, freeWallH: 1.8, stepW: 1.6 };
+/**
+ * Planta de la llaqta: { rooms: [{ pts, gables: [índices de los lados cortos] }], terraces, walls, steps } en metros
+ * (este, norte) desde su origen. `skip`: [[e, n, r]] recintos que dibuja otra pieza.
+ */
+export function llaqtaPlan(skip = []) {
+  const rooms = [];
+  for (const a of MP_BUILDINGS) {
+    const pts = pairs(a), c = [pts.reduce((q, v) => q + v[0], 0) / pts.length, pts.reduce((q, v) => q + v[1], 0) / pts.length];
+    if (skip.some(([e, n, r]) => Math.hypot(c[0] - e, c[1] - n) <= r)) continue;
+    // hastiales: en los dos lados cortos de un recinto rectangular de una sola nave
+    let gables = [];
+    if (pts.length === 4) {
+      const L = pts.map((q, i) => { const r = pts[(i + 1) % 4]; return Math.hypot(r[0] - q[0], r[1] - q[1]); });
+      const sh = L[0] + L[2] <= L[1] + L[3] ? [0, 2] : [1, 3];
+      if (Math.max(L[sh[0]], L[sh[1]]) <= LLAQTA.roomMax && Math.abs(L[sh[0]] - L[sh[1]]) < 1.5) gables = sh;
+    }
+    rooms.push({ pts, c, gables });
+  }
+  return { rooms, terraces: MP_TERRACES.map(pairs), walls: MP_WALLS.map(pairs), steps: MP_STEPS.map(pairs) };
+}
+function llaqta(out, m, ground) {
+  const g = ground || (() => 0), col = m.color, plan = llaqtaPlan(m.skip), K = LLAQTA;
+  const grad = (p) => [(g(p[0] + 3, p[1]) - g(p[0] - 3, p[1])) / 6, (g(p[0], p[1] + 3) - g(p[0], p[1] - 3)) / 6];
+  // recintos: muros de 0,85 m con la coronación a nivel (más altos por el lado bajo) y hastiales en los lados cortos
+  plan.rooms.forEach(({ pts, c, gables }, k) => {
+    const gs = pts.map((p) => g(p[0], p[1])), gmin = Math.min(...gs), gmean = gs.reduce((a, b) => a + b, 0) / gs.length;
+    const top = gmean + K.wallH + ((k * 7) % 5) * 0.12, n = pts.length;
+    const mat = (m.fine || []).some(([e, nn, r]) => Math.hypot(c[0] - e, c[1] - nn) <= r) ? "incafine" : m.mat;
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], b = pts[(i + 1) % n];
+      wallSeg(out, a, b, K.wallT, [gmin - 2, gmin - 2], [top, top], col, mat);
+      if (gables.includes(i)) {
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]), h = Math.min(K.gableMax, K.gableK * L), u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], nx = -u[1] * K.wallT / 2, ny = u[0] * K.wallT / 2;
+        const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], P = (q, sg, z) => [q[0] + sg * nx, q[1] + sg * ny, z];
+        for (const sg of [-1, 1]) out.push({ v: [P(a, sg, top), P(b, sg, top), P(mid, sg, top + h)], c: col, mat });
+        quad(out, P(a, -1, top), P(a, 1, top), P(mid, 1, top + h), P(mid, -1, top + h), col, mat);
+        quad(out, P(b, -1, top), P(b, 1, top), P(mid, 1, top + h), P(mid, -1, top + h), col, mat);
+      }
+    }
+  });
+  // andenes: el muro de contención (cara de piedra hacia abajo) y, detrás, el bancal llano hasta la ladera.
+  // Alto según la pendiente (unos 3 m de ladera por andén, hasta 2,6 m); en llano, un murete
+  for (const line of plan.terraces) {
+    const pts = resample(line, 5), n = pts.length;
+    const nor = pts.map((p, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [-(b[1] - a[1]) / L, (b[0] - a[0]) / L]; });
+    const gr = pts.map(grad);
+    // de qué lado queda la ladera arriba (el mismo en todo el muro)
+    const side = pts.reduce((q, p, i) => q + nor[i][0] * gr[i][0] + nor[i][1] * gr[i][1], 0) >= 0 ? 1 : -1;
+    // un mismo alto y un mismo fondo de bancal en todo el muro (los de su pendiente media): sin dientes de sierra
+    const slAt = (i) => Math.max(0, (nor[i][0] * gr[i][0] + nor[i][1] * gr[i][1]) * side);
+    const sl = pts.reduce((q, _, i) => q + slAt(i), 0) / n;
+    // en llano (menos de un 12 %) no hay bancal: queda un murete bajo
+    const flat = sl < 0.12, h = flat ? 0.45 : Math.min(K.terraceMax, Math.max(0.7, K.terraceRise * sl)), len = flat ? 0.6 : Math.min(9, h / sl + 0.8);
+    const V = pts.map((p, i) => {
+      const up = [nor[i][0] * side, nor[i][1] * side], z = g(p[0], p[1]) + h;
+      return { foot: [p[0] - up[0] * 0.3, p[1] - up[1] * 0.3, z - h - 1.6], top: [p[0], p[1], z], back: [p[0] + up[0] * len, p[1] + up[1] * len, z] };
+    });
+    for (let i = 0; i + 1 < n; i++) {
+      const A = V[i], B = V[i + 1];
+      quad(out, A.foot, B.foot, B.top, A.top, col, m.mat);
+      quad(out, A.top, B.top, B.back, A.back, col, "heath");
+    }
+  }
+  // muros sueltos: siguen el suelo
+  for (const line of plan.walls) {
+    const pts = resample(line, 6);
+    for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], b = pts[i + 1], ga = g(a[0], a[1]), gb = g(b[0], b[1]); wallSeg(out, a, b, 0.9, [ga - 1.5, gb - 1.5], [ga + K.freeWallH, gb + K.freeWallH], col, m.mat); }
+  }
+  // escalinatas: una faja de piedra pegada al suelo
+  for (const line of plan.steps) {
+    const pts = resample(line, 4), hw = K.stepW / 2;
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i], b = pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = (-(b[1] - a[1]) / L) * hw, ny = ((b[0] - a[0]) / L) * hw;
+      const za = g(a[0], a[1]) + 0.18, zb = g(b[0], b[1]) + 0.18;
+      quad(out, [a[0] - nx, a[1] - ny, za], [b[0] - nx, b[1] - ny, zb], [b[0] + nx, b[1] + ny, zb], [a[0] + nx, a[1] + ny, za], col, m.mat);
+    }
+  }
+  for (const f of out) f.smooth = false;
 }
 
 /** Bloque (piedra) de ancho w (tangencial), grueso t (radial) y alto h, centrado en (e, n), girado `rot`. */
@@ -697,6 +823,10 @@ export function buildFaces(m, opt = {}) {
     }
     // el cuerpo es suave (erodedTola); las rampas, de caras planas
     for (const f of out) if (f.smooth == null) f.smooth = false;
+  } else if (m.kind === "mark") {
+    // solo un rótulo sobre un lugar (el edificio lo dibuja otra pieza): sin caras
+  } else if (m.kind === "llaqta") {
+    llaqta(out, m, opt.ground || null);
   } else if (m.kind === "inca") {
     // edificio inca de sillares: muros con algo de talud, un lado abierto (wayrana) o puerta, hastiales si los
     // tiene y ventanas trapezoidales (rectángulos oscuros)

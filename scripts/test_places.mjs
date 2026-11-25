@@ -8,9 +8,11 @@ console.log("Sitios");
 ok(SITES.length >= 10 && SITES.every((s) => Math.abs(s.lat) <= 90 && Math.abs(s.lon) <= 180 && s.name.es && s.name.en && s.note.es && s.note.en), "cada sitio con coordenadas válidas y textos en ES y EN");
 ok(new Set(SITES.map((s) => s.id)).size === SITES.length, "sin sitios repetidos");
 const mp = SITES.find((s) => s.id === "machupicchu");
-ok(mp && Math.abs(mp.lat + 13.1633) < 0.001 && Math.abs(mp.lon + 72.5456) < 0.001, "Machu Picchu en 13°09′48″ S, 72°32′44″ O");
+const mpi2 = SITES.find((s) => s.id === "machupicchu-intihuatana");
+ok(mp && Math.abs(mp.lat + 13.1654) < 0.001 && Math.abs(mp.lon + 72.5447) < 0.001 && mpi2 && Math.abs(mpi2.lat + 13.1631) < 0.001 && Math.abs(mpi2.lon + 72.5457) < 0.001, "Machu Picchu: el mirador de la Roca Funeraria y la cima del Intihuatana");
+ok(/OpenStreetMap/.test(mp.note.es) && /OpenStreetMap/.test(mpi2.note.en) && /reconstrucci/.test(mp.note.es), "las fichas dicen de dónde sale la planta y que el alzado es una reconstrucción");
 ok(fold("Chichén Itzá") === "chichen itza", "compara sin tildes");
-ok(searchSites("machu").length === 1 && searchSites("TEOTI")[0].id === "teotihuacan" && searchSites("cochasqui")[0].id === "cochasqui", "los sitios se encuentran por nombre, sin tildes ni mayúsculas");
+ok(searchSites("machu").length === 2 && searchSites("TEOTI")[0].id === "teotihuacan" && searchSites("cochasqui")[0].id === "cochasqui", "los sitios se encuentran por nombre, sin tildes ni mayúsculas");
 ok(searchSites("a").length === 0, "con una sola letra no se busca");
 
 console.log("Buscador (Open-Meteo)");

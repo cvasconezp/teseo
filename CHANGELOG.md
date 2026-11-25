@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.78.0 — 2026-11-25
+
+- **Machu Picchu completo en 3D.** Antes había tres templos y 16 casas «en posición aproximada». Ahora está la llaqta entera con su planta real, de © colaboradores de OpenStreetMap: 101 recintos, 171 muros de andenes, 18 muros y 24 escalinatas, además del Templo del Sol, el Templo Principal, el de las Tres Ventanas, la Roca Sagrada y el Intihuatana en su sitio, y rótulos para el Templo del Cóndor, la Puerta de la Ciudad, la Casa del Inca, las Tres Portadas, los Espejos de Agua, la Roca Funeraria y la Plaza Principal.
+- **Alzado reconstruido con medidas publicadas** (Puelles Escalante, «Ingeniería inka de Machupijchu», Ministerio de Cultura del Perú): muros de 0,85 m, hastiales de unos 57° en los lados cortos, Templo Principal de 11 × 8 m y 4,05 m de alto, recintos sin techo como hoy. Los andenes se dibujan como bancales con su muro de contención.
+- **Dos labras de piedra:** sillares finos y pulidos en los templos y la Casa del Inca; mampostería rústica en casas, depósitos y andenes.
+- **Dos miradores:** «Machu Picchu · mirador» (la vista clásica desde la Roca Funeraria, con la ciudad a los pies y el Huayna Picchu detrás) y «Machu Picchu · Intihuatana».
+- **Límite conocido:** el relieve es el del modelo global (~30 m), más suave que el real. Todo se asienta sobre ese suelo, así que los andenes no tienen su cota exacta y la colina del Intihuatana queda más baja que en la realidad. Las fichas lo dicen.
+- Para sitios extensos, la rejilla de relieve del suelo puede ser más fina (aquí 12 anillos × 36 acimuts).
+
 ## 1.77.5 — 2026-11-25
 
 - **Sin «almenas» en el horizonte.** Con nubes bajas, el corte de la base de las nubes sobre las montañas lejanas salía en escalones rectos que parecían construcciones (se vio desde Machu Picchu). La distancia de cada cresta saltaba de una columna a otra y el corte era a cuchillo. Ahora las franjas del relieve se componen de cerca a lejos, la distancia se promedia y el borde es blando: la nube envuelve las cumbres.

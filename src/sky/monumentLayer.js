@@ -40,6 +40,7 @@ export function toneAt(p) {
  */
 export { onPlatform };
 
+const NO_ITEMS = [];
 export function placeMonuments(list, { lat, lon, ground }, bases, relief = null) {
   const out = [];
   for (const m of list || []) {
@@ -48,8 +49,11 @@ export function placeMonuments(list, { lat, lon, ground }, bases, relief = null)
     const o = offsetOf(lat, lon, m.lat, m.lon);
     // `seat`: en una ladera con muchas piezas (Cochasquí), cada una se asienta sobre el MISMO relieve con el que se
     // dibuja el suelo (la rejilla cercana), no sobre su propia medida: así ninguna queda en el aire ni sobre un pedestal
-    const dz0 = relief && m.seat ? reliefAt(relief, o.e, o.n) : b - (ground + EYE_M);
-    out.push({ m, o, dz: dz0 + (m.lift || 0) - (m.drop || 0), faces: buildFaces(m, { d: o.d }) });
+    // (`seat: "ground"`: sobre el suelo tal como se dibuja —también junto al observador, donde manda el de sus pies—)
+    const dz0 = relief && m.seat ? (m.seat === "ground" ? groundHeight(o.e, o.n, NO_ITEMS, relief) : reliefAt(relief, o.e, o.n)) : b - (ground + EYE_M);
+    // una pieza extensa (la llaqta de Machu Picchu) sigue el relieve punto a punto: recibe el suelo respecto a su origen
+    const gnd = relief && m.kind === "llaqta" ? (e, n) => groundHeight(o.e + e, o.n + n, NO_ITEMS, relief) - dz0 : null;
+    out.push({ m, o, dz: dz0 + (m.lift || 0) - (m.drop || 0), faces: buildFaces(m, { d: o.d, ground: gnd }) });
   }
   // Subido a una plataforma (`standOn`): si el lugar cae dentro de la plataforma de una pirámide, los ojos van a 1,7 m
   // sobre ella, así que todo lo demás (y el suelo) baja lo que haga falta.
@@ -145,10 +149,10 @@ export function groundReach(items) {
 // alcance del suelo).
 export const RELIEF_R = [0.08, 0.2, 0.38, 0.6, 0.9], RELIEF_NA = 12;
 /** Puntos [lat, lon] de la rejilla, por anillos (de dentro afuera) y, en cada uno, por acimut desde el norte. */
-export function reliefPoints(lat, lon, reach) {
-  const out = [], ck = Math.cos((lat * Math.PI) / 180);
-  for (const f of RELIEF_R) for (let i = 0; i < RELIEF_NA; i++) {
-    const a = (i / RELIEF_NA) * 2 * Math.PI, r = f * reach;
+export function reliefPoints(lat, lon, reach, spec = null) {
+  const out = [], ck = Math.cos((lat * Math.PI) / 180), radii = (spec && spec.radii) || RELIEF_R, NA = (spec && spec.na) || RELIEF_NA;
+  for (const f of radii) for (let i = 0; i < NA; i++) {
+    const a = (i / NA) * 2 * Math.PI, r = f * reach;
     out.push([lat + (r * Math.cos(a)) / 110574, lon + (r * Math.sin(a)) / (111320 * ck)]);
   }
   return out;
@@ -178,7 +182,8 @@ export function groundHeight(e, n, items, grid = null) {
   const up = (items && items.up) || 0;
   // (a los pies del observador manda siempre su propio suelo: si no, un monumento cercano y más alto podría
   // levantar el suelo por encima de sus ojos)
-  if (grid) { const w0 = 1 / (e * e + n * n + 4); sw = 1 / (22 * 22) + w0; sh = reliefAt(grid, e, n) / (22 * 22) - EYE_M * w0; }
+  // (`grid.flat`: radio del llano a los pies; 22 m si el sitio no dice otra cosa)
+  if (grid) { const w0 = 1 / (e * e + n * n + 4), fl = grid.flat || 22; sw = 1 / (fl * fl) + w0; sh = reliefAt(grid, e, n) / (fl * fl) - EYE_M * w0; }
   else { sw = 1 / (e * e + n * n + 16); sh = -EYE_M * sw; }
   for (const it of items) {
     // las piezas asentadas sobre el relieve (`seat`) no aplanan el suelo a su alrededor: la ladera sigue igual y la
