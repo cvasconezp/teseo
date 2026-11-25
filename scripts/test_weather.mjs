@@ -281,7 +281,8 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
   // la probabilidad: un chubasco al 25 % casi no se dibuja ni borra las montañas; al 80 %, entero
   const sh = { ...fc, code: 80, mm: 0.1, visKm: 4.88 };
   const l25 = rl.rainLook({ ...sh, precip: 0.25 }), l80 = rl.rainLook({ ...sh, precip: 0.8 }), lNo = rl.rainLook(sh);
-  ok(l25.rain < 0.1 && near(l80.rain, 0.5, 1e-9) && near(lNo.rain, 0.5, 1e-9), "la lluvia del dibujo cuenta según su probabilidad (sin ella, como antes)");
+  const l49 = rl.rainLook({ ...sh, precip: 0.49 });
+  ok(l25.rain < 0.01 && near(l80.rain, 0.5, 1e-9) && near(lNo.rain, 0.5, 1e-9) && l49.rain > 0.15 && l49.rain < 0.25, "la lluvia del dibujo cuenta según su probabilidad: 49 %, algo menos de la mitad (sin ella, como antes)");
   ok(rl.hazeAt(l25, 15) < 0.3 && rl.hazeAt(l80, 15) > 0.7 && rl.hazeAt(lNo, 15) > 0.9, "la bruma de la lluvia, también: al 25 %, las montañas a 15 km se ven");
   ok(near(rl.expectedBeta(0.6, 1), 0.6, 1e-12) && rl.expectedBeta(0.6, 0) === 0 && rl.expectedBeta(0, 0.5) === 0 && near(rl.hazeAt({ beta: rl.expectedBeta(0.6, 0.5) }, 15), 0.5 * (1 - Math.exp(-9)), 1e-9), "la bruma esperada a 15 km es la media");
   ok(near(rl.rainLook({ ...fc, code: 45, visKm: 0.4, precip: 0.05 }).beta, rl.visBeta(0.4), 1e-12), "la niebla no depende de la probabilidad de lluvia");

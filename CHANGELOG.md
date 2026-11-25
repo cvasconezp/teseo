@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.77.4 — 2026-11-25
+
+- **Cochasquí en 3D, más real.** Las pirámides truncas tienen la forma de la tierra gastada por siglos de lluvia: planta de esquinas redondeadas, la arista de arriba convertida en un hombro redondo, la plataforma apenas abombada y un pie que se abre en talud. Las rampas son lomos suaves que se funden con la pirámide y con la ladera, no planchas. Sin aristas de cuchillo. Las medidas (planta, alto, rampas y giro) son las mismas de antes.
+- **Lluvia con probabilidad intermedia.** Un 49 % ya no se dibuja como lluvia casi segura (en Cayambe a las 10:31 no llovía): con 25 % no se dibuja, con 50 % algo menos de la mitad y desde 80 % entera. La bruma de esa lluvia sigue el mismo peso.
+
 ## 1.77.3 — 2026-11-25
 
 - **Iconos del tiempo según su probabilidad.** Si una hora trae lluvia, nieve o tormenta con menos del 30 % de probabilidad, el icono es el de sus nubes y lo que pueda caer va como marca pequeña: una gota, un copo o un rayo (por ejemplo, «Nublado · posible tormenta»). Vale para la pastilla, la tarjeta y la franja por hora.

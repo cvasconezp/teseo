@@ -97,8 +97,9 @@ export function satOverhead(sat, rKm = 12) {
 export function rainLook(fc, sat = null, w = 0) {
   if (!fc) return null;
   // el código y los milímetros de la hora dicen cómo llovería SI llueve; con poca probabilidad no se dibuja
-  // (25 % → casi nada; desde ~60 %, toda): un chubasco posible no oscurece el cielo ni borra las montañas
-  const pRain = Number.isFinite(fc.precip) ? sstep(0.15, 0.6, fc.precip) : 1;
+  // (25 % → nada; 50 % → algo menos de la mitad; desde 80 %, toda): un chubasco posible no oscurece el cielo ni borra
+  // las montañas (en Cayambe, un 49 % dibujado casi entero dio un cielo de lluvia que no llovía)
+  const pRain = Number.isFinite(fc.precip) ? sstep(0.25, 0.8, fc.precip) : 1;
   let rain = rainAmount(fc) * pRain;
   const over = w > 0 ? satOverhead(sat) : null;
   if (over != null) rain *= 1 - w + w * sstep(0.25, 0.7, over);
@@ -106,7 +107,7 @@ export function rainLook(fc, sat = null, w = 0) {
   // la lluvia también quita visibilidad aunque el modelo no la dé (fuerte: ~2 km; débil: ~10 km)
   // la visibilidad baja que el modelo da junto con lluvia es la de cuando llueve: cuenta según su probabilidad
   let vb = visBeta(fc.visKm);
-  if (vb > 0 && RAIN_BY_CODE[fc.code] && Number.isFinite(fc.precip)) vb = expectedBeta(vb, fc.precip);
+  if (vb > 0 && RAIN_BY_CODE[fc.code] && Number.isFinite(fc.precip)) vb = expectedBeta(vb, pRain);
   let beta = Math.max(vb, 2 * Math.pow(rain, 2.2));
   if (FOG.has(fc.code) && !Number.isFinite(fc.visKm)) beta = Math.max(beta, K / 0.5);
   if (over != null && w > 0) beta *= 1 - w + w * sstep(0.15, 0.6, over);

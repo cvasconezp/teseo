@@ -2,7 +2,7 @@
 // verían desde el sitio, silueta para ocultar lo que queda detrás e integración en el cielo.
 import { MONUMENTS, monumentsNear, buildFaces, toLocal, altAzOf, offsetOf, silhouette, withMonuments, groundRing, median, apexOf, footprintRadius, SH_STANDING, SH_LINTELS } from "../src/sky/monuments.js";
 import { placeMonuments, onPlatform, monumentLabels, faceUV, toneAt, groundHeight, reliefAt, reliefPoints, RELIEF_R, RELIEF_NA } from "../src/sky/monumentLayer.js";
-import { tierEdges, stairSteps, detailFor } from "../src/sky/monuments.js";
+import { tierEdges, stairSteps, detailFor, tolaRings } from "../src/sky/monuments.js";
 import { SITES } from "../src/sky/places.js";
 import { readFileSync } from "node:fs";
 
@@ -135,6 +135,12 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
     ok(cq.every((m) => /estimado|diámetro|lado bajo/.test(m.sub.es)) && monumentsNear(site("cochasqui").lat, site("cochasqui").lon, 25).length === 26, "cada una dice que su alto es estimado o medido; desde el lugar se cargan las 26 piezas (también la G, bajo los pies)");
     // el suelo: pocas consultas de altura (4 anillos de 8 puntos para las grandes y un punto para el resto)
     ok(cq.filter((m) => m.ring == null).length === 4 && cq.filter((m) => m.ring == null).length * 8 + cq.filter((m) => m.ring != null).length + 5 <= 80, "las alturas del terreno caben en una sola consulta (menos de 80 puntos)");
+    // gastadas por la lluvia: hombro redondeado, plataforma apenas abombada y caras suaves; las medidas no cambian
+    { const G = L("g"), fg = buildFaces(G), bg = bbox(fg);
+      const { rings, top } = tolaRings({ H: G.height, DEEP: -16, wb: G.w + 10.5, db: G.d + 10.5, wt: G.w * 0.72, dt: G.d * 0.72 });
+      const atH = rings.filter((r) => Math.abs(r.z - G.height) < 1e-9);
+      ok(near(top, G.height + 0.3, 1e-9) && near(bg.u1, G.height + 0.3, 1e-6) && atH.length >= 1 && atH.every((r) => r.a < G.w * 0.36) && rings.some((r) => r.z === 0 && r.a > (G.w + 10.5) / 2), "tola gastada: plataforma a su alto (0,3 m de abombado), arista redondeada hacia dentro y pie algo abierto");
+      ok(fg.filter((x) => x.smooth).length > fg.length * 0.9, "cuerpo y rampa de caras suaves (sin aristas de cuchillo)"); }
     const f = buildFaces(byId("cqm-a")), bb = bbox(f);
     ok(near(bb.u1, 5, 1e-9) && bb.u0 <= -3.9 && f.length < 400, "los montículos: cúpula baja con faldón bajo la base (en ladera no queda hueco) y pocas caras");
     ok(mounds.filter((m) => /funerario [a-gmx]$/.test(m.name.es)).length === 9 && mounds.filter((m) => m.label).length === 1, "nueve montículos llevan su letra (a–g, m, x); solo el «a» muestra el nombre a la vista");

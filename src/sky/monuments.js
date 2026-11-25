@@ -298,6 +298,73 @@ function frustum(out, { ce = 0, cn = 0, z0, z1, w0, d0 = w0, w1, d1 = w1, rot = 
   if (top && (w1 > 0 || d1 > 0)) quad(out, t[0], t[1], t[2], t[3], col, mat);
 }
 
+/**
+ * Pirámide trunca de tierra gastada por siglos de lluvia (las tolas de Cochasquí): planta de esquinas redondeadas,
+ * taludes rectos, la arista de arriba convertida en un hombro redondo, la plataforma apenas abombada y el pie abierto en
+ * un talud de tierra caída. Las medidas son las de siempre: base wb × db a ras del suelo, plataforma wt × dt a la
+ * altura H; el talud sigue bajo el suelo hasta DEEP (en una ladera, lo que sobra queda enterrado).
+ * Caras suaves (la luz pasa de una a otra sin aristas) con coordenadas de textura en metros.
+ */
+export function tolaRings({ H, DEEP, wb, db, wt, dt }) {
+  // media anchura del talud recto a la altura z (como el tronco de pirámide de antes)
+  const ha = (z) => wt / 2 + ((wb - wt) / 2) * (H - z) / H, hb = (z) => dt / 2 + ((db - dt) / 2) * (H - z) / H;
+  const run = ((wb - wt) / 2) / H;                     // cuánto entra el talud por metro de alto
+  const s = Math.min(2.6, 0.24 * H);                    // alto del hombro redondeado
+  const rings = [];
+  // pie: talud bajo el suelo y, cerca del suelo, la tierra caída (algo más ancho)
+  rings.push({ z: DEEP, a: ha(DEEP) + 1.6, b: hb(DEEP) + 1.6 });
+  rings.push({ z: 0, a: ha(0) + 1.6, b: hb(0) + 1.6 });
+  rings.push({ z: Math.min(1.6, H * 0.2), a: ha(Math.min(1.6, H * 0.2)) + 0.2, b: hb(Math.min(1.6, H * 0.2)) + 0.2 });
+  // hombro: curva de Bézier entre el talud (a H − s) y la plataforma, con control en la arista de antes
+  const z0 = H - s, a0 = ha(z0), b0 = hb(z0), aC = wt / 2, bC = dt / 2, inset = s * run * 1.1 + 0.8;
+  for (const t of [0, 0.34, 0.67, 1]) {
+    const u = 1 - t, q = (p0, c, p2) => u * u * p0 + 2 * u * t * c + t * t * p2;
+    rings.push({ z: q(z0, H, H), a: q(a0, aC, aC - inset), b: q(b0, bC, bC - inset) });
+  }
+  // plataforma apenas abombada (el agua escurre hacia los bordes)
+  rings.push({ z: H + 0.22, a: (aC - inset) * 0.55, b: (bC - inset) * 0.55 });
+  return { rings, top: H + 0.3 };
+}
+const RR_K = 4;   // puntos por esquina redondeada
+/** Anillo de planta rectangular con esquinas redondeadas (radio r) y media anchura a × b, girado `rot`: 4·RR_K puntos. */
+function rrRing(a, b, r, z, rot) {
+  const pts = [], rr = Math.max(0.2, Math.min(r, a * 0.9, b * 0.9));
+  const C = [[a - rr, b - rr, 0], [-(a - rr), b - rr, 90], [-(a - rr), -(b - rr), 180], [a - rr, -(b - rr), 270]];
+  for (const [cx, cy, a0] of C) for (let i = 0; i < RR_K; i++) {
+    const t = (a0 + (90 * i) / (RR_K - 1)) * RAD, p = rotP([cx + rr * Math.cos(t), cy + rr * Math.sin(t), z], rot);
+    pts.push(p);
+  }
+  return pts;
+}
+function erodedTola(out, o) {
+  const { rings, top } = tolaRings(o);
+  const uvOf = (p) => [p[0], p[1] + p[2] * 0.6];
+  const R = rings.map((g) => rrRing(g.a, g.b, Math.min(g.a, g.b) * 0.16 + 1.2, g.z, o.rot));
+  const n = R[0].length;
+  for (let k = 0; k + 1 < R.length; k++) for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n, A = R[k][i], B = R[k][j], C = R[k + 1][j], D = R[k + 1][i];
+    out.push({ v: [A, B, C], uv: [uvOf(A), uvOf(B), uvOf(C)], c: o.col, mat: o.mat, smooth: true },
+      { v: [A, C, D], uv: [uvOf(A), uvOf(C), uvOf(D)], c: o.col, mat: o.mat, smooth: true });
+  }
+  const last = R[R.length - 1], cen = [0, 0, top];
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n; out.push({ v: [last[i], last[j], cen], uv: [uvOf(last[i]), uvOf(last[j]), uvOf(cen)], c: o.col, mat: o.mat, smooth: true }); }
+}
+
+/**
+ * Rampa de tierra gastada: una sección (lomo apenas abombado, bordes redondeados y faldones que se abren T m por metro de
+ * caída hasta `drop` m bajo el lomo) llevada por estaciones { y, z, hw, drop } a lo largo de la rampa (eje y, girado `rot`).
+ */
+function rampLoft(out, { rot, col, mat, st, T }) {
+  const P = (x, y, z) => { const q = rotP([x, y, z], rot); return [q[0], q[1], z]; };
+  const prof = (g) => [[-(g.hw + g.drop * T), -g.drop], [-(g.hw + 1.4), -0.8], [-(g.hw + 0.3), -0.18], [-g.hw * 0.5, 0.06], [0, 0.12], [g.hw * 0.5, 0.06], [g.hw + 0.3, -0.18], [g.hw + 1.4, -0.8], [g.hw + g.drop * T, -g.drop]];
+  const R = st.map((g) => prof(g).map(([x, dz]) => P(x, g.y, g.z + dz)));
+  const uvOf = (p) => [p[0], p[1] + p[2] * 0.6];
+  for (let k = 0; k + 1 < R.length; k++) for (let i = 0; i + 1 < R[k].length; i++) {
+    const A = R[k][i], B = R[k][i + 1], C = R[k + 1][i + 1], D = R[k + 1][i];
+    out.push({ v: [A, C, B], uv: [uvOf(A), uvOf(C), uvOf(B)], c: col, mat, smooth: true }, { v: [A, D, C], uv: [uvOf(A), uvOf(D), uvOf(C)], c: col, mat, smooth: true });
+  }
+}
+
 /** Bloque (piedra) de ancho w (tangencial), grueso t (radial) y alto h, centrado en (e, n), girado `rot`. */
 function block(out, e, n, z0, h, w, t, rot, col, mat) { frustum(out, { ce: e, cn: n, z0, z1: z0 + h, w0: w, d0: t, w1: w, d1: t, rot, col, mat }); }
 
@@ -606,16 +673,20 @@ export function buildFaces(m, opt = {}) {
     // (la ladera cae hacia el suroeste cerca de un 18 %: el pie baja bajo la base y la rampa desciende con el terreno)
     // El pie baja 16 m bajo la base con el mismo talud, y la rampa lleva faldones y un remate 12 m bajo su punta: en una ladera cuyo relieve real no coincide con el supuesto, nada queda en el aire ni enseña su cara
     // de abajo; lo que sobra queda enterrado.
-    const DEEP = -16, k = (m.height - DEEP) / (m.height + 9), wb = m.w + 10.5, db = m.d + 10.5, wt = m.w * 0.72, dt = m.d * 0.72;
-    frustum(out, { z0: DEEP, z1: m.height, w0: wt + (wb - wt) * k, d0: dt + (db - dt) * k, w1: wt, d1: dt, rot: m.rot, col, mat: m.mat });
+    const DEEP = -16, wb = m.w + 10.5, db = m.d + 10.5, wt = m.w * 0.72, dt = m.d * 0.72;
+    erodedTola(out, { H: m.height, DEEP, wb, db, wt, dt, rot: m.rot, col, mat: m.mat });
     if (m.ramp) {
-      const hw0 = 7 * (m.rampW || 1), hw1 = 5 * (m.rampW || 1), y0 = -m.d * 0.35, y1 = -(m.d * 0.5 + m.ramp), P = (x, y, z) => { const q = rotP([x, y, z], m.rot); return [q[0], q[1], z]; };
-      // la rampa baja con la ladera (18 %); sus faldones y el remate de la punta bajan 12 m más, abriéndose 0,8 m por metro
-      const zf = -0.18 * (m.ramp + m.d * 0.15), T = 0.8, zb = zf - 12, s1 = hw1 + 12 * T, s0 = hw0 + (m.height - DEEP) * T;
-      quad(out, P(-hw1, y1, zf), P(hw1, y1, zf), P(hw0, y0, m.height), P(-hw0, y0, m.height), col, m.mat);
-      for (const sg of [-1, 1]) quad(out, P(sg * s1, y1, zb), P(sg * hw1, y1, zf), P(sg * hw0, y0, m.height), P(sg * s0, y0, DEEP), col, m.mat);
-      quad(out, P(-s1, y1 - 18, zb), P(s1, y1 - 18, zb), P(hw1, y1, zf), P(-hw1, y1, zf), col, m.mat);
-      for (const sg of [-1, 1]) out.push({ v: [P(sg * hw1, y1, zf), P(sg * s1, y1, zb), P(sg * s1, y1 - 18, zb)], c: col, mat: m.mat });
+      const hw0 = 7 * (m.rampW || 1), hw1 = 5 * (m.rampW || 1), y0 = -m.d * 0.35, y1 = -(m.d * 0.5 + m.ramp);
+      // la rampa baja con la ladera (18 %); sus faldones y el remate de la punta bajan 12 m más, abriéndose 0,8 m por metro.
+      // Gastada como el cuerpo: la sección tiene el lomo apenas abombado y los bordes redondeados (rampLoft)
+      const zf = -0.18 * (m.ramp + m.d * 0.15), T = 0.8;
+      rampLoft(out, { rot: m.rot, col, mat: m.mat, st: [
+        { y: y0, z: m.height, hw: hw0, drop: m.height - DEEP },
+        { y: y0 + (y1 - y0) * 0.5, z: m.height + (zf - m.height) * 0.5, hw: (hw0 + hw1) / 2, drop: 12 + (m.height - DEEP - 12) * 0.5 },
+        { y: y1, z: zf, hw: hw1, drop: 12 },
+        { y: y1 - 9, z: zf - 5, hw: hw1 * 0.8, drop: 7 },
+        { y: y1 - 18, z: zf - 12, hw: hw1 * 0.5, drop: 0.5 },
+      ], T });
     }
     // rampas pequeñas del lado alto (la K de Cochasquí tiene dos): cortas, hasta el terreno de arriba
     for (let k = 0; k < (m.rampsN || 0); k++) {
@@ -624,7 +695,8 @@ export function buildFaces(m, opt = {}) {
       quad(out, P(x - hw, y0, m.height), P(x + hw, y0, m.height), P(x + hw, y1, zt), P(x - hw, y1, zt), col, m.mat);
       for (const sg of [-1, 1]) quad(out, P(x + sg * hw, y0, m.height), P(x + sg * hw, y1, zt), P(x + sg * (hw + 20), y1, zt - 15), P(x + sg * (hw + 20), y0, m.height - 15), col, m.mat);
     }
-    for (const f of out) f.smooth = false;
+    // el cuerpo es suave (erodedTola); las rampas, de caras planas
+    for (const f of out) if (f.smooth == null) f.smooth = false;
   } else if (m.kind === "inca") {
     // edificio inca de sillares: muros con algo de talud, un lado abierto (wayrana) o puerta, hastiales si los
     // tiene y ventanas trapezoidales (rectángulos oscuros)
