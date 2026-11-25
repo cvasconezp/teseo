@@ -15,12 +15,15 @@ import Icon from "./icons.jsx";
 import { WX } from "./i18n-wx.js";
 import { cloudsAt, coverClass, nextChange, bestNightHour, hourlySeries } from "./weather.js";
 import { hourAt } from "./nowWeather.js";
+import { validTz } from "./placeTime.js";
 import { pickSource, globeBox, regionBox, wmsUrl, fetchLatestTime, paintGlobe, timeCandidates, dataFraction } from "./satellite.js";
 import "./weather.css";
 
-const hhmm = (s, lang) => new Date(s * 1000).toLocaleTimeString(lang === "es" ? "es-EC" : "en-US", { hour: "2-digit", minute: "2-digit" });
+// las horas, en la zona del lugar (`tz`, como la tarjeta del tiempo); sin zona válida, la del dispositivo
+const tzOpt = (tz) => (validTz(tz) ? { timeZone: tz } : {});
+const hhmm = (s, lang, tz) => new Date(s * 1000).toLocaleTimeString(lang === "es" ? "es-EC" : "en-US", { hour: "2-digit", minute: "2-digit", ...tzOpt(tz) });
 
-export function WeatherPanel({ lang = "es", available = true, atmOn = true, on, onToggle, fc, onRetry, when, isNow, isNight, lat, lon, placeName, onSat, onMount, pointHours = null }) {
+export function WeatherPanel({ lang = "es", available = true, atmOn = true, on, onToggle, fc, onRetry, when, isNow, isNight, lat, lon, placeName, onSat, onMount, pointHours = null, tz = null }) {
   const tw = WX[lang] || WX.es;
   useEffect(() => { if (onMount) onMount(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const [satOpen, setSatOpen] = useState(false);
@@ -57,17 +60,17 @@ export function WeatherPanel({ lang = "es", available = true, atmOn = true, on, 
           {c && (
             <>
               <div className="sk-wx-now">
-                <span className="sk-wx-when">{tw.at(hhmm(s, lang), isNow)}</span>
+                <span className="sk-wx-when">{tw.at(hhmm(s, lang, tz), isNow)}</span>
                 <b>{tw.cover[coverClass(c.total)]} · {Math.round(c.total * 100)} %</b>
               </div>
               <dl className="sk-atm-stats">
                 <div><dt>{tw.layers(c.low || 0, c.mid || 0, c.high || 0)}</dt>
                   {pop != null && <dd>{tw.rain(pop)}</dd>}
-                  {change && <dd>{change.kind === "clears" ? tw.clears(hhmm(change.t, lang)) : tw.clouds(hhmm(change.t, lang))}</dd>}
+                  {change && <dd>{change.kind === "clears" ? tw.clears(hhmm(change.t, lang, tz)) : tw.clouds(hhmm(change.t, lang, tz))}</dd>}
                 </div>
-                {best && <div><dt>{tw.best(hhmm(best.t, lang), best.total)}</dt></div>}
+                {best && <div><dt>{tw.best(hhmm(best.t, lang, tz), best.total)}</dt></div>}
               </dl>
-              {series && <CloudChart series={series} isNight={isNight} lang={lang} aria={tw.chartAria} />}
+              {series && <CloudChart series={series} isNight={isNight} lang={lang} tz={tz} aria={tw.chartAria} />}
               <p className="sk-atm-fine">{tw.chartHint}</p>
             </>
           )}
@@ -75,7 +78,7 @@ export function WeatherPanel({ lang = "es", available = true, atmOn = true, on, 
             onClick={() => { setSatOpen((v) => !v); if (!satOpen && onSat) onSat(); }}>
             <Icon name="planet" size={17} />{satOpen ? tw.satHide : tw.sat}
           </button>
-          {satOpen && lat != null && lon != null && <SatelliteView lang={lang} lat={lat} lon={lon} placeName={placeName} />}
+          {satOpen && lat != null && lon != null && <SatelliteView lang={lang} lat={lat} lon={lon} placeName={placeName} tz={tz} />}
           <p className="sk-atm-fine">{tw.source}</p>
         </div>
       )}
@@ -83,7 +86,7 @@ export function WeatherPanel({ lang = "es", available = true, atmOn = true, on, 
   );
 }
 
-function CloudChart({ series, isNight, lang, aria }) {
+function CloudChart({ series, isNight, lang, tz, aria }) {
   const W = 240, H = 46, bw = W / series.length;
   return (
     <svg className="sk-wx-chart" viewBox={`0 0 ${W} ${H + 12}`} role="img" aria-label={aria} preserveAspectRatio="none">
@@ -91,7 +94,7 @@ function CloudChart({ series, isNight, lang, aria }) {
       {series.map((p, i) => (p.total == null ? null : (
         <rect key={i} x={i * bw + 0.8} y={H - Math.max(1.5, p.total * H)} width={bw - 1.6} height={Math.max(1.5, p.total * H)} rx="1.2" className="sk-wx-bar" />
       )))}
-      {series.map((p, i) => (i % 6 === 0 ? <text key={`t${i}`} x={i * bw + 1} y={H + 10} className="sk-wx-tick">{hhmm(p.t, lang)}</text> : null))}
+      {series.map((p, i) => (i % 6 === 0 ? <text key={`t${i}`} x={i * bw + 1} y={H + 10} className="sk-wx-tick">{hhmm(p.t, lang, tz)}</text> : null))}
     </svg>
   );
 }
@@ -115,7 +118,7 @@ function loadImageData(url) {
 let baseEarth = null;
 const earthBase = () => (baseEarth || (baseEarth = loadImageData("/earth.jpg").catch(() => null)));
 
-export function SatelliteView({ lang = "es", lat, lon, placeName }) {
+export function SatelliteView({ lang = "es", lat, lon, placeName, tz = null }) {
   const tw = WX[lang] || WX.es;
   const [view, setView] = useState("globe");
   const [st, setSt] = useState({ status: "loading", time: null });
@@ -160,7 +163,7 @@ export function SatelliteView({ lang = "es", lat, lon, placeName }) {
     if (!st.time) return src.sat;
     if (!src.geo) return tw.satDay(src.sat, new Date(`${st.time}T12:00:00Z`).toLocaleDateString(lang === "es" ? "es-EC" : "en-US", { day: "numeric", month: "short" }));
     const d = new Date(st.time), min = (Date.now() - d.getTime()) / 60000;
-    return tw.satWhen(src.sat, d.toLocaleTimeString(lang === "es" ? "es-EC" : "en-US", { hour: "2-digit", minute: "2-digit" }), min > 0 ? tw.ago(min) : null);
+    return tw.satWhen(src.sat, d.toLocaleTimeString(lang === "es" ? "es-EC" : "en-US", { hour: "2-digit", minute: "2-digit", ...tzOpt(tz) }), min > 0 ? tw.ago(min) : null);
   })();
 
   return (

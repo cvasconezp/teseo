@@ -21,6 +21,7 @@ import { BODIES } from "../sky/bodies.js";
 import { asteroidSize, passDistance, spacecraftDistances, signalSeconds, splitSeconds, launchStatus, netPrecision, orbitKey } from "../now/math.js";
 import { flareInfo, kpInfo, splitRegions } from "../sun/sun.js";
 import { describeEvent } from "../now/calendar/i18n.js";
+import { inEcuadorBox } from "../now/calendar/eclipses.js";
 import { TE, cardFileName } from "./i18n.js";
 
 export { TE, cardFileName };
@@ -197,7 +198,10 @@ export function eventCardText(spec, lang = "es", place = null, now = Date.now())
       } else {
         out.type = T.type.eclipseSun;
         add(T.gKind, T.kindName[d.type] || d.type, T.gMagNasa(signed(f, d.mag, 3)));
-        add(T.gEcuador, T.ecuador[d.ecuador] || T.ecuador.map, T.gEcuadorSub, "local");
+        // «Desde Ecuador» solo si el lugar está en Ecuador (el dato de la NASA solo vale ahí); si no, «mira el mapa»
+        const here = pl.lat != null ? inEcuadorBox(pl.lat, pl.lon) : !!d.inEcuador;
+        if (here) add(T.gEcuador, T.ecuador[d.ecuador] || T.ecuador.map, T.gEcuadorSub, "local");
+        else add(T.gVisSun, T.ecuador.map, T.gVisSunSub, "local");
         if (d.central) add(T.gRegion, d.central, T.gRegionSub);
         out.curio = T.eclipseSafety;
         out.visual = { type: "eclipse-sun", label: T.lblSunEclipse, eclipse: d.type, mag: d.mag };

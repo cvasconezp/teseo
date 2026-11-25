@@ -1,5 +1,47 @@
 # Cambios
 
+## 1.88.0 — Auditoría: fallos, coherencia y seguridad
+
+Revisión completa del código, la documentación, las fuentes y el sitio. Lista detallada en el proyecto (`Teseo-Auditoria-2026-11-25.md`).
+
+**Fallos corregidos**
+
+- **Eclipses solares fuera de Ecuador:** el calendario decía «No visible aquí» en lugares donde el eclipse sí se ve (por ejemplo, el total del 12-ago-2026 desde Madrid), porque usaba un dato pensado solo para Ecuador. Fuera de Ecuador ahora remite al mapa de la NASA.
+- **Datos que no se actualizaban:** quien ya había visitado Teseo seguía con los catálogos viejos (cometas, asteroides, cielo profundo) guardados por el modo sin conexión. Ahora se sirven de la copia guardada y se actualizan en segundo plano.
+- **Buscador:** escribir «ome», «tar» o «ald» encendía las capas de cometas, púlsares o Caldwell (22 casos); además, buscar una categoría ya no deja la capa encendida ni la mete en el enlace compartido.
+- **Cambio de horario:** en la noche del atraso de hora, la animación del cielo se quedaba repitiendo la misma hora.
+- **Clima:** tras cambiar de lugar podía mostrarse el tiempo del lugar anterior con el nombre del nuevo; el panel de nubes daba las horas en la zona del teléfono y no en la del lugar.
+- **Lluvias de meteoros:** «activa ahora» sigue la fecha elegida en el cielo, no la de hoy.
+- **Ruta:** las consultas de la ruta y la narración ya no se hacen si no se abre la pestaña Ruta.
+- **Tras una actualización:** una pestaña que quedó abierta se recarga sola en vez de fallar al abrir Preguntas, Ahora o el Cielo.
+- **Teclado:** los enlaces de Créditos se alcanzan con Tab; el menú y el formulario de reporte retienen el foco.
+- Calendario pasada la medianoche («Ayer»), panel #admin con clave vencida, botón atrás en #admin, límite de tiempo en «Recordarme», liberación de memoria gráfica al salir del Cielo.
+
+**Datos**
+
+- **BepiColombo** está en órbita de Mercurio desde el 21-nov-2026 y **Hera** llegó a Didymos (ESA); antes figuraban como «previstas».
+- **M42 y M43** a 1.265 años luz (Kounkel et al. 2017), igual que en la pregunta de escala.
+- **Centauro A, NGC 4945, NGC 5102 y NGC 1313** con distancia medida (NASA, TRGB) en vez de la estimada por corrimiento al rojo, que daba casi el doble.
+- La capa Galaxias tiene 2.057 objetos (se anunciaban 2.058).
+
+**Seguridad y robustez del servidor**
+
+- El relieve en latitudes altas podía pedir miles de teselas en una sola consulta (hasta agotar la memoria): el detalle se ajusta a la latitud y hay un tope. Hasta 45° de latitud nada cambia.
+- La narración se guarda por ruta, día e idioma, y hay límites por IP para la narración, las rutas costosas y las suscripciones nuevas a recordatorios.
+- Fechas acotadas a 1900–2100; los errores ya no muestran detalles internos; la clave del panel ya no se acepta en la dirección (solo en la cabecera; el CSV la conserva).
+- El proxy de imágenes rechaza direcciones con parámetros y limita descargas simultáneas. Pillow 13.0.0.
+- Consultas de nombres de montañas a un solo servidor de Overpass a la vez, como pide su política.
+- Calendario .ics: los datos de terceros no pueden abrir líneas nuevas.
+- Cabeceras del sitio: política de contenido en modo de solo informe, permisos explícitos y marcos coherentes.
+- `node_modules` estaba versionado como enlace a una ruta local: retirado.
+
+**Documentación**
+
+- `llms.txt` anunciaba licencia AGPL y «código abierto»; ahora PolyForm Noncommercial y «código publicado».
+- «Con Killa Ñan» en la portada, los créditos y el README (quedaba «en cooperación con»).
+- CREDITS.md suma SILSO (CC BY-NC), NOAA SWPC, CelesTrak, IMO, Caldwell, NIST, Wikipedia/Commons y las fuentes de las Preguntas, y corrige la licencia del DSS (CC BY-NC-SA 4.0).
+- Un título de /about seguía en español; variables de entorno documentadas; prueba nueva de coherencia entre documentos (`scripts/test_docs.mjs`).
+
 ## 1.87.0 — Chankillo desde el este, mar de nubes y rótulos de cumbres
 
 - **Chankillo, punto de observación este:** nuevo punto de visita a unos 200 m al este de las torres, mirando al oeste, para seguir los atardeceres. Su posición es aproximada: la que hace caer los ocasos de los dos solsticios en los extremos de la fila (Ghezzi y Ruggles). La ficha de las Trece Torres explica los dos puntos.

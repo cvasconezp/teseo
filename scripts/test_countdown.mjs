@@ -10,7 +10,7 @@ process.env.TZ = "America/Guayaquil";
 import { readFileSync } from "node:fs";
 const { MILESTONES, milestoneEvents } = await import("../src/now/calendar/milestones.js");
 const { buildSkyEvents, nextHighlight, isHighlight, TYPES } = await import("../src/now/calendar/events.js");
-const { countdownText, countdownParts, startOfEvent } = await import("../src/now/calendar/countdown.js");
+const { countdownText, countdownParts, startOfEvent, dayStart } = await import("../src/now/calendar/countdown.js");
 const { describeEvent, TC } = await import("../src/now/calendar/i18n.js");
 
 let pass = 0, fail = 0;
@@ -48,6 +48,12 @@ ok(countdownText(ev(at("2026-12-21T20:50:00Z")), now).text === "En 33 días", "s
 ok(countdownText(ev(Date.UTC(2026, 10, 18, 12), true), now).text === "Hoy" && countdownText(ev(Date.UTC(2026, 10, 19, 12), true), now).text === "Mañana", "eventos de todo el día: «Hoy», «Mañana»");
 ok(countdownText(ev(Date.UTC(2026, 11, 14, 12), true), now).text === "En 26 días", "Gemínidas (14-dic): «En 26 días»");
 ok(countdownText(ev(now + 3 * HOUR), now, "en").text === "In 3 h 0 min" && countdownText(vEv, now, "en").text === "Today · already happened", "en inglés");
+// pestaña abierta pasada la medianoche: lo de ayer no puede salir «Hoy · ya ocurrió»
+const nextDay = at("2026-11-19T05:30:00Z");                           // 00:30 del 19-nov en Ecuador
+ok(countdownText(vEv, nextDay, "es").text === "Ayer · ya ocurrió" && countdownText(vEv, nextDay, "en").text === "Yesterday · already happened" && countdownText(vEv, nextDay).state === "past", "pasada la medianoche, lo de ayer: «Ayer · ya ocurrió» (ES/EN)");
+ok(countdownText(vEv, at("2026-11-21T15:00:00Z")).text === "Ya ocurrió", "hace más de un día: «Ya ocurrió»");
+ok(countdownText(ev(Date.UTC(2026, 10, 18, 12), true), nextDay).text === "Ayer" && countdownText(ev(Date.UTC(2026, 10, 18, 12), true), nextDay).state === "past", "evento de todo el día de ayer: «Ayer», no «Hoy»");
+ok(dayStart(nextDay) === new Date(2026, 10, 19).getTime() && dayStart(now) === today0, "dayStart: medianoche local del día del reloj");
 const p = countdownParts(at("2026-12-21T20:50:00Z"), now);
 ok(p && p.d === 33 && p.h === 5 && p.m === 20 && p.s === 0, "cuenta regresiva grande: 33 d 05 h 20 min 00 s");
 ok(countdownParts(now - 1000, now) === null, "si ya pasó, no hay cuenta regresiva");
@@ -74,7 +80,7 @@ const card2 = eventCardText({ kind: "milestone", ev: milestoneEvents(Date.UTC(20
 ok(/50 years since Voyager 2 launched/.test(card2.title) && card2.grid.some(c => c.label === "Launch"), "postal del aniversario (en inglés)");
 
 const cal = readFileSync(new URL("../src/now/calendar/Calendar.jsx", import.meta.url), "utf8");
-ok(/new Date\(d\.getFullYear\(\), d\.getMonth\(\), d\.getDate\(\)\)\.getTime\(\)/.test(cal) && /<NextUp key=\{highlight\.id\}/.test(cal) && /className=\{`cal-cd is-\$\{cd\.state\}`\}/.test(cal), "la agenda empieza hoy a medianoche, muestra «Lo próximo» y el «cuánto falta» de cada evento");
+ok(/const now = useNow\(30000\);\s*const from = dayStart\(now\);/.test(cal) && !/const \[from\] = useState/.test(cal) && /<NextUp key=\{highlight\.id\}/.test(cal) && /className=\{`cal-cd is-\$\{cd\.state\}`\}/.test(cal), "la agenda empieza hoy a medianoche, muestra «Lo próximo» y el «cuánto falta» de cada evento");
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

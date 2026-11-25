@@ -1,6 +1,10 @@
 """
 test_smoke.py — Prueba rápida de que la instalación funciona
 
+PRUEBA MANUAL, NO DE pytest: se ejecuta a mano y USA LA RED (consulta NASA JPL Horizons y, si hay
+GROQ_API_KEY, gasta una llamada a Groq). No forma parte de la batería automática (backend/tests/,
+que corre sin red); por eso vive fuera de tests/ y no se renombra a test_*.py dentro de ella.
+
 Corre esto después de instalar requirements.txt para confirmar que
 hapsira, astropy y la lógica orbital funcionan correctamente en tu
 máquina ANTES de levantar el servidor completo.

@@ -69,7 +69,8 @@ export function buildSkyEvents({ from = Date.now(), days = 90, lat = QUITO.lat, 
   for (const e of findEclipses(from, to, lat, lon)) {
     let visible = null;
     if (e.body === "moon") visible = e.vis.state === "yes" ? true : e.vis.state === "partial" ? "partial" : false;
-    else visible = e.ecuador === "yes" ? true : e.ecuador === "partial" ? "partial" : e.ecuador === "no" ? false : null;
+    // solar: el campo `ecuador` de la NASA solo vale en Ecuador; en otro lugar no se sabe (null, sin atenuar)
+    else if (e.inEcuador) visible = e.ecuador === "yes" ? true : e.ecuador === "partial" ? "partial" : e.ecuador === "no" ? false : null;
     ev.push({ id: `${e.id}`, type: "eclipse", sub: e.body, t: e.t, durationMin: e.body === "moon" ? Math.max(60, e.umbMin || 60) : 120, visible, data: e });
   }
 

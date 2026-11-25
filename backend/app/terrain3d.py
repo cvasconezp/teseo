@@ -90,10 +90,19 @@ def encode_heights(h: np.ndarray) -> str:
     return base64.b64encode(q.tobytes()).decode()
 
 
+# tope de teselas de satélite por imagen (≈ 192 KiB cada una en RGB): la HD pide ≈ 590 a 45°, la normal ≈ 210
+MAX_TEX_TILES = 900
+
+
+def lat_zooms(lat0: float, zooms) -> tuple:
+    """Los zooms de cada tramo, bajados con la latitud (hz.zoom_for_lat): sin cambios hasta 45°."""
+    return tuple((rad, hz.zoom_for_lat(z, lat0)) for rad, z in zooms)
+
+
 def tex_tiles(lat0: float, lon0: float, zooms=TEX_ZOOMS) -> set:
     """Teselas (z, x, y) del satélite que hacen falta: por tramo de distancia, las que cubren su círculo."""
     need = set()
-    for rad, z in zooms:
+    for rad, z in lat_zooms(lat0, zooms):
         need.update((z, x, y) for (x, y) in hz.tiles_for(lat0, lon0, z, min(rad, D_MAX)))
     return need
 
@@ -106,7 +115,7 @@ def polar_texture(lat0: float, lon0: float, tiles: dict, tex_w: int = TEX_W, tex
     out = np.empty((tex_h, tex_w, 3), dtype=np.uint8)
     out[:] = NEUTRAL
     lo = 0.0
-    for rad, z in zooms:
+    for rad, z in lat_zooms(lat0, zooms):               # los mismos zooms que tex_tiles
         rows = np.flatnonzero((d > lo) & (d <= rad)) if lo else np.flatnonzero(d <= rad)
         lo = rad
         if not len(rows):
@@ -142,7 +151,7 @@ def to_jpeg(img: np.ndarray, quality: int = JPEG_Q) -> bytes:
     return buf.getvalue()
 
 
-async def near_terrain(lat: float, lon: float, fine: bool = False) -> dict:
+async def near_terrain(lat: float, lon: float, fine: bool = False, _retry: bool = True) -> dict:
     prof = await hz.get_horizon(lat, lon, fine)                  # el mismo lugar y el mismo suelo que el horizonte
     key = (prof["lat"], prof["lon"])
     if key in _results:
@@ -150,20 +159,30 @@ async def near_terrain(lat: float, lon: float, fine: bool = False) -> dict:
         return _results[key]
     fut = _inflight.get(key)
     if fut is not None:
-        return await asyncio.shield(fut)
+        try:
+            return await asyncio.shield(fut)
+        except hz.Interrumpido:
+            if not _retry:
+                raise
+            return await near_terrain(lat, lon, fine, _retry=False)   # el primero se fue: lo calcula este
     fut = asyncio.get_running_loop().create_future(); _inflight[key] = fut
     try:
         t0 = time.time()
         la, lo = key
         async with httpx.AsyncClient(timeout=hz.TIMEOUT_S, transport=hz._transport, headers=provider_headers()) as client:
             sem = asyncio.Semaphore(hz.CONCURRENCY)
-            mos = []
+            plan = []
             for z, rad in (hz.NEAR, hz.MID, hz.FAR):
-                keys = hz.tiles_for(la, lo, z, min(rad * 1.02, D_MAX * 1.05))
-                arrs = await asyncio.gather(*[hz._fetch_tile(client, z, x, y, sem) for (x, y) in keys])
-                mos.append(hz.Mosaic(z, dict(zip(keys, arrs))))
+                ze = hz.zoom_for_lat(z, la)
+                plan.append((ze, hz.tiles_for(la, lo, ze, min(rad * 1.02, D_MAX * 1.05))))
+            hz.check_tiles(sum(len(k) for _, k in plan))
+            mos = []
+            for ze, keys in plan:
+                arrs = await asyncio.gather(*[hz._fetch_tile(client, ze, x, y, sem) for (x, y) in keys])
+                mos.append(hz.Mosaic(ze, dict(zip(keys, arrs))))
         h = await run_in_threadpool(heights_grid, la, lo, mos[0], mos[1], mos[2])
         need = tex_tiles(la, lo)
+        _check_tex(len(need))
         async with httpx.AsyncClient(timeout=lc.TIMEOUT_S, transport=lc._transport, headers=provider_headers()) as client:
             sem = asyncio.Semaphore(lc.CONCURRENCY)
             got = await asyncio.gather(*[lc._tile(client, z, x, y, sem) for (z, x, y) in need])
@@ -193,6 +212,7 @@ async def near_terrain(lat: float, lon: float, fine: bool = False) -> dict:
         fut.exception()
         raise
     finally:
+        hz.release_inflight(fut)
         _inflight.pop(key, None)
 
 
@@ -200,7 +220,13 @@ _hd: "OrderedDict[tuple, bytes]" = OrderedDict()
 _hd_inflight: dict = {}
 
 
-async def near_texture_hd(lat: float, lon: float, fine: bool = False) -> bytes:
+def _check_tex(n: int) -> None:
+    if n > MAX_TEX_TILES:
+        raise hz.TooManyTiles(f"Este lugar necesitaría {n} teselas de satélite (el tope es {MAX_TEX_TILES}); "
+                              "prueba con otro punto.")
+
+
+async def near_texture_hd(lat: float, lon: float, fine: bool = False, _retry: bool = True) -> bytes:
     """La imagen del relieve cercano en alta definición (TEX_W_HD × TEX_H_HD), para la foto 360°: misma rejilla
     polar y mismo lugar que /api/terrain/near (la malla de alturas no cambia), con un zoom más de satélite."""
     prof = await hz.get_horizon(lat, lon, fine)
@@ -210,11 +236,17 @@ async def near_texture_hd(lat: float, lon: float, fine: bool = False) -> bytes:
         return _hd[key]
     fut = _hd_inflight.get(key)
     if fut is not None:
-        return await asyncio.shield(fut)
+        try:
+            return await asyncio.shield(fut)
+        except hz.Interrumpido:
+            if not _retry:
+                raise
+            return await near_texture_hd(lat, lon, fine, _retry=False)
     fut = asyncio.get_running_loop().create_future(); _hd_inflight[key] = fut
     try:
         la, lo = key
         need = tex_tiles(la, lo, TEX_ZOOMS_HD)
+        _check_tex(len(need))
         async with httpx.AsyncClient(timeout=lc.TIMEOUT_S, transport=lc._transport, headers=provider_headers()) as client:
             sem = asyncio.Semaphore(lc.CONCURRENCY)
             got = await asyncio.gather(*[lc._tile(client, z, x, y, sem) for (z, x, y) in need])
@@ -233,6 +265,7 @@ async def near_texture_hd(lat: float, lon: float, fine: bool = False) -> bytes:
         fut.exception()
         raise
     finally:
+        hz.release_inflight(fut)
         _hd_inflight.pop(key, None)
 
 
@@ -247,6 +280,8 @@ async def terrain_near(response: Response, lat: float = _Q_LAT, lon: float = _Q_
     geométrica. La imagen de satélite que va encima, en /api/terrain/near.jpg con los mismos parámetros."""
     try:
         data = await near_terrain(lat, lon, fine)
+    except hz.TooManyTiles as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:                                       # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"No se pudo preparar el relieve cercano: {e}")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
@@ -258,6 +293,8 @@ async def terrain_near_jpg(lat: float = _Q_LAT, lon: float = _Q_LON, fine: bool 
     """Imagen de satélite (Sentinel-2 cloudless 2016, EOX, CC BY 4.0) del relieve cercano, en la misma rejilla polar."""
     try:
         data = await near_terrain(lat, lon, fine)
+    except hz.TooManyTiles as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:                                       # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"No se pudo preparar el relieve cercano: {e}")
     return Response(content=data["jpg"], media_type="image/jpeg",
@@ -269,6 +306,8 @@ async def terrain_near_hd_jpg(lat: float = _Q_LAT, lon: float = _Q_LON, fine: bo
     """La misma imagen que /api/terrain/near.jpg en alta definición (4096 × 2048), para la foto 360°."""
     try:
         jpg = await near_texture_hd(lat, lon, fine)
+    except hz.TooManyTiles as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:                                       # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"No se pudo preparar el relieve en alta definición: {e}")
     return Response(content=jpg, media_type="image/jpeg",

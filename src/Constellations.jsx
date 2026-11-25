@@ -102,7 +102,7 @@ import { WxCard, WxIco } from "./sky/WxCard.jsx";
 import { fetchModels, tempAt } from "./sky/models.js";
 import { riseTransitSet, H0_SUN } from "./sky/riseset.js";
 import { TOUR_STOPS, TOUR_T, CANDIDATES, pickVisible, sunsetAt, gizaView, KHUFU, VOLCANO_VIEW, SANGAY, bearing, deepKind, nameOf } from "./sky/tour.js";
-import { nowUrl, parseNow, wxIcon, WX_NAMES, WX_MAYBE, fmtTemp, fmtWind, windText, windVector, hourAt } from "./sky/nowWeather.js";
+import { nowUrl, parseNow, wxIcon, WX_NAMES, WX_MAYBE, fmtTemp, fmtWind, windText, windVector, hourAt, wxForPlace } from "./sky/nowWeather.js";
 import { fetchVolcanoes, matchVolcanoes, recentEruption, eruptingInView, volcanoesOnSkyline, VT as VOLC_T } from "./sky/volcanoes.js";
 import { angleOf as terrainAngleOf } from "./sky/terrainLayer.js";
 import { createPlumeLayer, veiColumnKm, plumeParams } from "./sky/plumeLayer.js";
@@ -110,6 +110,8 @@ import IssPill, { nextRate } from "./sky/IssPill.jsx";
 import { ISS as ISS_TX } from "./sky/i18n-iss.js";
 import { fetchIssPass, hasTrack, hiddenReason, formatClock as issClockFmt, formatDayTime as issDayTime, DEFAULT_DAYS as ISS_DAYS } from "./sky/issPasses.js";
 import { altAzToLocal } from "./sky/issSky.js";
+import { categoryOf } from "./sky/searchCategory.js";
+import { createWhenAdvance } from "./sky/whenClock.js";
 import "./sky/sky.css";
 
 const API = import.meta.env.VITE_API_URL || "";
@@ -243,23 +245,6 @@ const STAR_ES = {
   "betelgeuse": "Betelgeuse", "bételgeuse": "Betelgeuse", "rígel": "Rigel", "alnilam": "Alnilam",
 };
 
-const CATEGORY_TERMS = [
-  // los púlsares son estrellas de neutrones (y «neutrinos» es una confusión frecuente: también lleva aquí)
-  { key: "pulsars",    terms: ["pulsar", "pulsares", "pulsars", "púlsar", "púlsares", "estrella de neutrones", "estrellas de neutrones", "neutrones", "neutron star", "neutron stars", "magnetar", "magnetares", "magnetars", "estrella de neutrinos", "estrellas de neutrinos"] },
-  { key: "blackholes", terms: ["agujero negro", "agujeros negros", "agujero", "hoyo negro", "black hole", "blackhole", "black holes"] },
-  { key: "deepfields", terms: ["campo profundo", "campos profundos", "deep field", "deep fields", "ultra deep", "ultraprofundo", "hudf", "smacs"] },
-  { key: "galaxies",   terms: ["galaxia", "galaxias", "galaxy", "galaxies"] },
-  { key: "comets",     terms: ["cometa", "cometas", "comet", "comets"] },
-  { key: "minor",      terms: ["asteroide", "asteroides", "asteroid", "asteroids", "planeta enano", "planetas enanos", "dwarf planet", "dwarf planets"] },
-  { key: "meteors",    terms: ["meteoro", "meteoros", "lluvia de meteoros", "lluvias", "meteor", "meteor shower"] },
-  { key: "caldwell",   terms: ["caldwell"] },
-  { key: "oddities",   terms: ["nebulosa oscura", "nebulosas oscuras", "dark nebula", "supernova", "supernovas", "supernovae", "cuásar", "cuasar", "cuásares", "cuasares", "quasar", "quasars", "cúmulo de galaxias", "cumulo de galaxias", "galaxy cluster"] },
-  { key: "specialstars", terms: ["estrella doble", "estrellas dobles", "double star", "double stars", "estrella variable", "estrellas variables", "variable star", "variable stars", "cefeida", "cepheid"] },
-  { key: "ngc",        terms: ["ngc", "catálogo ngc", "catalogo ngc", "new general catalogue"] },
-  { key: "messier",    terms: ["messier", "nebulosa", "nebulosas", "cúmulo", "cumulo", "cúmulos", "nebula", "cluster"] },
-  { key: "exoplanets", terms: ["exoplaneta", "exoplanetas", "exoplanet", "exoplanets"] },
-  { key: "probes",     terms: ["sonda", "sondas", "telescopio", "telescopios", "telescopio espacial", "nave", "naves", "satélite", "satelite", "satélites", "satelites", "misión", "mision", "misiones", "probe", "probes", "spacecraft", "telescope", "telescopes", "satellite", "satellites", "mission", "missions", "voyager"] },
-];
 function labelForObj(key, o, lang) {
   if (key === "messier" || key === "ngc") return `${o.name}${o.cn ? " · " + o.cn : ""}`;
   if (key === "galaxies") return o.name + (o.cat && o.cat !== o.name ? " · " + o.cat : "");
@@ -276,10 +261,12 @@ function starObj(st, si) {
   return { name: st[7], nx: st[1], ny: st[2], nz: st[3], dist_ly: st[6], mag: st[4], hex: starTint(st), bv: st[8] === undefined ? undefined : st[8], spect: st[9] || "", si, layer: "star" };
 }
 
-// Una lluvia está activa si hoy (MM-DD) cae en [start, end]; la ventana puede
-// cruzar el fin de año (p. ej. Cuadrántidas 12-28 -> 01-12).
-function meteorActive(o, now = new Date()) {
-  const md = String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+// Una lluvia está activa si el día (MM-DD) cae en [start, end]; la ventana puede
+// cruzar el fin de año (p. ej. Cuadrántidas 12-28 -> 01-12). El día es el de `now` (la fecha del cielo) en la
+// zona `tz` del lugar; sin zona, la del dispositivo.
+function meteorActive(o, now = new Date(), tz = null) {
+  const p = tzParts(now, tz);
+  const md = String(p.m).padStart(2, "0") + "-" + String(p.d).padStart(2, "0");
   return o.start <= o.end ? (md >= o.start && md <= o.end) : (md >= o.start || md <= o.end);
 }
 
@@ -869,24 +856,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [sky]);
 
   // término de categoría detectado (para listar la capa entera)
-  const catMatch = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (q.length < 3) return null;
-    // "sat" debe seguir encontrando Saturno (y "mar" Marte), no la categoría "satélites"
-    if (["sol", "sun", "luna", "moon", "mercurio", "mercury", "venus", "marte", "mars", "júpiter", "jupiter", "saturno", "saturn", "urano", "uranus", "neptuno", "neptune"].some(n => n.startsWith(q))) return null;
-    // los términos de varias palabras ("estrella de neutrones") solo cuentan cuando ya se escribió más de una
-    // palabra: así "estrella" sigue buscando estrellas por nombre
-    const hit = (t) => (t.includes(" ") && !q.includes(" ")) ? false : (t.startsWith(q) || t === q || t.includes(q));
-    return CATEGORY_TERMS.find(c => c.terms.some(hit)) || null;
-  }, [query]);
-
-  // si se busca una categoría cuya capa aún no está cargada (diferida/backend),
-  // se activa para poder listarla en los resultados.
-  useEffect(() => {
-    if (catMatch && !datasets[catMatch.key]) {
-      setEnabled(e => e[catMatch.key] ? e : ({ ...e, [catMatch.key]: true }));
-    }
-  }, [catMatch, datasets]);
+  const catMatch = useMemo(() => categoryOf(query), [query]);   // src/sky/searchCategory.js
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -1036,6 +1006,15 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       const cfg = LAYERS.find(l => l.key === "caldwell"); if (cfg) loadLayer(cfg);
     }
   }, [query, datasets, loadingLayer, layerError, loadLayer]);
+
+  // si se busca una categoría cuya capa aún no está cargada (diferida/backend), se descargan sus datos para
+  // listarla en los resultados, SIN encender la capa (no queda puesta ni entra en el enlace L=): se enciende
+  // al elegir un resultado, como con las sondas
+  useEffect(() => {
+    if (catMatch && !datasets[catMatch.key] && !loadingLayer[catMatch.key] && !layerError[catMatch.key]) {
+      const cfg = LAYERS.find(l => l.key === catMatch.key); if (cfg && (cfg.api || cfg.lazy)) loadLayer(cfg);
+    }
+  }, [catMatch, datasets, loadingLayer, layerError, loadLayer]);
 
 
   // ── deep-links: el estado se lee del hash al montar y cada vez que cambia con la app abierta ──
@@ -2373,6 +2352,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       });
       starTex.dispose();
       guides.dispose();
+      // y lo que ese recorrido no ve: texturas en uniforms (teselas HiPS, relieve, nubes, aurora, Vía Láctea), las
+      // cargas pendientes de las capas y la escena propia de la vista de profundidad. Cada dispose() es idempotente
+      // (lo ya liberado arriba se vuelve a liberar sin efecto); un fallo en una capa no impide liberar el resto
+      for (const L of [milky, hips, hipsFine, terrain, near3d, monuments, plume, mountLines, issLayer, atm, clouds, aurora, depthView]) {
+        try { L.dispose(); } catch { /* no-op */ }
+      }
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       setReady(false);
@@ -2849,7 +2834,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [volcKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   const volcList = volc.key === volcKey ? volc.list : null;
   // el tiempo de ahora en el lugar (pastilla «16 °C · Quito»; src/sky/nowWeather.js): cada 15 minutos
-  const [wxNow, setWxNow] = useState(null);
+  const [wxNowRaw, setWxNow] = useState(null);
   const [wxOpen, setWxOpen] = useState(false);   // la tarjeta del tiempo (WxCard.jsx), abierta desde la pastilla
   const [mountOpen, setMountOpen] = useState(false);   // «Estacionar montura» (MountSheet.jsx), desde la brújula
   const [flatMode, setFlatMode] = useState(null);      // null | "sun" | "compass": el celular plano en el suelo
@@ -2865,26 +2850,34 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     let alive = true;
     // (si la consulta falla —el servicio limita las consultas seguidas, p. ej. al saltar entre puntos de un sitio— se
     // conserva lo último que se tenía y se reintenta al rato: la ficha del clima no desaparece)
+    // cada dato guarda su lugar (wxForPlace): si la consulta del lugar nuevo falla, no se muestra el de otra ciudad.
+    // Un reintento pendiente se cancela antes de otro (el intervalo también llama a ask): no se acumulan cadenas
     let retry = 0;
-    const ask = () => fetch(nowUrl(lat, lon, wxElev)).then((r) => (r.ok ? r.json() : null)).then((j) => {
+    const place = { lat, lon };
+    const again = () => { clearTimeout(retry); retry = setTimeout(ask, 30000); };
+    const ask = () => { clearTimeout(retry); return fetch(nowUrl(lat, lon, wxElev)).then((r) => (r.ok ? r.json() : null)).then((j) => {
       const w = parseNow(j); if (!alive) return;
-      if (w) setWxNow({ ...w, fetchedAt: Date.now() }); else retry = setTimeout(ask, 30000);
-    }).catch(() => { if (alive) retry = setTimeout(ask, 30000); });
+      if (w) setWxNow({ ...w, fetchedAt: Date.now(), place }); else again();
+    }).catch(() => { if (alive) again(); }); };
     ask();
     const id = setInterval(ask, 15 * 60 * 1000);
     return () => { alive = false; clearInterval(id); clearTimeout(retry); };
   }, [wxNowKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   // siete modelos del mismo punto (src/sky/models.js): la pastilla y la tarjeta muestran su mediana y avisan si no
   // coinciden. Cada 30 minutos (Open-Meteo actualiza cada hora); si fallan, queda el modelo por defecto
-  const [wxMod, setWxMod] = useState(null);
+  const [wxModRaw, setWxMod] = useState(null);
   useEffect(() => {
     if (!wxNowKey) { setWxMod(null); return undefined; }
     let alive = true;
-    const ask = () => fetchModels(lat, lon, wxElev).then((m) => { if (alive) setWxMod(m); }).catch(() => {});
+    const place = { lat, lon };
+    const ask = () => fetchModels(lat, lon, wxElev).then((m) => { if (alive) setWxMod(m ? { ...m, place } : m); }).catch(() => {});
     ask();
     const id = setInterval(ask, 30 * 60 * 1000);
     return () => { alive = false; clearInterval(id); };
   }, [wxNowKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // lo que se muestra: solo el dato de este lugar (o de un punto vecino del mismo sitio)
+  const wxNow = wxNowKey ? wxForPlace(wxNowRaw, lat, lon) : null;
+  const wxMod = wxNowKey ? wxForPlace(wxModRaw, lat, lon) : null;
   // nubes: pronóstico de Open-Meteo para el lugar (solo si se piden o se abre su panel) y capa del cielo
   useEffect(() => { try { localStorage.setItem(CLOUDS_KEY, cloudsOn ? "1" : "0"); } catch { /* no-op */ } }, [cloudsOn]);
   const wxKey = localActive && !viewFrom && lat != null && lon != null ? `${Math.round(lat * 10)},${Math.round(lon * 10)}` : null;
@@ -3266,11 +3259,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     } catch { ref.aurora.setEnabled(false); }   // nunca debe romper la vista
   }, [auView, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // los avances de la hora parten del instante recordado de cada cadena, no de releerla (src/sky/whenClock.js):
+  // en la hora repetida del cambio de horario, releer «01:50» volvía a la primera pasada y el play quedaba en bucle
+  const advanceWhen = useMemo(() => createWhenAdvance(fmtInput), []);
   // animar el tiempo (play)
   // (con una pasada de la ISS en el cielo, el tiempo lo lleva su reloj, al segundo y a ×1/×10/×60: ver el bucle)
   useEffect(() => {
     if (!playing || issOn) return;
-    const id = setInterval(() => setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + 10 * 60000))), 120);
+    const id = setInterval(() => setWhenStr(w => advanceWhen(w, 10 * 60000)), 120);
     return () => clearInterval(id);
   }, [playing, issOn]);
   // reloj de la ISS: sigue al reloj del sistema en «ahora»; si whenStr cambió por otro control (±1 h, fecha,
@@ -3312,14 +3308,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       const whole = rateAcc.current > 0 ? Math.floor(rateAcc.current) : Math.ceil(rateAcc.current);
       if (!whole) return;
       rateAcc.current -= whole;
-      setWhenStr((w) => fmtInput(new Date(new Date(w).getTime() + whole * 60000)));
+      setWhenStr((w) => advanceWhen(w, whole * 60000));
     }, 100);
     return () => clearInterval(id);
   }, [rateIdx]);
   // a velocidad real pero con la hora movida: el cielo avanza un minuto por minuto (en «ahora» ya sigue al reloj)
   useEffect(() => {
     if (rateIdx !== REAL || !timeMoved) return;
-    const id = setInterval(() => setWhenStr((w) => fmtInput(new Date(new Date(w).getTime() + 60000))), 60000);
+    const id = setInterval(() => setWhenStr((w) => advanceWhen(w, 60000)), 60000);
     return () => clearInterval(id);
   }, [rateIdx, timeMoved]);
   const setRate = useCallback((i) => {
@@ -3335,7 +3331,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     setPlaying(false); setTimeMoved(true);
     setWhenStr((w) => fmtInput(setMinuteTz(new Date(w), min, tzRef.current)));
   }, []);
-  const shiftMin = useCallback((m) => { setTimeMoved(true); setWhenStr(w => fmtInput(new Date(new Date(w).getTime() + m * 60000))); }, []);
+  const shiftMin = useCallback((m) => { setTimeMoved(true); setWhenStr(w => advanceWhen(w, m * 60000)); }, [advanceWhen]);
   useEffect(() => { if (sceneRef.current) sceneRef.current.labelDensity = labelDensity; }, [labelDensity, ready]);
   // tras cada render de React (capas, selección, hora, idioma…) el bucle dibuja a ritmo completo medio segundo
   useEffect(() => { const r = sceneRef.current; if (r && r.wake) r.wake(); });
@@ -4582,7 +4578,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       on={cloudsOn} onToggle={() => { const nv = !cloudsOn; setCloudsOn(nv); track("sky_setting", { setting: "clouds", state: nv ? "on" : "off" }); }}
       fc={wxKey ? (wx.key === wxKey ? wx : { status: "loading" }) : null} onRetry={() => setWxRetry((n) => n + 1)}
       onMount={() => setWxWanted(true)} onSat={() => track("sky_setting", { setting: "satellite", state: "on" })}
-      when={new Date(whenStr)} isNow={!timeMoved} isNight={isNight} lat={lat} lon={lon} pointHours={wxNow ? wxNow.hours : null}
+      when={new Date(whenStr)} isNow={!timeMoved} isNight={isNight} lat={lat} lon={lon} pointHours={wxNow ? wxNow.hours : null} tz={placeTz}
       placeName={placeKind === "me" ? (lang === "es" ? "Tu lugar" : "Your place") : placeKind === "custom" ? null : placeKind} />
   );
   const tonightGo = (it) => {
@@ -4895,7 +4891,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
 
       {liveObj && !selCon && (
         <ObjectSheet obj={liveObj} lang={lang} t={t} wiki={wiki} wikiState={wikiState} credit={credit}
-          meteorActive={liveObj.layer === "meteors" && meteorActive(liveObj)}
+          meteorActive={liveObj.layer === "meteors" && meteorActive(liveObj, when, placeTz)}
           onClose={() => setSelObj(null)} onShare={openShare} onCenter={recenter}
           local={localInfo} when={when} onNeedPlace={() => { setPanel("location"); if (!isWide) setSelObj(null); }}
           onFind={canFind ? (findByPointing ? () => findIt(guideOf(liveObj)) : () => showIt(liveObj)) : null}

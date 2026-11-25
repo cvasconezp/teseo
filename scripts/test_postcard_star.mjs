@@ -73,7 +73,7 @@ const OBJS = {
   betelgeuse: starObj("Betelgeuse"), sirius: starObj("Sirius"), vega: starObj("Vega"), rigel: starObj("Rigel"),
   sun: { layer: "solar", name: "Sol", nx: -0.6, ny: -0.7, nz: -0.3, dist_au: 0.9887, ra: 231, dec: -18.6 },
   jupiter: { layer: "solar", name: "Júpiter", nx: 0.3, ny: 0.9, nz: 0.3, dist_au: 4.4, mag: -2.7, body: "planet", ra: 110, dec: 22 },
-  m42: { layer: "messier", name: "M42", cn: "Orion Nebula", type: "nebula", m: 42, ngc: "NGC1976", nx: 0.1, ny: 0.99, nz: -0.09, dist_ly: 1344, mag: 4, const_es: "Orión", const: "Orion" },
+  m42: { layer: "messier", name: "M42", cn: "Orion Nebula", type: "nebula", m: 42, ngc: "NGC1976", nx: 0.1, ny: 0.99, nz: -0.09, dist_ly: 1265, mag: 4, const_es: "Orión", const: "Orion" },
   m13: { layer: "messier", name: "M13", type: "globular", m: 13, nx: -0.36, ny: -0.6, nz: 0.6, dist_ly: 22200, mag: 5.8 },
   andromeda: { layer: "galaxies", name: "Andrómeda", cat: "M31", hubble: "SA(s)b", nx: 0.77, ny: 0.15, nz: 0.62, dist_ly: 2.5e6, mag: 3.4 },
   sgra: { layer: "blackholes", name: "Sgr A*", kind: "supermasivo", nx: -0.05, ny: -0.87, nz: -0.48, dist_ly: 26000, mass_sun: 4.3e6 },

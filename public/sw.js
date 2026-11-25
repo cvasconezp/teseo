@@ -1,9 +1,12 @@
 // Teseo service worker — soporte offline
-const CACHE = "teseo-v4";
+// teseo-v5: cambia la estrategia de los datos (stale-while-revalidate) y purga una vez lo acumulado en v4
+const CACHE = "teseo-v5";
 const CORE = [
   "/", "/index.html", "/favicon.svg", "/manifest.webmanifest",
   "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png", "/sky.json",
 ];
+// iconos y estáticos sin hash que no cambian: cache-first
+const STATIC = new Set(["/favicon.svg", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/apple-touch-icon.png"]);
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
@@ -22,6 +25,8 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // no tocar el backend / NASA
+  // nunca la API (funciones de Vercel) ni el .ics de suscripción: siempre a la red, sin caché
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/cal/")) return;
 
   // Navegaciones: network-first, fallback al index cacheado (SPA)
   if (req.mode === "navigate") {
@@ -38,26 +43,35 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Resto de assets same-origin (JS/CSS hasheados, sky.json, iconos): cache-first
-  e.respondWith(
-    caches.match(req).then((cached) =>
-      cached ||
-      fetch(req).then((r) => {
-        // No guardar el index.html que Vercel devuelve (200) para un asset
-        // inexistente: dejaría una imagen/JSON "rota" en caché para siempre.
-        const isHtml = (r.headers.get("content-type") || "").includes("text/html");
-        if (r.ok && !isHtml && (r.type === "basic" || r.type === "default")) {
-          const copy = r.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-        }
-        return r;
-      }).catch(() => cached || Response.error())
-    )
-  );
+  // Con hash en el nombre (/assets/) o que no cambian (texturas, iconos): cache-first
+  if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/textures/") || STATIC.has(url.pathname)) {
+    e.respondWith(
+      caches.match(req).then((cached) =>
+        cached || fetch(req).then((r) => { keep(e, req, r); return r; }).catch(() => Response.error())
+      )
+    );
+    return;
+  }
+
+  // Datos (/sky.json, /comet-orbits.json, /data/…) y el resto: stale-while-revalidate. Se responde al
+  // momento con la copia guardada y se actualiza en segundo plano para la próxima visita; sin copia, red.
+  // (Antes iban cache-first y quien ya había entrado no veía nunca los datos nuevos.)
+  const net = fetch(req).then((r) => { keep(e, req, r); return r; });
+  e.waitUntil(net.then(() => {}, () => {}));
+  e.respondWith(caches.match(req).then((cached) => cached || net.catch(() => Response.error())));
 });
 
+/** Guarda en caché solo respuestas buenas del mismo origen: nada no-OK, opaco ni el index.html que
+ *  Vercel devuelve (200) para un archivo inexistente (dejaría un JSON o una imagen «rota» para siempre). */
+function keep(e, req, r) {
+  const isHtml = (r.headers.get("content-type") || "").includes("text/html");
+  if (!r.ok || isHtml || (r.type !== "basic" && r.type !== "default")) return;
+  const copy = r.clone();
+  e.waitUntil(caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {}));
+}
+
 // ─── Avisos push: «Recordarme» del Calendario del cielo (src/now/calendar/push.js, backend app/push.py) ───
-// Solo se añaden manejadores: la estrategia de caché no cambia (por eso CACHE sigue en "teseo-v3").
+// Solo se añaden manejadores: no tocan la caché (la versión de CACHE depende solo de la estrategia de caché).
 // El payload llega cifrado de extremo a extremo (RFC 8291) y trae { title, body, url, tag, lang }.
 
 /** URL de la app a abrir: solo del mismo origen (si no, la portada de «Ahora en el espacio»). */

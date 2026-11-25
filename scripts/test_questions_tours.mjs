@@ -125,7 +125,8 @@ ok(near(sigmaTension(SH0ES.H0, SH0ES.H0err, PLANCK.H0, PLANCK.H0err), 4.89, 2e-3
 ok(H0_SLIDER.min < best && best < H0_SLIDER.max && Math.abs(H0_SLIDER.start - best) > 10, "el deslizador empieza lejos del ajuste (hay algo que ajustar)");
 ok(OL_SLIDER.max < 1, "siempre queda algo de materia (el modelo la necesita)");
 const gal = readJson("../public/galaxies.json");
-eq(gal.meta.count, TESEO_GALAXY_COUNT, "número de galaxias de Teseo = meta.count del JSON");
+eq(gal.objects.length, TESEO_GALAXY_COUNT, "número de galaxias de Teseo = objetos del JSON");
+eq(gal.meta.count, gal.objects.length, "meta.count de galaxies.json = objetos reales");
 ok(new RegExp(`H0=${TESEO_GALAXY_H0}\\b`).test(gal.meta.distance), "el JSON declara que su distancia sale de la ley de Hubble con H0 = 70 (circularidad)");
 ok(gal.objects.every(o => !("v" in o) && !("radvel" in o) && !("z" in o)), "el JSON no trae velocidades: no puede ser un diagrama de Hubble independiente");
 

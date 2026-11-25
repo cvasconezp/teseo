@@ -400,6 +400,9 @@ def _percentages(counts: Dict[str, int]) -> Dict[str, int]:
     return out
 
 
+LANDING_CACHE_S = 60                              # caché de landing_summary (cifras de la landing pública)
+
+
 class MetricsStore:
     def __init__(self, directory: Optional[str] = None, clock=time.time,
                  retain_days: int = RETAIN_DAYS, flush_seconds: int = FLUSH_SECONDS):
@@ -414,6 +417,7 @@ class MetricsStore:
         self.last_error: Optional[str] = None
         self.path: Optional[str] = None
         self.reason: Optional[str] = None
+        self._landing_cache: Dict[int, Any] = {}   # days → (instante, resumen): ver landing_summary
         self._configure(directory)
 
     # -- configuración y disco -------------------------------------------------
@@ -525,12 +529,22 @@ class MetricsStore:
             return data
 
     def status(self) -> Dict[str, Any]:
-        snap = self.snapshot()
+        # /api/health lo pide a menudo: sin copiar todo el almacén (snapshot hace un deepcopy de hasta un año
+        # de contadores); solo se cuentan los días y los totales de hoy, con la misma regla que _merge_into/_prune
         today = utc_day(self.clock())
-        events_today = sum(c.get("_", 0) for c in snap["days"].get(today, {}).values())
+        cutoff = (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=self.retain_days - 1)).strftime("%Y-%m-%d")
+        with self._lock:
+            days = {d for src in (self.base, self.pending) for d, ev in (src.get("days") or {}).items()
+                    if isinstance(ev, dict) and d >= cutoff}
+            events_today = 0
+            for src in (self.base, self.pending):
+                for c in ((src.get("days") or {}).get(today) or {}).values():
+                    n = c.get("_", 0) if isinstance(c, dict) else 0
+                    if isinstance(n, int) and n > 0:
+                        events_today += n
         out = {
             "storage": "persistent" if self.persistent else "memory",
-            "days_stored": len(snap["days"]),
+            "days_stored": len(days),
             "events_today": events_today,
         }
         if not self.persistent:
@@ -617,7 +631,18 @@ class MetricsStore:
 
     def landing_summary(self, days: int = 30) -> Dict[str, Any]:
         """Lo único público (GET /api/metrics/public): las cifras que muestra la landing de
-        yachaydeep.com. Nada de listas, días, dispositivos ni detalle por función."""
+        yachaydeep.com. Nada de listas, días, dispositivos ni detalle por función.
+        Es pública y sin token: se guarda LANDING_CACHE_S por `days` para que pedirla en bucle no obligue a
+        recorrer (y copiar) todo el almacén cada vez."""
+        now = self.clock()
+        hit = self._landing_cache.get(days)
+        if hit is not None and 0 <= now - hit[0] < LANDING_CACHE_S:
+            return hit[1]
+        out = self._landing_summary(days)
+        self._landing_cache[days] = (now, out)
+        return out
+
+    def _landing_summary(self, days: int) -> Dict[str, Any]:
         full = self.public_summary(days)
         return {
             "generated": full["generated"], "from": full["from"], "to": full["to"],
@@ -729,7 +754,17 @@ class MetricsStore:
 
 def client_ip(headers, fallback: Optional[str]) -> Optional[str]:
     """IP del visitante tras el proxy de Railway (solo para el límite por
-    minuto: se usa hasheada con sal efímera y nunca se guarda)."""
+    minuto: se usa hasheada con sal efímera y nunca se guarda).
+
+    Primero X-Real-IP: la pone el edge de Railway con la IP que ve, y el cliente no puede falsearla (el
+    edge la sobrescribe). El primer valor de X-Forwarded-For, en cambio, lo controla el cliente (puede
+    mandar uno inventado en cada petición y saltarse el límite), así que solo se usa si falta X-Real-IP.
+    Duda abierta: NO se toma el último valor de X-Forwarded-For; si fuera la IP del propio proxy de
+    Railway, todos los visitantes compartirían cubeta y se bloquearían entre sí. Si algún día se confirma
+    qué posición añade el edge, se puede afinar."""
+    real = (headers.get("x-real-ip") or "").strip()
+    if real:
+        return real
     xff = headers.get("x-forwarded-for") or ""
     first = xff.split(",")[0].strip()
-    return first or headers.get("x-real-ip") or fallback
+    return first or fallback

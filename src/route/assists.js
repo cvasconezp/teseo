@@ -187,15 +187,16 @@ export const MISSIONS = {
       { body: "venus", kind: "assist", date: "2020-10-15" },
       { body: "venus", kind: "assist", date: "2021-08-11" },
       { body: "mercury", kind: "assist", n: 6, date: "2025-01-08" },
-      { body: "mercury", kind: "arrival", date: "2026-11-21", scheduled: true },
+      { body: "mercury", kind: "arrival", date: "2026-11-21" },
     ],
     note: {
-      es: "Seis sobrevuelos de Mercurio: 1 oct 2021, 23 jun 2022, 19 jun 2023, 4 sep 2024, 1 dic 2024 y 8 ene 2025. ESA prevé la entrada en órbita de Mercurio el 21 de noviembre de 2026.",
-      en: "Six Mercury flybys: 1 Oct 2021, 23 Jun 2022, 19 Jun 2023, 4 Sep 2024, 1 Dec 2024 and 8 Jan 2025. ESA plans Mercury orbit insertion on 21 November 2026.",
+      es: "Seis sobrevuelos de Mercurio: 1 oct 2021, 23 jun 2022, 19 jun 2023, 4 sep 2024, 1 dic 2024 y 8 ene 2025. Entró en órbita de Mercurio el 21 de noviembre de 2026 (ESA); la órbita inicial quedó en 75 h en vez de las 58 h previstas.",
+      en: "Six Mercury flybys: 1 Oct 2021, 23 Jun 2022, 19 Jun 2023, 4 Sep 2024, 1 Dec 2024 and 8 Jan 2025. It entered Mercury orbit on 21 November 2026 (ESA); the initial orbit came out at 75 h instead of the planned 58 h.",
     },
     sources: [
       { label: "ESA, ficha de BepiColombo", url: "https://www.esa.int/Science_Exploration/Space_Science/BepiColombo/BepiColombo_factsheet" },
       { label: "ESA, viaje a Mercurio", url: "https://www.esa.int/Science_Exploration/Space_Science/BepiColombo/Journey_to_Mercury" },
+      { label: "ESA, llegada a Mercurio", url: "https://www.esa.int/Science_Exploration/Space_Science/BepiColombo/Latest_updates_BepiColombo_s_arrival_at_Mercury" },
     ],
   },
   parker: {

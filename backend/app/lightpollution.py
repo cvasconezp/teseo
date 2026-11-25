@@ -108,7 +108,7 @@ def bortle_of(index: float) -> int:
 
 def decode_png(content: bytes) -> np.ndarray:
     from PIL import Image
-    return np.asarray(Image.open(io.BytesIO(content)).convert("RGB"), dtype=np.float32)
+    return np.asarray(Image.open(io.BytesIO(content), formats=["PNG"]).convert("RGB"), dtype=np.float32)
 
 
 async def _tile(client, x, y, sem):

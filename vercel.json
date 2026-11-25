@@ -24,7 +24,7 @@
       "destination": "/about/index.html"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api/|assets/).*)",
       "destination": "/index.html"
     }
   ],
@@ -38,7 +38,7 @@
         },
         {
           "key": "X-Frame-Options",
-          "value": "DENY"
+          "value": "SAMEORIGIN"
         },
         {
           "key": "Strict-Transport-Security",
@@ -50,11 +50,19 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=(self), browsing-topics=()"
+          "value": "camera=(), microphone=(), geolocation=(self), accelerometer=(self), gyroscope=(self), magnetometer=(self), screen-wake-lock=(self), fullscreen=(self), usb=(), serial=(), hid=(), bluetooth=(), midi=(), browsing-topics=()"
         },
         {
           "key": "Content-Security-Policy",
           "value": "frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
+        },
+        {
+          "key": "Content-Security-Policy-Report-Only",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.paypal.com https://*.paypal.com https://*.paypalobjects.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://teseo-production.up.railway.app https://api.open-meteo.com https://geocoding-api.open-meteo.com https://photon.komoot.io https://es.wikipedia.org https://en.wikipedia.org https://commons.wikimedia.org https://images-api.nasa.gov https://gibs.earthdata.nasa.gov https://view.eumetsat.int https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://www.paypal.com https://*.paypal.com; worker-src 'self'; manifest-src 'self'; media-src 'self' blob:; frame-src https://www.googletagmanager.com https://www.paypal.com https://*.paypal.com; form-action 'self' https://www.paypal.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
         }
       ]
     },

@@ -384,4 +384,5 @@ def test_endpoint_error_de_calculo_es_503(tmp_path, monkeypatch):
         if r.status_code != 202:
             break
         time.sleep(0.05)
-    assert r.status_code == 503 and "fallo simulado" in r.json()["detail"]
+    # 503 con mensaje genérico: el texto interno del fallo va al registro, no al cliente
+    assert r.status_code == 503 and "fallo simulado" not in r.json()["detail"] and r.json()["detail"]

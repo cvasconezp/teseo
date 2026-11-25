@@ -226,11 +226,13 @@ export function describeEvent(ev, lang, f) {
           ? `Máximo: ${f.time(ev.t)}. NUNCA mires al Sol sin gafas con filtro solar certificado (ISO 12312-2) o proyección; ni a simple vista ni con prismáticos o telescopio sin filtro.`
           : `Maximum: ${f.time(ev.t)}. NEVER look at the Sun without certified solar eclipse glasses (ISO 12312-2) or projection; not with the naked eye, binoculars or a telescope without a filter.`;
         const band = d.type === "annular" ? (es ? "anularidad" : "annularity") : (es ? "totalidad" : "totality");
-        if (d.ecuador === "yes") vis(true, es ? `Visible desde Ecuador: sí. Según la NASA, la franja de ${band} cruza Ecuador (${d.central.replace(/^[A-Za-z]+:\s*/, "")}); fuera de ella se ve parcial. Consulta el mapa para tu ciudad.` : `Visible from Ecuador: yes. According to NASA, the path of ${band} crosses Ecuador (${d.central.replace(/^[A-Za-z]+:\s*/, "")}); outside it you see a partial eclipse. Check the map for your city.`);
+        // el campo `ecuador` (lo que dice la NASA) solo vale si el lugar está en Ecuador; fuera, texto neutro y el mapa
+        if (!d.inEcuador) { vis(null); out.note = es ? "La visibilidad depende de tu lugar: consulta el mapa de la NASA." : "Visibility depends on your place: check the NASA map."; }
+        else if (d.ecuador === "yes") vis(true, es ? `Visible desde Ecuador: sí. Según la NASA, la franja de ${band} cruza Ecuador (${d.central.replace(/^[A-Za-z]+:\s*/, "")}); fuera de ella se ve parcial. Consulta el mapa para tu ciudad.` : `Visible from Ecuador: yes. According to NASA, the path of ${band} crosses Ecuador (${d.central.replace(/^[A-Za-z]+:\s*/, "")}); outside it you see a partial eclipse. Check the map for your city.`);
         else if (d.ecuador === "partial") vis("partial", es ? "Visible desde Ecuador: parcial. La NASA cita «Sudamérica» sin detallar Ecuador: consulta el mapa antes de salir." : "Visible from Ecuador: partial. NASA lists “South America” without detailing Ecuador: check the map before heading out.");
         else if (d.ecuador === "no") vis(false, es ? "Visible desde Ecuador: no. Ecuador no figura en la región de visibilidad que da la NASA." : "Visible from Ecuador: no. Ecuador is not in the visibility region NASA gives.");
         else vis(null);
-        if (d.ecuador === "map") out.note = es ? "Consulta el mapa de la NASA para tu lugar." : "Check the NASA map for your place.";
+        if (d.inEcuador && d.ecuador === "map") out.note = es ? "Consulta el mapa de la NASA para tu lugar." : "Check the NASA map for your place.";
         out.region = d.region; out.links.push({ href: d.map, label: T.nasaMap });
       }
       break;

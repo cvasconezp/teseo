@@ -399,6 +399,10 @@ def compute_trajectory(origin: str, destination: str, window: dict, hohmann: dic
             return None
         d_jd, a_jd = _snap_day(sol[0]), _snap_day(sol[1])
         g = _eval_pairs(origin, destination, np.array([d_jd]), np.array([a_jd]))
+        # al redondear al día, Lambert puede no converger en el par nuevo (NaN/inf): sin solución, no números rotos
+        if not (np.isfinite(g["vinf_dep"][0]) and np.isfinite(g["vinf_arr"][0])
+                and np.all(np.isfinite(g["vinf_dep_vec"][0]))):
+            return None
         return _describe(origin, destination, d_jd, a_jd, float(g["vinf_dep"][0]),
                          float(g["vinf_arr"][0]), g["vinf_dep_vec"][0]), d_jd, a_jd
 

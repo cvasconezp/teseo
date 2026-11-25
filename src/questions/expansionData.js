@@ -87,7 +87,7 @@ export const SH0ES = { H0: 73.04, H0err: 1.04 };
 export const KEY_PROJECT = { H0: 71, random: 2, systematic: 6 };
 // H0 con el que se construyó la capa "Galaxias" de Teseo (scripts/build_deepsky.py)
 export const TESEO_GALAXY_H0 = 70;
-export const TESEO_GALAXY_COUNT = 2058;                  // meta.count de public/galaxies.json
+export const TESEO_GALAXY_COUNT = 2057;                  // objetos de public/galaxies.json
 export const CMB_AGE_YEARS = 380000;
 
 export const EXP_NEXT = [

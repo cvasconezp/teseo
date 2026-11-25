@@ -7,8 +7,11 @@
 // muestra lo que devuelve el backend, con sus umbrales de privacidad explicados.
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { fetchJson, isAbort } from "../net.js";
+import { cycleFocus } from "../ui/focusTrap.js";
 
 // clave del panel #admin (la guarda AdminGate en App.jsx, solo en esta pestaña)
+/** ¿El servidor rechazó la clave? (fetchJson lanza «HTTP 401») */
+export const isAuthError = (e) => !!e && /^HTTP 401\b/.test(String(e.message || ""));
 const adminHeaders = () => { try { const t = sessionStorage.getItem("teseo-admin-token"); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; } };
 import {
   PERIODS, DEFAULT_DAYS, PRIVACY_URL, TU, usageUrl, fmtInt, fmtDay, fmtLongDate, topRows, isPublicSummary,
@@ -96,7 +99,7 @@ function TopList({ title, rows, lang, t }) {
   );
 }
 
-export default function UsageModal({ lang = "es", api = "", initialDays = DEFAULT_DAYS, onClose }) {
+export default function UsageModal({ lang = "es", api = "", initialDays = DEFAULT_DAYS, onClose, onAuthFail }) {
   const t = TU[lang === "en" ? "en" : "es"];
   const [days, setDays] = useState(PERIODS.includes(initialDays) ? initialDays : DEFAULT_DAYS);
   const [state, setState] = useState({ status: "loading", data: null });   // loading | ready | error
@@ -109,9 +112,14 @@ export default function UsageModal({ lang = "es", api = "", initialDays = DEFAUL
     setState(s => ({ status: "loading", data: s.data }));
     fetchJson(usageUrl(api, days), { signal: ctrl.signal, timeout: 15000, headers: adminHeaders() })
       .then(d => { if (!isPublicSummary(d)) throw new Error("respuesta inesperada"); setState({ status: "ready", data: d }); })
-      .catch(e => { if (!isAbort(e)) setState(s => ({ status: "error", data: s.data && s.data.days === days ? s.data : null })); });
+      .catch(e => {
+        if (isAbort(e)) return;
+        // 401: la clave guardada ya no vale (cambió en el servidor): se borra y AdminGate la vuelve a pedir
+        if (isAuthError(e)) { try { sessionStorage.removeItem("teseo-admin-token"); } catch { /* no-op */ } if (onAuthFail) { onAuthFail(); return; } }
+        setState(s => ({ status: "error", data: s.data && s.data.days === days ? s.data : null }));
+      });
     return () => ctrl.abort();
-  }, [api, days, attempt]);
+  }, [api, days, attempt]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // foco: entra al diálogo, queda atrapado dentro y vuelve a su origen al cerrar
   useEffect(() => {
@@ -122,12 +130,7 @@ export default function UsageModal({ lang = "es", api = "", initialDays = DEFAUL
   }, []);
   const onKey = useCallback((e) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(); return; }
-    if (e.key !== "Tab" || !boxRef.current) return;
-    const els = [...boxRef.current.querySelectorAll("button:not(:disabled), a[href], [tabindex]:not([tabindex='-1'])")];
-    if (!els.length) return;
-    const first = els[0], last = els[els.length - 1];
-    if (e.shiftKey && (document.activeElement === first || document.activeElement === boxRef.current)) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    cycleFocus(e, boxRef.current);   // ciclo primer ↔ último control (src/ui/focusTrap.js)
   }, [onClose]);
 
   const { status, data } = state;

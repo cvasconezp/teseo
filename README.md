@@ -4,9 +4,9 @@
 
 **Navegador interplanetario y planetario de bolsillo, con física orbital real
 y datos citados.** En línea: **[teseo.yachaydeep.com](https://teseo.yachaydeep.com)**
-· versión **1.5** (16-nov-2026).
+· versión actual en [CHANGELOG.md](CHANGELOG.md).
 
-Hecho por [Yachay Deep Labs](https://yachaydeep.com) **en cooperación con
+Hecho por [Yachay Deep Labs](https://yachaydeep.com) **con
 [Killa Ñan · Astronomía comunitaria](https://sites.google.com/view/killanan/inicio)**
 (Cayambe, Ecuador). Código publicado para uso no comercial (PolyForm Noncommercial 1.0.0), creado por
 [Carlos Vásconez-Paredes](https://github.com/cvasconezp). Español e inglés;
@@ -92,7 +92,7 @@ teseo/
 └── README.md
 ```
 
-El frontend (React + Vite, visualización en SVG) ya está incluido. Consume el
+El frontend (React + Vite, cielo en three.js) ya está incluido. Consume el
 backend a través de la variable `VITE_API_URL`.
 
 ## Cómo correrlo localmente
@@ -265,5 +265,5 @@ datos») y en `CREDITS.md`. Las principales:
 - Catálogos: HYG (Hipparcos), Stellarium, OpenNGC, IMO, CelesTrak, Launch
   Library 2.
 - Física orbital: [hapsira](https://github.com/pleiszenburg/hapsira), astropy
-  y sgp4. Narrativa: [Groq](https://groq.com) (modelos Llama) — narra, nunca
+  y sgp4. Narrativa: [Groq](https://groq.com) (modelo abierto, configurable con `GROQ_MODEL`) — narra, nunca
   calcula.

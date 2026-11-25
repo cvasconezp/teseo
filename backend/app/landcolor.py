@@ -54,7 +54,7 @@ stats = {"computed": 0, "tiles_fetched": 0, "last_ms": None, "last_error": None}
 
 def decode_jpeg(content: bytes) -> np.ndarray:
     from PIL import Image
-    im = Image.open(io.BytesIO(content)).convert("RGB")
+    im = Image.open(io.BytesIO(content), formats=["JPEG"]).convert("RGB")
     if im.size != (TS, TS):
         im = im.resize((TS, TS))
     return np.asarray(im, dtype=np.uint8)
@@ -82,7 +82,7 @@ def plan(prof: dict):
     az = cols * step
     out, lo = [], 0.3
     for k, band in enumerate(prof["bands"]):
-        z = ZOOMS[min(k, len(ZOOMS) - 1)]
+        z = hz.zoom_for_lat(ZOOMS[min(k, len(ZOOMS) - 1)], prof["lat"])   # sin cambios hasta 45° (ver horizon)
         d = np.asarray(band["dist_km"], dtype=np.float64)[cols] * 1000.0
         d = np.where(d > 0, d, (lo + band["max_km"]) * 500.0)
         dmid = (lo * 1000.0 + d) / 2.0
@@ -217,6 +217,8 @@ async def horizon_colors(response: Response,
     0,4° de acimut: por banda, `top` y `bottom` en base64 (RGB, 3 bytes por columna)."""
     try:
         data = await land_colors(lat, lon, fine)
+    except hz.TooManyTiles as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:                                       # noqa: BLE001
         stats["last_error"] = str(e)
         raise HTTPException(status_code=502, detail=f"No se pudieron leer los colores del satélite: {e}")

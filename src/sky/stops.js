@@ -75,13 +75,15 @@ export function allStops() {
   }
   return (cache = out);
 }
-/** Los puntos del sitio donde está el observador (a menos de `reach` m de alguno) y en cuál está de pie. */
-export function stopsAt(lat, lon, reach = 1500) {
-  for (const [site, stops] of Object.entries(allStops())) {
+/** Los puntos del sitio donde está el observador (a menos de `reach` m de alguno) y en cuál está de pie. Si dos
+ *  sitios quedan al alcance, el MÁS CERCANO (no el primero de la tabla). `table` solo para las pruebas. */
+export function stopsAt(lat, lon, reach = 1500, table = allStops()) {
+  let best = null, bestD = Infinity;
+  for (const [site, stops] of Object.entries(table)) {
     const d = stops.map((s) => offsetOf(lat, lon, s.lat, s.lon).d), k = d.indexOf(Math.min(...d));
-    if (d[k] <= (site === "machupicchu" ? 700 : reach)) return { site, stops, here: d[k] < 12 ? stops[k].id : null };
+    if (d[k] <= (site === "machupicchu" ? 700 : reach) && d[k] < bestD) { bestD = d[k]; best = { site, stops, here: d[k] < 12 ? stops[k].id : null }; }
   }
-  return null;
+  return best;
 }
 /** El punto de visita al que lleva el rótulo de un monumento (o null). */
 export const stopOf = (monId) => { for (const stops of Object.values(allStops())) { const s = stops.find((q) => q.at.includes(monId)); if (s) return s; } return null; };

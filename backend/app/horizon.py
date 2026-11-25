@@ -60,7 +60,13 @@ SUMMIT_STEP_M = 12.0         # rejilla de búsqueda (más fina que el píxel: el
 SUMMIT_MAX_R = 2000.0
 TIMEOUT_S = 20.0
 CONCURRENCY = 12
-TILE_CACHE_MAX = 140
+# Cada tesela decodificada son 256 × 256 float32 = 256 KiB: 300 teselas ≈ 75 MiB como mucho. Un cálculo del
+# horizonte o del relieve cercano pide como mucho ≈ 280 (con zoom_for_lat, a cualquier latitud; 257 a 45°): así el
+# relieve cercano, que pide casi las mismas justo después del horizonte, las encuentra en la caché.
+TILE_CACHE_MAX = 300
+# Red de seguridad: un cálculo que pidiera más teselas que esto se rechaza (422) en vez de agotar la memoria
+# (256 KiB por tesela más el mosaico que las pega: 600 teselas ≈ 300 MiB). Con zoom_for_lat no debería pasar.
+MAX_TILES_PER_CALC = 600
 RESULT_CACHE_MAX = 600
 CACHE_SECONDS = 7 * 86400    # el relieve no cambia: el navegador puede guardarlo una semana
 
@@ -91,7 +97,7 @@ def cell_of(lat: float, lon: float, fine: bool = False) -> tuple:
 
 def decode_terrarium(png: bytes, z: Optional[int] = None) -> np.ndarray:
     """PNG terrarium → alturas (m), float32 256×256 (con `z`, sin picos aislados: despike)."""
-    a = np.asarray(Image.open(io.BytesIO(png)).convert("RGB"), dtype=np.float32)
+    a = np.asarray(Image.open(io.BytesIO(png), formats=["PNG"]).convert("RGB"), dtype=np.float32)
     h = a[..., 0] * 256.0 + a[..., 1] + a[..., 2] / 256.0 - 32768.0
     return despike(h, z) if z is not None else h
 
@@ -131,6 +137,38 @@ def destination(lat0: float, lon0: float, az_deg: np.ndarray, d_m: np.ndarray):
     l2 = l1 + np.arctan2(np.sin(b) * np.sin(dr) * np.cos(p1), np.cos(dr) - np.sin(p1) * np.sin(p2))
     lon = (np.degrees(l2) + 540.0) % 360.0 - 180.0
     return np.degrees(p2), lon
+
+
+def zoom_for_lat(z: int, lat: float, z_min: int = 3) -> int:
+    """Zoom efectivo en la latitud `lat`: en Web Mercator una tesela mide en el suelo 1/cos φ veces menos que en el
+    ecuador, así que para cubrir el mismo radio harían falta 1/cos² φ veces más teselas (138 en el ecuador, 2.664 a
+    78°, 6.899 a 85°: memoria agotada). Se baja un zoom por cada factor 2 de 1/cos φ, redondeando: hasta 45° de
+    latitud no cambia nada (ahí vive casi todo el mundo) y más allá el número de teselas y el metro por píxel quedan
+    dentro de ×√2 de los del ecuador."""
+    c = max(0.05, math.cos(math.radians(lat)))
+    return max(z_min, min(z, z - int(math.floor(math.log2(1.0 / c) + 0.5))))
+
+
+class TooManyTiles(ValueError):
+    """El cálculo pediría más de MAX_TILES_PER_CALC teselas (→ 422)."""
+
+
+def check_tiles(n: int) -> None:
+    if n > MAX_TILES_PER_CALC:
+        raise TooManyTiles(f"Este lugar necesitaría {n} teselas de relieve (el tope es {MAX_TILES_PER_CALC}); "
+                           "prueba con otro punto.")
+
+
+class Interrumpido(RuntimeError):
+    """El cálculo compartido se canceló (el cliente que lo lanzó se fue): quien lo esperaba lo repite."""
+
+
+def release_inflight(fut: "asyncio.Future") -> None:
+    """Para el finally de un cálculo compartido: si quien calculaba fue cancelado (CancelledError no es Exception),
+    el futuro quedaba sin resolver y quien lo esperaba se colgaba para siempre."""
+    if not fut.done():
+        fut.set_exception(Interrumpido("cálculo interrumpido"))
+        fut.exception()   # marcada como vista
 
 
 def tiles_for(lat0: float, lon0: float, z: int, radius_m: float) -> list:
@@ -241,25 +279,34 @@ def compute_profile(lat0: float, lon0: float, near: Mosaic, mid: Mosaic, far: Mo
     }
 
 
-async def get_horizon(lat: float, lon: float, fine: bool = False) -> dict:
+async def get_horizon(lat: float, lon: float, fine: bool = False, _retry: bool = True) -> dict:
     key = cell_of(lat, lon, fine)
     if key in _results:
         _results.move_to_end(key)
         return _results[key]
     fut = _inflight.get(key)
     if fut is not None:
-        return await asyncio.shield(fut)
+        try:
+            return await asyncio.shield(fut)
+        except Interrumpido:
+            if not _retry:
+                raise
+            return await get_horizon(lat, lon, fine, _retry=False)   # el primero se fue: lo calcula este
     loop = asyncio.get_running_loop()
     fut = loop.create_future(); _inflight[key] = fut
     try:
         t0 = time.time()
         sem = asyncio.Semaphore(CONCURRENCY)
         async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=_transport, headers=provider_headers()) as client:
-            mos = []
+            plan = []
             for z, rad in (NEAR, MID, FAR):
-                keys = tiles_for(key[0], key[1], z, rad)
-                arrs = await asyncio.gather(*[_fetch_tile(client, z, x, y, sem) for (x, y) in keys])
-                mos.append((z, dict(zip(keys, arrs))))
+                ze = zoom_for_lat(z, key[0])
+                plan.append((ze, tiles_for(key[0], key[1], ze, rad)))
+            check_tiles(sum(len(k) for _, k in plan))
+            mos = []
+            for ze, keys in plan:
+                arrs = await asyncio.gather(*[_fetch_tile(client, ze, x, y, sem) for (x, y) in keys])
+                mos.append((ze, dict(zip(keys, arrs))))
         near, mid, far = Mosaic(*mos[0]), Mosaic(*mos[1]), Mosaic(*mos[2])
         res = await run_in_threadpool(compute_profile, key[0], key[1], near, mid, far)
         res["computed"] = iso_utc(time.time())
@@ -275,6 +322,7 @@ async def get_horizon(lat: float, lon: float, fine: bool = False) -> dict:
         fut.exception()   # marcada como vista: quien espera la recibe igual
         raise
     finally:
+        release_inflight(fut)
         _inflight.pop(key, None)
 
 
@@ -288,6 +336,8 @@ async def horizon(response: Response,
     (con fine, a 0,0002°); no se guarda ni se registra más que en la caché del servidor."""
     try:
         data = await get_horizon(lat, lon, fine)
+    except TooManyTiles as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"No se pudo leer el relieve ({SOURCE.split(' (')[0]}): {e}")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
@@ -343,15 +393,19 @@ async def summit(response: Response,
         async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=_transport, headers=provider_headers()) as client:
             for _ in range(3):
                 big = max(600.0, 3.0 * rr) if strict else rr
-                keys = tiles_for(lat, lon, SUMMIT_Z, big + 60.0)
-                arrs = await asyncio.gather(*[_fetch_tile(client, SUMMIT_Z, x, y, sem) for (x, y) in keys])
-                mos = Mosaic(SUMMIT_Z, dict(zip(keys, arrs)))
+                sz = zoom_for_lat(SUMMIT_Z, lat)
+                keys = tiles_for(lat, lon, sz, big + 60.0)
+                check_tiles(len(keys))
+                arrs = await asyncio.gather(*[_fetch_tile(client, sz, x, y, sem) for (x, y) in keys])
+                mos = Mosaic(sz, dict(zip(keys, arrs)))
                 data = await run_in_threadpool(find_summit, mos, lat, lon, rr, strict)
                 # lo más alto cayó en el borde del círculo: es una ladera, no la cima (el punto del mapa estaba en el
                 # centro de un cráter, como en el Fuji o el Popocatépetl): se busca en un círculo mayor
                 if strict or data["dist_m"] < rr - 2 * SUMMIT_STEP_M or rr >= SUMMIT_MAX_R:
                     break
                 rr = min(SUMMIT_MAX_R, rr * 2.5)
+    except TooManyTiles as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"No se pudo leer el relieve ({SOURCE.split(' (')[0]}): {e}")
     data["source"] = SOURCE

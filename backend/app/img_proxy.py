@@ -46,6 +46,8 @@ TIMEOUT_S = 15.0
 # caducidad por host: la imagen «latest» de SDO cambia cada ~15 min; las de la biblioteca de la NASA no cambian
 TTL_BY_HOST = {"sdo.gsfc.nasa.gov": 15 * 60, "images-assets.nasa.gov": 24 * 3600}
 CACHE_MAX_BYTES = 48 * 1024 * 1024
+# descargas simultáneas en todo el proceso (cada una puede ocupar hasta MAX_BYTES en memoria mientras llega)
+MAX_CONCURRENT = 4
 
 # Para las pruebas: un httpx.MockTransport (sin red real). En producción, None.
 _transport: Optional[httpx.AsyncBaseTransport] = None
@@ -60,8 +62,12 @@ class ProxyError(Exception):
         self.detail = detail
 
 
-def check_url(u: str) -> str:
-    """Valida la URL pedida: https, host EXACTO de la lista, sin credenciales ni puertos raros. Devuelve la URL sin fragmento."""
+def check_url(u: str, allow_query: bool = False) -> str:
+    """Valida la URL pedida: https, host EXACTO de la lista, sin credenciales ni puertos raros. Devuelve la URL sin fragmento.
+
+    Sin query (`?…`): ninguna imagen que pide la app la lleva (SDO y la biblioteca de la NASA son rutas fijas), y
+    con ella cualquiera podría pedir la misma imagen con mil variantes para saltarse la caché. Solo se admite en
+    las redirecciones del propio servidor de origen (allow_query), que no controla el cliente."""
     if not isinstance(u, str) or not u or len(u) > MAX_URL:
         raise ProxyError(400, "URL vacía o demasiado larga")
     try:
@@ -76,6 +82,8 @@ def check_url(u: str) -> str:
         raise ProxyError(400, "host fuera de la lista permitida")
     if parts.username or parts.password or (port not in (None, 443)):
         raise ProxyError(400, "URL con credenciales o puerto no permitidos")
+    if parts.query and not allow_query:
+        raise ProxyError(400, "URL con parámetros (?…) no permitida")
     return parts._replace(fragment="").geturl()
 
 
@@ -115,9 +123,11 @@ def _cache_put(url: str, data: bytes, ctype: str, ttl: float) -> None:
 
 def reset_cache() -> None:
     """Olvida todo (para pruebas)."""
-    global _cache_bytes
+    global _cache_bytes, _sem
     _cache.clear()
     _cache_bytes = 0
+    _inflight.clear()
+    _sem = None
 
 
 def cache_status() -> dict:
@@ -136,7 +146,7 @@ async def fetch_image(url: str) -> Tuple[bytes, str]:
                     if not loc:
                         raise ProxyError(502, "redirección sin destino")
                     try:
-                        url = check_url(urljoin(url, loc))
+                        url = check_url(urljoin(url, loc), allow_query=True)
                     except ProxyError:
                         raise ProxyError(502, "la fuente redirige fuera de la lista permitida")
                     continue
@@ -166,6 +176,45 @@ _OK_HEADERS = {
 }
 
 
+_sem: Optional[asyncio.Semaphore] = None
+_inflight: dict = {}   # url → tarea de descarga compartida (vuelo único)
+
+
+def _semaphore() -> asyncio.Semaphore:
+    global _sem
+    if _sem is None:
+        _sem = asyncio.Semaphore(MAX_CONCURRENT)
+    return _sem
+
+
+async def _download(url: str) -> Tuple[bytes, str]:
+    async with _semaphore():
+        return await asyncio.wait_for(fetch_image(url), timeout=TIMEOUT_S + 5)
+
+
+def _shared_download(url: str) -> "asyncio.Task":
+    """Vuelo único por URL: varias peticiones de la misma imagen a la vez esperan UNA descarga, que corre aparte
+    (si el primer cliente se va, termina igual y sirve a los demás)."""
+    t = _inflight.get(url)
+    if t is not None and not t.done():
+        try:
+            if t.get_loop() is asyncio.get_running_loop():
+                return t
+        except RuntimeError:
+            pass
+    t = asyncio.get_running_loop().create_task(_download(url))
+
+    def _done(task, url=url):
+        if _inflight.get(url) is task:
+            _inflight.pop(url, None)
+        if not task.cancelled():
+            task.exception()   # marcada como vista
+
+    t.add_done_callback(_done)
+    _inflight[url] = t
+    return t
+
+
 @router.get("/img", include_in_schema=False)
 async def img(u: str = Query(..., max_length=MAX_URL)):
     try:
@@ -179,7 +228,7 @@ async def img(u: str = Query(..., max_length=MAX_URL)):
         data, ctype, _ = hit
         return Response(content=data, media_type=ctype, headers={**_OK_HEADERS, "Cache-Control": f"public, max-age={int(ttl)}", "X-Teseo-Cache": "hit"})
     try:
-        data, ctype = await asyncio.wait_for(fetch_image(url), timeout=TIMEOUT_S + 5)
+        data, ctype = await asyncio.shield(_shared_download(url))
     except ProxyError as e:
         return JSONResponse(status_code=e.status, content={"detail": e.detail}, headers=_ERR_HEADERS)
     except (asyncio.TimeoutError, httpx.TimeoutException):

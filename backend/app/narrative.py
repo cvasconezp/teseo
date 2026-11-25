@@ -5,11 +5,15 @@ IMPORTANTE: este módulo NUNCA calcula física. Solo recibe los resultados
 YA CALCULADOS por orbital.py (datos reales y deterministas) y los convierte
 en una explicación legible para humanos. La IA narra; no calcula.
 
-Usa Groq (gratuito, modelos open-source como Llama) en lugar de un LLM de pago,
+Usa Groq (gratuito, modelos de pesos abiertos) en lugar de un LLM de pago,
 ya que esta tarea es generación de texto, no razonamiento matemático crítico.
 """
 
 import os
+import re
+import threading
+from collections import OrderedDict
+
 from groq import Groq
 
 # La API key se lee de la variable de entorno GROQ_API_KEY.
@@ -19,11 +23,10 @@ _client: Groq | None = None
 # Modelo Groq, configurable por entorno para sobrevivir deprecaciones sin
 # tocar código (basta cambiar GROQ_MODEL en Railway y reiniciar).
 #
-# Aviso (sept 2026): Groq movió `llama-3.3-70b-versatile` y
-# `llama-3.1-8b-instant` a planes Enterprise, así que en cuentas developer
-# devuelven 404 ("model does not exist or you do not have access to it").
-# Modelos disponibles en plan developer: openai/gpt-oss-120b,
-# openai/gpt-oss-20b, groq/compound, groq/compound-mini.
+# Modelos vigentes (nov 2026): openai/gpt-oss-120b (por defecto) y
+# openai/gpt-oss-20b. Retirados, NO usar: los llama-3.x (16-ago-2026) y
+# groq/compound y groq/compound-mini (21-sep-2026); un modelo retirado
+# responde 404 y la ruta sigue sin narración.
 # Ref: https://console.groq.com/docs/models y .../docs/deprecations
 DEFAULT_MODEL = "openai/gpt-oss-120b"
 
@@ -87,6 +90,63 @@ def _body_name(body: str, lang: str) -> str:
     return ("Earth" if body == "earth" else body.capitalize())
 
 
+LANGS = ("es", "en")
+CONCEPT_MAX = 120                 # /api/explain: un concepto es un término corto, no un prompt
+NARRATIVE_CACHE_MAX = 512         # narraciones guardadas (cada una, unos cientos de bytes)
+_narr_cache: "OrderedDict[tuple, str]" = OrderedDict()
+_narr_lock = threading.Lock()
+
+
+def normalize_lang(lang) -> str:
+    """Solo ES y EN; cualquier otra cosa → es (la narración nunca rompe la ruta por el idioma)."""
+    v = str(lang or "").strip().lower()[:2]
+    return v if v in LANGS else "es"
+
+
+def clean_concept(concept: str) -> str:
+    """El concepto saneado: sin caracteres de control, espacios colapsados y como mucho CONCEPT_MAX."""
+    v = re.sub(r"[\x00-\x1f\x7f]+", " ", str(concept or ""))
+    return re.sub(r"\s+", " ", v).strip()[:CONCEPT_MAX]
+
+
+def _narr_key(data: dict, lang: str) -> tuple:
+    # el texto solo depende de los números, y estos, del par y del DÍA de salida
+    return (str(data.get("origin")), str(data.get("destination")), str(data.get("departure_date"))[:10], lang)
+
+
+def cached_travel_narrative(data: dict, lang: str):
+    """La narración ya hecha para este viaje (o None)."""
+    with _narr_lock:
+        k = _narr_key(data, lang)
+        if k in _narr_cache:
+            _narr_cache.move_to_end(k)
+            return _narr_cache[k]
+    return None
+
+
+def travel_narrative(data: dict, lang: str = "es") -> str:
+    """generate_travel_narrative con caché por (origen, destino, día de salida, idioma): la misma ruta el mismo
+    día no vuelve a llamar a Groq. Solo se guardan las que salieron bien (un fallo no se cachea)."""
+    lang = normalize_lang(lang)
+    hit = cached_travel_narrative(data, lang)
+    if hit is not None:
+        return hit
+    text = generate_travel_narrative(data, lang=lang)
+    with _narr_lock:
+        _narr_cache[_narr_key(data, lang)] = text
+        while len(_narr_cache) > NARRATIVE_CACHE_MAX:
+            _narr_cache.popitem(last=False)
+    return text
+
+
+def _nonempty(text: str) -> str:
+    """Un modelo de razonamiento puede gastar todo max_tokens pensando y no escribir nada: eso es un fallo
+    (narrativa null y sin cachear), no un texto vacío que mostrar."""
+    if not text or not text.strip():
+        raise RuntimeError("Groq devolvió una respuesta vacía")
+    return text
+
+
 def _complete_text(completion) -> str:
     """Texto de la respuesta; si el modelo se quedó sin tokens a media frase,
     se recorta en el último punto para no mostrar una frase cortada."""
@@ -108,6 +168,7 @@ def generate_travel_narrative(hohmann_data: dict, lang: str = "es") -> str:
     orbital.py — esta función solo los traduce a lenguaje humano.
     """
     client = _get_client()
+    lang = normalize_lang(lang)
 
     lang_instruction = "Responde en español." if lang == "es" else "Respond in English."
 
@@ -136,7 +197,7 @@ Escribe las fechas tal como se te dan (sin horas) y termina siempre la última f
         max_tokens=900,
     )
 
-    return _complete_text(completion)
+    return _nonempty(_complete_text(completion))
 
 
 def explain_concept(concept: str, lang: str = "es") -> str:
@@ -146,6 +207,8 @@ def explain_concept(concept: str, lang: str = "es") -> str:
     o similar, directamente desde la UI.
     """
     client = _get_client()
+    concept = clean_concept(concept)
+    lang = normalize_lang(lang)
 
     lang_instruction = "Responde en español." if lang == "es" else "Respond in English."
 
@@ -162,4 +225,4 @@ def explain_concept(concept: str, lang: str = "es") -> str:
         max_tokens=700,
     )
 
-    return _complete_text(completion)
+    return _nonempty(_complete_text(completion))

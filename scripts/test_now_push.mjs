@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import {
   isIOS, iosVersion, detectPush, leadOptions, reminderTimes, canRemind, cleanSubscription, buildRemindRequest,
   buildDeleteRequest, urlB64ToUint8Array, sameKey, readState, writeState, withReminder, withoutReminder, STORE_KEY, LEADS,
+  call, timeoutSignal, CALL_TIMEOUT_MS, PushError,
 } from "../src/now/calendar/push.js";
 import { TC } from "../src/now/calendar/i18n.js";
 import { metricParams } from "../src/ui/track.js";
@@ -160,11 +161,40 @@ console.log("Textos, métricas y service worker");
   const sw = readFileSync(new URL("../public/sw.js", import.meta.url), "utf8");
   ok(/addEventListener\("push"/.test(sw) && /addEventListener\("notificationclick"/.test(sw), "sw.js: manejadores push y notificationclick");
   ok(/icon: "\/icon-192\.png"/.test(sw) && /badge:/.test(sw), "sw.js: icono e insignia");
-  ok(/const CACHE = "teseo-v4"/.test(sw) && /req\.mode === "navigate"/.test(sw) && /caches\.match\(req\)\.then/.test(sw), "sw.js: misma caché y estrategias (network-first / cache-first)");
+  ok(/const CACHE = "teseo-v5"/.test(sw) && /req\.mode === "navigate"/.test(sw) && /caches\.match\(req\)\.then/.test(sw), "sw.js: caché v5 y estrategias (network-first / cache-first)");
+  // los datos (/sky.json, /comet-orbits.json…) no pueden quedarse congelados: stale-while-revalidate
+  ok(/stale-while-revalidate/.test(sw) && /e\.waitUntil\(net\.then/.test(sw) && /cached \|\| net\.catch/.test(sw), "sw.js: los datos se sirven de caché y se actualizan en segundo plano");
+  ok(/url\.pathname\.startsWith\("\/assets\/"\)/.test(sw) && /url\.pathname\.startsWith\("\/textures\/"\)/.test(sw), "sw.js: cache-first solo para /assets/ (con hash), /textures/ e iconos");
+  ok(/url\.pathname\.startsWith\("\/api\/"\)[^\n]*\) return;/.test(sw), "sw.js: nunca toca /api/");
+  ok(/if \(!r\.ok \|\| isHtml \|\| \(r\.type !== "basic" && r\.type !== "default"\)\) return;/.test(sw), "sw.js: no guarda respuestas no-OK, opacas ni el index.html de un 404");
+  ok(!/teseo-v3/.test(sw), "sw.js: sin comentarios con una versión de caché vieja");
   ok(/url\.pathname === "\/" \|\| url\.pathname === "\/index\.html"/.test(sw), "sw.js: solo guarda como app la página / (no /acerca ni el .ics)");
   ok(/url\.origin === self\.location\.origin \? url\.href : fallback/.test(sw), "sw.js: solo abre URLs del mismo origen");
   const cal = readFileSync(new URL("../src/now/calendar/Calendar.jsx", import.meta.url), "utf8");
   ok(!/requestPermission/.test(cal) && !/useEffect\([^)]*ensureSubscription/.test(cal), "Calendar.jsx no pide permiso al cargar (solo push.js, desde un clic)");
+}
+
+console.log("Tiempo límite de las llamadas al backend");
+{
+  // un servidor que no responde: fetch queda colgado hasta que la señal lo aborta → PushError("network")
+  const realFetch = globalThis.fetch;
+  let seen = null;
+  globalThis.fetch = (url, opts) => { seen = opts; return new Promise((_, rej) => { opts.signal.addEventListener("abort", () => rej(new DOMException("timeout", "TimeoutError"))); }); };
+  const t0 = Date.now();
+  const keepAlive = setTimeout(() => {}, 3000);   // el temporizador de AbortSignal.timeout no retiene a Node
+  let err = null;
+  try { await call("https://api.example", "/api/push/remind", "POST", { a: 1 }, 50); } catch (e) { err = e; }
+  ok(err instanceof PushError && err.code === "network" && Date.now() - t0 < 2000 && seen && seen.signal, "una llamada colgada se corta y da PushError(\"network\")");
+  clearTimeout(keepAlive);
+  globalThis.fetch = realFetch;
+  ok(CALL_TIMEOUT_MS === 15000, "tiempo límite por defecto: 15 s");
+  // respaldo sin AbortSignal.timeout (navegadores viejos): AbortController + setTimeout
+  const orig = AbortSignal.timeout;
+  AbortSignal.timeout = undefined;
+  const sig = timeoutSignal(20);
+  await new Promise((r) => setTimeout(r, 60));
+  AbortSignal.timeout = orig;
+  ok(sig.aborted, "sin AbortSignal.timeout la señal también se aborta");
 }
 
 console.log(`\n${passed} pruebas correctas, ${failed} fallidas`);

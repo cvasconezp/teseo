@@ -66,3 +66,62 @@ def test_eumetview_mascara_y_altura_por_colores():
 def test_hora_del_barrido_en_los_nombres():
     assert cs._scan_start("OR_ABI-L2-ACTPF-M6_G19_s20263270200216_e2_c3.nc").isoformat() == "2026-11-23T02:00:21+00:00"
     assert cs._scan_start("AHI-CPHS_v1r1_h09_s202611230200210_e2_c3.nc").isoformat() == "2026-11-23T02:00:21+00:00"
+
+
+# ── lectura por partes: exige 206 y acota la memoria; listados caducados fuera ─────────────────────────────
+class _FakeResp:
+    def __init__(self, status, content=b"", headers=None, text=""):
+        self.status_code, self.content, self.headers, self.text = status, content, headers or {}, text
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+
+class _FakeHttp:
+    def __init__(self, size, honor_range=True):
+        self.size, self.honor, self.gets = size, honor_range, 0
+        self.data = bytes(i % 251 for i in range(size))
+
+    def head(self, url):
+        return _FakeResp(200, headers={"content-length": str(self.size)})
+
+    def get(self, url, headers=None, params=None):
+        self.gets += 1
+        if params is not None:                                         # listado de S3
+            return _FakeResp(200, text="<Key>a</Key><Key>b</Key>")
+        if not self.honor:
+            return _FakeResp(200, self.data)
+        a, b = map(int, headers["Range"][6:].split("-"))
+        return _FakeResp(206, self.data[a:b + 1])
+
+
+def test_rangefile_lee_por_partes_y_acota_bloques(monkeypatch):
+    http = _FakeHttp(64 * 1024)
+    monkeypatch.setattr(cs, "_http", lambda: http)
+    f = cs.RangeFile("https://x/y.nc", block=1024, max_blocks=4)
+    f.seek(5000)
+    assert f.read(3000) == http.data[5000:8000]
+    f.seek(40000); f.read(10)
+    assert len(f.cache) <= 4
+    assert cs.RangeFile("https://x/y.nc").max_blocks == 40
+
+
+def test_rangefile_rechaza_200_sin_range(monkeypatch):
+    import pytest
+    http = _FakeHttp(64 * 1024, honor_range=False)
+    monkeypatch.setattr(cs, "_http", lambda: http)
+    f = cs.RangeFile("https://x/y.nc", block=1024)
+    with pytest.raises(OSError):
+        f.read(10)
+    assert not f.cache
+
+
+def test_listados_caducados_se_purgan(monkeypatch):
+    http = _FakeHttp(10)
+    monkeypatch.setattr(cs, "_http", lambda: http)
+    cs._lists.clear()
+    cs._lists[("viejo", "p/", False)] = (0.0, ["x"])                  # de hace mucho
+    assert cs._s3_keys("noaa-goes19", "ABI/") == ["a", "b"]
+    assert ("viejo", "p/", False) not in cs._lists and len(cs._lists) == 1
+    cs._lists.clear()

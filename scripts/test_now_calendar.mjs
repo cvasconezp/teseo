@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
 import { buildSkyEvents, buildFeedEvents, buildEvents, groupByMonth, readPlace, normalizeIss, QUITO, PLACE_KEY } from "../src/now/calendar/events.js";
 import { findOppositions, findElongations, findConjunctions } from "../src/now/calendar/planets.js";
 import { seasonMoment } from "../src/now/calendar/seasons.js";
-import { findEclipses, lunarEclipseVisibility, LUNAR_ECLIPSES, SOLAR_ECLIPSES } from "../src/now/calendar/eclipses.js";
+import { findEclipses, lunarEclipseVisibility, inEcuadorBox, LUNAR_ECLIPSES, SOLAR_ECLIPSES } from "../src/now/calendar/eclipses.js";
 import { classifyLaunch, filterLaunches } from "../src/now/calendar/launchFilter.js";
 import { buildIcs, icsUtc, icsEscape, foldLine, icsFileName } from "../src/now/calendar/ics.js";
 import { TC, describeEvent, howToSee } from "../src/now/calendar/i18n.js";
@@ -128,6 +128,16 @@ console.log("Eclipses: lista NASA y visibilidad lunar desde Quito");
   ok(eq["se-2027-02-06"] === "partial", "6-feb-2027 (NASA: «S. America…»): parcial, sin detallar Ecuador");
   ok(eq["se-2026-08-12"] === "no" && eq["se-2027-08-02"] === "no" && eq["se-2028-07-22"] === "no", "12-ago-2026, 2-ago-2027 y 22-jul-2028: la región NASA no incluye Sudamérica → no");
   ok(SOLAR_ECLIPSES.every(e => /^https:\/\/eclipse\.gsfc\.nasa\.gov\//.test(e.map)), "cada eclipse solar enlaza al mapa de la NASA");
+  // el campo `ecuador` solo vale en Ecuador: desde Madrid el total del 12-ago-2026 no puede salir «No visible»
+  ok(inEcuadorBox(QUITO.lat, QUITO.lon) && inEcuadorBox(-2.19, -79.89) && inEcuadorBox(-0.74, -90.31) && !inEcuadorBox(40.42, -3.70) && !inEcuadorBox(-12.05, -77.04) && !inEcuadorBox(4.71, -74.07) && !inEcuadorBox(NaN, 0),
+    "inEcuadorBox: Quito, Guayaquil y Galápagos sí; Madrid, Lima y Bogotá no");
+  const fe = { time: (ms) => new Date(ms).toISOString().slice(11, 16), n: (x, d = 0) => Number(x).toFixed(d), pct: (x) => `${Math.round(x * 100)} %` };
+  const sunEv = (lat, lon, id) => buildSkyEvents({ from: U("2026-08-01T00:00"), days: 600, lat, lon, showers }).find(e => e.id === id);
+  const mad = sunEv(40.42, -3.70, "se-2026-08-12"), quiAug = sunEv(QUITO.lat, QUITO.lon, "se-2026-08-12"), qui28 = sunEv(QUITO.lat, QUITO.lon, "se-2028-01-26");
+  const dMad = describeEvent(mad, "es", fe), dMadEn = describeEvent(mad, "en", fe);
+  ok(mad.visible === null && dMad.vis === null && !/Ecuador/.test(JSON.stringify(dMad)) && /mapa de la NASA/.test(dMad.note) && /NASA map/.test(dMadEn.note) && dMad.links.some(l => /eclipse\.gsfc\.nasa\.gov/.test(l.href)),
+    "eclipse solar desde Madrid: sin «No visible», sin «Ecuador», nota neutra ES/EN y enlace al mapa NASA");
+  ok(quiAug.visible === false && /Visible desde Ecuador: no/.test(describeEvent(quiAug, "es", fe).vis.text) && qui28.visible === true, "eclipse solar desde Quito: se usa lo que dice la NASA para Ecuador (12-ago-2026 no; 26-ene-2028 sí)");
 }
 
 // ─── 5 · Filtro de lanzamientos ──────────────────────────────────────────────

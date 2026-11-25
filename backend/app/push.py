@@ -97,6 +97,9 @@ TICK_SECONDS = _env_int("TESEO_PUSH_TICK_SECONDS", 60, 5, 3600)
 # Peticiones por minuto y origen (alto: en una charla todo el público comparte la IP pública de la wifi)
 WRITE_RATE_PER_MIN = _env_int("TESEO_PUSH_RATE_PER_MIN", 300, 5, 100000)
 TEST_RATE_PER_MIN = _env_int("TESEO_PUSH_TEST_RATE_PER_MIN", 30, 1, 10000)
+# Suscripciones NUEVAS por día y origen: sin esto, un script podía llenar el cupo MAX_SUBS con suscripciones
+# inventadas en pocos minutos (300/min) y dejar sin recordatorios a todo el mundo. Una persona crea una o dos.
+NEW_SUBS_PER_IP_DAY = _env_int("TESEO_PUSH_NEW_PER_IP_DAY", 200, 1, 100000)
 
 # Servicios de push conocidos (sufijos de dominio). Solo a ellos se envía.
 PUSH_HOST_SUFFIXES = (
@@ -243,6 +246,9 @@ def clean_subscription(sub: Any) -> Dict[str, Any]:
         p256dh = b64url_decode(keys.get("p256dh"))
         if len(p256dh) != 65 or p256dh[0] != 4:
             raise ValueError
+        # un punto real de la curva (no 65 bytes cualesquiera): una clave inventada no sirve para cifrar
+        from cryptography.hazmat.primitives.asymmetric import ec
+        ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), p256dh)
     except (ValueError, TypeError):
         raise ValueError("subscription.keys.p256dh: no es una clave P-256 válida")
     try:
@@ -502,6 +508,10 @@ class PushStore:
                 (sub_id, r["event_id"], r["notify_at"], r["event_at"], r["title"], r["url"], r["lang"], int(r["all_day"])))
             return db.execute("SELECT COUNT(*) FROM reminders WHERE sub_id = ?", (sub_id,)).fetchone()[0]
 
+    def has_subscription(self, endpoint: str) -> bool:
+        with self._tx() as db:
+            return db.execute("SELECT 1 FROM subs WHERE endpoint = ?", (endpoint,)).fetchone() is not None
+
     def remove(self, endpoint: str, event_id: str) -> None:
         with self._tx() as db:
             row = db.execute("SELECT id FROM subs WHERE endpoint = ?", (endpoint,)).fetchone()
@@ -651,6 +661,30 @@ def _limiter_key(salt: bytes, endpoint: str) -> str:
     return hashlib.sha256(salt + endpoint.encode("utf-8", "ignore")).hexdigest()[:16]
 
 
+class DailyQuota:
+    """Cuota por origen y día UTC (como metrics.RateLimiter, pero por día): la clave es un hash con una sal que
+    cambia cada día y se descarta con los contadores; la IP nunca se guarda."""
+
+    def __init__(self, per_day: int, clock: Callable[[], float] = time.time):
+        self.per_day, self.clock = per_day, clock
+        self._lock = threading.Lock()
+        self._day: Optional[int] = None
+        self._salt = b""
+        self._counts: Dict[str, int] = {}
+
+    def allow(self, ip: Optional[str]) -> bool:
+        with self._lock:
+            day = int(self.clock() // 86400)
+            if day != self._day or len(self._counts) > 100000:     # nuevo día (o tope de memoria)
+                self._day, self._salt, self._counts = day, secrets.token_bytes(16), {}
+            key = _limiter_key(self._salt, ip or "?")
+            used = self._counts.get(key, 0)
+            if used >= self.per_day:
+                return False
+            self._counts[key] = used + 1
+            return True
+
+
 class PushService:
     def __init__(self, vapid: VapidConfig, store: PushStore, sender: Optional[Sender] = None,
                  clock: Callable[[], float] = time.time):
@@ -660,6 +694,7 @@ class PushService:
         self._sender = sender
         self.write_limiter = metrics.RateLimiter(WRITE_RATE_PER_MIN, clock=clock)
         self.test_limiter = metrics.RateLimiter(TEST_RATE_PER_MIN, clock=clock)
+        self.new_sub_quota = DailyQuota(NEW_SUBS_PER_IP_DAY, clock=clock)
         # última prueba por suscripción: hash con sal efímera, solo en memoria
         self._test_salt = secrets.token_bytes(16)
         self._test_last: Dict[str, float] = {}
@@ -693,8 +728,11 @@ class PushService:
                 headers={"Cache-Control": "no-store"})
 
     # -- operaciones -----------------------------------------------------------
-    def remind(self, data: Any) -> Dict[str, Any]:
+    def remind(self, data: Any, ip: Optional[str] = None) -> Dict[str, Any]:
         r = parse_remind(data, self.clock())
+        # cuota de suscripciones nuevas por origen (con ip=None, llamadas internas y pruebas: sin cuota)
+        if ip is not None and not self.store.has_subscription(r["sub"]["endpoint"]) and not self.new_sub_quota.allow(ip):
+            raise LimitError("rate_limited_new", "Demasiadas suscripciones nuevas desde esta conexión hoy; prueba mañana o usa «A mi calendario».", 429)
         n = self.store.add(r, MAX_PER_SUB, MAX_SUBS, MAX_REMINDERS)
         return {"ok": True, "event_id": r["event_id"],
                 "notify_at_utc": datetime.fromtimestamp(r["notify_at"], tz=timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -882,8 +920,9 @@ async def push_remind(request: Request):
         service.require_configured()
         _rate(service.write_limiter, request)
         data = await _read_json(request)
+        ip = metrics.client_ip(request.headers, request.client.host if request.client else None)
         try:
-            result = await run_in_threadpool(service.remind, data)
+            result = await run_in_threadpool(service.remind, data, ip or "?")
         except ValueError as e:
             return _error(422, f"Parámetro inválido — {e}", "invalid")
         except LimitError as e:

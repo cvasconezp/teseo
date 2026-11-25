@@ -20,7 +20,7 @@ Thumbs.db
 .idea/
 
 # Node (cuando agreguemos el frontend)
-node_modules/
+node_modules
 dist/
 build/
 .vercel/
