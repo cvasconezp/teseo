@@ -584,3 +584,25 @@ def test_real_sender_maps_errors(monkeypatch):
         raise requests.ConnectionError("sin red")
     monkeypatch.setattr(requests.Session, "post", boom)
     assert send(sub, "{}", 60, "high") == 0
+
+
+# ── B3: claves que no son un punto de la curva y cuota diaria de suscripciones nuevas por origen ─────────
+def test_p256dh_must_be_a_curve_point(svc):
+    sub = make_sub()
+    fake = b"\x04" + bytes(range(1, 65))                      # 65 bytes con el prefijo 04, pero fuera de la curva
+    _bad(svc, remind_body(dict(sub, keys={"p256dh": b64(fake), "auth": sub["keys"]["auth"]})), "p256dh")
+    assert post("/api/push/remind", remind_body(sub)).status_code == 201   # una clave real, sí
+
+
+def test_new_subscriptions_quota_per_origin_and_day(svc):
+    svc.new_sub_quota = push.DailyQuota(2, clock=svc.clock)
+    assert post("/api/push/remind", remind_body(make_sub(1))).status_code == 201
+    assert post("/api/push/remind", remind_body(make_sub(2))).status_code == 201
+    r = post("/api/push/remind", remind_body(make_sub(3)))
+    assert r.status_code == 429 and r.json()["code"] == "rate_limited_new"
+    # las suscripciones que ya existen siguen pudiendo añadir avisos; otra IP no comparte cuota
+    assert post("/api/push/remind", remind_body(make_sub(1), event_id="otro")).status_code == 201
+    assert post("/api/push/remind", remind_body(make_sub(3)), ip="198.51.100.7").status_code == 201
+    svc.clock_obj.t += 86400                                  # al día siguiente, de nuevo
+    assert post("/api/push/remind", remind_body(make_sub(4), at=svc.clock() + 3 * 3600)).status_code == 201
+    assert svc.store.counts()[0] == 4

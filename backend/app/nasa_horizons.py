@@ -97,12 +97,15 @@ SPACECRAFT = [
         "En route to Jupiter: arrival planned for 2031.", "cruise"),
     _sc("-121", "BepiColombo", "misión europea y japonesa a Mercurio", "European-Japanese mission to Mercury",
         "mercury", "ESA/JAXA", 2018,
-        "Entrada en órbita de Mercurio prevista para el 21 de noviembre de 2026.",
-        "Mercury orbit insertion planned for 21 November 2026.", "cruise"),
+        "En órbita de Mercurio desde el 21 de noviembre de 2026 (órbita inicial de 75 h); la separación de los "
+        "orbitadores MPO y Mio está prevista para el 9–10 de diciembre de 2026 y la ciencia, desde abril de 2027.",
+        "In orbit around Mercury since 21 November 2026 (initial 75-hour orbit); separation of the MPO and Mio "
+        "orbiters is planned for 9–10 December 2026, with science from April 2027.", "orbit"),
     _sc("-91", "Hera", "estudia el asteroide que desvió la sonda DART", "studies the asteroid deflected by the DART probe",
         "didymos", "ESA", 2024,
-        "Llegada al sistema Didymos–Dimorphos prevista para noviembre de 2026.",
-        "Arrival at the Didymos–Dimorphos system planned for November 2026.", "cruise"),
+        "Llegó al sistema Didymos–Dimorphos en noviembre de 2026: caracterización inicial a 25–30 km de los asteroides.",
+        "Arrived at the Didymos–Dimorphos system in November 2026: initial characterisation 25–30 km from the asteroids.",
+        "orbit"),
     _sc("-144", "Solar Orbiter", "fotografía los polos del Sol", "images the Sun's poles",
         "sun", "ESA/NASA", 2020, phase="orbit"),
     # ── Rumbo a Marte en la ventana de 2026 ──
@@ -188,6 +191,34 @@ _position_cache: dict = {}
 _last_good_position: dict = {}
 _POSITION_TTL = 6 * 3600  # 6 h
 _position_status = {"ts": None, "last_error": None, "last_error_ts": None}
+# Consultas en vuelo por (cuerpo, día): dos peticiones iguales simultáneas comparten una sola consulta a la NASA
+_position_inflight: dict = {}
+# El respaldo `stale` solo sirve si su día está a lo sumo a esto del pedido (p. ej. el de ayer cuando hoy no
+# responde); para otra fecha sería la posición de otro momento.
+STALE_MAX_DAYS = 2
+
+
+def _shared_task(key, factory) -> "asyncio.Task":
+    """La tarea en vuelo para `key` (o una nueva). Corre aparte de quien la pidió: si ese cliente se va o se
+    agota su espera, la consulta termina igual, se guarda y sirve a los demás."""
+    t = _position_inflight.get(key)
+    if t is not None and not t.done():
+        try:
+            if t.get_loop() is asyncio.get_running_loop():
+                return t
+        except RuntimeError:
+            pass
+    t = asyncio.get_running_loop().create_task(factory())
+
+    def _done(task, key=key):
+        if _position_inflight.get(key) is task:
+            _position_inflight.pop(key, None)
+        if not task.cancelled():
+            task.exception()   # marcada como vista (nadie la esperaba ya)
+
+    t.add_done_callback(_done)
+    _position_inflight[key] = t
+    return t
 
 
 async def get_body_position(body: str, date: Optional[datetime] = None, timeout: float = 20.0) -> dict:
@@ -240,12 +271,21 @@ async def get_body_position(body: str, date: Optional[datetime] = None, timeout:
         async with httpx.AsyncClient(timeout=12.0, headers=provider_headers()) as client:
             resp = await _horizons_request(client, params)
             data = resp.json()
-        return _parse_vector_block(data.get("result", ""))
+        position = _parse_vector_block(data.get("result", ""))
+        position["body"] = body
+        position["source"] = "NASA JPL Horizons"
+        position["data_date"] = start
+        if len(_position_cache) > 2000:
+            _position_cache.clear()
+        _position_cache[key] = {"ts": time.monotonic(), "data": position}
+        _last_good_position[body] = position
+        _position_status["ts"] = time.time()
+        return position
 
     try:
         if timeout <= 0:
             raise asyncio.TimeoutError()
-        position = await asyncio.wait_for(_query(), timeout=timeout)
+        position = await asyncio.wait_for(asyncio.shield(_shared_task(key, _query)), timeout=timeout)
     except Exception as e:
         if isinstance(e, asyncio.TimeoutError):
             e = RuntimeError("NASA Horizons no respondió a tiempo")
@@ -253,20 +293,21 @@ async def get_body_position(body: str, date: Optional[datetime] = None, timeout:
         _position_status["last_error_ts"] = time.time()
         # Si la NASA no responde, devolvemos el último vector real conocido
         # de ese cuerpo, marcado claramente como dato no actualizado.
+        # Solo si es de ese mismo día o de uno muy cercano (STALE_MAX_DAYS), y con `date` = SU fecha real
+        # (no la pedida, que va en `requested_date`): nunca se etiqueta un dato con una fecha que no es la suya.
         last = _last_good_position.get(body)
-        if last is not None:
-            return {**last, "date": date.isoformat(), "stale": True}
+        if last is not None and _days_apart(last.get("data_date"), start) <= STALE_MAX_DAYS:
+            return {**last, "date": last.get("data_date") or start, "requested_date": date.isoformat(), "stale": True}
         raise e
 
-    position["body"] = body
-    position["source"] = "NASA JPL Horizons"
-    position["data_date"] = start
-    if len(_position_cache) > 2000:
-        _position_cache.clear()
-    _position_cache[key] = {"ts": now, "data": position}
-    _last_good_position[body] = position
-    _position_status["ts"] = time.time()
     return {**position, "date": date.isoformat()}
+
+
+def _days_apart(a: Optional[str], b: str) -> float:
+    try:
+        return abs((datetime.strptime(a, "%Y-%m-%d") - datetime.strptime(b, "%Y-%m-%d")).days)
+    except (TypeError, ValueError):
+        return math.inf
 
 
 def _parse_vector_block(text: str) -> dict:

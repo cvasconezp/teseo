@@ -17,7 +17,7 @@ ok(/class="lang-link" href="\/about"/.test(es) && /class="lang-link" href="\/ace
 ok(/var HINT_LANG = "en";/.test(es) && /var HINT_LANG = "es";/.test(en), "aviso de idioma para el navegador en el otro idioma");
 ok(/Open Teseo/.test(en) && /Support/.test(en) && /narrated in Spanish/.test(en), "la versión inglesa avisa que videos y podcast están en español");
 const src = vercel.rewrites.map((r) => r.source);
-ok(["/acerca", "/about"].every((p) => src.indexOf(p) >= 0 && src.indexOf(p) < src.indexOf("/((?!api/).*)")), "rutas /acerca y /about antes del comodín de la app");
+ok(["/acerca", "/about"].every((p) => src.indexOf(p) >= 0 && src.indexOf(p) < src.indexOf("/((?!api/|assets/).*)")), "rutas /acerca y /about antes del comodín de la app");
 ok(/aboutHref = \(lang\) => \(lang === "en" \? "\/about" : "\/acerca"\)/.test(app) && !/href="\/acerca"/.test(app), "la app enlaza a /about en inglés y a /acerca en español");
 ok(/\/acerca<\/loc>/.test(sitemap) && /\/about<\/loc>/.test(sitemap), "mapa del sitio con las dos versiones");
 let sync = true;

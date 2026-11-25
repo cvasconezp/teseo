@@ -92,7 +92,7 @@ def test_consulta_y_cache(net):
     q = unquote_plus(net["query"])
     assert q.count("node[") == 4 and "number(t" not in q and '"natural"="volcano"' in q and "around" not in q
     n = net["over"]
-    assert 1 <= n <= len(pk.OVERPASS)                                              # los servidores, a la vez
+    assert n == 1                                                                 # en orden: el primero respondió
     client.get(f"/api/peaks?lat={LAT0 + 0.0005}&lon={LON0}")                  # misma celda: sin otra consulta
     assert net["over"] == n
 
@@ -104,7 +104,7 @@ def test_servidor_de_respaldo(net):
 
 
 def test_solo_wikidata(net):
-    net["fail"].update(["overpass-api.de", "kumi.systems", "mail.ru", "private.coffee"])
+    net["fail"].update(["overpass-api.de", "mail.ru", "private.coffee"])
     r = client.get(f"/api/peaks?lat={LAT0}&lon={LON0}")
     assert r.status_code == 200 and [p["name"] for p in r.json()["peaks"]] == ["Volcán Prueba"] and pk.stats["last_sources"] == ["wikidata"]
 
@@ -121,7 +121,7 @@ def test_parse_wikidata():
 
 
 def test_sin_overpass_502(net):
-    net["fail"].update(["overpass-api.de", "kumi.systems", "mail.ru", "private.coffee", "wikidata"])
+    net["fail"].update(["overpass-api.de", "mail.ru", "private.coffee", "wikidata"])
     r = client.get(f"/api/peaks?lat={LAT0}&lon={LON0}")
     assert r.status_code == 502 and "montañas" in r.json()["detail"] and "Wikidata: HTTP 403" in r.json()["detail"]
 
@@ -145,3 +145,47 @@ def test_alturas_y_rumbos():
     assert abs(az - 90) < 1e-6 and abs(d - 111.2) < 0.1
     az, _ = pk.bearing_dist(0, 0, -1, 0)
     assert abs(az - 180) < 1e-6
+
+
+# ── Overpass en orden, con pausa tras un 429 y User-Agent con contacto ───────────────────────────────────
+def test_overpass_en_orden_y_pausa_tras_429(net, monkeypatch):
+    net["fail"].add("overpass-api.de")
+    r = client.get(f"/api/peaks?lat={LAT0}&lon={LON0}")
+    assert r.status_code == 200 and net["over"] == 2                              # el primero (429) y el segundo
+    assert pk.stats["last_endpoint"] == pk.OVERPASS[1] and pk.OVERPASS[0] in pk._overpass_cool
+    # otra celda: el del 429 está en pausa y no se le vuelve a pedir
+    n = net["over"]
+    client.get(f"/api/peaks?lat={LAT0 + 0.05}&lon={LON0}")
+    assert net["over"] == n + 1
+    assert not any("kumi.systems" in u for u in pk.OVERPASS) and len(set(pk.OVERPASS)) == len(pk.OVERPASS)
+
+
+def test_user_agent_con_version_y_contacto(monkeypatch):
+    from app.version import VERSION
+    monkeypatch.delenv("TESEO_USER_AGENT", raising=False)
+    assert pk._ua() == pk.WD_UA and f"Teseo/{VERSION}" in pk.WD_UA and "teseo@yachaydeep.com" in pk.WD_UA
+    monkeypatch.setenv("TESEO_USER_AGENT", "Teseo/x (+https://t; a@b)")
+    assert pk._ua() == "Teseo/x (+https://t; a@b)"
+
+
+def test_overpass_lento_pasa_al_siguiente(monkeypatch):
+    import asyncio
+    calls = []
+
+    class T(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request):
+            u = str(request.url); calls.append((u, request.headers.get("user-agent")))
+            if "overpass-api.de" in u:
+                await asyncio.sleep(1.0)
+            return httpx.Response(200, json={"elements": NODES[:1]})
+
+    monkeypatch.setattr(pk, "OVERPASS_HEDGE_S", 0.05)
+    pk.reset_cache()
+
+    async def main():
+        async with httpx.AsyncClient(transport=T()) as c:
+            return await pk.fetch_osm(c, LAT0, LON0, 0.0)
+
+    out = asyncio.run(main())
+    assert out and pk.stats["last_endpoint"] == pk.OVERPASS[1] and len(calls) == 2
+    assert all(ua and "Teseo/" in ua for _, ua in calls)

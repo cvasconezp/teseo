@@ -8,7 +8,7 @@ import { fetchJson, isAbort } from "../../net.js";
 import { IconRocket } from "../../ui/icons.jsx";
 import { track, trackOnce } from "../../ui/track.js";
 import { buildSkyEvents, buildFeedEvents, sortEvents, groupByMonth, readPlace, TYPES, nextHighlight } from "./events.js";
-import { countdownText, countdownParts, startOfEvent } from "./countdown.js";
+import { countdownText, countdownParts, startOfEvent, dayStart } from "./countdown.js";
 import { NOW_SHARE_KINDS } from "../../share/eventText.js";
 import { feedUrl, subscribeLinks } from "./feed.js";
 import { TC, describeEvent } from "./i18n.js";
@@ -450,9 +450,11 @@ export default function Calendar({ lang = "es", api = "" }) {
   const fmt = useMemo(() => makeFmt(lang), [lang]);
   const place = usePlace();
   const push = usePush(api);
-  // desde el comienzo de HOY (hora local): lo que ya ocurrió hoy se sigue viendo, marcado «Hoy · ya ocurrió»
-  const [from] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); });
+  // desde el comienzo de HOY (hora local): lo que ya ocurrió hoy se sigue viendo, marcado «Hoy · ya ocurrió».
+  // Se deriva del reloj: con la pestaña abierta pasada la medianoche, la agenda pasa al día nuevo (es un
+  // número: los efectos que dependen de él solo se repiten cuando cambia el día).
   const now = useNow(30000);
+  const from = dayStart(now);
   const [more, setMore] = useState(false);
   const [filter, setFilter] = useState("all");
   const days = more ? 365 : 30;

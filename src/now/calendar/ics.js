@@ -12,7 +12,11 @@ export function icsUtc(ms) {
 const icsDate = (ms) => icsUtc(ms).slice(0, 8);
 
 /** Escapa texto (RFC 5545 §3.3.11): \ ; , y saltos de línea. */
-export const icsEscape = (s) => String(s ?? "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+export const icsEscape = (s) => String(s ?? "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,")
+  .replace(/\r\n?|\n/g, "\\n").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
+// UID y URL van sin escapar en el .ics: sin espacios ni caracteres de control, para que un dato de terceros
+// (nombres e ids de lanzamientos) no pueda abrir una línea nueva.
+const icsRaw = (s) => String(s ?? "").replace(/[\x00-\x20\x7f]/g, "");
 
 /** Pliega una línea a 75 octetos UTF-8 (continuación: CRLF + espacio), sin partir caracteres. */
 export function foldLine(line) {
@@ -29,7 +33,7 @@ export function foldLine(line) {
 
 /** Líneas de un VEVENT (sin plegar). */
 export function veventLines(ev, now = Date.now()) {
-  const lines = ["BEGIN:VEVENT", `UID:${ev.uid}`, `DTSTAMP:${icsUtc(now)}`];
+  const lines = ["BEGIN:VEVENT", `UID:${icsRaw(ev.uid)}`, `DTSTAMP:${icsUtc(now)}`];
   if (ev.allDay) {
     // fecha completa (sin hora): DTEND exclusivo = día siguiente
     lines.push(`DTSTART;VALUE=DATE:${icsDate(ev.start)}`, `DTEND;VALUE=DATE:${icsDate(ev.start + 86400000)}`);
@@ -38,7 +42,7 @@ export function veventLines(ev, now = Date.now()) {
   }
   lines.push(`SUMMARY:${icsEscape(ev.title)}`);
   if (ev.description) lines.push(`DESCRIPTION:${icsEscape(ev.description)}`);
-  if (ev.url) lines.push(`URL:${ev.url}`);
+  if (ev.url) lines.push(`URL:${icsRaw(ev.url)}`);
   if (ev.categories) lines.push(`CATEGORIES:${icsEscape(ev.categories)}`);
   lines.push("TRANSP:TRANSPARENT");
   if (ev.alarm !== false) {

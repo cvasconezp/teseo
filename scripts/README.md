@@ -161,6 +161,5 @@ existente; este script no las rehace.
 
 **Peso** (cuenta para la caché offline de la PWA): 302.281 → 373.734 bytes en
 bruto; 113.093 → 139.603 con gzip -9 (+26,5 KB). Como el contenido cambia, la
-versión de caché de `public/sw.js` (`teseo-v2`, *cache-first* para `/sky.json`)
-debe subirse al publicar, o los teléfonos que ya lo tienen seguirán con el
-viejo (la app funciona con los dos: sin `bv` la estrella no muestra temperatura).
+versión de caché de `public/sw.js` (`CACHE`) ya no hace falta subirla por esto: los JSON de datos se sirven de
+caché y se actualizan en segundo plano, así que llegan en la visita siguiente (la app funciona con los dos: sin `bv` la estrella no muestra temperatura).

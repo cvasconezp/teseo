@@ -1,0 +1,11 @@
+# Lo que NO entra en la imagen del backend (contexto = backend/). El Dockerfile solo necesita
+# requirements.txt y app/ (COPY . .): ni las pruebas ni los secretos locales.
+.env
+.env.*
+!.env.example
+tests/
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
+.venv/

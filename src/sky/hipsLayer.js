@@ -11,7 +11,7 @@ import * as THREE from "three";
 export const HIPS = {
   base: "https://skies.esac.esa.int/DSSColor",
   minOrder: 3, maxOrder: 9,                       // 9 es el orden nativo del DSS (1,7″ por píxel)
-  credit: "Digitized Sky Survey · STScI/NASA · color y HEALPix: CDS · servido por ESASky (ESA)",
+  credit: "Digitized Sky Survey · STScI/NASA, CC BY-NC-SA 4.0 · color y HEALPix: CDS · servido por ESASky (ESA)",
 };
 /**
  * Detalle fino: donde lo cubre (algo más de un tercio del cielo, sobre todo el norte), el Sloan Digital Sky Survey,

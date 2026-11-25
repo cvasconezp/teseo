@@ -48,6 +48,7 @@ import { fetchJson, isAbort, TIMEOUT_MS, TIMEOUT_AI_MS } from "./net.js";
 import PlanetSphere from "./ui/PlanetSphere.jsx";
 import { AU_KM, helioPosition, approxDistanceKm, hohmannLocal, launchWindowsLocal } from "./ui/orbits.js";
 import { DAY_MS, parseISO, daysUntil, durationParts, relParts } from "./ui/time.js";
+import { cycleFocus } from "./ui/focusTrap.js";
 import Intro from "./intro/Intro.jsx";
 import { createAmbient, STORAGE_KEY as AMBIENT_KEY } from "./ui/ambient.js";
 import { pickLang, canonicalFor, searchWithLang } from "./ui/seo.js";
@@ -220,7 +221,7 @@ const T = {
     introCredit:    "A Yachay Deep Labs product, with Killa Ñan · Community astronomy",
     whoTitle:       "Who makes Teseo",
     whoYd:          ["Yachay Deep Labs", "Develops Teseo. Cayambe, Ecuador."],
-    whoKn:          ["Killa Ñan · Community astronomy", "Non-profit community astronomy project born in Cayambe (Ecuador) on 15 July 2018 and now present in several cities in the country. Teseo was born out of its need to tell and share astronomy better from a single tool, and is built in cooperation with Killa Ñan."],
+    whoKn:          ["Killa Ñan · Community astronomy", "Non-profit community astronomy project born in Cayambe (Ecuador) on 15 July 2018 and now present in several cities in the country. Teseo was born out of its need to tell and share astronomy better from a single tool, and is made with Killa Ñan."],
     whoLinks:       { web: "Website", fb: "Facebook", ig: "Instagram" },
     creditsGroups:  "Data sources by institution",
     creditsLink:    "Credits and data",
@@ -288,7 +289,7 @@ const T = {
       ]},
       { g: "Software", items: [
         ["Orbital mechanics", "hapsira · astropy · sgp4"],
-        ["Narrative", "Groq (Llama models) — narrates, never calculates"],
+        ["Narrative", "An open-weight language model served by Groq — narrates, never calculates"],
         ["3D rendering", "Three.js · MIT"],
       ]},
     ],
@@ -435,7 +436,7 @@ const T = {
     introCredit:    "Un producto de Yachay Deep Labs, con Killa Ñan · Astronomía comunitaria",
     whoTitle:       "Quiénes hacen Teseo",
     whoYd:          ["Yachay Deep Labs", "Desarrolla Teseo. Cayambe, Ecuador."],
-    whoKn:          ["Killa Ñan · Astronomía comunitaria", "Proyecto de astronomía comunitaria sin fines de lucro nacido en Cayambe (Ecuador) el 15 de julio de 2018 y presente hoy en varias ciudades del país. Teseo nació de su necesidad de contar y divulgar mejor la astronomía desde una sola herramienta, y se hace en cooperación con Killa Ñan."],
+    whoKn:          ["Killa Ñan · Astronomía comunitaria", "Proyecto de astronomía comunitaria sin fines de lucro nacido en Cayambe (Ecuador) el 15 de julio de 2018 y presente hoy en varias ciudades del país. Teseo nació de su necesidad de contar y divulgar mejor la astronomía desde una sola herramienta, y se hace con Killa Ñan."],
     whoLinks:       { web: "Sitio web", fb: "Facebook", ig: "Instagram" },
     creditsGroups:  "Fuentes de datos por institución",
     creditsLink:    "Créditos y datos",
@@ -503,7 +504,7 @@ const T = {
       ]},
       { g: "Software", items: [
         ["Mecánica orbital", "hapsira · astropy · sgp4"],
-        ["Narrativa", "Groq (modelos Llama) — narra, nunca calcula"],
+        ["Narrativa", "Un modelo de lenguaje abierto servido por Groq — narra, nunca calcula"],
         ["Render 3D", "Three.js · MIT"],
       ]},
     ],
@@ -1483,7 +1484,8 @@ function AppMenu({ lang, tab, onTab, onClose, ambient, onAmbient, night, onNight
   useEffect(()=>{
     const before = document.activeElement;
     boxRef.current?.querySelector("button")?.focus();
-    const onKey = e => { if (e.key === "Escape") onClose(); };
+    // aria-modal: Tab no sale del panel (ciclo primer ↔ último control)
+    const onKey = e => { if (e.key === "Escape") onClose(); else cycleFocus(e, boxRef.current); };
     document.addEventListener("keydown", onKey);
     return ()=>{ document.removeEventListener("keydown", onKey); before?.focus?.(); };
   },[onClose]);
@@ -1589,10 +1591,12 @@ const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "
 function ReportModal({ lang, section, onClose }) {
   const t = T[lang];
   const closeRef = useRef(null);
+  const boxRef = useRef(null);
   useEffect(()=>{
     const before = document.activeElement;
     closeRef.current?.focus();
-    const onKey = e => { if (e.key === "Escape") onClose(); };
+    // aria-modal: Tab no sale del diálogo (ciclo primer ↔ último control)
+    const onKey = e => { if (e.key === "Escape") onClose(); else cycleFocus(e, boxRef.current); };
     document.addEventListener("keydown", onKey);
     return ()=>{ document.removeEventListener("keydown", onKey); try { before?.focus?.(); } catch { /* no-op */ } };
   },[onClose]);
@@ -1600,7 +1604,7 @@ function ReportModal({ lang, section, onClose }) {
     w: window.screen?.width || 0, h: window.screen?.height || 0 });
   return (
     <div className="modal" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby="report-title" className="modal__box" onClick={e=>e.stopPropagation()}>
+      <div ref={boxRef} role="dialog" aria-modal="true" aria-labelledby="report-title" className="modal__box" onClick={e=>e.stopPropagation()}>
         <div className="modal__head">
           <h2 id="report-title" className="modal__title">{t.reportTitle}</h2>
           <button ref={closeRef} type="button" className="icon-btn" aria-label={t.close} onClick={onClose}>
@@ -1629,14 +1633,15 @@ function ReportModal({ lang, section, onClose }) {
 function CreditsModal({ lang, onClose, onReport }) {
   const t = T[lang];
   const closeRef = useRef(null);
+  const boxRef = useRef(null);
   useEffect(()=>{
-    // el foco entra al diálogo, no sale con Tab (solo hay un control) y al
-    // cerrar vuelve a donde estaba
+    // el foco entra al diálogo, recorre sus enlaces con Tab sin salir de él (ciclo
+    // primer ↔ último control) y al cerrar vuelve a donde estaba
     const before = document.activeElement;
     closeRef.current?.focus();
     const onKey = e => {
       if (e.key === "Escape") onClose();
-      else if (e.key === "Tab") { e.preventDefault(); closeRef.current?.focus(); }
+      else cycleFocus(e, boxRef.current);
     };
     document.addEventListener("keydown", onKey);
     return ()=>{
@@ -1646,7 +1651,7 @@ function CreditsModal({ lang, onClose, onReport }) {
   },[onClose]);
   return (
     <div className="modal" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby="credits-title" className="modal__box"
+      <div ref={boxRef} role="dialog" aria-modal="true" aria-labelledby="credits-title" className="modal__box"
         onClick={e=>e.stopPropagation()}>
         <div className="modal__head">
           <h2 id="credits-title" className="modal__title">{t.creditsTitle}</h2>
@@ -1737,7 +1742,9 @@ function AdminGate({ lang, onClose, children }) {
   const [ok, setOk] = useState(()=>{ try { return !!sessionStorage.getItem(ADMIN_KEY); } catch { return false; } });
   const [val, setVal] = useState("");
   const [state, setState] = useState(null);   // null | "checking" | "bad" | "error"
-  if (ok) return children;
+  // el panel avisa si el servidor rechaza la clave guardada (401: cambió o caducó): se borra y se vuelve a pedir
+  const onAuthFail = useCallback(()=>{ try { sessionStorage.removeItem(ADMIN_KEY); } catch { /* no-op */ } setVal(""); setState("bad"); setOk(false); },[]);
+  if (ok) return typeof children === "function" ? children(onAuthFail) : children;
   const submit = async e => {
     e.preventDefault();
     const tok = val.trim();
@@ -1899,9 +1906,15 @@ export default function Teseo() {
   // Al cambiar la selección se descartan los datos del par anterior
   useEffect(()=>{ setBackend(null); setRealDist(null); },[from,to]);
 
+  // Las posiciones, la distancia, la ventana del mapa y la ruta (con narración IA) solo se ven en Ruta:
+  // se piden al entrar en ella, no en cada visita (la app abre en el Cielo). Lo ya obtenido no se vuelve a
+  // pedir al volver a la pestaña (clave del último pedido completo por efecto).
+  const onRoute = tab==="route";
+  const routeDone = useRef({});
+
   // Fetch real planet positions from NASA Horizons via backend
   useEffect(()=>{
-    if(!API) return;
+    if(!API||!onRoute||routeDone.current.pos===posTry) return;
     const today = new Date().toISOString().split("T")[0];
     const ctrl = new AbortController();
     let alive = true;
@@ -1916,13 +1929,15 @@ export default function Teseo() {
       // conserva lo ya obtenido: un reintento solo añade/actualiza planetas
       setRealPos(prev=>({...prev,...pos}));
       setPosStatus(Object.keys(pos).length===PLANETS.length?"ok":"error");
+      routeDone.current.pos = posTry;
     });
     return ()=>{ alive=false; ctrl.abort(); };
-  },[posTry]);
+  },[posTry,onRoute]);
 
   // Fetch real distance between selected bodies
   useEffect(()=>{
-    if(!API||from.id===to.id) return;
+    const key = `${from.id}-${to.id}-${distTry}`;
+    if(!API||!onRoute||special||from.id===to.id||routeDone.current.dist===key) return;   // con Luna/Sol no se muestra
     const today = new Date().toISOString().split("T")[0];
     const ctrl = new AbortController();
     let alive = true;
@@ -1932,13 +1947,16 @@ export default function Teseo() {
         if(!alive) return;
         if(d&&d.distance_km){ setRealDist(d.distance_km); setDistStatus("ok"); }
         else setDistStatus("error");
+        routeDone.current.dist = key;
       })
-      .catch(e=>{ if(alive&&!isAbort(e)) { trackNetError("distance", e); setDistStatus("error"); } });
+      .catch(e=>{ if(alive&&!isAbort(e)) { trackNetError("distance", e); setDistStatus("error"); routeDone.current.dist = key; } });
     return ()=>{ alive=false; ctrl.abort(); };
-  },[from,to,distTry]);
+  },[from,to,distTry,onRoute,!!special]);
 
   // Próxima ventana de lanzamiento para dibujar la media elipse de Hohmann en el mapa
   useEffect(()=>{
+    const key = `${from.id}-${to.id}`;
+    if(!onRoute||routeDone.current.win===key) return;   // fuera de Ruta, o ya pedida para este par
     setSrvWin(null);
     if(!API||special||from.id===to.id) return;
     const ctrl = new AbortController();
@@ -1946,15 +1964,18 @@ export default function Teseo() {
     fetchJson(`${API}/api/launch-windows/${from.id}/${to.id}?count=4`,{signal:ctrl.signal})
       .then(d=>{
         const w = d && Array.isArray(d.windows) ? d.windows[0] : null;
-        if(alive && w && w.departure_date && w.arrival_date) setSrvWin({ from:from.id, to:to.id, dep:w.departure_date, arr:w.arrival_date });
+        if(!alive) return;
+        if(w && w.departure_date && w.arrival_date) setSrvWin({ from:from.id, to:to.id, dep:w.departure_date, arr:w.arrival_date });
+        routeDone.current.win = key;
       })
       .catch(()=>{});   // sin servidor: queda la ventana local
     return ()=>{ alive=false; ctrl.abort(); };
-  },[from,to,!!special]);
+  },[from,to,!!special,onRoute]);
 
   // Fetch Hohmann route from backend
   useEffect(()=>{
-    if(!API||from.id===to.id) return;
+    const key = `${from.id}-${to.id}-${lang}-${routeTry}`;
+    if(!API||!onRoute||special||from.id===to.id||routeDone.current.route===key) return;   // con Luna/Sol se ve MoonSun, no la ruta
     const ctrl = new AbortController();
     let alive = true;
     setLoadingB(true); setRouteError(false);
@@ -1972,14 +1993,15 @@ export default function Teseo() {
       //    falla en silencio y los números ya están en pantalla.
       post(true,TIMEOUT_AI_MS)
         .then(n=>{ if(alive&&n&&n.narrative) setBackend(b=>b?{...b,narrative:n.narrative}:b); })
-        .catch(()=>{});
+        .catch(()=>{})
+        .finally(()=>{ if(alive) routeDone.current.route = key; });   // si se sale antes, se pide de nuevo al volver
     }).catch(e=>{
       if(!alive||isAbort(e)) return;
       trackNetError("route", e);
       setRouteError(true); setLoadingB(false);
     });
     return ()=>{ alive=false; ctrl.abort(); };
-  },[from,to,lang,routeTry]);
+  },[from,to,lang,routeTry,onRoute,!!special]);
 
   // ── Datos que se muestran: lo real cuando llegó; si no, física local ──────
   const positions = useMemo(()=>{
@@ -2102,12 +2124,12 @@ export default function Teseo() {
   }, []);
   // lo de la app va antes que el Cielo (fase de captura): el menú, los créditos y el panel de métricas
   const backRef = useRef({});
-  backRef.current = { menuOpen, showCredits, showReport, usage };
+  backRef.current = { menuOpen, showCredits, showReport, usage, closeUsage };
   useEffect(() => {
     const onBack = (e) => {
       const b = backRef.current;
       if (b.menuOpen) setMenuOpen(false);
-      else if (b.usage) setUsage(null);
+      else if (b.usage) b.closeUsage();   // como el botón Cerrar: también quita #uso/#admin de la URL
       else if (b.showReport) setShowReport(false);
       else if (b.showCredits) setShowCredits(false);
       else return;
@@ -2361,7 +2383,7 @@ export default function Teseo() {
           <SectionBoundary name="Teseo en números" onReset={retryUsage} title={t.usageErrTitle} message={t.usageErrBody} retryLabel={t.retry}>
             <Suspense fallback={<div className="modal"><p role="status" className="loading">{t.usageLoading}</p></div>}>
               <AdminGate lang={lang} onClose={closeUsage}>
-                <UsageView lang={lang} api={API} initialDays={usage.days || undefined} onClose={closeUsage}/>
+                {onAuthFail => <UsageView lang={lang} api={API} initialDays={usage.days || undefined} onClose={closeUsage} onAuthFail={onAuthFail}/>}
               </AdminGate>
             </Suspense>
           </SectionBoundary>

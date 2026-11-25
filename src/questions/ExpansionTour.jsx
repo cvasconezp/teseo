@@ -134,7 +134,7 @@ export default function ExpansionTour({ lang = "es", indexHref }) {
     fetchJson("/galaxies.json", { signal: ctrl.signal })
       .then(d => {
         if (!d || !Array.isArray(d.objects)) throw new Error("bad payload");
-        store.galaxies = d.objects.map(o => Number(o.dist_ly) / MPC_IN_LY).filter(x => x > 0 && x <= X_MAX);
+        store.galaxies = d.objects.filter(o => !o.dist_src).map(o => Number(o.dist_ly) / MPC_IN_LY).filter(x => x > 0 && x <= X_MAX);
         setGal({ status: "ok", shown: true });
       })
       .catch(e => { if (!isAbort(e)) { setGal({ status: "error", shown: false }); setWantGal(false); } });

@@ -249,7 +249,8 @@ def test_summary_still_needs_token(store, monkeypatch):
     assert client.get("/api/metrics/summary").status_code == 404
     monkeypatch.setenv("TESEO_METRICS_TOKEN", "secreto")
     assert client.get("/api/metrics/summary").status_code == 401
-    assert client.get("/api/metrics/summary?token=secreto").status_code == 200
+    assert client.get("/api/metrics/summary?token=secreto").status_code == 401     # solo por cabecera
+    assert client.get("/api/metrics/summary", headers={"Authorization": "Bearer secreto"}).status_code == 200
 
 
 def test_usage_open_whitelist():

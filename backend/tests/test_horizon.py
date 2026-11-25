@@ -303,3 +303,73 @@ def test_despike_quita_agujas_y_respeta_cumbres():
     assert abs(out[200, 200] - 2660.0) < 5 and abs(out[201, 200] - 2660.0) < 5     # la aguja (dos píxeles), fuera
     assert abs(out[60, 60] - h[60, 60]) < 1e-3                                      # la cumbre, intacta
     assert np.allclose(out[100:150, 100:150], h[100:150, 100:150])                  # el resto, igual
+
+
+# ── B1: en latitudes altas el número de teselas no explota (1/cos² φ) ─────────────────────────────────────
+def _n_horizon(lat, lon=10.37):
+    return sum(len(hz.tiles_for(lat, lon, hz.zoom_for_lat(z, lat), r)) for z, r in (hz.NEAR, hz.MID, hz.FAR))
+
+
+@pytest.mark.parametrize("lat", [0, 45, 60, 78, 85, -60, -85])
+def test_teselas_acotadas_en_latitudes_altas(lat):
+    from app import terrain3d as t3
+    n = _n_horizon(lat)
+    assert n <= 300 <= hz.TILE_CACHE_MAX and n <= hz.MAX_TILES_PER_CALC, (lat, n)   # antes: 6.899 a 85°
+    tex = t3.tex_tiles(lat, 10.37); hd = t3.tex_tiles(lat, 10.37, t3.TEX_ZOOMS_HD)
+    assert len(tex) <= 250 and len(hd) <= 600 < t3.MAX_TEX_TILES, (lat, len(tex), len(hd))   # antes: 18.011 a 85°
+
+
+@pytest.mark.parametrize("lat", [0.0, -13.0, 19.0, 40.0, 44.9, -44.9])
+def test_zoom_sin_cambios_hasta_45(lat):
+    # donde vive casi todo el mundo (Ecuador, Perú, México, España…) el cálculo es idéntico al de antes
+    for z in (8, 9, 11, 12, 13, 14):
+        assert hz.zoom_for_lat(z, lat) == z
+
+
+def test_zoom_baja_con_la_latitud():
+    assert hz.zoom_for_lat(12, 60) == 11 and hz.zoom_for_lat(12, 78) == 10 and hz.zoom_for_lat(12, 85) == 8
+    assert hz.zoom_for_lat(4, 85) == 3                                              # nunca por debajo del mínimo
+
+
+def test_tope_de_teselas_422(tiles, monkeypatch):
+    monkeypatch.setattr(hz, "MAX_TILES_PER_CALC", 10)
+    r = client.get(f"/api/horizon?lat={LAT0}&lon={LON0}")
+    assert r.status_code == 422 and "teselas" in r.json()["detail"]
+    assert not tiles[0]                                                             # ni una descarga
+
+
+def test_horizonte_a_80_grados_usa_zoom_menor(tiles):
+    calls, state = tiles
+    state["fn"] = lambda lat, lon: 0 * lat + 100.0
+    r = client.get("/api/horizon?lat=80&lon=15")
+    assert r.status_code == 200
+    zs = {int(re.search(r"/terrarium/(\d+)/", u).group(1)) for u in calls}
+    assert zs == {9, 8, 6} and len(calls) <= 300, (zs, len(calls))
+
+
+# ── B7: si quien calcula se cancela, quien esperaba el mismo cálculo no se queda colgado ──────────────────
+def test_cancelar_el_primero_no_cuelga_al_segundo(monkeypatch):
+    import asyncio
+
+    class Lento(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request):
+            await asyncio.sleep(0.3)
+            return httpx.Response(404)
+
+    monkeypatch.setattr(hz, "_transport", Lento())
+    hz.reset_cache()
+
+    async def main():
+        t1 = asyncio.create_task(hz.get_horizon(0.1, 0.1))
+        await asyncio.sleep(0.05)
+        t2 = asyncio.create_task(hz.get_horizon(0.1, 0.1))     # espera el futuro compartido
+        await asyncio.sleep(0.05)
+        t1.cancel()
+        with pytest.raises(RuntimeError):                         # lo repite él mismo (aquí, la tesela no llega)
+            await asyncio.wait_for(t2, timeout=10)
+        assert not hz._inflight
+
+    try:
+        asyncio.run(main())
+    finally:
+        hz.reset_cache()

@@ -245,10 +245,21 @@ export async function ensureSubscription(publicKey, win = W()) {
   return sub;
 }
 
-async function call(api, path, method, body) {
+/** Señal que se aborta a los `ms` (AbortSignal.timeout; si no existe, un AbortController con setTimeout). */
+export function timeoutSignal(ms) {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return c.signal;
+}
+export const CALL_TIMEOUT_MS = 15000;
+
+/** Llamada al backend de avisos. Con tiempo límite: un servidor colgado no deja «Recordarme» girando sin fin
+ *  (el agotamiento, como cualquier fallo de red, es PushError("network")). */
+export async function call(api, path, method, body, ms = CALL_TIMEOUT_MS) {
   let r;
   try {
-    r = await fetch(`${base(api)}${path}`, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body), credentials: "omit" });
+    r = await fetch(`${base(api)}${path}`, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body), credentials: "omit", signal: timeoutSignal(ms) });
   } catch { throw new PushError("network"); }
   if (r.ok) return r.status === 204 ? null : r.json().catch(() => null);
   let j = null;

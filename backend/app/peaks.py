@@ -35,19 +35,24 @@ from fastapi import APIRouter, HTTPException, Query, Response
 
 from app import horizon as hz
 from app.cache import iso_utc, provider_headers
+from app.version import VERSION
 
 SOURCE = "Wikidata (CC0) y OpenStreetMap (© colaboradores de OpenStreetMap, ODbL)"
 WIKIDATA = "https://query.wikidata.org/sparql"
 # montaña, volcán, cima, estratovolcán, colina, volcán en escudo, volcán extinto, montaña sagrada
 WD_TYPES = ("Q8502", "Q8072", "Q207326", "Q169358", "Q54050", "Q212057", "Q1197120", "Q1595289")
 OSM_WAIT_S = 8.0            # cuánto más se espera a OpenStreetMap cuando Wikidata ya respondió
-WD_UA = "Teseo/1.13.3 (https://teseo.yachaydeep.com; https://github.com/cvasconezp/teseo) httpx"
+# Wikimedia y Overpass piden un User-Agent que identifique la aplicación y dé un contacto
+WD_UA = f"Teseo/{VERSION} (https://teseo.yachaydeep.com; teseo@yachaydeep.com; https://github.com/cvasconezp/teseo) httpx"
+# En orden de preferencia. overpass.kumi.systems es hoy el mismo servicio que overpass.private.coffee: fuera.
 OVERPASS = (
     "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 )
+OVERPASS_HEDGE_S = 8.0      # sin respuesta en este tiempo, se pide también al siguiente (no todos a la vez)
+OVERPASS_COOLDOWN_S = 30.0  # tras un 429, ese servidor no se vuelve a pedir durante este tiempo
+_overpass_cool: dict = {}   # url → instante (monotonic) hasta el que no se le pide
 NEAR_KM = 40.0          # hasta aquí, todas las cumbres con nombre
 MAX_KM = 150.0          # más lejos, solo las que tienen altura y superan la del lugar en ≥ 300 m
 VOLC_KM = 300.0         # y más allá de MAX_KM, solo volcanes (pocos y altos: asoman desde las cumbres)
@@ -63,9 +68,16 @@ _results: "OrderedDict[tuple, dict]" = OrderedDict()
 stats = {"computed": 0, "last_error": None, "last_ms": None, "last_endpoint": None, "last_sources": None}
 
 
+def _ua() -> str:
+    """User-Agent de las consultas a Wikidata y Overpass: el de TESEO_USER_AGENT si lo hay (cache.provider_headers)
+    y, si no, WD_UA (con la versión y el contacto de Teseo)."""
+    return provider_headers().get("User-Agent") or WD_UA
+
+
 def reset_cache() -> None:
     _nodes.clear()
     _results.clear()
+    _overpass_cool.clear()
     stats.update(computed=0, last_error=None, last_ms=None, last_endpoint=None, last_sources=None)
 
 
@@ -282,7 +294,7 @@ async def fetch_wikidata(client: httpx.AsyncClient, lat: float, lon: float) -> l
     # el sitio y el repositorio públicos de Teseo
     for attempt in range(2):
         r = await client.get(WIKIDATA, params={"query": wikidata_query(lat, lon)},
-                             headers={"Accept": "application/sparql-results+json", "User-Agent": WD_UA})
+                             headers={"Accept": "application/sparql-results+json", "User-Agent": _ua()})
         if r.status_code not in (403, 429, 503) or attempt:
             break
         await asyncio.sleep(1.5)                             # límite de ritmo: un segundo intento
@@ -319,24 +331,44 @@ async def fetch_nodes(lat: float, lon: float, ground_m: float) -> list:
 
 
 async def fetch_osm(client: httpx.AsyncClient, lat: float, lon: float, min_far: float) -> list:
-    """Pregunta a los servidores Overpass a la vez y se queda con la primera respuesta buena (suelen ir
-    cargados: uno solo puede tardar un minuto o fallar)."""
+    """Pregunta a los servidores Overpass EN ORDEN (su política pide no consultar varios a la vez): al siguiente
+    solo si el anterior falla o no ha respondido en OVERPASS_HEDGE_S (el lento sigue y vale si llega antes). Un
+    servidor que respondió 429 no se pide durante OVERPASS_COOLDOWN_S. El tiempo total sigue acotado por quien
+    llama (fetch_nodes: OSM_WAIT_S tras Wikidata) y por el tiempo límite del cliente."""
     q = overpass_query(lat, lon, min_far)
     errors = []
-    if True:
-        async def one(url):
-            r = await client.post(url, data={"data": q})
-            if r.status_code != 200:
-                raise RuntimeError(f"HTTP {r.status_code}")
-            els = r.json().get("elements")
-            if els is None:
-                raise RuntimeError("respuesta sin elementos")
-            return url, els
-        tasks = {asyncio.ensure_future(one(u)): u for u in OVERPASS}
-        try:
-            for fut in asyncio.as_completed(list(tasks)):
-                try:
-                    url, els = await fut
+    now = time.monotonic()
+    urls = [u for u in OVERPASS if _overpass_cool.get(u, 0.0) <= now]
+    if not urls:
+        raise RuntimeError("servidores Overpass en pausa tras un 429")
+
+    async def one(url):
+        r = await client.post(url, data={"data": q}, headers={"User-Agent": _ua()})
+        if r.status_code == 429:
+            _overpass_cool[url] = time.monotonic() + OVERPASS_COOLDOWN_S
+        if r.status_code != 200:
+            raise RuntimeError(f"HTTP {r.status_code}")
+        els = r.json().get("elements")
+        if els is None:
+            raise RuntimeError("respuesta sin elementos")
+        return url, els
+
+    pending: set = set()
+    try:
+        for i, u in enumerate(urls):
+            pending.add(asyncio.ensure_future(one(u)))
+            last = i == len(urls) - 1
+            while pending:
+                done, pending = await asyncio.wait(pending, timeout=None if last else OVERPASS_HEDGE_S,
+                                                   return_when=asyncio.FIRST_COMPLETED)
+                if not done:
+                    break                                  # el actual tarda: se pide también al siguiente
+                for fut in done:
+                    try:
+                        url, els = fut.result()
+                    except Exception as e:                 # noqa: BLE001 — se prueba el siguiente
+                        errors.append(str(e) or type(e).__name__)
+                        continue
                     stats["last_endpoint"] = url
                     seen, out = set(), []
                     for el in els:
@@ -344,11 +376,11 @@ async def fetch_osm(client: httpx.AsyncClient, lat: float, lon: float, min_far: 
                             continue
                         seen.add(el.get("id")); out.append(el)
                     return out
-                except Exception as e:                     # noqa: BLE001 — se prueba el siguiente
-                    errors.append(str(e) or type(e).__name__)
-        finally:
-            for t in tasks:
-                t.cancel()
+                if not last:
+                    break                                  # falló: al siguiente ya (el lento, si lo hay, sigue)
+    finally:
+        for t in pending:
+            t.cancel()
     raise RuntimeError("; ".join(errors) or "sin respuesta")
 
 

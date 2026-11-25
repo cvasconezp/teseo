@@ -4,8 +4,9 @@ import { localMidnightOf } from "./events.js";
 
 const MIN = 60000, HOUR = 3600000, DAY = 86400000;
 
-/** Día local (medianoche) de un instante. */
-const dayStart = (ms) => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+/** Día local (medianoche) de un instante. (Calendar.jsx lo usa para que la agenda empiece «hoy» aunque
+ *  la pestaña siga abierta pasada la medianoche.) */
+export const dayStart = (ms) => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
 /** Días de calendario (locales) entre hoy y una fecha. */
 const dayDiff = (fromMs, toMs) => Math.round((dayStart(toMs) - dayStart(fromMs)) / DAY);
 
@@ -15,19 +16,26 @@ export const startOfEvent = (ev) => (ev.allDay ? localMidnightOf(ev.t) : ev.t);
 /**
  * Texto corto de cuánto falta.
  * @returns {{ state: "past"|"now"|"today"|"soon"|"later", text: string }}
- *   past  = ya ocurrió hoy · now = en este minuto · today = evento de todo el día que es hoy
+ *   past  = ya ocurrió (hoy, ayer o antes) · now = en este minuto · today = evento de todo el día que es hoy
  *   soon  = faltan menos de 24 h (la tarjeta lo resalta) · later = más adelante
  */
 export function countdownText(ev, now, lang = "es") {
   const es = lang !== "en";
   if (ev.allDay) {
     const n = dayDiff(now, localMidnightOf(ev.t));
-    if (n <= 0) return { state: "today", text: es ? "Hoy" : "Today" };
+    if (n === -1) return { state: "past", text: es ? "Ayer" : "Yesterday" };
+    if (n < -1) return { state: "past", text: es ? "Ya ocurrió" : "Already happened" };
+    if (n === 0) return { state: "today", text: es ? "Hoy" : "Today" };
     if (n === 1) return { state: "soon", text: es ? "Mañana" : "Tomorrow" };
     return { state: "later", text: es ? `En ${n} días` : `In ${n} days` };
   }
   const dt = ev.t - now;
-  if (dt < -MIN) return { state: "past", text: es ? "Hoy · ya ocurrió" : "Today · already happened" };
+  if (dt < -MIN) {
+    const n = dayDiff(now, ev.t);   // pasada la medianoche, lo de ayer no es «hoy»
+    if (n === 0) return { state: "past", text: es ? "Hoy · ya ocurrió" : "Today · already happened" };
+    if (n === -1) return { state: "past", text: es ? "Ayer · ya ocurrió" : "Yesterday · already happened" };
+    return { state: "past", text: es ? "Ya ocurrió" : "Already happened" };
+  }
   if (dt < MIN) return { state: "now", text: es ? "Ahora" : "Now" };
   const d = Math.floor(dt / DAY), h = Math.floor((dt % DAY) / HOUR), m = Math.floor((dt % HOUR) / MIN);
   if (dt < HOUR) return { state: "soon", text: es ? `En ${m} min` : `In ${m} min` };

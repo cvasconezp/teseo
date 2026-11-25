@@ -168,7 +168,9 @@ def to_grid(cls, top_m):
 class RangeFile:
     """Archivo remoto de solo lectura: pide por HTTP Range solo los bloques que h5py lee (y los recuerda)."""
 
-    def __init__(self, url: str, block: int = 256 << 10, max_blocks: int = 400):
+    # 40 bloques × 256 KiB = 10 MiB por archivo, y se guardan 6 archivos (_h5): ≈ 60 MiB como mucho (antes, 400
+    # bloques: hasta 100 MiB por archivo, 600 MiB en total). Una ventana de 300 km lee muchos menos bloques.
+    def __init__(self, url: str, block: int = 256 << 10, max_blocks: int = 40):
         self.url, self.block, self.pos, self.max_blocks = url, block, 0, max_blocks
         self.cache: "OrderedDict[int, bytes]" = OrderedDict()
         self.lock = threading.Lock()
@@ -189,6 +191,10 @@ class RangeFile:
                 self.cache.move_to_end(k); return self.cache[k]
         a = k * self.block; b = min(self.size, a + self.block) - 1
         r = _http().get(self.url, headers={"Range": f"bytes={a}-{b}"}); r.raise_for_status()
+        # solo vale la parte pedida (206): un servidor que ignore Range devuelve el archivo entero (200, cientos de
+        # MB en el caso de Himawari) y su comienzo se tomaría por el bloque k
+        if r.status_code != 206 or len(r.content) > b - a + 1:
+            raise OSError(f"el servidor no respetó la lectura por partes (HTTP {r.status_code}, {len(r.content)} bytes)")
         with self.lock:
             self.cache[k] = r.content
             while len(self.cache) > self.max_blocks:
@@ -264,9 +270,13 @@ _lists: dict = {}
 
 def _s3_keys(bucket: str, prefix: str, delimiter: bool = False):
     key = (bucket, prefix, delimiter)
+    now = time.time()
     hit = _lists.get(key)
-    if hit and time.time() - hit[0] < LIST_TTL_S:
+    if hit and now - hit[0] < LIST_TTL_S:
         return hit[1]
+    # fuera los listados caducados (cada hora y cada día traen prefijos nuevos: sin esto, el dict solo crece)
+    for k in [k for k, (t, _) in _lists.items() if now - t >= LIST_TTL_S]:
+        _lists.pop(k, None)
     params = {"list-type": "2", "prefix": prefix}
     if delimiter:
         params["delimiter"] = "/"
@@ -410,7 +420,7 @@ def read_eum(src: dict, lat, lon, lat0: float, lon0: float):
         r = _http().get(f"{EUMETVIEW}/wms", params=q); r.raise_for_status()
         if not r.headers.get("content-type", "").startswith("image/"):
             raise RuntimeError(f"EUMETView no devolvió imagen para {layer}")
-        return np.asarray(Image.open(io.BytesIO(r.content)).convert("RGBA"))
+        return np.asarray(Image.open(io.BytesIO(r.content), formats=["PNG"]).convert("RGBA"))
 
     clm, cth = get("clm"), get("cth")
     # píxel de cada muestra (la imagen va de norte a sur y de oeste a este)

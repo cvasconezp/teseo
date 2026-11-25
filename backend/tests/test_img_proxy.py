@@ -152,3 +152,37 @@ def test_cache_con_tope_de_bytes(upstream, monkeypatch):
         assert get(u).status_code == 200
     st = img_proxy.cache_status()
     assert st["items"] == 2 and st["bytes"] <= len(JPEG) * 2
+
+
+# ── B11/S10: sin query, vuelo único por URL y tope de descargas simultáneas ───────────────────────────────
+def test_url_con_query_rechazada(upstream):
+    routes, calls = upstream
+    r = client.get("/api/img", params={"u": SDO + "?v=123"})
+    assert r.status_code == 400 and "parámetros" in r.json()["detail"] and not calls
+    assert img_proxy.check_url(SDO + "?x=1", allow_query=True).endswith("?x=1")   # solo en redirecciones
+
+
+def test_vuelo_unico_y_semaforo(upstream):
+    import asyncio
+    routes, calls = upstream
+    state = {"now": 0, "max": 0}
+
+    class Lento(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request):
+            calls.append(str(request.url))
+            state["now"] += 1; state["max"] = max(state["max"], state["now"])
+            await asyncio.sleep(0.05)
+            state["now"] -= 1
+            return httpx.Response(200, headers={"content-type": "image/jpeg"}, content=JPEG)
+
+    img_proxy._transport = Lento()
+
+    async def main():
+        same = [img_proxy.img(SDO) for _ in range(5)]
+        others = [img_proxy.img(f"https://images-assets.nasa.gov/image/x{i}/x{i}~small.jpg") for i in range(8)]
+        out = await asyncio.gather(*same, *others)
+        assert all(r.status_code == 200 for r in out)
+
+    asyncio.run(main())
+    assert calls.count(SDO) == 1                                   # cinco peticiones iguales, una descarga
+    assert state["max"] <= img_proxy.MAX_CONCURRENT                # nunca más de 4 a la vez

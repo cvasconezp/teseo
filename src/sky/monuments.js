@@ -314,16 +314,6 @@ export const SITE_STOPS = {
     // (la Puerta de la Ciudad no tiene punto: en la maqueta ese borde del sitio está recortado y su nivel no es fiable)
   ],
 };
-/** Los puntos de visita del sitio donde está el observador (a menos de `reach` m de alguno) y en cuál está de pie. */
-export function stopsAt(lat, lon, reach = 700) {
-  for (const [site, stops] of Object.entries(SITE_STOPS)) {
-    const d = stops.map((s) => offsetOf(lat, lon, s.lat, s.lon).d), k = d.indexOf(Math.min(...d));
-    if (d[k] <= reach) return { site, stops, here: d[k] < 12 ? stops[k].id : null };
-  }
-  return null;
-}
-/** El punto de visita al que lleva el rótulo de un monumento (o null). */
-export const stopOf = (monId) => { for (const stops of Object.values(SITE_STOPS)) { const s = stops.find((q) => q.at.includes(monId)); if (s) return s; } return null; };
 
 export function footprintRadius(m) {
   if (m.foot != null) return m.foot;

@@ -19,7 +19,7 @@ import json
 import os
 
 from lib_astro import (RAW, PUBLIC, parse_hms, parse_dms, radec_to_vec,
-                       redshift_to_ly, sig, write_json)
+                       redshift_to_ly, mpc_to_ly, sig, write_json)
 
 NGC_CSV = os.path.join(RAW, "NGC.csv")
 SRC_URL = ("https://raw.githubusercontent.com/mattiaverga/OpenNGC/"
@@ -33,6 +33,24 @@ GAL_MAG_LIMIT = 13.0     # magnitud (V o B) máxima
 # a ese régimen: es justo donde el redshift ES la distancia estándar. Las
 # galaxias más cercanas y famosas ya están (con distancia curada) en Messier.
 GAL_MIN_LY = 1.5e7
+
+# Distancias INDEPENDIENTES del redshift para galaxias del grupo de Centauro A y vecinas: su velocidad peculiar
+# hace que cz/H0 dé ~22-25 Ma.l. cuando están a 11-14. Se aplican antes del redondeo y la ficha las presenta como
+# distancia publicada (campo dist_src), no como «estimada por corrimiento al rojo».
+DIST_OVERRIDE = {
+    # NASA, Hubble's Caldwell Catalog, Caldwell 77: «about 11 million light-years away»
+    # https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-caldwell-catalog/caldwell-77/
+    "NGC5128": {"ly": 1.1e7, "src": "nasa"},
+    # NASA, Hubble's Caldwell Catalog, Caldwell 83: «roughly 12 million light-years from Earth»
+    # https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-caldwell-catalog/caldwell-83/
+    "NGC4945": {"ly": 1.2e7, "src": "nasa"},
+    # Karachentsev et al. 2002, A&A 385, 21 (TRGB): 3,4 Mpc
+    # https://www.aanda.org/10.1051/0004-6361:20020042
+    "NGC5102": {"ly": mpc_to_ly(3.4), "src": "trgb"},
+    # Méndez et al. 2002, AJ 124, 213 (TRGB): (m-M)0 = 28,08 -> 4,13 ± 0,11 Mpc
+    # https://arxiv.org/abs/astro-ph/0204192
+    "NGC1313": {"ly": mpc_to_ly(4.13), "src": "trgb"},
+}
 
 # Nombres de constelación (abrev. IAU -> nombre en español), para las fichas.
 CONST_ES = {
@@ -134,11 +152,14 @@ def build_galaxies(rows):
         dec = parse_dms(r.get("Dec"))
         if ra is None or dec is None:
             continue
+        catname = (r.get("Name") or "").strip()
+        ov = DIST_OVERRIDE.get(catname)
         dist_ly = redshift_to_ly(z=fnum(r, "Redshift"), radvel_kms=fnum(r, "RadVel"))
-        if dist_ly is None or dist_ly < GAL_MIN_LY:
+        if ov:
+            dist_ly = ov["ly"]            # distancia publicada (ver DIST_OVERRIDE), no la del redshift
+        elif dist_ly is None or dist_ly < GAL_MIN_LY:
             continue
         nx, ny, nz = radec_to_vec(ra, dec)
-        catname = (r.get("Name") or "").strip()
         cn = common_name(r)
         const = (r.get("Const") or "").strip()
         obj = {
@@ -148,6 +169,8 @@ def build_galaxies(rows):
             "mag": round(mag, 2),
             "dist_ly": sig(dist_ly, 3),
         }
+        if ov:
+            obj["dist_src"] = ov["src"]   # la ficha dice «distancia publicada»
         hub = (r.get("Hubble") or "").strip()
         if hub:
             obj["hubble"] = hub          # tipo morfológico (Sb, E0, ...)
@@ -162,6 +185,8 @@ def build_galaxies(rows):
         "url": "https://github.com/mattiaverga/OpenNGC",
         "distance": ("Derivada del corrimiento al rojo (velocidad radial / "
                      f"ley de Hubble, H0={70}). Aproximada."),
+        "distance_override": ("Salvo las del campo dist_src (NGC 5128, NGC 4945, NGC 5102, NGC 1313): "
+                              "distancia publicada (NASA; TRGB), ver DIST_OVERRIDE en scripts/build_deepsky.py."),
         "filter": f"Galaxias con mag<={GAL_MAG_LIMIT} y distancia por redshift.",
         "count": len(objects),
     }

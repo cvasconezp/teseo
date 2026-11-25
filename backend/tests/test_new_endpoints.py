@@ -645,7 +645,8 @@ def test_errors_are_json_with_detail(monkeypatch):
         raise KeyError("fallo inesperado")
     monkeypatch.setattr(main.orbital, "find_launch_windows", boom)
     r = client.get("/api/launch-windows/earth/saturn", headers={"Origin": "https://example.org"})
-    assert r.status_code == 500 and "fallo inesperado" in r.json()["detail"]
+    # mensaje genérico con id; el texto interno de la excepción va al registro, no al cliente
+    assert r.status_code == 500 and "fallo inesperado" not in r.json()["detail"] and "(id " in r.json()["detail"]
     assert r.headers["access-control-allow-origin"] == "*"
 
 

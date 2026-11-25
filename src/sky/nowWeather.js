@@ -159,3 +159,12 @@ export function windVector(now) {
   const sp = now.windKmh / 3.6, a = (now.windFrom * Math.PI) / 180;
   return [-sp * Math.sin(a), -sp * Math.cos(a)];
 }
+
+/** El dato del tiempo guardado ({ ...w, place: { lat, lon } }) solo si es de este lugar o de uno a menos de ~5 km
+ *  (puntos de un mismo sitio: si el servicio limita la consulta nueva, se conserva el de al lado); si no, null. Así,
+ *  si la consulta del lugar nuevo falla, la pastilla no muestra el tiempo de otra ciudad con el nombre del nuevo. */
+export const NEAR_DEG = 0.05;
+export function wxForPlace(w, lat, lon) {
+  if (!w || !w.place || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return Math.abs(w.place.lat - lat) <= NEAR_DEG && Math.abs(w.place.lon - lon) <= NEAR_DEG ? w : null;
+}

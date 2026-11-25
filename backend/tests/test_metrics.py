@@ -344,8 +344,10 @@ def test_summary_401_and_ok(store, monkeypatch):
     assert data["top"]["tours"] == [{"value": "drake", "count": 1}]
     assert data["top"]["sky_objects"] == [{"value": "M31", "count": 1}]
     assert data["by_day"][-1]["date"] == metrics.utc_day()
-    # también con ?token=
-    assert client.get("/api/metrics/summary?token=prueba-secreta").status_code == 200
+    # ?token= ya no vale en el resumen (queda en los registros de los proxies); solo en el CSV (README)
+    assert client.get("/api/metrics/summary?token=prueba-secreta").status_code == 401
+    assert client.get("/api/metrics/admin?token=prueba-secreta").status_code == 401
+    assert client.get("/api/metrics/summary.csv?token=prueba-secreta").status_code == 200
 
 
 def test_summary_csv(store, monkeypatch):
@@ -515,3 +517,35 @@ def test_ambient():
     # botón de música ambiental: solo on/off
     assert metrics.clean_event({"e": "ambient", "p": {"state": "on"}}) == {"e": "ambient", "p": {"state": "on"}}
     assert metrics.clean_event({"e": "ambient", "p": {"state": "loud"}}) == {"e": "ambient", "p": {}}
+
+
+# ── B4: la IP del cliente prefiere X-Real-IP (la pone el edge) al primer valor de X-Forwarded-For ─────────
+def test_client_ip_prefers_x_real_ip():
+    assert metrics.client_ip({"x-real-ip": "203.0.113.9", "x-forwarded-for": "1.2.3.4, 10.0.0.1"}, "10.0.0.2") == "203.0.113.9"
+    # sin X-Real-IP, como antes: el primero de X-Forwarded-For y, si no, la del socket
+    assert metrics.client_ip({"x-forwarded-for": "1.2.3.4, 10.0.0.1"}, "10.0.0.2") == "1.2.3.4"
+    assert metrics.client_ip({}, "10.0.0.2") == "10.0.0.2"
+    assert metrics.client_ip({"x-real-ip": "  "}, "10.0.0.2") == "10.0.0.2"
+
+
+# ── B8: status() sin copiar todo el almacén y landing_summary con caché corta ─────────────────────────────
+def test_status_counts_without_snapshot(monkeypatch):
+    clock = {"t": 1_790_000_000.0}
+    s = metrics.MetricsStore(None, clock=lambda: clock["t"])
+    s.record([{"e": "page_view", "p": {"tab": "route"}}] * 3, "desktop")
+    s.base = {"version": 1, "days": {"2000-01-01": {"page_view": {"_": 5}},
+                                     metrics.utc_day(clock["t"]): {"session_start": {"_": 2}}}}
+    monkeypatch.setattr(s, "snapshot", lambda: (_ for _ in ()).throw(AssertionError("sin deepcopy")))
+    st = s.status()
+    assert st["events_today"] == 5 and st["days_stored"] == 1      # el día del año 2000 ya caducó
+
+
+def test_landing_summary_cached_for_a_minute():
+    clock = {"t": 1_790_000_000.0}
+    s = metrics.MetricsStore(None, clock=lambda: clock["t"])
+    a = s.landing_summary(30)
+    s.record([{"e": "session_start", "p": {"tab": "route"}}], "desktop")
+    assert s.landing_summary(30) is a                               # dentro de 60 s, la misma
+    assert s.landing_summary(7) is not a                            # por `days`
+    clock["t"] += metrics.LANDING_CACHE_S + 1
+    assert s.landing_summary(30)["totals"]["visits"] == 1

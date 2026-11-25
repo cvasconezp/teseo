@@ -92,6 +92,11 @@ console.log("Datos de cada casilla: solo lo que el evento trae o la app calcula"
   const sol = eventCardText(SPECS[4][1], "es", QUITO_PLACE, NOW);
   ok(sol.curio && /ISO 12312-2/.test(sol.curio), "eclipse de Sol: aviso de seguridad (ISO 12312-2)");
   ok(sol.grid.some((g) => g.label === "Desde Ecuador"), "eclipse de Sol: visibilidad desde Ecuador según la NASA");
+  // fuera de Ecuador no hay fila «Desde Ecuador» (el dato de la NASA solo vale ahí): «Visibilidad · mira el mapa»
+  const MADRID = { lat: 40.42, lon: -3.70, elev: 650, kind: "custom", name: null };
+  const solMad = eventCardText(SPECS[4][1], "es", MADRID, NOW), solMadEn = eventCardText(SPECS[4][1], "en", MADRID, NOW);
+  ok(!solMad.grid.some((g) => /Ecuador/.test(g.label + g.value + (g.sub || ""))) && solMad.grid.some((g) => g.label === "Visibilidad" && g.value === "Mira el mapa") && solMadEn.grid.some((g) => g.label === "Visibility" && g.value === "Check the map"),
+    "eclipse de Sol desde Madrid: sin «Desde Ecuador»; «Visibilidad: mira el mapa» (ES/EN)");
   const tot = eventCardText(SPECS[2][1], "es", QUITO_PLACE, NOW);
   ok(tot.grid.some((g) => g.label === "Totalidad" && /^\d+ min$/.test(g.value)), "eclipse total: duración de la totalidad (NASA)");
   ok(/rojizo/.test(tot.visual.label), "eclipse total: el tono rojizo se explica como representación");

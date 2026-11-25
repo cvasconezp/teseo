@@ -1,6 +1,8 @@
 // Pruebas de las funciones puras de la app (Ruta, Ventanas, enlaces directos,
 // analítica y "Ahora en el espacio"). Node puro, sin dependencias.
 // Uso:  node scripts/test_app.mjs     (sale con código 1 si algo falla)
+import { readFileSync } from "node:fs";
+import { cycleFocus, FOCUSABLE } from "../src/ui/focusTrap.js";
 import { hohmannLocal, launchWindowsLocal, helioPosition, approxDistanceKm, AU_KM, SEMI_MAJOR_AXIS_AU } from "../src/ui/orbits.js";
 import { DAY_MS, parseISO, daysUntil, durationParts, relParts, countdownParts } from "../src/ui/time.js";
 import { parseHash, hashBelongsTo, hashForTab, hashForQuestion, usageHash, hashForUsage } from "../src/ui/hash.js";
@@ -358,6 +360,51 @@ console.log("Ahora en el espacio: asteroides");
   ok(lay.every((q, i) => near(Math.hypot(q.x, q.y), Math.min(1, [1, 5, 10, 12][i] / 10), 1e-12)), "gráfico: el radio de cada punto es proporcional a su distancia (escala lineal)");
   ok(near(lay[0].x, 0, 1e-12) && lay[0].y < 0, "gráfico: el primero arriba; los demás repartidos");
   ok(new Set(lay.map(q => Math.atan2(q.y, q.x).toFixed(3))).size === 4, "gráfico: ángulos distintos");
+}
+
+console.log("Foco en los diálogos (src/ui/focusTrap.js)");
+{
+  // diálogo falso: tres controles; contains/querySelectorAll como en el DOM
+  const mk = (n) => ({ n, focused: 0, focus() { this.focused++; } });
+  const [a, b, c] = [mk("a"), mk("b"), mk("c")];
+  const box = { querySelectorAll: (sel) => (sel === FOCUSABLE ? [a, b, c] : []), contains: (el) => [a, b, c].includes(el) };
+  const key = (shiftKey = false, k = "Tab") => ({ key: k, shiftKey, prevented: false, preventDefault() { this.prevented = true; } });
+  let e = key(); ok(cycleFocus(e, box, c) && e.prevented && a.focused === 1, "Tab en el último control vuelve al primero");
+  e = key(true); ok(cycleFocus(e, box, a) && e.prevented && c.focused === 1, "Mayús+Tab en el primero va al último");
+  e = key(); ok(!cycleFocus(e, box, b) && !e.prevented, "en medio, Tab sigue su curso (los enlaces de Créditos se alcanzan)");
+  e = key(); ok(cycleFocus(e, box, { n: "fuera" }) && a.focused === 2, "si el foco escapó del diálogo, Tab vuelve a entrar");
+  e = key(false, "Enter"); ok(!cycleFocus(e, box, c) && !e.prevented, "otras teclas no se tocan");
+  ok(/input:not\(:disabled\)/.test(FOCUSABLE) && /a\[href\]/.test(FOCUSABLE), "enfocables: botones, enlaces y campos (la clave del panel)");
+  const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  ok((app.match(/cycleFocus\(e, boxRef\.current\)/g) || []).length === 3 && !/e\.key === "Tab"\) \{ e\.preventDefault\(\); closeRef/.test(app), "Créditos, menú y «Reportar» usan el ciclo de foco (Créditos ya no encierra el foco en Cerrar)");
+  const modal = readFileSync(new URL("../src/usage/UsageModal.jsx", import.meta.url), "utf8");
+  ok(/cycleFocus\(e, boxRef\.current\)/.test(modal), "«Teseo en números» usa el mismo ciclo");
+}
+
+console.log("Ruta: el backend y la IA solo al abrir Ruta (App.jsx)");
+{
+  const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  ok(/const onRoute = tab==="route";/.test(app), "hay una bandera de pestaña Ruta");
+  ok(/if\(!API\|\|!onRoute\|\|routeDone\.current\.pos===posTry\) return;/.test(app) && /\},\[posTry,onRoute\]\);/.test(app), "posiciones (8×/api/position): solo en Ruta");
+  ok(/if\(!API\|\|!onRoute\|\|special\|\|from\.id===to\.id\|\|routeDone\.current\.dist===key\) return;/.test(app), "distancia: solo en Ruta y sin Luna/Sol");
+  ok(/if\(!onRoute\|\|routeDone\.current\.win===key\) return;/.test(app), "ventana del mapa: solo en Ruta");
+  ok(/if\(!API\|\|!onRoute\|\|special\|\|from\.id===to\.id\|\|routeDone\.current\.route===key\) return;/.test(app) && /\},\[from,to,lang,routeTry,onRoute,!!special\]\);/.test(app), "ruta y narración (Groq): solo en Ruta, sin Luna/Sol");
+  ok((app.match(/positions=\{positions\}/g) || []).length === 1 && (app.match(/<SolarMap /g) || []).length === 1, "las posiciones solo las usa el mapa de Ruta (un único SolarMap)");
+}
+
+console.log("Textos de marca y créditos (App.jsx)");
+{
+  const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  ok(/y se hace con Killa Ñan\."\]/.test(app) && /and is made with Killa Ñan\."\]/.test(app) && !/cooperaci[oó]n con Killa|cooperation with Killa/.test(app), "Killa Ñan: «se hace con» / «is made with» (sin «en cooperación»)");
+  ok(/Un modelo de lenguaje abierto servido por Groq/.test(app) && /An open-weight language model served by Groq/.test(app) && !/Llama/.test(app), "narración: un modelo abierto servido por Groq (sin nombrar un modelo que envejece)");
+}
+
+console.log("Recarga tras un despliegue (main.jsx, ErrorBoundary.jsx)");
+{
+  const main = readFileSync(new URL("../src/main.jsx", import.meta.url), "utf8");
+  ok(/addEventListener\("vite:preloadError"/.test(main) && /sessionStorage\.getItem\(PRELOAD_KEY\)/.test(main) && /Date\.now\(\) - at < 60000\) return;/.test(main), "chunk perdido: recarga una vez, con bandera en sessionStorage contra el bucle");
+  const eb = readFileSync(new URL("../src/ErrorBoundary.jsx", import.meta.url), "utf8");
+  ok(!/\{!sky && \(/.test(eb) && /window\.location\.reload\(\)/.test(eb), "el Cielo también ofrece «Recargar»");
 }
 
 console.log(`\n${passed} pruebas correctas, ${failed} fallidas`);

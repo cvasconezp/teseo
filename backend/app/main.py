@@ -40,10 +40,13 @@ Para correr localmente:
 
 import asyncio
 import hmac
+import logging
 import os
+import re
+import secrets
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
@@ -52,7 +55,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import orbital
 from app import nasa_horizons
@@ -76,14 +79,22 @@ from app import landcolor
 from app import terrain3d
 from app import lightpollution
 from app.cache import ProviderError, iso_utc
+from app.version import VERSION
 
-VERSION = "1.86.0"
+log = logging.getLogger("teseo")
 _STARTED = time.time()
+
+# Documentación interactiva (/docs y /openapi.json): TESEO_DOCS=0 la apaga en producción; por defecto sigue
+# encendida para no cambiar nada hasta decidirlo. ReDoc (/redoc) no se usa: apagado.
+_DOCS = os.environ.get("TESEO_DOCS", "1").strip() != "0"
 
 app = FastAPI(
     title="Teseo API",
     description="Navegación cósmica real — trayectorias, ventanas de lanzamiento y posiciones reales del sistema solar.",
     version=VERSION,
+    docs_url="/docs" if _DOCS else None,
+    openapi_url="/openapi.json" if _DOCS else None,
+    redoc_url=None,
 )
 
 
@@ -111,6 +122,22 @@ _CACHE_SECONDS = [
 ]
 _DEGRADED_CACHE = "public, max-age=30"  # datos `stale` o aún incompletos
 
+# Límite por IP de las rutas caras (descargan teselas, calculan órbitas o consultan a terceros). Generoso: abrir
+# el Cielo lanza unas 10–15 de estas (horizonte, colores, relieve cercano y su imagen, cumbres, nubes, alturas,
+# imágenes) y en una charla mucha gente comparte la IP de la wifi. Fuera quedan /api/position(s) y /api/distance
+# (la Ruta pide 8 seguidas, y las sirve la caché por día). TESEO_API_RATE_PER_MIN=0 lo desactiva.
+_EXPENSIVE_PREFIXES = ("/api/launch-windows/", "/api/route", "/api/elevation", "/api/summit", "/api/horizon",
+                       "/api/clouds-sat", "/api/terrain/", "/api/peaks", "/api/img", "/api/trajectory", "/api/mga")
+API_RATE_PER_MIN = int(os.environ.get("TESEO_API_RATE_PER_MIN", "600") or 0)
+api_limiter = metrics.RateLimiter(per_minute=max(1, API_RATE_PER_MIN))
+
+
+def _api_rate_exceeded(request: Request) -> bool:
+    if API_RATE_PER_MIN <= 0 or request.method == "OPTIONS" or not request.url.path.startswith(_EXPENSIVE_PREFIXES):
+        return False
+    ip = metrics.client_ip(request.headers, request.client.host if request.client else None)
+    return api_limiter.allow(ip, 1) < 1
+
 
 def _degraded(response: Response) -> None:
     response.headers["Cache-Control"] = _DEGRADED_CACHE
@@ -118,14 +145,19 @@ def _degraded(response: Response) -> None:
 
 @app.middleware("http")
 async def _cache_and_errors(request: Request, call_next):
+    if _api_rate_exceeded(request):
+        return JSONResponse(status_code=429, content={"detail": "Demasiadas peticiones; espera un minuto."},
+                            headers={"Retry-After": "60", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
     try:
         response = await call_next(request)
     except Exception as e:  # nunca un 500 en HTML ni sin explicar
+        # el texto de la excepción puede llevar rutas, URLs o datos internos: al registro, no al cliente
         return JSONResponse(
             status_code=500,
-            content={"detail": f"Error interno de Teseo: {type(e).__name__}: {e}"},
-            headers={"Cache-Control": "no-store"},
+            content={"detail": _internal_detail("Error interno de Teseo", e, request.url.path)},
+            headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
         )
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
     if "cache-control" not in response.headers:
         value = "no-store"
         if request.method == "GET" and response.status_code == 200:
@@ -177,6 +209,19 @@ async def _validation_error(request: Request, exc: RequestValidationError):
     )
 
 
+def _internal_detail(prefix: str, e: BaseException, where: str = "") -> str:
+    """Mensaje genérico con un id corto para el cliente; el detalle completo, al registro con ese id."""
+    err_id = secrets.token_hex(4)
+    log.error("[%s] %s %s: %s: %s", err_id, prefix, where, type(e).__name__, e, exc_info=e)
+    return f"{prefix} (id {err_id})."
+
+
+# Mensajes que escribe el propio Teseo (ProviderError: «HTTP 429», «no respondió a tiempo», «sigue cargando en
+# segundo plano»…) o que describen la petición (ValueError, RuntimeError de las consultas a Horizons): se
+# muestran tal cual. Cualquier otra excepción es inesperada: mensaje genérico con id (ver _internal_detail).
+_SAFE_ERRORS = (ProviderError, ValueError, RuntimeError, asyncio.TimeoutError)
+
+
 def _provider_http_error(provider: str, e: Exception) -> HTTPException:
     """Fallo de un proveedor sin dato previo que servir -> 502/503 en JSON."""
     if isinstance(e, ProviderError) and e.pending:
@@ -185,17 +230,45 @@ def _provider_http_error(provider: str, e: Exception) -> HTTPException:
             detail=f"{provider} aún está respondiendo: {e}",
             headers={"Retry-After": "5"},
         )
+    if not isinstance(e, _SAFE_ERRORS):
+        return HTTPException(status_code=502, detail=_internal_detail(f"Error consultando {provider}", e))
     return HTTPException(status_code=502, detail=f"Error consultando {provider}: {e}")
 
 
-def _parse_date(date: Optional[str]) -> Optional[datetime]:
+# Fechas que se aceptan en `date`/`start_date`: las efemérides integradas y Horizons las cubren de sobra, y
+# acotarlas impide pedir fechas absurdas (año 9999) que desbordan los cálculos o llenan las cachés por día.
+DATE_MIN = datetime(1900, 1, 1)
+DATE_MAX = datetime(2100, 12, 31, 23, 59, 59)
+
+
+def _to_utc_naive(d: datetime) -> datetime:
+    """Con zona horaria → la misma hora en UTC, sin tzinfo (todo el backend trabaja en UTC «ingenuo»)."""
+    return d.astimezone(timezone.utc).replace(tzinfo=None) if d.tzinfo is not None else d
+
+
+_DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _parse_date(date: Optional[str], day_only: bool = True) -> Optional[datetime]:
+    """`date` → datetime UTC sin zona, entre 1900 y 2100 (400 si no se entiende, 422 fuera de rango; el mensaje
+    no repite el valor recibido). Con day_only (posiciones, distancias, ventanas, ruta: la app solo manda
+    AAAA-MM-DD) se queda con el día: «2026-11-25T10:00» es el 25. Sondas y cometas (day_only=False) conservan la
+    hora: su efeméride es al minuto."""
+    if not date:
+        return None
     try:
-        return datetime.fromisoformat(date) if date else None
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Fecha inválida: '{date}'. Usa el formato YYYY-MM-DD.",
-        )
+        if day_only:
+            day = date.strip()[:10]
+            if not _DAY_RE.match(day):
+                raise ValueError
+            d = datetime.fromisoformat(day)
+        else:
+            d = _to_utc_naive(datetime.fromisoformat(date.strip()))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Fecha inválida. Usa el formato YYYY-MM-DD.")
+    if not (DATE_MIN <= d <= DATE_MAX):
+        raise HTTPException(status_code=422, detail="Fecha fuera de rango: debe estar entre 1900-01-01 y 2100-12-31.")
+    return d
 
 
 @app.get("/")
@@ -304,17 +377,19 @@ def _metrics_auth(request: Request, token: Optional[str]) -> None:
 
 
 @app.get("/api/metrics/summary", include_in_schema=False)
-def metrics_summary(request: Request, days: int = Query(30, ge=1, le=metrics.RETAIN_DAYS),
-                    token: Optional[str] = Query(None)):
-    """Resumen de uso: totales por día, por evento/parámetro, top y dispositivos."""
-    _metrics_auth(request, token)
+def metrics_summary(request: Request, days: int = Query(30, ge=1, le=metrics.RETAIN_DAYS)):
+    """Resumen de uso: totales por día, por evento/parámetro, top y dispositivos. Solo con la cabecera
+    Authorization: Bearer (un ?token= queda en los registros de los proxies y en el historial)."""
+    _metrics_auth(request, None)
     return JSONResponse(metrics_store.summary(days), headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
 
 
 @app.get("/api/metrics/summary.csv", include_in_schema=False)
 def metrics_summary_csv(request: Request, days: int = Query(30, ge=1, le=metrics.RETAIN_DAYS),
                         token: Optional[str] = Query(None)):
-    """Lo mismo en CSV largo (date,event,param,value,count) para una hoja de cálculo."""
+    """Lo mismo en CSV largo (date,event,param,value,count) para una hoja de cálculo. Es la única ruta que aún
+    acepta ?token=: el README documenta descargarla así desde una hoja de cálculo (=IMPORTDATA no envía
+    cabeceras). Mejor la cabecera Authorization cuando se pueda."""
     _metrics_auth(request, token)
     return PlainTextResponse(
         metrics_store.csv(days), media_type="text/csv; charset=utf-8",
@@ -349,10 +424,10 @@ def metrics_public(days: int = Query(30, description="Periodo en días: 7, 30, 9
 
 
 @app.get("/api/metrics/admin", include_in_schema=False)
-def metrics_admin(request: Request, days: int = Query(30), token: Optional[str] = Query(None)):
+def metrics_admin(request: Request, days: int = Query(30)):
     """Panel de administración (#admin): el resumen curado completo (MetricsStore.public_summary).
-    Exige TESEO_METRICS_TOKEN, igual que /api/metrics/summary."""
-    _metrics_auth(request, token)
+    Exige TESEO_METRICS_TOKEN en la cabecera Authorization (el panel la envía así), igual que /api/metrics/summary."""
+    _metrics_auth(request, None)
     return JSONResponse(metrics_store.public_summary(_check_days(days)),
                         headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
 
@@ -497,39 +572,65 @@ async def get_distance(body_a: str, body_b: str, response: Response, date: Optio
 
 
 class RouteRequest(BaseModel):
-    origin: str
-    destination: str
-    departure_date: Optional[str] = None  # ISO format, opcional
-    lang: str = "es"
+    origin: str = Field(..., max_length=16)
+    destination: str = Field(..., max_length=16)
+    departure_date: Optional[str] = Field(None, max_length=32)  # AAAA-MM-DD (opcional; se toma el día)
+    lang: str = Field("es", max_length=5)   # es | en (cualquier otro → es: ver narrative.normalize_lang)
     include_narrative: bool = True
 
 
+# Límite por IP de las peticiones que llaman a Groq (cada una gasta cuota de la cuenta): generoso para una
+# persona (la app pide una narración por ruta), corto para un script. Solo cuenta lo que de verdad llega a Groq:
+# /api/route sin narración (los números, lo primero que pide la app) o con la narración ya en caché no cuenta.
+AI_RATE_PER_MIN = int(os.environ.get("TESEO_AI_RATE_PER_MIN", "20") or 20)
+ai_limiter = metrics.RateLimiter(per_minute=AI_RATE_PER_MIN)
+
+
+def _ai_allowed(request: Request) -> bool:
+    ip = metrics.client_ip(request.headers, request.client.host if request.client else None)
+    return ai_limiter.allow(ip, 1) == 1
+
+
+def _too_many_ai() -> HTTPException:
+    return HTTPException(status_code=429, detail="Demasiadas peticiones de narración IA; prueba en un minuto.",
+                         headers={"Retry-After": "60", "Cache-Control": "no-store"})
+
+
 @app.post("/api/route")
-def compute_route(req: RouteRequest):
+def compute_route(req: RouteRequest, request: Request):
     """
     Calcula la ruta completa Hohmann entre dos cuerpos: física real
     (hapsira) + narrativa opcional generada por IA (Groq) a partir de
     esos mismos números.
     """
     try:
-        departure = datetime.fromisoformat(req.departure_date) if req.departure_date else None
+        departure = _parse_date(req.departure_date)
         result = orbital.compute_hohmann_transfer(req.origin, req.destination, departure)
         data = result.to_dict()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-        if req.include_narrative:
+    if req.include_narrative:
+        lang = narrative.normalize_lang(req.lang)
+        cached = narrative.cached_travel_narrative(data, lang)
+        if cached is not None:
+            data["narrative"] = cached
+        elif not _ai_allowed(request):
+            raise _too_many_ai()
+        else:
             try:
-                data["narrative"] = narrative.generate_travel_narrative(data, lang=req.lang)
+                data["narrative"] = narrative.travel_narrative(data, lang=lang)
             except Exception as e:
                 # La narrativa es un extra. Si Groq falla por lo que sea
                 # (no configurado, modelo deprecado -> 404, límite de tasa,
-                # caída), la ruta sigue devolviendo TODOS los números: la
-                # física es lo esencial y nunca pasa por la IA.
+                # caída, respuesta vacía), la ruta sigue devolviendo TODOS los
+                # números: la física es lo esencial y nunca pasa por la IA.
                 data["narrative"] = None
-                data["narrative_error"] = str(e)
+                # genérico: los errores de Groq traen datos de la cuenta (id de organización); el detalle, al registro
+                data["narrative_error"] = "La narrativa IA no está disponible ahora."
+                log.warning("narrativa de ruta no disponible: %s: %s", type(e).__name__, e)
 
-        return data
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return data
 
 
 @app.get("/api/exoplanets")
@@ -547,7 +648,7 @@ async def list_exoplanets(response: Response):
 @app.get("/api/comets")
 async def list_comets(response: Response, date: Optional[str] = Query(None)):
     """Posiciones reales actuales de cometas notables (NASA Horizons)."""
-    parsed = _parse_date(date)
+    parsed = _parse_date(date, day_only=False)
     try:
         data = await nasa_horizons.get_comet_positions(parsed)
     except Exception as e:
@@ -560,7 +661,7 @@ async def list_comets(response: Response, date: Optional[str] = Query(None)):
 @app.get("/api/probes")
 async def list_probes(response: Response, date: Optional[str] = Query(None)):
     """Posiciones reales actuales de sondas y telescopios (NASA Horizons)."""
-    parsed = _parse_date(date)
+    parsed = _parse_date(date, day_only=False)
     try:
         data = await nasa_horizons.get_spacecraft_positions(parsed)
     except Exception as e:
@@ -639,9 +740,13 @@ _windows_cache: dict = {}
 def _windows(origin: str, destination: str, parsed_date: Optional[datetime],
              start_date: Optional[str], count: int) -> dict:
     """Ventanas de lanzamiento, cacheadas por (ruta, día, cantidad): son
-    fechas absolutas y el resultado no cambia dentro del mismo día."""
+    fechas absolutas y el resultado no cambia dentro del mismo día.
+    `start_date` (texto) ya no entra en la clave: «2026-01-01» y
+    «2026-01-01T00:00:00+00:00» son el mismo día y comparten resultado."""
+    if parsed_date is not None:   # con fecha pedida, el cálculo parte de su medianoche (UTC): una sola entrada por día
+        parsed_date = parsed_date.replace(hour=0, minute=0, second=0, microsecond=0)
     day = (parsed_date or datetime.utcnow()).strftime("%Y-%m-%d")
-    key = (origin.lower(), destination.lower(), start_date or day, count)
+    key = (origin.lower(), destination.lower(), day, count)
     if key not in _windows_cache:
         if len(_windows_cache) > 500:
             _windows_cache.clear()
@@ -656,10 +761,13 @@ def get_launch_windows(
     start_date: Optional[str] = Query(None),
     count: int = Query(3, ge=1, le=10),
 ):
-    """Próximas ventanas de lanzamiento óptimas entre dos cuerpos."""
+    """Próximas ventanas de lanzamiento óptimas entre dos cuerpos. `start_date`
+    entre 1900 y 2100 (con zona horaria se pasa a UTC); fuera, 422."""
+    parsed_date = _parse_date(start_date)
     try:
-        parsed_date = datetime.fromisoformat(start_date) if start_date else None
         return _windows(origin, destination, parsed_date, start_date, count)
+    except OverflowError:
+        raise HTTPException(status_code=422, detail="Fecha fuera del rango que se puede calcular.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -739,7 +847,8 @@ def get_mga(response: Response, origin: str = Query("earth", max_length=16),
         return JSONResponse(status_code=202, content=payload,
                             headers={"Retry-After": "8", "Cache-Control": "no-store"})
     if status == "error":
-        raise HTTPException(status_code=503, detail=f"No se pudo calcular el plan: {payload['detail']}",
+        log.error("mga %s: %s", d, payload.get("detail"))
+        raise HTTPException(status_code=503, detail="No se pudo calcular el plan; se reintentará más tarde.",
                             headers={"Retry-After": "60"})
     if payload.get("refreshing"):
         _degraded(response)
@@ -802,17 +911,24 @@ async def mars_missions(response: Response):
 
 
 class ExplainRequest(BaseModel):
-    concept: str
-    lang: str = "es"
+    # un concepto es un término corto («ventana de lanzamiento»); un texto largo sería un prompt arbitrario
+    concept: str = Field(..., min_length=1, max_length=narrative.CONCEPT_MAX)
+    lang: str = Field("es", max_length=5)
 
 
 @app.post("/api/explain")
-def explain(req: ExplainRequest):
-    """Explica un concepto astronómico/orbital usando IA (Groq)."""
+def explain(req: ExplainRequest, request: Request):
+    """Explica un concepto astronómico/orbital usando IA (Groq). Limitado por IP
+    (TESEO_AI_RATE_PER_MIN, 429 al pasarse)."""
+    concept = narrative.clean_concept(req.concept)
+    if not concept:
+        raise HTTPException(status_code=422, detail="Parámetro inválido — concept: vacío")
+    if not _ai_allowed(request):
+        raise _too_many_ai()
     try:
-        text = narrative.explain_concept(req.concept, req.lang)
-        return {"concept": req.concept, "explanation": text}
+        text = narrative.explain_concept(concept, narrative.normalize_lang(req.lang))
+        return {"concept": concept, "explanation": text}
     except Exception as e:
-        # Groq no configurado, modelo deprecado (404) o caído -> 503,
-        # nunca un 500 sin explicar.
-        raise HTTPException(status_code=503, detail=f"Narrativa IA no disponible: {e}")
+        # Groq no configurado, modelo deprecado (404), caído o respuesta vacía -> 503,
+        # nunca un 500 sin explicar (el detalle, al registro).
+        raise HTTPException(status_code=503, detail=_internal_detail("Narrativa IA no disponible", e, "/api/explain"))

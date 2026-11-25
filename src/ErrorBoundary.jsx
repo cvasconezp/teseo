@@ -103,14 +103,13 @@ export default class ErrorBoundary extends Component {
         onRetry={this.handleRetry}
         className="max-w-md w-full"
         style={{ padding: 20 }}>
-        {!sky && (
-          <button type="button" onClick={() => window.location.reload()}
-            className="px-3 py-1.5 rounded-full transition-all hover:bg-white/10"
-            style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer", color: "#fff",
-              background: "transparent", border: "1px solid rgba(255,255,255,0.45)" }}>
-            {t.reload}
-          </button>
-        )}
+        {/* «Recargar» también en el Cielo: tras un despliegue, reintentar no arregla un chunk que ya no existe */}
+        <button type="button" onClick={() => window.location.reload()}
+          className="px-3 py-1.5 rounded-full transition-all hover:bg-white/10"
+          style={{ fontFamily: "Inter,system-ui", fontSize: 12, cursor: "pointer", color: "#fff",
+            background: "transparent", border: "1px solid rgba(255,255,255,0.45)" }}>
+          {t.reload}
+        </button>
       </ErrorNotice>
     );
 

@@ -46,7 +46,7 @@ ok(!/SUMMARY:Luna llena/.test(only) && /SUMMARY:Solsticio de diciembre/.test(onl
 console.log("Vercel");
 const vj = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8"));
 ok(vj.rewrites[0].source === "/cal/teseo.ics" && vj.rewrites[0].destination === "/api/calendar", "/cal/teseo.ics → función api/calendar");
-ok(vj.rewrites.some(r => r.source === "/((?!api/).*)" && r.destination === "/index.html"), "la ruta SPA no tapa las funciones /api");
+ok(vj.rewrites.some(r => r.source === "/((?!api/|assets/).*)" && r.destination === "/index.html"), "la ruta SPA no tapa las funciones /api");
 ok(vj.functions && vj.functions["api/calendar.js"] && /meteorshowers\.json/.test(vj.functions["api/calendar.js"].includeFiles), "la función lleva el catálogo de meteoros");
 const { default: handler } = await import("../api/calendar.js");
 const fakeRes = () => { const r = { statusCode: 0, headers: {}, body: "" }; r.setHeader = (k, v) => { r.headers[k.toLowerCase()] = v; }; r.end = (b) => { r.body = b || ""; }; return r; };
@@ -56,6 +56,17 @@ ok(r1.statusCode === 200 && r1.headers["content-type"].startsWith("text/calendar
 const r2 = fakeRes(); await handler({ url: "/api/calendar?lon=1" }, r2);
 ok(r2.statusCode === 400, "sin lugar: error 400");
 globalThis.fetch = realFetch;
+
+console.log("Eclipse solar fuera de Ecuador");
+{
+  // el dato de la NASA «visible desde Ecuador» no vale en Madrid: el total del 12-ago-2026 no puede salir «No visible aquí»
+  const unfold = (t) => t.replace(/\r?\n[ \t]/g, "").replace(/\\,/g, ",").replace(/\\;/g, ";");
+  const mad = unfold(buildFeed({ lat: 40.42, lon: -3.70, lang: "es", tz: "Europe/Madrid", name: "Madrid", now: Date.parse("2026-07-20T00:00:00Z"), showers, days: 60 }));
+  const ecl = (mad.split("BEGIN:VEVENT").find((b) => /SUMMARY:Eclipse solar total/.test(b)) || "");
+  ok(ecl && !/No visible aquí/.test(ecl) && !/Ecuador/.test(ecl) && /La visibilidad depende de tu lugar/.test(ecl) && /eclipse\.gsfc\.nasa\.gov/.test(ecl), "Madrid: el eclipse total sale con texto neutro, sin «No visible aquí» ni «Visible desde Ecuador»");
+  const qui = unfold(buildFeed({ lat: -0.22, lon: -78.51, lang: "es", tz: "America/Guayaquil", name: "Quito", now: Date.parse("2026-07-20T00:00:00Z"), showers, days: 60 }));
+  ok(/No visible aquí \(Quito\)\. Visible desde Ecuador: no/.test(qui), "Quito: se mantiene lo que dice la NASA para Ecuador");
+}
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

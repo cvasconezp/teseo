@@ -63,10 +63,18 @@ export function lunarEclipseVisibility(ecl, lat, lon) {
   return { state, altMax, altStart, altEnd };
 }
 
-/** Eclipses (de ambos tipos) entre from y to, ordenados. Para el lunar se calcula la visibilidad. */
+/** ¿El lugar está en Ecuador? Caja aproximada que cubre el continente y Galápagos (lat −5…2, lon −92…−75).
+ *  El campo `ecuador` de los eclipses solares solo vale para Ecuador: fuera, la visibilidad depende del mapa. */
+export function inEcuadorBox(lat, lon) {
+  return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -5 && lat <= 2 && lon >= -92 && lon <= -75;
+}
+
+/** Eclipses (de ambos tipos) entre from y to, ordenados. Para el lunar se calcula la visibilidad; el solar
+ *  lleva inEcuador (si el lugar está en Ecuador, donde vale su campo `ecuador`). */
 export function findEclipses(from, to, lat, lon) {
   const out = [];
-  for (const e of SOLAR_ECLIPSES) if (e.t >= from && e.t <= to) out.push({ ...e, body: "sun" });
+  const here = inEcuadorBox(lat, lon);
+  for (const e of SOLAR_ECLIPSES) if (e.t >= from && e.t <= to) out.push({ ...e, body: "sun", inEcuador: here });
   for (const e of LUNAR_ECLIPSES) if (e.t >= from && e.t <= to) out.push({ ...e, body: "moon", vis: lunarEclipseVisibility(e, lat, lon) });
   return out.sort((a, b) => a.t - b.t);
 }

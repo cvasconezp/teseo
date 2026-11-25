@@ -7,7 +7,7 @@ validada científicamente. La IA (Groq) solo se usa más adelante para
 narrativa y explicaciones — nunca para los números.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import numpy as np
@@ -214,6 +214,9 @@ def _wrap_pi(a):
     return (a + np.pi) % (2 * np.pi) - np.pi
 
 
+WINDOWS_UNTIL = datetime(2200, 1, 1)   # ventanas posteriores se descartan
+
+
 def find_launch_windows(
     origin: str, destination: str, start_date: Optional[datetime] = None, count: int = 3
 ) -> list[dict]:
@@ -236,6 +239,8 @@ def find_launch_windows(
 
     if start_date is None:
         start_date = datetime.utcnow()
+    elif start_date.tzinfo is not None:   # con zona horaria: la misma hora en UTC, sin tzinfo (como el resto)
+        start_date = start_date.astimezone(timezone.utc).replace(tzinfo=None)
 
     # Valida cuerpos y obtiene el tiempo de vuelo de la transferencia
     reference = compute_hohmann_transfer(origin, destination, start_date)
@@ -272,12 +277,15 @@ def find_launch_windows(
                     lo, flo = mid, fm
             jd_win = 0.5 * (lo + hi)
             window_date = start_date + timedelta(days=float(jd_win - jd0))
+            if window_date >= WINDOWS_UNTIL:   # más allá, las efemérides integradas ya no valen
+                break
             transfer = compute_hohmann_transfer(origin, destination, window_date)
             windows.append(
                 {
                     "window_number": len(windows) + 1,
-                    "departure_date": window_date.isoformat(),
-                    "arrival_date": transfer.arrival_date.isoformat(),
+                    # al segundo (sin microsegundos): el navegador lo lee igual (src/ui/time.js parseISO)
+                    "departure_date": window_date.isoformat(timespec="seconds"),
+                    "arrival_date": transfer.arrival_date.isoformat(timespec="seconds"),
                     # Misma precisión (2 decimales) que /api/route, para que
                     # "Ruta" y "Ventanas" muestren exactamente la misma cifra.
                     "transfer_time_days": round(transfer.transfer_time_days, 2),

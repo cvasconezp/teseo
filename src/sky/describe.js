@@ -202,7 +202,8 @@ export function describeObject(o, lang, t, meteorActive) {
     const reach = magReach(o.mag); if (reach) say(null, t.reach[reach], t.reachHint);
     if (o.mag != null) d.details.push([t.dMagnitude, `${num(o.mag, lang, 1)} · ${t.magHint}`]);
     d.details.push([t.dSource, t.srcGalaxy]);
-    d.distNote = t.distRedshift;
+    // las pocas con distancia publicada (dist_src: NASA, TRGB; scripts/build_deepsky.py DIST_OVERRIDE) no son «por redshift»
+    d.distNote = o.dist_src ? t.distPublished : t.distRedshift;
   } else if (L === "blackholes") {
     d.type = `${t.typeBlackHole} ${es ? o.kind : (BH_KIND_EN[o.kind] || o.kind)}`.trim();
     d.visual = "blackhole";

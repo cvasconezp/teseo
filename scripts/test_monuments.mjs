@@ -5,7 +5,7 @@ import { placeMonuments, onPlatform, monumentLabels, faceUV, toneAt, groundHeigh
 import { parseMachuModel, setMachuModel, modelGround, parseIntiScan, setIntiScan, intiScan } from "../src/sky/machuModel.js";
 import { INTI_SCAN } from "../src/sky/intiScan.js";
 import { allStops, stopsAt as allStopsAt, stopOf as allStopOf, onPiece } from "../src/sky/stops.js";
-import { tierEdges, stairSteps, detailFor, tolaRings, llaqtaPlan, LLAQTA, MP_CONTROL, MP_RELIEF_FIX, mpReliefDelta, SITE_STOPS, stopsAt, stopOf } from "../src/sky/monuments.js";
+import { tierEdges, stairSteps, detailFor, tolaRings, llaqtaPlan, LLAQTA, MP_CONTROL, MP_RELIEF_FIX, mpReliefDelta, SITE_STOPS } from "../src/sky/monuments.js";
 import { SITES } from "../src/sky/places.js";
 import { readFileSync } from "node:fs";
 
@@ -223,7 +223,15 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
           ok(T.length === 2 && d01 > 150 && T[1].look === 270 && offsetOf(T[1].lat, T[1].lon, ak.lat, ak.lon).d > footprintRadius(ak), "Tiwanaku: la vista general (el frente de Kalasasaya) y Akapana desde el este, fuera de su radio y lejos de la vista general"); }
         const tw = allStopsAt(A.tiwanaku[1].lat, A.tiwanaku[1].lon);
         ok(tw.site === "tiwanaku" && tw.here === A.tiwanaku[1].id && allStopsAt(0, 0) === null && allStopOf("keops").id === "keops" && allStopOf("mp-torreon").id === "sol", "stopsAt y stopOf funcionan en todos los sitios"); }
-      ok(stopsAt(st[2].lat, st[2].lon).here === "plaza" && stopsAt(st[0].lat + 0.0003, st[0].lon).here === null && stopsAt(0, -78) === null && stopOf("mp-torreon").id === "sol" && stopOf("ponce") === null, "stopsAt dice en qué punto se está; stopOf lleva de un rótulo a su punto"); }
+      ok(allStopsAt(st[2].lat, st[2].lon).here === "plaza" && allStopsAt(st[0].lat + 0.0003, st[0].lon).here === null && allStopsAt(0, -78) === null && allStopOf("mp-torreon").id === "sol" && allStopOf("ponce") === null, "stopsAt dice en qué punto se está; stopOf lleva de un rótulo a su punto"); }
+    { // con dos sitios al alcance, el más cercano (antes, el primero de la tabla)
+      const T = { a: [{ id: "a0", lat: 0, lon: 0, at: [] }], b: [{ id: "b0", lat: 0.005, lon: 0, at: [] }] };
+      const r = allStopsAt(0.004, 0, 1500, T);
+      ok(r && r.site === "b" && allStopsAt(0.001, 0, 1500, T).site === "a" && allStopsAt(0.03, 0, 1500, T) === null, "stopsAt elige el sitio más cercano dentro del alcance, no el primero");
+      const A2 = allStops(), wrong = [];
+      for (const [sid, L] of Object.entries(A2)) for (const q of L) { const h = allStopsAt(q.lat, q.lon); if (!h || h.site !== sid) wrong.push(sid + ":" + q.id); }
+      ok(wrong.length === 0, "cada punto de visita cae en su propio sitio", wrong.join(" "));
+      ok(!/export function stopsAt|export const stopOf/.test(readFileSync(new URL("../src/sky/monuments.js", import.meta.url), "utf8")), "sin la copia vieja de stopsAt/stopOf en monuments.js (la buena es stops.js)"); }
     ok(MP_CONTROL.length === 2 && near(MP_CONTROL[0].m, 2429.59, 1e-9) && MP_CONTROL[1].m > 2436 && MP_CONTROL[1].m < 2437.5, "cotas de control de JICA: Templo del Sol y Plaza Sagrada");
     ok(near(byId("mp-templo-principal").height, 4.05, 1e-9) && byId("mp-templo-principal").w === 11 && byId("mp-roca-sagrada").w === 7 && byId("mp-roca-sagrada").height === 3 && near(LLAQTA.wallT, 0.85, 1e-9), "medidas publicadas: Templo Principal 11 × 8 × 4,05 m, Roca Sagrada 7 × 3 m, muros de 0,85 m"); }
   // rótulos y relieve cercano

@@ -168,6 +168,14 @@ console.log("Métrica usage_open y enlaces (cliente ↔ servidor)");
   ok(!/teseo:usage/.test(sky), "el menú del Cielo ya no abre las métricas");
   const modal = readFileSync(new URL("../src/usage/UsageModal.jsx", import.meta.url), "utf8");
   ok(/Authorization: `Bearer \$\{t\}`/.test(modal), "el panel manda la clave al servidor");
+  // 401 con una clave guardada que ya no vale: se borra y AdminGate la vuelve a pedir
+  ok(/isAuthError\(e\)\) \{ try \{ sessionStorage\.removeItem\("teseo-admin-token"\)/.test(modal) && /onAuthFail\(\); return;/.test(modal), "panel: ante 401 borra la clave y avisa (onAuthFail)");
+  ok(/children\(onAuthFail\)/.test(app) && /onAuthFail=\{onAuthFail\}/.test(app) && /sessionStorage\.removeItem\(ADMIN_KEY\)/.test(app), "AdminGate: vuelve a pedir la clave cuando el panel la rechaza");
+  const authRe = /export const isAuthError = \(e\) => (.+);/.exec(modal);
+  const isAuthError = authRe && new Function("e", `return ${authRe[1]};`);
+  ok(isAuthError && isAuthError(new Error("HTTP 401")) && !isAuthError(new Error("HTTP 4010")) && !isAuthError(new Error("HTTP 500")) && !isAuthError(null), "isAuthError: solo «HTTP 401» (lo que lanza fetchJson)");
+  // atrás con el panel abierto = Cerrar (también limpia #admin de la URL)
+  ok(/else if \(b\.usage\) b\.closeUsage\(\);/.test(app) && !/else if \(b\.usage\) setUsage\(null\)/.test(app), "atrás cierra el panel con closeUsage (sin dejar #admin en la URL)");
   ok(/PUBLIC_MIN_COUNT = 5\b/.test(py) && /PUBLIC_MIN_DEVICE_VISITS = 20\b/.test(py), "los umbrales del texto coinciden con el servidor (5 y 20)");
 }
 

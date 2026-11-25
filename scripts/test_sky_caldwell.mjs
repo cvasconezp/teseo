@@ -12,6 +12,7 @@ import { wikiCandidates } from "../src/sky/wiki.js";
 import { artKind, artOptions } from "../src/sky/art.js";
 import { citizenFor } from "../src/sky/citizen.js";
 import { TX } from "../src/sky/i18n.js";
+import { categoryOf } from "../src/sky/searchCategory.js";
 
 let failed = 0, passed = 0;
 const ok = (cond, name, detail = "") => { if (cond) { passed++; console.log(`  ok    ${name}`); } else { failed++; console.log(`  FALLA ${name} ${detail}`); } };
@@ -115,7 +116,7 @@ console.log("Búsqueda");
   const src = read("../src/Constellations.jsx");
   ok(/caldwellMatch\(o, q, \{ extra: conExp\("", o\.const\), otherLoaded: !!\(o\.in && datasets\[o\.in\]\) \}\)/.test(src) && /score\(a\.label, a\.exact\)/.test(src), "Constellations.jsx usa caldwellMatch y pone primero la coincidencia exacta");
   ok(/query\.trim\(\)\.length >= 2 && !datasets\.caldwell/.test(src), "el catálogo se carga al empezar a buscar, aunque la capa esté apagada");
-  ok(/\{ key: "caldwell",\s+terms: \["caldwell"\] \}/.test(src), "buscar «caldwell» lista la capa");
+  ok(categoryOf("caldwell")?.key === "caldwell" && categoryOf("cald")?.key === "caldwell" && categoryOf("ald") === null, "buscar «caldwell» lista la capa (src/sky/searchCategory.js); «ald» no");
 }
 
 console.log("Ficha, postal e imagen");
