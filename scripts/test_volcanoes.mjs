@@ -54,6 +54,21 @@ ok(u.searchParams.get("latitude") === "0.04" && u.searchParams.get("elevation") 
 ok(!new URL(nowUrl(0, 0, null)).searchParams.get("elevation"), "sin altitud, la del modelo de Open-Meteo");
 ok(parseNow({ current: { temperature_2m: 15.6, weather_code: 61, is_day: 1 } }).temp === 15.6 && parseNow({}) === null, "lee la respuesta");
 ok(wxKind(0, true) === "sun" && wxKind(0, false) === "moon" && wxKind(3) === "cloud" && wxKind(63) === "rain" && wxKind(95) === "storm" && wxKind(73) === "snow" && wxKind(45) === "fog", "códigos WMO → icono");
+{
+  const nw = await import("../src/sky/nowWeather.js");
+  ok(nw.wxKind(2, true) === "partly" && nw.wxKind(2, false) === "partly_night" && nw.WX_NAMES.es.partly_night === "Parcialmente nublado", "de noche, parcialmente nublado lleva luna");
+  const a = nw.wxIcon(95, true, 25, 50), b = nw.wxIcon(95, true, 70, 50), c = nw.wxIcon(63, false, 10, 95), e = nw.wxIcon(3, true, 5, 95);
+  ok(a.kind === "partly" && a.maybe === "storm" && b.kind === "storm" && !b.maybe && c.kind === "cloud" && c.maybe === "rain" && e.kind === "cloud" && !e.maybe, "con poca probabilidad, la tormenta o la lluvia van como marca y el icono es el de las nubes");
+  ok(nw.wxIcon(61, true, null, 50).kind === "rain", "sin probabilidad, el código manda");
+  const D = 1795582800, H = 3600;
+  const hrs = (f) => Array.from({ length: 24 }, (_, i) => ({ t: D + i * H, day: i >= 6 && i < 18, ...f(i) }));
+  const oneStorm = hrs((i) => ({ code: i === 15 ? 95 : 3, pop: i === 15 ? 80 : 10, cloud: 50 }));
+  const wetDay = hrs((i) => ({ code: i >= 12 && i < 17 ? 63 : 3, pop: i >= 12 && i < 17 ? 70 : 10, cloud: 90 }));
+  const sunny = hrs(() => ({ code: 1, pop: 0, cloud: 10 }));
+  const d1 = nw.dayIcon({ t: D, code: 95 }, oneStorm), d2 = nw.dayIcon({ t: D, code: 63 }, wetDay), d3 = nw.dayIcon({ t: D, code: 1 }, sunny), d4 = nw.dayIcon({ t: D, code: 95 }, []);
+  ok(d1.kind === "partly" && d1.maybe === "storm", "una tormenta de una hora no marca todo el día: nubes del día y la tormenta como marca");
+  ok(d2.kind === "rain" && !d2.maybe && d3.kind === "sun" && !d3.maybe && d4.kind === "storm", "cinco horas de lluvia: día de lluvia; sin lluvia y despejado: sol; sin horas, el código del día");
+}
 ok(fmtTemp(15.6) === "16 °C" && fmtTemp(-2.6) === "−3 °C" && fmtTemp(-0.2) === "0 °C", "temperatura redondeada (con signo menos tipográfico)");
 
 console.log("Mapa topográfico");

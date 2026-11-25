@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.77.3 — 2026-11-25
+
+- **Iconos del tiempo según su probabilidad.** Si una hora trae lluvia, nieve o tormenta con menos del 30 % de probabilidad, el icono es el de sus nubes y lo que pueda caer va como marca pequeña: una gota, un copo o un rayo (por ejemplo, «Nublado · posible tormenta»). Vale para la pastilla, la tarjeta y la franja por hora.
+- **El icono de cada día representa el día, no su peor hora.** Lluvia, nieve o tormenta solo si se esperan en 3 horas o más; si no, el de las nubes del día con la marca de lo que pueda caer. Antes, una tormenta de una hora marcaba todo el día con rayo.
+- **De noche, «parcialmente nublado» muestra la luna con nubes**, no el sol.
+
 ## 1.77.2 — 2026-11-25
 
 - **La base de las nubes se calcula.** Antes las nubes bajas iban siempre a 1,5 km sobre el suelo. Ahora su base sale de la temperatura y el punto de rocío del pronóstico (≈ 125 m por grado de diferencia, la fórmula de Espy) y queda entre 0,2 y 3,5 km: unos 300 m en una costa húmeda, unos 3 km en un desierto. De eso depende qué cumbres quedan dentro de las nubes. Las capas medias y altas siempre quedan por encima. La temperatura y el punto de rocío son los del suelo del pronóstico, así que desde una cumbre sobre un mar de nubes estas siguen viéndose abajo.

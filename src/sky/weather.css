@@ -91,3 +91,9 @@
 .sk-stage .sk-wxc-at span { display: inline-flex; align-items: center; gap: 6px; }
 .sk-stage .sk-wxc-now { flex: none; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.08); color: #fff; font: inherit; font-size: 12px; cursor: pointer; }
 .sk-stage .sk-wxc-now:hover { background: rgba(255, 255, 255, 0.16); }
+/* icono del tiempo con la marca pequeña de «posible lluvia / nieve / tormenta» (WxIco en WxCard.jsx) */
+.sk-ic { position: relative; display: inline-flex; flex: none; }
+.sk-ic-b { position: absolute; right: -5px; bottom: -4px; display: inline-flex; align-items: center; justify-content: center; padding: 1.5px; border-radius: 50%; background: rgb(16, 20, 40); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18); }
+.sk-ic-b.is-storm { color: #f6d58e; }
+.sk-ic-b.is-rain { color: #9cc3ff; }
+.sk-ic-b.is-snow { color: #e6f0ff; }

@@ -95,11 +95,11 @@ import { GuidesControls, useGuides } from "./sky/GuidesControls.jsx";
 import { IssLayer, ISS_COLORS, ISS_RATES, stepClock as stepIssClock } from "./sky/issLayer.js";
 import IssSheet from "./sky/IssSheet.jsx";
 import PeakSheet from "./sky/PeakSheet.jsx";
-import { WxCard } from "./sky/WxCard.jsx";
+import { WxCard, WxIco } from "./sky/WxCard.jsx";
 import { fetchModels, tempAt } from "./sky/models.js";
 import { riseTransitSet, H0_SUN } from "./sky/riseset.js";
 import { TOUR_STOPS, TOUR_T, CANDIDATES, pickVisible, sunsetAt, gizaView, KHUFU, VOLCANO_VIEW, SANGAY, bearing, deepKind, nameOf } from "./sky/tour.js";
-import { nowUrl, parseNow, wxKind, WX_NAMES, fmtTemp, fmtWind, windText, windVector, hourAt } from "./sky/nowWeather.js";
+import { nowUrl, parseNow, wxIcon, WX_NAMES, WX_MAYBE, fmtTemp, fmtWind, windText, windVector, hourAt } from "./sky/nowWeather.js";
 import { fetchVolcanoes, matchVolcanoes, recentEruption, eruptingInView, volcanoesOnSkyline, VT as VOLC_T } from "./sky/volcanoes.js";
 import { angleOf as terrainAngleOf } from "./sky/terrainLayer.js";
 import { createPlumeLayer, veiColumnKm, plumeParams } from "./sky/plumeLayer.js";
@@ -4467,7 +4467,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       onPickNight={(t) => { track("sky_aurora", { kind: "night" }); setPlaying(false); setTimeMoved(true); setWhenStr(fmtInput(t)); if (!isWide) setPanel(null); }} />
   );
   const wxPill = wxNow && localMode && !viewFrom ? (() => {
-    const k = wxKind(wxNow.code, wxNow.day), nm = (WX_NAMES[lang] || WX_NAMES.es)[k];
+    // el icono de ahora; con poca probabilidad, la lluvia o la tormenta solo como marca pequeña (wxIcon)
+    const ic = wxIcon(wxNow.code, wxNow.day, wxNow.pop, wxNow.cloud), k = ic.kind;
+    const nm = `${(WX_NAMES[lang] || WX_NAMES.es)[k]}${ic.maybe ? ` · ${(WX_MAYBE[lang] || WX_MAYBE.es)[ic.maybe]}` : ""}`;
     // la temperatura de ahora: la mediana de los modelos (si hay al menos 3), como en la tarjeta
     const mt = wxMod ? tempAt(wxMod, Date.now() / 1000) : null, tNow = mt && mt.n >= 3 ? mt.med : wxNow.temp;
     return (
@@ -4475,7 +4477,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         onClick={() => { setWxWanted(true); setMountOpen(false); setWxOpen((o) => { if (!o) track("sky_weather_card", { kind: "open" }); return !o; }); }}
         aria-label={`${nm}, ${fmtTemp(tNow)}${wxNow.windKmh != null ? `. ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}
         title={`${nm}${wxNow.windKmh != null ? ` · ${windText(wxNow, lang)}` : ""} · ${placeLabel}`}>
-        <Icon name={`wx_${k}`} size={18} /><span>{fmtTemp(tNow)}</span>
+        <WxIco ic={ic} size={18} /><span>{fmtTemp(tNow)}</span>
         {wxNow.windKmh != null && (
           // el icono dice que es el viento; de dónde viene, en la tarjeta
           <span className="sk-wx-wind"><Icon name="wind" size={13} />{fmtWind(wxNow.windKmh)}</span>

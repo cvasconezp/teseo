@@ -77,7 +77,7 @@ export function parseNow(json) {
 export function wxKind(code, day = true) {
   if (code == null) return "cloud";
   if (code === 0 || code === 1) return day ? "sun" : "moon";
-  if (code === 2) return "partly";
+  if (code === 2) return day ? "partly" : "partly_night";
   if (code === 3) return "cloud";
   if (code === 45 || code === 48) return "fog";
   if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snow";
@@ -87,9 +87,50 @@ export function wxKind(code, day = true) {
 }
 
 export const WX_NAMES = {
-  es: { sun: "Despejado", moon: "Despejado", partly: "Parcialmente nublado", cloud: "Nublado", fog: "Niebla", rain: "Lluvia", snow: "Nieve", storm: "Tormenta" },
-  en: { sun: "Clear", moon: "Clear", partly: "Partly cloudy", cloud: "Cloudy", fog: "Fog", rain: "Rain", snow: "Snow", storm: "Thunderstorm" },
+  es: { sun: "Despejado", moon: "Despejado", partly: "Parcialmente nublado", partly_night: "Parcialmente nublado", cloud: "Nublado", fog: "Niebla", rain: "Lluvia", snow: "Nieve", storm: "Tormenta" },
+  en: { sun: "Clear", moon: "Clear", partly: "Partly cloudy", partly_night: "Partly cloudy", cloud: "Cloudy", fog: "Fog", rain: "Rain", snow: "Snow", storm: "Thunderstorm" },
 };
+/** «posible lluvia» y compañía: lo que el pronóstico da con poca probabilidad (marca pequeña junto al icono). */
+export const WX_MAYBE = {
+  es: { rain: "posible lluvia", snow: "posible nieve", storm: "posible tormenta" },
+  en: { rain: "chance of rain", snow: "chance of snow", storm: "chance of thunderstorms" },
+};
+
+/** Lo que moja, de menos a más severo (para elegir el peor). */
+export const WET = { rain: 1, snow: 2, storm: 3 };
+/** Probabilidad (%) por debajo de la cual la lluvia, la nieve o la tormenta de una hora solo se marcan como posibles. */
+export const MAYBE_POP = 30;
+const nubes = (cloud, day) => (cloud != null && cloud < 25 ? (day ? "sun" : "moon") : cloud != null && cloud < 70 ? (day ? "partly" : "partly_night") : "cloud");
+
+/**
+ * Icono de una hora: { kind, maybe }. El código de la hora dice cómo llovería SI llueve; con poca probabilidad (< 30 %)
+ * el icono es el de sus nubes (cloud, %) y la lluvia, la nieve o la tormenta va como marca pequeña (maybe).
+ */
+export function wxIcon(code, day = true, pop = null, cloud = null) {
+  const k = wxKind(code, day);
+  if (WET[k] && pop != null && pop < MAYBE_POP) return { kind: nubes(cloud, day), maybe: k };
+  return { kind: k, maybe: null };
+}
+
+/**
+ * Icono de un día que represente el día, no su peor hora: con sus horas (hours de parseNow; hacen falta 12 o más),
+ * lluvia, nieve o tormenta solo si se esperan en 3 horas o más (con 40 % o más de probabilidad); si no, el de sus nubes
+ * de día (o niebla, si dura), y la marca pequeña de lo que pueda caer (30 % o más). Sin horas, el código del día.
+ */
+export function dayIcon(d, hours) {
+  const hs = (hours || []).filter((h) => h.t >= d.t && h.t < d.t + 86400);
+  if (hs.length < 12) return { kind: wxKind(d.code, true), maybe: null };
+  const kOf = (h) => wxKind(h.code, true);
+  const worst = (arr) => arr.reduce((best, h) => { const k = kOf(h); return (WET[k] || 0) > (WET[best] || 0) ? k : best; }, null);
+  const wet = hs.filter((h) => WET[kOf(h)] && (h.pop == null || h.pop >= 40));
+  if (wet.length >= 3) return { kind: worst(wet), maybe: null };
+  const lit = hs.filter((h) => h.day), base = lit.length ? lit : hs;
+  const cl = base.map((h) => h.cloud).filter((v) => v != null);
+  const fog = base.filter((h) => kOf(h) === "fog").length >= 3;
+  const kind = fog ? "fog" : cl.length ? nubes(cl.reduce((a, b) => a + b, 0) / cl.length, true) : (WET[wxKind(d.code, true)] ? "cloud" : wxKind(d.code, true));
+  const may = hs.filter((h) => WET[kOf(h)] && (h.pop == null || h.pop >= MAYBE_POP));
+  return { kind, maybe: may.length ? worst(may) : null };
+}
 
 /** «16 °C» (o «−3 °C»), redondeado al grado. */
 export const fmtTemp = (t) => `${Math.round(t) === 0 ? 0 : Math.round(t)}`.replace("-", "−") + " °C";

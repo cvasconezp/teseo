@@ -24,10 +24,20 @@ import { WX } from "./i18n-wx.js";
 import { cloudsAt, hourlySeries, bestWindow, coverClass } from "./weather.js";
 import { tempAt, dayAt, disagreement } from "./models.js";
 import { satWeight, mergeClouds, fuseSat } from "./satClouds.js";
-import { wxKind, WX_NAMES, compass8, fmtWind, hourAt } from "./nowWeather.js";
+import { wxIcon, dayIcon, WX_NAMES, WX_MAYBE, compass8, fmtWind, hourAt } from "./nowWeather.js";
 import "./weather.css";
 
 const pct = (f) => `${Math.round(f * 100)} %`;
+const BADGE = { rain: "droplet", snow: "flake", storm: "bolt" };
+/** Icono del tiempo con su marca pequeña de «posible lluvia / nieve / tormenta» (wxIcon o dayIcon de nowWeather.js). */
+export function WxIco({ ic, size = 22 }) {
+  return (
+    <span className="sk-ic">
+      <Icon name={`wx_${ic.kind}`} size={size} />
+      {ic.maybe && <i className={`sk-ic-b is-${ic.maybe}`}><Icon name={BADGE[ic.maybe]} size={Math.round(size * 0.45)} /></i>}
+    </span>
+  );
+}
 const fmtT = (t) => `${Math.round(t) === 0 ? 0 : Math.round(t)}`.replace("-", "−") + " °C";
 
 export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = false, cloudsOn, canDraw, onToggleClouds, isNight, sunDay, tz, skyT, skyIsNow, onPickHour, onNow, anchorRef, stageRef, onClose }) {
@@ -100,9 +110,12 @@ export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = fals
   const v = hr || now;
   // ahora, con satélite: la nubosidad que se ve desde tu sitio (pesada por la bóveda del cielo), no la media de 300 km
   const cc = hr ? (data ? cloudsAt(data, hr.t) : null) : c && c.dome ? { ...c, ...c.dome } : c;
-  const k = wxKind(v.code, v.day);
+  // el icono: el código de esa hora, pero con poca probabilidad la lluvia o la tormenta solo como marca (wxIcon)
+  const ic = wxIcon(v.code, v.day, v.pop, v.cloud), k = ic.kind;
+  const maybeTxt = (m) => (m ? (WX_MAYBE[lang] || WX_MAYBE.es)[m] : null);
   // con el satélite reciente, cuántas nubes hay lo dice él (octas de la OMM); lluvia, niebla, nieve o tormenta, el código
-  const name = !hr && satW > 0 && cc && ["sun", "moon", "partly", "cloud"].includes(k) ? (WX[lang] || WX.es).cover[coverClass(cc.total)] : (WX_NAMES[lang] || WX_NAMES.es)[k];
+  const name0 = !hr && satW > 0 && cc && ["sun", "moon", "partly", "partly_night", "cloud"].includes(k) ? (WX[lang] || WX.es).cover[coverClass(cc.total)] : (WX_NAMES[lang] || WX_NAMES.es)[k];
+  const name = ic.maybe ? `${name0} · ${maybeTxt(ic.maybe)}` : name0;
   const dec = (x) => (lang === "es" ? String(x).replace(".", ",") : String(x));
   // temperatura y lluvia del día: la mediana de los modelos (si hay al menos 3); si no, la del modelo por defecto
   const mT = tempAt(mod, shownT), mDay = dayAt(mod, shownT);
@@ -157,7 +170,7 @@ export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = fals
 
       <div className="sk-wxc-hero">
         <div>
-          <span className="sk-wxc-big"><Icon name={`wx_${k}`} size={26} />{fmtT(temp)}</span>
+          <span className="sk-wxc-big"><WxIco ic={ic} size={26} />{fmtT(temp)}</span>
           <small>{tw.feels} {v.feels != null ? fmtT(v.feels) : "—"}</small>
         </div>
         <div className="sk-wxc-hero-r"><small>{tw.dayRain}</small><b>{mmTxt(dayMm)}</b></div>
@@ -190,13 +203,13 @@ export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = fals
               const cl = sIdx >= 0 && series[sIdx].total != null ? series[sIdx].total : x.cloud != null ? x.cloud / 100 : null;
               const best = win && sIdx >= win.i0 && sIdx <= win.i1;
               const on = selHour === x.t;
-              const t = tempH(x);
+              const t = tempH(x), hic = wxIcon(x.code, x.day, x.pop, x.cloud);
               return (
                 <button key={x.t} type="button" className={`sk-wxc-cell${on ? " is-on" : ""}${best ? " is-best" : ""}`} aria-pressed={on}
-                  aria-label={tw.hourAria(hh(x.t), t != null ? fmtT(t) : "—", x.pop != null ? `${Math.round(x.pop)} %` : "—", cl != null ? pct(cl) : "—")}
+                  aria-label={`${tw.hourAria(hh(x.t), t != null ? fmtT(t) : "—", x.pop != null ? `${Math.round(x.pop)} %` : "—", cl != null ? pct(cl) : "—")}${hic.maybe ? ` (${maybeTxt(hic.maybe)})` : ""}`}
                   onClick={() => onPickHour(x.t)}>
                   <small>{i === 0 && x.t <= nowS ? tw.nowH : hh(x.t)}</small>
-                  <Icon name={`wx_${wxKind(x.code, x.day)}`} size={22} />
+                  <WxIco ic={hic} size={22} />
                   <b>{deg(t)}</b>
                   <span><Icon name="umbrella" size={11} />{x.pop != null ? `${Math.round(x.pop)} %` : "—"}</span>
                   <span className="sk-wxc-cl"><Icon name="wx_cloud" size={11} />{cl != null ? pct(cl) : "—"}</span>
@@ -231,14 +244,14 @@ export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = fals
           <div className="sk-wxc-row"><small>{tw.days}</small>{data && <em className={nClear ? "sk-wxc-best" : "sk-wxc-nobest"}>{tw.clearNights(nClear)}</em>}</div>
           <div className="sk-wxc-strip days">
             {days.map((d, i) => {
-              const m = dayMed(d), nc = nights[i], good = nc != null && nc < 0.3, on = i === dayIdx && !!hr;
+              const m = dayMed(d), nc = nights[i], good = nc != null && nc < 0.3, on = i === dayIdx && !!hr, dic = dayIcon(d, now.hours);
               return (
                 <button key={d.t} type="button" className={`sk-wxc-cell day${on ? " is-on" : ""}${good ? " is-best" : ""}`} aria-pressed={on}
-                  aria-label={tw.dayAria(dayName(d, i), deg(m.hi), deg(m.lo), mmTxt(m.mm), nc != null ? pct(nc) : null)}
+                  aria-label={`${tw.dayAria(dayName(d, i), deg(m.hi), deg(m.lo), mmTxt(m.mm), nc != null ? pct(nc) : null)}${dic.maybe ? ` (${maybeTxt(dic.maybe)})` : ""}`}
                   title={good ? tw.nightGood : undefined}
                   onClick={() => onPickHour(d.t + 21 * 3600)}>
                   <small>{dayName(d, i)}</small>
-                  <Icon name={`wx_${wxKind(d.code, true)}`} size={24} />
+                  <WxIco ic={dic} size={24} />
                   <b>{deg(m.hi)}</b>
                   <span>{deg(m.lo)}</span>
                   <span><Icon name="droplet" size={11} />{mmTxt(m.mm)}</span>
