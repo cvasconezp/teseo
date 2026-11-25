@@ -18,6 +18,7 @@
 //
 // Marco local: E (este), N (norte), U (arriba), en metros desde el centro de la base del monumento.
 
+import { INTI_SCAN } from "./intiScan.js";
 import { MP_BUILDINGS, MP_TERRACES, MP_WALLS, MP_STEPS } from "./machuData.js";
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
@@ -149,6 +150,7 @@ const machu = [
     fine: [[100, -105, 20], [88, -81, 16], [38, -56, 20]],
     // recintos restaurados con techo de paja: los cinco depósitos junto a la entrada, la wayrana de la Roca Sagrada y la
     // casa aislada sobre los andenes altos (la Casa del Guardián, según su posición en OSM)
+    clear: [[-9.5, -18, 12.5, 15.5]],   // huella del escaneo de la cima del Intihuatana
     roofs: [[217, -200, 3], [222, -195, 3], [231, -188, 3], [236, -184, 3], [244, -179, 3], [-9, 162, 4], [155, -242, 4]] },
   // muro de las tres ventanas hacia el noreste (la Plaza Principal y la salida del Sol); abierto a la Plaza Sagrada
   { ...mpBase, id: "mp-tres-ventanas", name: { es: "Templo de las Tres Ventanas", en: "Temple of the Three Windows", mat: "incafine" }, sub: { es: "muro de 11 m con tres ventanas", en: "11 m wall with three windows" }, ...mpAt(46.5, -54.4), w: 5.6, d: 10.8, height: 3.6, rot: -41, open: "w", windows: 3, foot: 6, mat: "incafine" },
@@ -266,10 +268,11 @@ export const MONUMENTS = [
     kind: "gate", w: 3.8, d: 0.5, height: 3.0, rot: 0, lift: 3.2, foot: 2, far: 800, level: true, color: ANDESITE, mat: "andesite", ground: "puna", solid: true },
   { id: "ponce", site: "tiwanaku", name: { es: "Estela Ponce", en: "Ponce Stela" }, lat: -16.554757, lon: -68.673331,   // en el eje este–oeste de Kalasasaya, tras su portada
     kind: "stela", w: 0.75, d: 0.6, height: 3.0, rot: 0, lift: 3.2, foot: 0.6, far: 800, level: true, color: ANDESITE, mat: "andesite", ground: "puna", solid: true },
-  // Machu Picchu: el Intihuatana, tallado en la roca de la cima: unos 1,8 m en total, con un prisma vertical de
-  // 0,66 m. Forma simplificada (tres cuerpos); posición: la del nodo de OpenStreetMap.
-  { id: "intihuatana", site: "machupicchu", name: { es: "Intihuatana", en: "Intihuatana" }, lat: -13.163075, lon: -72.545683,
-    kind: "intihuatana", height: 1.8, rot: 20, foot: 1.6, far: 300, level: true, relief: true, seat: "ground", color: GRANITE, mat: "granite", ground: "heath", solid: true },
+  // Machu Picchu: el Intihuatana y los recintos de su cima, tal como los midió el escaneo láser de 2009 (INTI_SCAN:
+  // datos CC BY-NC 3.0, con su crédito). Posición: la del nodo de OpenStreetMap. Orientación: la del sistema de
+  // coordenadas del escaneo, que coincide con los andenes de OpenStreetMap con 7° de margen.
+  { id: "intihuatana", site: "machupicchu", name: { es: "Intihuatana", en: "Intihuatana" }, sub: { es: "escaneo láser de 2009", en: "2009 laser scan" }, lat: -13.163075, lon: -72.545683,
+    kind: "scan", scan: INTI_SCAN, wallMat: "inca", floorMat: "earth", height: INTI_SCAN.gnomonTop, rot: 0, lift: 0.22, foot: 1.6, far: 300, level: true, relief: true, seat: "ground", color: GRANITE, mat: "granite", ground: "heath", solid: true },
 ];
 
 /** Radio (m) de la planta: hasta él no se puede estar «dentro» del monumento. */
@@ -423,7 +426,17 @@ export const LLAQTA = { wallT: 0.85, wallH: 2.6, gableK: 0.62, gableMax: 3.6, ro
  * Planta de la llaqta: { rooms: [{ pts, gables: [índices de los lados cortos] }], terraces, walls, steps } en metros
  * (este, norte) desde su origen. `skip`: [[e, n, r]] recintos que dibuja otra pieza.
  */
-export function llaqtaPlan(skip = []) {
+// Corta una línea donde entra en alguna de las zonas despejadas ([e0, n0, e1, n1]): devuelve los tramos que quedan fuera.
+function clipOut(pts, boxes) {
+  if (!boxes.length) return [pts];
+  const inside = (q) => boxes.some(([e0, n0, e1, n1]) => q[0] >= e0 && q[0] <= e1 && q[1] >= n0 && q[1] <= n1);
+  const runs = []; let cur = [];
+  for (const q of resample(pts, 1)) { if (inside(q)) { if (cur.length > 1) runs.push(cur); cur = []; } else cur.push(q); }
+  if (cur.length > 1) runs.push(cur);
+  return runs;
+}
+
+export function llaqtaPlan(skip = [], clear = []) {
   const rooms = [];
   for (const a of MP_BUILDINGS) {
     const pts = pairs(a), c = [pts.reduce((q, v) => q + v[0], 0) / pts.length, pts.reduce((q, v) => q + v[1], 0) / pts.length];
@@ -437,10 +450,12 @@ export function llaqtaPlan(skip = []) {
     }
     rooms.push({ pts, c, gables });
   }
-  return { rooms, terraces: MP_TERRACES.map(pairs), walls: MP_WALLS.map(pairs), steps: MP_STEPS.map(pairs) };
+  // donde hay una malla medida (la cima del Intihuatana) no se dibujan los andenes y muros de la planta: manda la medida
+  const cut = (A) => A.map(pairs).flatMap((q) => clipOut(q, clear));
+  return { rooms, terraces: cut(MP_TERRACES), walls: cut(MP_WALLS), steps: cut(MP_STEPS) };
 }
 function llaqta(out, m, ground) {
-  const g = ground || (() => 0), col = m.color, plan = llaqtaPlan(m.skip), K = LLAQTA;
+  const g = ground || (() => 0), col = m.color, plan = llaqtaPlan(m.skip, m.clear), K = LLAQTA;
   const grad = (p) => [(g(p[0] + 3, p[1]) - g(p[0] - 3, p[1])) / 6, (g(p[0], p[1] + 3) - g(p[0], p[1] - 3)) / 6];
   // recintos: muros de 0,85 m con la coronación a nivel (más altos por el lado bajo) y hastiales en los lados cortos
   plan.rooms.forEach(({ pts, c, gables }, k) => {
@@ -1045,6 +1060,10 @@ export function buildFaces(m, opt = {}) {
     }
   } else if (m.kind === "stela") {
     rock(out, 0, 0, 0, m.height, m.w, m.d, m.rot, col, m.mat, 41, { ns: 14, nz: 8, pw: 6, taper: 0.05, sink: 0.05 });
+  } else if (m.kind === "scan") {
+    // malla medida (escaneo láser): se dibuja tal cual, sin retocar la forma
+    const S = m.scan, mats = [m.mat, m.wallMat || m.mat, m.floorMat || m.mat, m.floorMat || m.mat], P = (i) => [S.v[3 * i] / 100, S.v[3 * i + 1] / 100, S.v[3 * i + 2] / 100];
+    for (let k = 0; k < S.cls.length; k++) out.push({ v: [P(S.f[3 * k]), P(S.f[3 * k + 1]), P(S.f[3 * k + 2])], c: col, mat: mats[S.cls[k]] });
   } else if (m.kind === "intihuatana") {
     // tres cuerpos de la misma roca: el afloramiento tallado, la mesa y el prisma
     const q = (x, y) => { const r = rotP([x, y, 0], m.rot); return [r[0], r[1]]; };

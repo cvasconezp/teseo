@@ -1,11 +1,12 @@
 # Créditos y licencias de datos
 
-**Teseo (código):** [AGPL-3.0 o posterior](LICENSE). Puedes usar, copiar, modificar y redistribuir el código, con atribución; si publicas una versión modificada, también como servicio web, debes compartir su código bajo la misma licencia. Los nombres «Teseo» y «Yachay Deep» no están incluidos (ver NOTICE).
+**Teseo (código):** [PolyForm Noncommercial 1.0.0](LICENSE) desde la versión 1.80.0. Puedes usar, copiar, modificar y redistribuir el código con fines no comerciales, conservando el aviso de autoría; no se permite venderlo ni ofrecerlo como servicio de pago. Las versiones hasta la 1.79.0 se publicaron bajo AGPL-3.0 o posterior ([texto](LICENSES/AGPL-3.0.txt)). Los nombres «Teseo» y «Yachay Deep» no están incluidos (ver NOTICE).
 
 ## Regla de licencias
 El **código** de Teseo es propio (no copiamos código de terceros con licencias
 copyleft). Los **datos** que empaquetamos conservan su licencia original y se
-atribuyen aquí. Así Teseo puede elegir libremente su licencia: hoy, AGPL-3.0 o posterior.
+atribuyen aquí. Así Teseo puede elegir libremente su licencia: hoy, PolyForm Noncommercial 1.0.0.
+Algunos datos solo admiten uso no comercial (CC BY-NC): por eso el código tampoco se ofrece para uso comercial.
 
 ## ⚠️ Stellarium — GPL-2.0+ (no usamos su código)
 [Stellarium](https://github.com/Stellarium/stellarium) está bajo **GPL-2.0+**,
@@ -18,7 +19,7 @@ skyculture" de Stellarium (solo **datos**, no código). Confirmado en la fuente
 oficial ([stellarium-skycultures](https://github.com/Stellarium/stellarium-skycultures)):
 el texto y los datos de líneas están bajo **CC BY-SA** (atribución al equipo de
 Stellarium; base IAU) — **no GPL**. Como es una licencia de *datos*, no afecta a
-la licencia AGPL del código: se incluye como recurso con licencia propia y su
+la licencia del código: se incluye como recurso con licencia propia y su
 atribución correspondiente. (El código de Stellarium sí es GPL y por eso no se
 copia; nuestro render 3D es propio, con Three.js.)
 
@@ -83,6 +84,7 @@ copia; nuestro render 3D es propio, con Three.js.)
 | Horizonte real del lugar (montañas) (`backend/app/horizon.py`) | [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) (Mapzen, formato terrarium) a partir de SRTM (NASA), GMTED2010 (USGS), ETOPO1 (NOAA) y otros modelos | datos abiertos con atribución (ver abajo) |
 | Planta de Machu Picchu en 3D: recintos, andenes, muros y escalinatas (`src/sky/machuData.js`, generado por `scripts/build_machu_data.py`) | © colaboradores de [OpenStreetMap](https://www.openstreetmap.org/copyright); medidas del alzado: Puelles Escalante, «Ingeniería inka de Machupijchu» (Ministerio de Cultura del Perú) | datos ODbL 1.0; el alzado es una reconstrucción |
 | Cotas de control y altura del Torreón de Machu Picchu (`MP_CONTROL` en `src/sky/monuments.js`) | JICA, estudio de conservación de Machu Picchu, figs. 2.2.2-3 y 2.2.3-1 ([informe](https://openjicareport.jica.go.jp/pdf/11001963_04.pdf)) | Solo se toman medidas; no se reproduce ningún plano |
+| Cima del Intihuatana de Machu Picchu en 3D: la roca tallada, el piso y los muros que la rodean (`src/sky/intiScan.js`, generado por `scripts/build_inti_scan.py`) | Escaneo láser de 2009. Crédito: Instituto Nacional de Cultura, [Center for Advanced Spatial Technologies](https://gmv.cast.uark.edu/region-data/region/peru/machu-picchu-peru-intiwatana-2/) (University of Arkansas) y Cotsen Institute for Archaeology (UCLA) | [CC BY-NC 3.0](https://creativecommons.org/licenses/by-nc/3.0/); malla simplificada de 484.105 a 15.999 triángulos, con relleno inferido donde el láser no alcanzó el piso |
 | Nombres de las montañas del horizonte (`backend/app/peaks.py`) | [Wikidata](https://www.wikidata.org/) (montañas, volcanes, cimas y colinas con coordenadas, por su [servicio de consultas](https://query.wikidata.org/)) y [OpenStreetMap](https://www.openstreetmap.org/copyright) (`natural=peak` y `natural=volcano` con nombre, por la API [Overpass](https://overpass-api.de/)) | Wikidata: CC0; OpenStreetMap: © colaboradores de OpenStreetMap, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/) |
 | Monumentos del cielo (`src/sky/monuments.js`) | Medidas (alto y base) de Wikipedia y de las fichas de los sitios; Ingapirca: Fresco y Ziółkowski, *Revista Española de Antropología Americana* 14 (1984); Coliseo: Britannica y World History Encyclopedia; Taj Mahal: Wikipedia y Britannica; Cristo Redentor: Britannica y Structurae; Abu Simbel: World History Encyclopedia y Lonely Planet; Karnak: Digital Karnak (UCLA/UCSC), posición del pilono en Vici.org; Angkor Wat: MIT y Universidad de Notre Dame; posición de las pirámides comprobada con el modelo de relieve (AWS Terrain Tiles); forma simplificada dibujada por Teseo | — |
 | Narrativa | Groq (modelos Llama) | — servicio |

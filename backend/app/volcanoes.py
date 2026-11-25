@@ -8,8 +8,8 @@ web WFS (GeoServer, GeoJSON, sin clave): https://volcano.si.edu/database/webserv
 erupciones en los últimos ~12 000 años: tipo, última erupción, entorno tectónico, roca principal, país y región.
 
 Condiciones: el Smithsonian invita a usar su contenido con fines personales, educativos y no comerciales
-(https://volcano.si.edu/gvp_termsofuse.cfm). Por eso la base NO se guarda en el repositorio (que es AGPL y otros
-podrían reutilizar con otros fines): se lee en vivo y se guarda en memoria un día. Tampoco se copia el resumen
+(https://volcano.si.edu/gvp_termsofuse.cfm). Por eso la base NO se guarda en el repositorio (que otros pueden copiar y
+reutilizar): se lee en vivo y se guarda en memoria un día. Tampoco se copia el resumen
 geológico ni las fotos (tienen sus propios autores): la ficha enlaza a la página del volcán en el Smithsonian.
 Cita: Global Volcanism Program, Smithsonian Institution, https://volcano.si.edu/.
 

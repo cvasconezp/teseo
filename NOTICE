@@ -1,15 +1,19 @@
 Teseo — planetario y navegador interplanetario
 Copyright (C) 2026 Carlos Vásconez-Paredes · Yachay Deep Labs
 
-Este programa es software libre: puedes redistribuirlo y/o modificarlo bajo
-los términos de la Licencia Pública General Affero de GNU (AGPL), publicada
-por la Free Software Foundation, versión 3 o (a tu elección) cualquier
-versión posterior. Ver el archivo LICENSE.
+Desde la versión 1.80.0, el código de Teseo se publica bajo la licencia
+PolyForm Noncommercial 1.0.0 (ver el archivo LICENSE): puedes usarlo, copiarlo,
+modificarlo y redistribuirlo con fines no comerciales (uso personal, estudio,
+investigación, educación, organizaciones sin fines de lucro e instituciones
+públicas), conservando este aviso. No se permite el uso comercial: nadie puede
+vender Teseo ni ofrecerlo como servicio de pago. Para cualquier otro uso,
+escribe a Yachay Deep Labs.
 
-Si ofreces una versión modificada de Teseo a usuarios a través de una red
-(por ejemplo, como sitio web), debes ofrecerles también su código fuente
-completo bajo esta misma licencia (sección 13 de la AGPL).
+Las versiones hasta la 1.79.0 se publicaron bajo la AGPL-3.0 o posterior
+(texto en LICENSES/AGPL-3.0.txt). Esas versiones conservan esa licencia para
+quien las recibió; el cambio rige de la 1.80.0 en adelante.
 
 Los nombres «Teseo» y «Yachay Deep» y sus logotipos no están cubiertos por
-esta licencia. Los datos de terceros conservan sus propias licencias: ver
+esta licencia. Los datos de terceros conservan sus propias licencias, algunas
+distintas de la del código (por ejemplo CC BY-SA, ODbL o CC BY-NC): ver
 CREDITS.md.

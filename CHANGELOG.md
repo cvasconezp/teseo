@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.80.0 — Licencia no comercial y la cima del Intihuatana medida con láser
+
+- **Licencia:** desde esta versión el código de Teseo se publica bajo PolyForm Noncommercial 1.0.0: cualquiera puede usarlo, estudiarlo, modificarlo y compartirlo sin fines comerciales; nadie puede venderlo. Las versiones hasta la 1.79.0 conservan la AGPL-3.0 o posterior (texto en `LICENSES/AGPL-3.0.txt`). Se actualizan LICENSE, NOTICE, README, CREDITS, las páginas «Acerca de» y el texto de créditos de la app.
+- **Machu Picchu · Intihuatana:** la roca tallada, el piso y los muros de la cima ya no son una forma simplificada: son la malla del escaneo láser de 2009 (Instituto Nacional de Cultura, CAST de la University of Arkansas y Cotsen Institute de UCLA; CC BY-NC 3.0), simplificada de 484.105 a 15.999 triángulos. El gnomon mide 1,68 m sobre el piso que lo rodea.
+- Donde el láser no alcanzó el piso se pone un relleno al nivel del piso medido más cercano (inferido, y así se declara). La orientación es la del escaneo, comprobada con los andenes de OpenStreetMap con 7° de margen.
+- Los andenes y muros de la planta de OpenStreetMap ya no se dibujan dentro de la huella del escaneo.
+
 ## 1.79.0 — Machu Picchu: puertas, ventanas, techos de paja y cotas medidas
 
 - Los recintos de la llaqta tienen puerta trapezoidal en el lado largo que mira ladera abajo y ventana trapezoidal en cada hastial. La posición de cada vano es una reconstrucción: el plano de OpenStreetMap no la registra.

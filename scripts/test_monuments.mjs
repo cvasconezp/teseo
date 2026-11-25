@@ -121,7 +121,10 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   // Machu Picchu
   const ih = bbox(buildFaces(byId("intihuatana")));
   void ih;
-  ok(near(ih.u1, 1.8, 0.01) && near(offsetOf(site("machupicchu-intihuatana").lat, site("machupicchu-intihuatana").lon, byId("intihuatana").lat, byId("intihuatana").lon).d, 5, 0.5), "Machu Picchu: el Intihuatana, 1,8 m, a 5 m del punto de vista");
+  { const S = byId("intihuatana").scan, f = buildFaces(byId("intihuatana"));
+    ok(byId("intihuatana").kind === "scan" && f.length === S.cls.length && S.f.length === 3 * S.cls.length && Math.max(...S.f) < S.v.length / 3 && /CC BY-NC 3\.0/.test(S.credit) && /Arkansas/.test(S.credit), "Machu Picchu: la cima del Intihuatana es la malla del escaneo láser, con su crédito y su licencia");
+    ok(f.filter((x) => x.mat === "granite").length > 300 && f.some((x) => x.mat === "inca") && f.some((x) => x.mat === "earth"), "la malla separa la roca tallada, los muros y el piso"); }
+  ok(near(Math.max(...buildFaces(byId("intihuatana")).filter((x) => x.mat === "granite").flatMap((x) => x.v.map((v) => v[2]))), 1.68, 0.03) && ih.u1 < 3 && near(offsetOf(site("machupicchu-intihuatana").lat, site("machupicchu-intihuatana").lon, byId("intihuatana").lat, byId("intihuatana").lon).d, 5, 0.5), "Machu Picchu: el gnomon del Intihuatana, 1,68 m sobre el piso (medido), a 5 m del punto de vista");
   // Cochasquí y Machu Picchu (aproximados)
   const cq = MONUMENTS.filter((m) => m.site === "cochasqui"), mp = MONUMENTS.filter((m) => m.site === "machupicchu");
   { const pyr = cq.filter((m) => m.kind === "tola"), mounds = cq.filter((m) => m.kind === "mound"), L = (x) => byId("cq-" + x);
@@ -166,8 +169,8 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   }
 
   // Machu Picchu: la llaqta entera (planta de OpenStreetMap) sobre el relieve
-  { const ll = byId("mp-llaqta"), plan = llaqtaPlan(ll.skip), here = site("machupicchu-intihuatana");
-    ok(plan.rooms.length === 98 && plan.terraces.length === 171 && plan.walls.length === 18 && plan.steps.length === 24 && plan.rooms.filter((r) => r.gables.length === 2).length > 60, "llaqta: 98 recintos (tres tienen pieza propia), 171 andenes, 18 muros y 24 escalinatas; la mayoría de los recintos, con dos hastiales");
+  { const ll = byId("mp-llaqta"), plan = llaqtaPlan(ll.skip, ll.clear), here = site("machupicchu-intihuatana");
+    ok(plan.rooms.length === 98 && plan.terraces.length === 173 && llaqtaPlan(ll.skip).terraces.length === 171 && plan.walls.length === 18 && plan.steps.length === 24 && plan.rooms.filter((r) => r.gables.length === 2).length > 60, "llaqta: 98 recintos (tres tienen pieza propia), 171 andenes (173 tramos al despejar la huella del escaneo del Intihuatana), 18 muros y 24 escalinatas; la mayoría de los recintos, con dos hastiales");
     const all = [...plan.rooms.flatMap((r) => r.pts), ...plan.terraces.flat(), ...plan.walls.flat(), ...plan.steps.flat()];
     ok(all.every((q) => Math.hypot(q[0], q[1]) <= 441) && ll.foot === 440 && ll.walkIn && ll.label === false && ll.seat === "ground" && ll.reliefGrid.na * ll.reliefGrid.radii.length === 432, "todo a menos de 440 m del Intihuatana; rejilla de relieve propia (12 × 36)");
     // sobre una ladera que baja hacia el este: los muros siguen el suelo y los andenes hacen bancal
