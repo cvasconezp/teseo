@@ -215,7 +215,9 @@ export function groundHeight(e, n, items, grid = null) {
   for (const it of items) {
     // las piezas asentadas sobre el relieve (`seat`) no aplanan el suelo a su alrededor: la ladera sigue igual y la
     // pieza sale de ella (enterrada por el lado alto, alta por el bajo, como las pirámides de Cochasquí)
-    if (grid && (it.m.seat || drapes(it.m))) continue;
+    // (tampoco las que coronan una cresta estrecha —`crest`, las torres de Chankillo—: allanar 80 m a su alrededor
+    // levantaba una meseta en la ladera que, vista desde abajo, las tapaba)
+    if (grid && (it.m.seat || it.m.crest || drapes(it.m))) continue;
     // (con relieve, todo su asiento queda llano: las casas no se hunden en la cuesta)
     const d = Math.hypot(e - it.o.e, n - it.o.n), r = Math.max(d - (grid ? 1 : 0.7) * footprintRadius(it.m), 1.5);
     // con relieve, cada monumento solo levanta el suelo a su alrededor (hasta 80 m de su borde, sobre todo en los primeros 25)
@@ -364,7 +366,9 @@ export function createMonumentLayer({ onReady = null } = {}) {
       // (hasta el borde del monumento más lejano y un poco más: ninguno queda fuera del piso, flotando)
       // (lo más lejano de verdad: un muro en arco no tiene «huella», pero sus extremos llegan lejos)
       const farN = Math.max(farH, items.reduce((a, it) => Math.max(a, it.o.d + footprintRadius(it.m)), 0));
-      const reachG = skirt ? reach : Math.min(reach, GROUND_NEAR_M, Math.max(40, farN + 35));
+      // (con la rejilla del relieve del sitio, el piso sigue la ladera: llega hasta el último monumento aunque esté a
+      // más de 450 m —los montículos de Cochasquí, a 700 m—; si no, quedaban más allá del piso, sobre un relieve más basto)
+      const reachG = skirt ? reach : Math.min(reach, fine ? Math.max(GROUND_NEAR_M, farN + 35) : GROUND_NEAR_M, Math.max(40, farN + 35));
       const pos = new Float32Array(verts * 3), uv = new Float32Array(verts * 2), col = new Float32Array(verts * 4), idx = [];
       const rEnd = EX ? reach * FAR : reachG;
       const put = (i, e, n, r) => {

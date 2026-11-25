@@ -57,11 +57,14 @@ const CH0 = [-9.561149, -78.227355];
 const CH_TOWERS = [[-15, 95, 0, 4.5], [-15, 79, 0, 5], [-15, 63, 0, 5.5], [-13, 47, 0, 6], [-12, 31, 0, 5.5], [-12, 15, 0, 5], [-12, -1, 0, 4.5],
   [-12, -17, 0, 4.5], [-12, -33, 0, 5], [-12, -49, 0, 5], [-15, -65, 12, 4.5], [-21, -81, 20, 4], [-27, -97, 22, 3]];
 const mPerLat = 110574, mPerLon = (lat) => 111320 * Math.cos(lat * RAD);
+// (las torres coronan una cresta estrecha de laderas empinadas: el suelo cercano se mide en una rejilla fina —240
+// puntos— para que la cresta salga con su forma y las torres queden sobre ella desde cualquier lado)
+const CH_RELIEF_GRID = { radii: [0.04, 0.08, 0.13, 0.19, 0.26, 0.34, 0.44, 0.56, 0.72, 0.9], na: 24 };
 const chankillo = CH_TOWERS.map(([e, n, rot, h], i) => ({
   id: `chankillo-${i + 1}`, site: "chankillo", name: { es: "Trece Torres", en: "Thirteen Towers" },
   sub: { es: "13 torres de 2 a 6 m de alto", en: "13 towers, 2 to 6 m tall" }, label: i === 6,
   lat: +(CH0[0] + n / mPerLat).toFixed(6), lon: +(CH0[1] + e / mPerLon(CH0[0])).toFixed(6),
-  kind: "tower", w: 8, d: 12, height: h, rot, foot: 7.2, ring: 3, far: 4000, relief: true, color: TAN, mat: "tower", ground: "sand", solid: true,
+  kind: "tower", w: 8, d: 12, height: h, rot, foot: 7.2, ring: 3, far: 4000, relief: true, crest: true, reliefGrid: CH_RELIEF_GRID, color: TAN, mat: "tower", ground: "sand", solid: true,
 }));
 // Paranal: los cuatro telescopios de 8,2 m del VLT. Separación entre ellos: estaciones U1–U4 del VLTI (ESO,
 // «VLTI Station Position Technical Data»), en metros [este, norte] desde el centro de la red; ese centro se

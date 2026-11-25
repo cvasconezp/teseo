@@ -10,7 +10,11 @@ const AUTO = {
   teotihuacan: ["teotihuacan", ["sol", "luna"]],
   giza: ["giza", ["keops", "kefren", "micerino"]],
   cochasqui: ["cochasqui", ["cq-g", "cq-e", "cq-m", "cqm-a"]],
-  chankillo: ["chankillo", [{ id: "chankillo-7", dist: 45 }]],     // (a 45 m: caben varias torres a la vista)
+  // (a 45 m: caben varias torres a la vista). El punto de observación este: a unos 200 m de las torres, donde un
+  // recinto abierto las deja ver de frente; desde él los ocasos de junio y de diciembre caen en los extremos de la
+  // fila (Ghezzi y Ruggles 2007). Posición aproximada: la que cumple esas dos direcciones (197 m al este del eje)
+  chankillo: ["chankillo", [{ id: "chankillo-7", dist: 45 }],
+    [{ id: "este", name: { es: "Punto de observación este", en: "Eastern observing point" }, lat: -9.561131, lon: -78.225674, look: 270, lookAlt: 4, at: [] }]],
   catequilla: ["catequilla", ["catequilla-muro", "catequilla-disco"]],
   paranal: ["paranal", ["vlt-ut1", "vlt-ut4"]],
   // (Tiwanaku: la vista general ya es el frente de Kalasasaya, con su escalinata y su portada; Akapana se mira
@@ -58,7 +62,7 @@ let cache = null;
 export function allStops() {
   if (cache) return cache;
   const out = { ...SITE_STOPS };
-  for (const [site, [viewId, ids]] of Object.entries(AUTO)) {
+  for (const [site, [viewId, ids, extra]] of Object.entries(AUTO)) {
     const view = SITES.find((s) => s.id === viewId), all = MONUMENTS.filter((m) => m.site === site);
     if (!view) continue;
     const stops = [{ id: "vista", name: { es: "Vista general", en: "Overview" }, lat: view.lat, lon: view.lon, elev: view.elev ?? null, at: [] }];
@@ -66,6 +70,7 @@ export function allStops() {
       const id = it.id || it, m = all.find((q) => q.id === id), f = m && frontStop(m, view.lat, view.lon, all, it.az != null ? it.az : null, it.dist != null ? it.dist : null);
       if (f) stops.push({ id, name: m.name, lat: +f.lat.toFixed(6), lon: +f.lon.toFixed(6), elev: null, look: Math.round(f.look), lookAlt: Math.round(f.lookAlt), at: [id] });
     }
+    for (const x of extra || []) stops.push({ elev: null, ...x });
     if (stops.length > 1) out[site] = stops;
   }
   return (cache = out);

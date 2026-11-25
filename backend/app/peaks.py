@@ -258,7 +258,8 @@ def _norm(name: str) -> str:
     for w in ("volcan ", "cerro ", "nevado ", "mount ", "monte ", "pico "):
         if s.startswith(w):
             s = s[len(w):]
-    return s.strip()
+    # «Pamba Marca» y «Pambamarca» son la misma cumbre: se comparan sin espacios, guiones ni apóstrofos
+    return "".join(ch for ch in s if ch.isalnum())
 
 
 def merge_nodes(a: list, b: list) -> list:

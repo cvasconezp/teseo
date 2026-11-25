@@ -70,7 +70,7 @@ function layerGlsl(l, k) {
   // mirando abajo, y ahí la tapan las montañas que asoman sobre ella (terrainFront)
   return `
   if (uOn[${k}] > 0.5 && uH[${k}] * uSide > 0.0 && uH[${k}] * d.y > 0.0 && abs(d.y) > 0.004
-      && (uH[${k}] > 0.0 || terrainFront(d, uH[${k}] / d.y, uObs + uH[${k}] * 1000.0) < 0.5)
+      && (uH[${k}] > 0.0 || terrainFront(d, uH[${k}] / d.y, uObs + uH[${k}] * 1000.0) < 0.99)
       && (uSide < 1.5 || terrainBehind(d, uH[${k}] / d.y) > 0.01)) {
     float dist = min(uH[${k}] / d.y, 240.0);
     float horizonFade = smoothstep(0.004, ${f1(FAR.fadeY)}, abs(d.y));
@@ -100,6 +100,7 @@ function layerGlsl(l, k) {
     ${l === "high" ? "" : `t = max(t, smoothstep(${f1(FAR.fill0)}, ${f1(FAR.fill1)}, dist) * smoothstep(${f1(FAR.cov0)}, ${f1(FAR.cov1)}, uCov[${k}]) * ${f1(FAR.fillMax)});`}
     float a = t * ${f1(s.maxAlpha)} * horizonFade;
     if (uSide > 1.5) a *= terrainBehind(d, uH[${k}] / d.y);   // sobre las montañas: solo donde quedan dentro de la nube
+    if (uH[${k}] < 0.0) a *= 1.0 - terrainFront(d, uH[${k}] / d.y, uObs + uH[${k}] * 1000.0);   // desde arriba: la ladera que asoma tapa la nube, con orilla suave
     vec3 col = mix(lit, uShade, pow(t, 1.5) * (uH[${k}] > 0.0 ? ${f1(THICK[l])} : 0.12));   // desde arriba, la cima de la nube, al sol
 ${CELLS[l] ? cellGlsl(CELLS[l], k) : ""}
     col += uSunGlow * rim * (1.0 - t);
@@ -174,17 +175,32 @@ float lowDens(vec2 pw) {
 }
 // ¿hay montaña delante de la nube en esta dirección? La franja que se ve es la más cercana cuyo filo queda por
 // encima del píxel (las bandas del horizonte, de cerca a lejos: R = ángulo del filo, G = altura m, B = distancia km)
+// (una columna de acimut: de cerca a lejos, la primera franja cuyo filo queda por encima del píxel es la que se ve.
+// La distancia del terreno EN ESE PÍXEL se estima entre el filo anterior y el de esa franja, según el ángulo: así la
+// orilla de la nube contra la ladera sube y baja de forma continua, y no en bloques del ancho de una montaña)
+float frontCol(float u, float alt, float distKm, float cloudM) {
+  float pa = -90.0, pz = 0.0;
+  for (int k = 0; k < ${NB}; k++) {
+    vec4 b = texture2D(uTerr, vec2(u, (float(k) + 0.5) / ${f1(NB)}));
+    if (b.x >= alt) {
+      // entre el filo anterior que se ve (pa, pz) y este: la ladera que pisas empieza a tus pies (0 km)
+      float tz = mix(pz, b.z, clamp((alt - pa) / max(b.x - pa, 0.05), 0.0, 1.0));
+      // una montaña cuya cima no llega a la cima de la nube queda entera debajo de ella
+      float above = k == 0 ? 1.0 : smoothstep(cloudM - 60.0, cloudM + 60.0, b.y);
+      return above * (1.0 - smoothstep(0.8, 1.2, tz / max(distKm, 0.01)));
+    }
+    if (b.x > pa) { pa = b.x; pz = b.z; }      // (una franja tapada por la anterior no cuenta como filo visible)
+  }
+  return 0.0;
+}
 float terrainFront(vec3 d, float distKm, float cloudM) {
   if (uTerrOn < 0.5) return 0.0;
   float alt = degrees(asin(clamp(d.y, -1.0, 1.0)));
   float az = mod(degrees(atan(d.x, -d.z)) + 360.0, 360.0);
-  for (int k = 0; k < ${NB}; k++) {
-    vec4 b = texture2D(uTerr, vec2(az / 360.0, (float(k) + 0.5) / ${f1(NB)}));
-    // la ladera que pisas (la banda más cercana, a menos de 1,5 km, y el suelo bajo ella) va siempre delante: estás
-    // por encima de la nube, y lo que tienes a tus pies también
-    if (b.x >= alt) return (k == 0 || (b.y > cloudM && b.z < distKm)) ? 1.0 : 0.0;
-  }
-  return 0.0;
+  // el filo va en pasos de 0,2° de acimut: se mezclan cuatro columnas vecinas (±0,4°) para que no haya escalones
+  float px = az * 5.0 - 0.5, fa = fract(px), u0 = (floor(px) + 0.5) / 1800.0, st = 1.0 / 1800.0;
+  float c0 = frontCol(u0 - st, alt, distKm, cloudM), c1 = frontCol(u0, alt, distKm, cloudM), c2 = frontCol(u0 + st, alt, distKm, cloudM), c3 = frontCol(u0 + 2.0 * st, alt, distKm, cloudM);
+  return mix((c0 + c1 * 2.0 + c2) * 0.25, (c1 + c2 * 2.0 + c3) * 0.25, fa);
 }
 // ¿la montaña que se ve en esta dirección está MÁS LEJOS que el punto donde la mirada entra en la capa? Entonces la
 // nube va delante: una cumbre más alta que la base de las nubes queda dentro de ellas (vista desde abajo)

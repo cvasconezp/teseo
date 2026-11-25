@@ -216,7 +216,7 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
         ok(names === "catequilla,chankillo,cochasqui,giza,machupicchu,paranal,teotihuacan,tiwanaku" && Object.values(A).every((L) => L.length >= 2 && new Set(L.map((q) => q.id)).size === L.length), "puntos de visita en ocho sitios; cada uno, al menos la vista general y otro");
         const bad = [];
         for (const [sid, L] of Object.entries(A)) { if (sid === "machupicchu") continue; const ps = MONUMENTS.filter((m) => m.site === sid);
-          for (const q of L.slice(1)) { const m0 = byId(q.id), o0 = offsetOf(q.lat, q.lon, m0.lat, m0.lon);
+          for (const q of L.slice(1)) { if (!q.at.length) continue; const m0 = byId(q.id), o0 = offsetOf(q.lat, q.lon, m0.lat, m0.lon);
             if (!(Math.abs(((o0.az - q.look + 540) % 360) - 180) < 1.5) || ps.some((m) => onPiece(m, q.lat, q.lon, m === m0 ? 2 : 3)) || offsetOf(L[0].lat, L[0].lon, q.lat, q.lon).d < 40) bad.push(sid + ":" + q.id); } }
         ok(bad.length === 0, "cada punto calculado mira a su pieza, queda fuera de su planta, no pisa ninguna otra y está a más de 40 m de la vista general" + (bad.length ? " — " + bad.join(" ") : ""));
         { const T = A.tiwanaku, d01 = offsetOf(T[0].lat, T[0].lon, T[1].lat, T[1].lon).d, ak = byId("akapana");
@@ -253,5 +253,24 @@ ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) s
   ck(shapeCredit("intihuatana", "machupicchu") === null && /CC BY 4\.0/.test(shapeCredit("mp-condor", "machupicchu").text) && /modelo 3D propio/.test(shapeCredit("mp-templo-principal", "machupicchu").text) && /modelo 3D propio/.test(shapeCredit("akapana", "tiwanaku").text) && /own 3D model/.test(shapeCredit("keops", "giza", "en").text), "toda estructura dice de dónde sale su forma: la maqueta (CC BY 4.0) o una reconstrucción propia");
 }
 
+{
+  // Chankillo: el punto de observación este y las torres sobre su cresta
+  const { stopsAt } = await import("../src/sky/stops.js");
+  const { offsetOf } = await import("../src/sky/monuments.js");
+  const { volcanoesOnSkyline } = await import("../src/sky/volcanoes.js");
+  const st = stopsAt(-9.561185, -78.229591).stops, este = st.find((q) => q.id === "este");
+  const b1 = offsetOf(este.lat, este.lon, MONUMENTS.find((m) => m.id === "chankillo-1").lat, MONUMENTS.find((m) => m.id === "chankillo-1").lon);
+  const b13 = offsetOf(este.lat, este.lon, MONUMENTS.find((m) => m.id === "chankillo-13").lat, MONUMENTS.find((m) => m.id === "chankillo-13").lon);
+  ok(!!este && este.look === 270 && b1.d > 190 && b1.d < 240 && Math.abs(b1.az - 293.8) < 2.5 && Math.abs(b13.az - 246.2) < 2.5, "Chankillo: el punto este queda a unos 200 m y ve los ocasos de los solsticios en los extremos de la fila");
+  ok(MONUMENTS.filter((m) => m.site === "chankillo").every((m) => m.crest && m.reliefGrid && m.reliefGrid.na * m.reliefGrid.radii.length <= 288), "Chankillo: las torres no allanan la ladera y piden una rejilla de relieve fina");
+  // el rótulo de un volcán va al filo que está a SU distancia, no a una ladera cercana más alta en la misma ventana
+  const n = 1800, alt = new Array(n).fill(0), near = new Array(n).fill(0), far = new Array(n).fill(0), dn = new Array(n).fill(0.3), df = new Array(n).fill(35.5);
+  for (let i = 0; i < n; i++) { const az = i * 0.2; near[i] = 4.3 + (95 - az) * 0.1; far[i] = 4.27 - Math.abs(az - 95.6) * 1.2; alt[i] = Math.max(near[i], far[i]); }
+  const hz = { alt, step_deg: 0.2, ground_m: 3031, eye_m: 1.7, bands: [{ alt: near, dist_km: dn }, { alt: far, dist_km: df }] };
+  const ang = (h, d, h0) => Math.atan2(h - h0 - (d * d * 1000) / (2 * 6371 * 1.15), d * 1000) * 180 / Math.PI;
+  const v = [{ id: 1, name: "Cayambe", lat: 0.029, lon: -77.986, elev_m: 5790 }];
+  const withB = volcanoesOnSkyline(v, hz, 0.055947, -78.307397, ang), noB = volcanoesOnSkyline(v, { ...hz, bands: undefined }, 0.055947, -78.307397, ang);
+  ok(withB.length === 1 && Math.abs(withB[0].az - 95.6) < 0.25 && noB.length === 1 && noB[0].az < 93, "el rótulo del Cayambe desde Cochasquí va a su cumbre, no a la ladera cercana");
+}
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

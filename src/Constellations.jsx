@@ -184,6 +184,7 @@ const loadBortleMap = () => { try { return JSON.parse(localStorage.getItem(BORTL
 // Lugar de "Mi cielo" al abrir: la última elección explícita (localStorage) o, si nunca se eligió, Quito
 // (atajo con su altitud). Quito por defecto NO pide la geolocalización. Un enlace con punto de observación
 // (v=) o constelación en profundidad (c=), incompatibles con Mi cielo, gana sobre ambos.
+const sameName = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/^(volcan|cerro|nevado|loma)\s+/, "").replace(/[^a-z0-9]/g, "");
 const PLACE_KEY = "teseo_place_v1";
 function initialPlace() {
   let saved = null;
@@ -3077,6 +3078,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       ...p, label: peakName(p, lang), volcanoChecked: !!volcList,
       ...(recentEruption(p.volcano) ? { subText: VTl.sub(fmtM(p.ele_m), p.volcano.last_year), volc: true } : {}),
     })) : [];
+    // la misma cumbre escrita de dos maneras («Pamba Marca» y «Pambamarca», a menos de 3 km): se nombra una vez
+    for (let i = list.length - 1; i > 0; i--) {
+      const k = sameName(list[i].name);
+      if (k && list.slice(0, i).some((q) => sameName(q.name) === k && Math.abs((((q.az - list[i].az) % 360) + 540) % 360 - 180) < 12 && Math.abs(q.dist_km - list[i].dist_km) < 3)) list.splice(i, 1);
+    }
     // los volcanes en erupción que se ven llevan siempre su nombre (y van primero), aunque los nombres de las
     // montañas estén apagados o su cumbre no figure entre ellas (el Sangay desde el Chimborazo)
     const hot = volcList && hzData ? eruptingInView(volcList, hzData, lat, lon, terrainAngleOf) : [];

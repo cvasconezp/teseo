@@ -77,9 +77,16 @@ export function volcanoesOnSkyline(volcs, hz, lat, lon, angleOf, maxKm = 150) {
     const az = bearingDeg(lat, lon, v.lat, v.lon), alt = angleOf(v.elev_m, d, h0);
     // el punto más alto del filo en ±(1,5 km vistos desde aquí): el punto del catálogo puede estar en el cráter
     const w = Math.max(2, Math.ceil((Math.atan2(1.5, d) * 180 / Math.PI) / step)), c = Math.round(az / step);
+    // (solo cuenta el filo que está a la distancia del volcán: una ladera cercana más alta en esa ventana —la del
+    // cerro que pisas— no es su cumbre. Con las franjas del horizonte se sabe a qué distancia está cada filo)
+    const band = Array.isArray(hz.bands) ? hz.bands.find((b) => b && Array.isArray(b.dist_km) && Array.isArray(b.alt) && b.dist_km.some((x, i) => Math.abs(i - c) <= w && Math.abs(x - d) <= Math.max(3, 0.12 * d))) : null;
     let bi = -1, ba = -99;
-    for (let q = -w; q <= w; q++) { const i = (((c + q) % n) + n) % n; if (hz.alt[i] > ba) { ba = hz.alt[i]; bi = i; } }
-    if (Math.abs(ba - alt) > 0.4) continue;                      // tapado, o el filo es de otra montaña
+    for (let q = -w; q <= w; q++) {
+      const i = (((c + q) % n) + n) % n;
+      if (band && !(Math.abs(band.dist_km[i] - d) <= Math.max(3, 0.12 * d) && Math.abs(band.alt[i] - hz.alt[i]) < 0.06)) continue;   // otro filo, o tapado
+      if (hz.alt[i] > ba) { ba = hz.alt[i]; bi = i; }
+    }
+    if (bi < 0 || Math.abs(ba - alt) > 0.4) continue;            // tapado, o el filo es de otra montaña
     out.push({ id: v.id, name: v.name, az: bi * step, alt: ba, dist_km: +d.toFixed(1), ele_m: v.elev_m, lat: v.lat, lon: v.lon, volcano: v });
   }
   return out;

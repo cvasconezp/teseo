@@ -145,3 +145,14 @@ def test_alturas_y_rumbos():
     assert abs(az - 90) < 1e-6 and abs(d - 111.2) < 0.1
     az, _ = pk.bearing_dist(0, 0, -1, 0)
     assert abs(az - 180) < 1e-6
+
+
+def test_misma_cumbre_escrita_distinto_cuenta_una_vez():
+    """«Pamba Marca» (OpenStreetMap) y «Pambamarca» (Wikidata), a 1,7 km: una sola cumbre."""
+    from app.peaks import merge_nodes
+    a = [{"lat": -0.0794, "lon": -78.2089, "tags": {"name": "Pamba Marca", "ele": "4071"}}]
+    b = [{"lat": -0.0667, "lon": -78.2, "tags": {"name": "Pambamarca", "ele": "4100"}},
+         {"lat": -0.0667, "lon": -78.0, "tags": {"name": "Pambamarca", "ele": "4100"}}]
+    out = merge_nodes(a, b)
+    assert [o["tags"]["name"] for o in out] == ["Pamba Marca", "Pambamarca"]   # la lejana (22 km) es otra
+    assert out[1]["lon"] == -78.0

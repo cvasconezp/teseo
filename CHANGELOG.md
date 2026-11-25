@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.87.0 — Chankillo desde el este, mar de nubes y rótulos de cumbres
+
+- **Chankillo, punto de observación este:** nuevo punto de visita a unos 200 m al este de las torres, mirando al oeste, para seguir los atardeceres. Su posición es aproximada: la que hace caer los ocasos de los dos solsticios en los extremos de la fila (Ghezzi y Ruggles). La ficha de las Trece Torres explica los dos puntos.
+- **Las torres, sobre su cresta:** desde la ladera (el punto «Trece Torres» y el nuevo punto este) las torres no se veían: el suelo se levantaba en meseta a su alrededor y las tapaba. Ahora la cresta se mide con una rejilla fina y las torres quedan encima, vistas desde cualquier lado.
+- **Mar de nubes desde una cumbre:** el borde de las nubes bajas contra las montañas salía en bloques rectos, como edificios. Ahora la orilla sigue la ladera de forma continua y las montañas que no superan la nube quedan bajo ella.
+- **Rótulo de un volcán:** desde Cochasquí, «Volcán Cayambe» se colocaba sobre la ladera cercana del Mojanda, a unos 3° de la cumbre. El rótulo va ahora al filo que está a la distancia del volcán.
+- **Cumbres repetidas:** «Pamba Marca» y «Pambamarca» (la misma cumbre en OpenStreetMap y en Wikidata) se nombran una sola vez.
+- **Cochasquí:** el suelo del sitio llega hasta los montículos funerarios más lejanos (antes acababa a 450 m y parecían flotar).
+
 ## 1.86.0 — Fichas de todas las estructuras
 
 - **Todas las estructuras con nombre tienen ficha** (42 en total): el resto de Machu Picchu (Roca Sagrada, Templo del Cóndor, Casa del Inca, Grupo de las Tres Portadas, Espejos de Agua, Plaza Principal) y los demás sitios: Teotihuacan (Sol y Luna), Chichén Itzá, Guiza (Keops, Kefrén, Micerino), Stonehenge, Newgrange, Maeshowe, Coliseo, Cristo Redentor, Taj Mahal, Abu Simbel, Karnak, Angkor Wat, Chankillo, Tiwanaku (Akapana, Kalasasaya, Puerta del Sol, estela Ponce), Paranal (los cuatro telescopios del VLT), Cochasquí, Catequilla, Quitsato e Ingapirca.
