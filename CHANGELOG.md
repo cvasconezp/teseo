@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.84.2 — Puntos de visita: Tiwanaku y distancias
+
+- **Tiwanaku:** los tres puntos daban casi la misma vista (quedaban a 16 m uno de otro). La vista general ya es el frente de Kalasasaya, así que ese punto se quita; Akapana se mira ahora desde el este, a unos 190 m de la vista general.
+- Un punto que caería a menos de 40 m de la vista general no se pone (sería la misma vista). En las tolas de Cochasquí la distancia se mide desde la fachada, no desde la diagonal: los puntos quedan más cerca.
+- **Machu Picchu, al saltar de punto:** durante unos segundos la ciudad salía vista desde abajo, porque se dibujaba antes de saber a qué altura ponerla. Ahora, de pie sobre la maqueta, su suelo se usa desde el primer momento (no se espera al relieve del servicio) y no se dibuja nada a una altura provisional.
+- Cochasquí gana el punto de la Pirámide G; Chankillo se aleja a 45 m de las torres para que quepan varias; Paranal se queda con la vista general y la UT4.
+
 ## 1.84.1 — Nada del cielo sobre el suelo de un sitio; rótulos y borde de Machu Picchu
 
 - **Nombres y toques sobre el suelo:** seguían saliendo los de la franja justo bajo el horizonte matemático (entre 0° y −0,5°), que es donde el suelo, los andenes y los muros los dejaban a la vista. Ahora la comparación con el horizonte del sitio es con signo: nada que quede detrás del suelo o de un muro se nombra ni se puede tocar, sea cual sea la capa (constelaciones, NGC, cometas…). La silueta del suelo llega hasta donde llega el relieve del sitio.

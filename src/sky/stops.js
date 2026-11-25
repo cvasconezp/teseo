@@ -10,23 +10,45 @@ const AUTO = {
   teotihuacan: ["teotihuacan", ["sol", "luna"]],
   giza: ["giza", ["keops", "kefren", "micerino"]],
   cochasqui: ["cochasqui", ["cq-g", "cq-e", "cq-m", "cqm-a"]],
-  chankillo: ["chankillo", ["chankillo-7"]],
+  chankillo: ["chankillo", [{ id: "chankillo-7", dist: 45 }]],     // (a 45 m: caben varias torres a la vista)
   catequilla: ["catequilla", ["catequilla-muro", "catequilla-disco"]],
   paranal: ["paranal", ["vlt-ut1", "vlt-ut4"]],
-  tiwanaku: ["tiwanaku", ["akapana", "kalasasaya"]],
+  // (Tiwanaku: la vista general ya es el frente de Kalasasaya, con su escalinata y su portada; Akapana se mira
+  // desde el este, que es por donde queda despejada: entre ella y Kalasasaya solo hay 22 m)
+  tiwanaku: ["tiwanaku", [{ id: "akapana", az: 90 }]],
 };
 const RAD = Math.PI / 180;
 const at = (lat, lon, e, n) => [lat + n / 110574, lon + e / (111320 * Math.cos(lat * RAD))];
 
-/** Punto frente a la pieza `m`, visto desde [vlat, vlon]: { lat, lon, look, lookAlt, d } (o null si no cabe). */
-export function frontStop(m, vlat, vlon, others = []) {
-  const o = offsetOf(m.lat, m.lon, vlat, vlon), r = footprintRadius(m), h = m.height || 3;
-  const d = Math.max(r * 1.15 + Math.min(60, Math.max(4, h)), h * 1.2, 8);
-  if (o.d < d + 15) return null;                       // la vista general ya está frente a ella
+/** Lo que sobresale la pieza desde su centro hacia el rumbo `az` (m): media planta si es rectangular; si no, su radio. */
+function extentToward(m, az) {
+  if (!(m.w > 0 && m.d > 0)) return footprintRadius(m);
+  const t = (az - (m.rot || 0)) * RAD;
+  return Math.abs(Math.sin(t)) * m.w / 2 + Math.abs(Math.cos(t)) * m.d / 2;
+}
+/** ¿Cae [lat, lon] sobre la planta de la pieza `q` (con `margin` m de holgura)? Rectángulo girado si tiene w y d; si no, círculo. */
+export function onPiece(q, lat, lon, margin = 3) {
+  const o = offsetOf(q.lat, q.lon, lat, lon);
+  if (!(q.w > 0 && q.d > 0)) return o.d < footprintRadius(q) + margin;
+  const t = (o.az - (q.rot || 0)) * RAD, x = o.d * Math.sin(t), y = o.d * Math.cos(t);
+  return Math.abs(x) < q.w / 2 + margin && Math.abs(y) < q.d / 2 + margin;
+}
+/**
+ * Punto frente a la pieza `m`: { lat, lon, look, lookAlt, d } (o null si no cabe). Por defecto, del lado de la vista
+ * general [vlat, vlon]; con `side` (rumbo desde la pieza), de ese lado. La distancia deja la pieza entera a la vista.
+ */
+export function frontStop(m, vlat, vlon, others = [], side = null, dist = null) {
+  const o = offsetOf(m.lat, m.lon, vlat, vlon), h = m.height || 3, az0 = side != null ? side : o.az;
   for (const da of [0, 15, -15, 30, -30, 45, -45, 60, -60, 90, -90]) {
-    const b = (o.az + da) * RAD, e = d * Math.sin(b), n = d * Math.cos(b), [lat, lon] = at(m.lat, m.lon, e, n);
-    if (others.some((q) => q !== m && offsetOf(lat, lon, q.lat, q.lon).d < footprintRadius(q) + 3)) continue;
-    return { lat, lon, look: ((o.az + da + 180) % 360 + 360) % 360, lookAlt: Math.min(25, Math.max(2, (Math.atan2(h * 0.45, d) / RAD))), d };
+    // (las piezas que no se asientan sobre el relieve —`seat`— allanan el suelo dentro de su radio: desde ahí dentro no
+    // se ven bien, así que el punto queda fuera de él; las asentadas —las tolas de Cochasquí— admiten acercarse a la fachada)
+    const gap = Math.min(40, Math.max(6, h * 1.5)), az = az0 + da;
+    const d = dist != null ? dist : Math.max((m.seat ? extentToward(m, az) : footprintRadius(m) * 1.05) + gap, 8);
+    const b = az * RAD, [lat, lon] = at(m.lat, m.lon, d * Math.sin(b), d * Math.cos(b));
+    // (si queda casi donde la vista general, no aporta: sería la misma vista)
+    if (side == null && offsetOf(vlat, vlon, lat, lon).d < Math.max(40, 0.3 * o.d)) return null;
+    if (others.some((q) => q !== m && onPiece(q, lat, lon))) continue;
+    return { lat, lon, look: ((az + 180) % 360 + 360) % 360, lookAlt: Math.min(25, Math.max(2, Math.atan2(h * 0.45, d - extentToward(m, az) * 0.5) / RAD)), d };
   }
   return null;
 }
@@ -40,8 +62,8 @@ export function allStops() {
     const view = SITES.find((s) => s.id === viewId), all = MONUMENTS.filter((m) => m.site === site);
     if (!view) continue;
     const stops = [{ id: "vista", name: { es: "Vista general", en: "Overview" }, lat: view.lat, lon: view.lon, elev: view.elev ?? null, at: [] }];
-    for (const id of ids) {
-      const m = all.find((q) => q.id === id), f = m && frontStop(m, view.lat, view.lon, all);
+    for (const it of ids) {
+      const id = it.id || it, m = all.find((q) => q.id === id), f = m && frontStop(m, view.lat, view.lon, all, it.az != null ? it.az : null, it.dist != null ? it.dist : null);
       if (f) stops.push({ id, name: m.name, lat: +f.lat.toFixed(6), lon: +f.lon.toFixed(6), elev: null, look: Math.round(f.look), lookAlt: Math.round(f.lookAlt), at: [id] });
     }
     if (stops.length > 1) out[site] = stops;

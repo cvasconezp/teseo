@@ -76,7 +76,7 @@ import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakNam
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
 import { stopsAt, stopOf } from "./sky/stops.js";
 import { loadMachuModel, machuModel, modelGround } from "./sky/machuModel.js";
-import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints, groundSilhouette } from "./sky/monumentLayer.js";
+import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints, groundSilhouette, RELIEF_R, RELIEF_NA } from "./sky/monumentLayer.js";
 const NEAR_RELIEF_R = [0.03, 0.06, 0.1, 0.15, 0.22, 0.3, 0.4, 0.52, 0.68, 0.9];
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
 import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
@@ -2985,16 +2985,27 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // el relieve del sitio; con su maqueta cargada, el suelo dentro de ella es el de la maqueta (exacto) y los pies del
   // observador se apoyan en él
   const siteRelief = useMemo(() => {
-    const rl = monBase.relief; if (!rl) return null;
-    const mm = monNear.find((m) => m.model); if (!mm || !machuModel() || rl.abs0dem == null) return rl;
-    const o = offsetOf(mm.lat, mm.lon, lat, lon), here = modelGround(o.e, o.n), abs0 = here != null ? here : rl.abs0dem, sh = rl.abs0dem - abs0;
+    let rl = monBase.relief;
+    const mm = monNear.find((m) => m.model); if (!mm || !machuModel()) return rl || null;
+    const o = offsetOf(mm.lat, mm.lon, lat, lon), here = modelGround(o.e, o.n);
+    // (de pie sobre la maqueta no hace falta esperar al relieve del servicio: su suelo ya se conoce; el de fuera llega
+    // después y solo retoca el borde. Así, al saltar a un punto, la vista sale bien desde el primer momento)
+    if (!rl) {
+      if (here == null || monBase.status !== "ok" || monBase.key !== monKey) return null;
+      const spec = mm.reliefGrid || {}, np = (spec.radii || RELIEF_R).length * (spec.na || RELIEF_NA);
+      rl = { reach: groundReach(monNear.map((m) => ({ m, o: offsetOf(lat, lon, m.lat, m.lon) }))), h: new Array(np).fill(-1.7), abs0dem: here, ...spec };
+    }
+    if (rl.abs0dem == null) return rl;
+    const abs0 = here != null ? here : rl.abs0dem, sh = rl.abs0dem - abs0;
     // (`edge`: para un punto fuera de la maqueta, a qué distancia está su borde y a qué altura: el suelo de fuera empalma con él)
     const DIRS = Array.from({ length: 12 }, (_, i) => [Math.sin((i * Math.PI) / 6), Math.cos((i * Math.PI) / 6)]);
     const edge = (e, n) => { for (const rr of [5, 10, 16, 24, 33, 44]) { let best = null; for (const [dx, dy] of DIRS) { const a = modelGround(o.e + e + rr * dx, o.n + n + rr * dy); if (a != null && (best == null || a > best)) best = a; } if (best != null) return { d: rr, h: best - abs0 - 1.7 }; } return null; };
     return { ...rl, h: sh ? rl.h.map((v) => v + sh) : rl.h, abs0, edge, exact: (e, n) => { const a = modelGround(o.e + e, o.n + n); return a == null ? null : a - abs0 - 1.7; } };
-  }, [monBase.relief, monNear, lat, lon, modelRev]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const monItems = useMemo(() => (monOn && hzData && monBase.status === "ok" && monBase.key === monKey
-    ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases, siteRelief) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon, siteRelief, modelRev]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [monBase.relief, monBase.status, monBase.key, monKey, monNear, lat, lon, modelRev]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // (con la maqueta cargada no se dibuja nada hasta tener con qué ponerla a su altura: sin eso salía un instante vista desde abajo)
+  const modelWaits = monNear.some((m) => m.model) && !!machuModel() && !siteRelief;
+  const monItems = useMemo(() => (monOn && hzData && monBase.status === "ok" && monBase.key === monKey && !modelWaits
+    ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases, siteRelief) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon, siteRelief, modelRev, modelWaits]);   // eslint-disable-line react-hooks/exhaustive-deps
   const summitLift = placeSummit && nearData && monItems.length === 0 ? SUMMIT_LIFT_M : 0;
   // sin relieve propio del sitio, el piso de los monumentos sigue el relieve 3D (una loma no queda como un llano)
   // (más fina que la de /api/elevation: 10 anillos × 72 acimuts; cada edificio queda en su explanada)

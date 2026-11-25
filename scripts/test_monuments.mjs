@@ -3,7 +3,7 @@
 import { MONUMENTS, monumentsNear, buildFaces, toLocal, altAzOf, offsetOf, silhouette, withMonuments, groundRing, median, apexOf, footprintRadius, SH_STANDING, SH_LINTELS } from "../src/sky/monuments.js";
 import { placeMonuments, onPlatform, monumentLabels, faceUV, toneAt, groundHeight, reliefAt, reliefPoints, RELIEF_R, RELIEF_NA, groundSilhouette } from "../src/sky/monumentLayer.js";
 import { parseMachuModel, setMachuModel, modelGround } from "../src/sky/machuModel.js";
-import { allStops, stopsAt as allStopsAt, stopOf as allStopOf } from "../src/sky/stops.js";
+import { allStops, stopsAt as allStopsAt, stopOf as allStopOf, onPiece } from "../src/sky/stops.js";
 import { tierEdges, stairSteps, detailFor, tolaRings, llaqtaPlan, LLAQTA, MP_CONTROL, MP_RELIEF_FIX, mpReliefDelta, SITE_STOPS, stopsAt, stopOf } from "../src/sky/monuments.js";
 import { SITES } from "../src/sky/places.js";
 import { readFileSync } from "node:fs";
@@ -214,8 +214,10 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
         const bad = [];
         for (const [sid, L] of Object.entries(A)) { if (sid === "machupicchu") continue; const ps = MONUMENTS.filter((m) => m.site === sid);
           for (const q of L.slice(1)) { const m0 = byId(q.id), o0 = offsetOf(q.lat, q.lon, m0.lat, m0.lon);
-            if (!(Math.abs(((o0.az - q.look + 540) % 360) - 180) < 1.5) || o0.d < footprintRadius(m0) + 3 || ps.some((m) => m !== m0 && offsetOf(q.lat, q.lon, m.lat, m.lon).d < footprintRadius(m) + 3)) bad.push(sid + ":" + q.id); } }
-        ok(bad.length === 0, "cada punto calculado mira a su pieza, queda fuera de ella y no pisa ninguna otra" + (bad.length ? " — " + bad.join(" ") : ""));
+            if (!(Math.abs(((o0.az - q.look + 540) % 360) - 180) < 1.5) || ps.some((m) => onPiece(m, q.lat, q.lon, m === m0 ? 2 : 3)) || offsetOf(L[0].lat, L[0].lon, q.lat, q.lon).d < 40) bad.push(sid + ":" + q.id); } }
+        ok(bad.length === 0, "cada punto calculado mira a su pieza, queda fuera de su planta, no pisa ninguna otra y está a más de 40 m de la vista general" + (bad.length ? " — " + bad.join(" ") : ""));
+        { const T = A.tiwanaku, d01 = offsetOf(T[0].lat, T[0].lon, T[1].lat, T[1].lon).d, ak = byId("akapana");
+          ok(T.length === 2 && d01 > 150 && T[1].look === 270 && offsetOf(T[1].lat, T[1].lon, ak.lat, ak.lon).d > footprintRadius(ak), "Tiwanaku: la vista general (el frente de Kalasasaya) y Akapana desde el este, fuera de su radio y lejos de la vista general"); }
         const tw = allStopsAt(A.tiwanaku[1].lat, A.tiwanaku[1].lon);
         ok(tw.site === "tiwanaku" && tw.here === A.tiwanaku[1].id && allStopsAt(0, 0) === null && allStopOf("keops").id === "keops" && allStopOf("mp-torreon").id === "sol", "stopsAt y stopOf funcionan en todos los sitios"); }
       ok(stopsAt(st[2].lat, st[2].lon).here === "plaza" && stopsAt(st[0].lat + 0.0003, st[0].lon).here === null && stopsAt(0, -78) === null && stopOf("mp-torreon").id === "sol" && stopOf("ponce") === null, "stopsAt dice en qué punto se está; stopOf lleva de un rótulo a su punto"); }
