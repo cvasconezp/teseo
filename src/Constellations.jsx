@@ -2141,13 +2141,20 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           return behindTerrain(ref.hzData, [tmpB.x, tmpB.y, tmpB.z], 0);
         };
         // con monumentos hay un suelo de verdad (hierba, arena…): lo que queda bajo el horizonte no se nombra
+        const siteHides = (dx, dy, dz) => {
+          const hzd = ref.hzData; if (!hzd || !hzd.alt || !hzd.alt.length) return false;
+          const n = hzd.alt.length, step = hzd.step_deg || 360 / n, altD = Math.asin(Math.max(-1, Math.min(1, dy))) * 180 / Math.PI;
+          const azD = ((Math.atan2(dx, -dz) * 180 / Math.PI) % 360 + 360) % 360;
+          return altD < hzd.alt[Math.round(azD / step) % n];
+        };
         const underGround = (x, y) => {
           if (!inside || !ref.localModeOn || !(ref.monGround || ref.hzData)) return false;
           tmpB.set((x / W) * 2 - 1, -((y / H) * 2 - 1), 0.5).unproject(ref.camera).sub(ref.camera.position).normalize();
           if (ref.monGround && tmpB.y < -0.008) return true;
           // en un sitio con suelo propio (un sitio arqueológico), nada de nombres detrás del terreno, los andenes o los
           // muros: ni lo que está a punto de salir (el horizonte efectivo ya incluye el suelo y los monumentos)
-          if (ref.monGround && ref.hzData && behindTerrain(ref.hzData, [tmpB.x, tmpB.y, tmpB.z], 0)) return true;
+          // (comparación con signo: también lo que queda entre el horizonte matemático y el suelo, justo por debajo de 0°)
+          if (ref.monGround && siteHides(tmpB.x, tmpB.y, tmpB.z)) return true;
           // con las montañas a la vista: nada de nombres del otro lado del globo, salvo lo que está a punto de salir
           // (hasta 3° bajo el filo del relieve en esa dirección)
           const hzd = ref.hzData;
@@ -4277,7 +4284,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         // en un sitio con suelo propio, lo que queda bajo el suelo o detrás del terreno y los muros no se puede tocar
         if (ref.monGround && ref.localModeOn && ref.localQuat) {
           const L0 = vtmp.length() || 1, dy = vtmp.y / L0;
-          if (dy < -0.008 || (ref.hzData && behindTerrain(ref.hzData, [vtmp.x / L0, dy, vtmp.z / L0], 0))) return;
+          const hzd = ref.hzData;
+          if (dy < -0.008) return;
+          if (hzd && hzd.alt && hzd.alt.length) {
+            const nH = hzd.alt.length, stH = hzd.step_deg || 360 / nH, azH = ((Math.atan2(vtmp.x, -vtmp.z) * 180 / Math.PI) % 360 + 360) % 360;
+            if (Math.asin(Math.max(-1, Math.min(1, dy))) * 180 / Math.PI < hzd.alt[Math.round(azH / stH) % nH]) return;
+          }
         }
         if (!screenOf(ref.camera, vtmp, r.width, r.height, mode, sp)) return;
         if (Math.abs(sp.x - px) > 120 || Math.abs(sp.y - py) > 120) return;  // lejos del dedo: ni se considera

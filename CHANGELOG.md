@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.84.1 — Nada del cielo sobre el suelo de un sitio; rótulos y borde de Machu Picchu
+
+- **Nombres y toques sobre el suelo:** seguían saliendo los de la franja justo bajo el horizonte matemático (entre 0° y −0,5°), que es donde el suelo, los andenes y los muros los dejaban a la vista. Ahora la comparación con el horizonte del sitio es con signo: nada que quede detrás del suelo o de un muro se nombra ni se puede tocar, sea cual sea la capa (constelaciones, NGC, cometas…). La silueta del suelo llega hasta donde llega el relieve del sitio.
+- **Machu Picchu:** se quitan los rótulos «Roca Funeraria» y «Puerta de la Ciudad», cuya posición caía fuera de la maqueta o en su borde recortado (salían sobre otra montaña o sobre la hierba).
+- **Borde de la maqueta:** el suelo de fuera ya no sube en rampa hacia el relieve global (esa rampa oscura tapaba los andenes del borde): sigue al nivel del borde y se desvanece.
+
 ## 1.84.0 — Puntos de visita en más sitios; Machu Picchu: casas asentadas, mirador y nombres bajo el suelo
 
 - **Puntos de visita en siete sitios más:** Teotihuacan, Guiza, Cochasquí, Chankillo, Catequilla, Paranal y Tiwanaku. Cada uno tiene su «Vista general» y un punto frente a cada pieza principal, calculado para verla entera, mirando hacia ella y sin pisar ninguna otra (`src/sky/stops.js`).

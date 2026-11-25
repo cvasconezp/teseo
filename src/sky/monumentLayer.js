@@ -47,6 +47,8 @@ export function placeMonuments(list, { lat, lon, ground }, bases, relief = null)
     const b = bases && bases[m.id];
     if (!Number.isFinite(b) || !Number.isFinite(ground)) continue;
     const o = offsetOf(lat, lon, m.lat, m.lon);
+    // (con la maqueta del sitio, los rótulos cuya posición cae fuera de ella o en su borde recortado no se ponen)
+    if (m.modelHide && relief && relief.exact) continue;
     // `seat`: en una ladera con muchas piezas (Cochasquí), cada una se asienta sobre el MISMO relieve con el que se
     // dibuja el suelo (la rejilla cercana), no sobre su propia medida: así ninguna queda en el aire ni sobre un pedestal
     // (`seat: "ground"`: sobre el suelo tal como se dibuja —también junto al observador, donde manda el de sus pies—)
@@ -71,11 +73,11 @@ export function placeMonuments(list, { lat, lon, ground }, bases, relief = null)
  */
 export function groundSilhouette(items, relief, step = 0.2, reach = 440) {
   if (!relief) return null;
-  const n = Math.round(360 / step), out = new Float32Array(n).fill(-90), NA = 360, tmp = new Float32Array(NA).fill(-90), far = Math.min(reach, relief.reach || reach);
+  const n = Math.round(360 / step), out = new Float32Array(n).fill(-90), NA = 360, tmp = new Float32Array(NA).fill(-90), far = Math.min(3000, Math.max(reach, relief.reach || reach));
   for (let i = 0; i < NA; i++) {
     const a = (i / NA) * 2 * Math.PI, sa = Math.sin(a), ca = Math.cos(a);
-    for (let k = 0; k < 44; k++) {
-      const r = 4 * Math.pow(far / 4, k / 43), h = groundHeight(r * sa, r * ca, items || NO_ITEMS, relief), alt = (Math.atan2(h, r) * 180) / Math.PI;
+    for (let k = 0; k < 60; k++) {
+      const r = 4 * Math.pow(far / 4, k / 59), h = groundHeight(r * sa, r * ca, items || NO_ITEMS, relief), alt = (Math.atan2(h, r) * 180) / Math.PI;
       if (alt > tmp[i]) tmp[i] = alt;
     }
   }
@@ -220,7 +222,8 @@ export function groundHeight(e, n, items, grid = null) {
     const w = grid ? Math.max(0, 1 / (r * r) - 1 / (80 * 80)) * 4 : 1 / (r * r);
     sw += w; sh += (it.dz + up - (it.m.lift || 0)) * w;
   }
-  if (near) { const k = Math.min(1, near.d / 45), t = k * k * (3 - 2 * k); return near.h * (1 - t) + (sh / sw) * t - up; }
+  // (sin subir hacia el relieve global: una rampa ahí tapaba los andenes del borde; más allá el piso se desvanece)
+  if (near) return near.h - 0.3 - up;
   return sh / sw - up;
 }
 

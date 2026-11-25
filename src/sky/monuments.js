@@ -181,11 +181,11 @@ const machu = [
   { ...mpBase, id: "mp-roca-sagrada", name: { es: "Roca Sagrada", en: "Sacred Rock" }, sub: { es: "3 m de alto · 7 m de ancho", en: "3 m tall · 7 m wide" }, ...mpAt(-12.6, 151.9), kind: "stela", w: 7, d: 1.1, height: 3, rot: 40, foot: 4, mat: "granite" },
   // lugares con nombre (solo el rótulo: el edificio está en la llaqta)
   mpMark("condor", "Templo del Cóndor", "Temple of the Condor", 125.7, -50.0),
-  mpMark("puerta", "Puerta de la Ciudad", "City Gate", 69.5, -179.9),
+  { ...mpMark("puerta", "Puerta de la Ciudad", "City Gate", 69.5, -179.9), modelHide: true },
   mpMark("casa-inca", "Casa del Inca", "Royal Residence", 88.4, -80.8),
   mpMark("tres-portadas", "Grupo de las Tres Portadas", "Group of the Three Doorways", 78.8, 49.4),
   mpMark("espejos", "Espejos de Agua", "Water Mirrors", 123.4, -20.7),
-  mpMark("roca-funeraria", "Roca Funeraria", "Funerary Rock", 104.9, -250.6),
+  { ...mpMark("roca-funeraria", "Roca Funeraria", "Funerary Rock", 104.9, -250.6), modelHide: true },
   mpMark("plaza", "Plaza Principal", "Main Plaza", 70, 5, { es: "explanada entre los dos sectores", en: "esplanade between the two sectors" }, 2),
 ];
 
@@ -304,7 +304,7 @@ export const SITE_STOPS = {
   // (posiciones: sobre el suelo de la maqueta, a más de 3,9 m de cualquier muro; `look`: rumbo hacia lo que se viene a ver)
   machupicchu: [
     { id: "intihuatana", name: { es: "Intihuatana", en: "Intihuatana" }, lat: -13.16312, lon: -72.545683, elev: 2453, look: 0, at: ["intihuatana"] },
-    { id: "mirador", name: { es: "Mirador", en: "Viewpoint" }, lat: -13.164856, lon: -72.544457, elev: 2463, look: 333, lookAlt: -9, at: ["mp-roca-funeraria"] },
+    { id: "mirador", name: { es: "Mirador", en: "Viewpoint" }, lat: -13.164856, lon: -72.544457, elev: 2463, look: 333, lookAlt: -9, at: [] },
     { id: "plaza", name: { es: "Plaza principal", en: "Main plaza" }, lat: -13.163097, lon: -72.544997, elev: 2426, look: 265, lookAlt: 8, at: ["mp-plaza"] },
     { id: "sagrada", name: { es: "Plaza Sagrada", en: "Sacred Plaza" }, lat: -13.16369, lon: -72.545314, elev: 2444, look: 325, at: ["mp-templo-principal", "mp-tres-ventanas"] },
     { id: "sol", name: { es: "Templo del Sol", en: "Temple of the Sun" }, lat: -13.163998, lon: -72.544627, elev: 2426, look: 230, lookAlt: 12, at: ["mp-torreon", "mp-casa-inca"] },
