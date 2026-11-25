@@ -71,7 +71,7 @@ function layerGlsl(l, k) {
   return `
   if (uOn[${k}] > 0.5 && uH[${k}] * uSide > 0.0 && uH[${k}] * d.y > 0.0 && abs(d.y) > 0.004
       && (uH[${k}] > 0.0 || terrainFront(d, uH[${k}] / d.y, uObs + uH[${k}] * 1000.0) < 0.5)
-      && (uSide < 1.5 || terrainBehind(d, uH[${k}] / d.y) > 0.5)) {
+      && (uSide < 1.5 || terrainBehind(d, uH[${k}] / d.y) > 0.01)) {
     float dist = min(uH[${k}] / d.y, 240.0);
     float horizonFade = smoothstep(0.004, ${f1(FAR.fadeY)}, abs(d.y));
     vec2 pe = vec2(d.x, -d.z) * dist - uOff[${k}];
@@ -99,6 +99,7 @@ function layerGlsl(l, k) {
     t = t * t * (3.0 - 2.0 * t);
     ${l === "high" ? "" : `t = max(t, smoothstep(${f1(FAR.fill0)}, ${f1(FAR.fill1)}, dist) * smoothstep(${f1(FAR.cov0)}, ${f1(FAR.cov1)}, uCov[${k}]) * ${f1(FAR.fillMax)});`}
     float a = t * ${f1(s.maxAlpha)} * horizonFade;
+    if (uSide > 1.5) a *= terrainBehind(d, uH[${k}] / d.y);   // sobre las montañas: solo donde quedan dentro de la nube
     vec3 col = mix(lit, uShade, pow(t, 1.5) * (uH[${k}] > 0.0 ? ${f1(THICK[l])} : 0.12));   // desde arriba, la cima de la nube, al sol
 ${CELLS[l] ? cellGlsl(CELLS[l], k) : ""}
     col += uSunGlow * rim * (1.0 - t);
@@ -191,16 +192,27 @@ float terrainBehind(vec3 d, float distKm) {
   if (uTerrOn < 0.5) return 0.0;
   float alt = degrees(asin(clamp(d.y, -1.0, 1.0)));
   float az = mod(degrees(atan(d.x, -d.z)) + 360.0, 360.0);
+  // el filo guardado va en pasos de 0,2° de acimut: se interpola entre los dos pasos vecinos (altura y distancia), para
+  // que el corte de la base de las nubes sobre una montaña sea una línea continua y no escalones
+  float px = az * 5.0 - 0.5, fa = fract(px), u0 = (floor(px) + 0.5) / 1800.0, u1 = u0 + 1.0 / 1800.0;
+  // de cerca a lejos: cada franja cubre el píxel hasta su filo (con 0,3° de margen desvanecido: la montaña dibujada
+  // sigue su borde exacto, algo más alto) y aporta según quede dentro de la nube; lo que no cubre pasa a la siguiente
+  float acc = 0.0, rem = 1.0;
   for (int k = 0; k < ${NB}; k++) {
     float v = (float(k) + 0.5) / ${f1(NB)};
-    vec4 b = texture2D(uTerr, vec2(az / 360.0, v));
-    // el filo guardado va en pasos de 0,2° de acimut, y la montaña dibujada (las franjas y el relieve 3D cercano)
-    // sigue su borde exacto, algo más alto: se toma el más alto de los pasos vecinos y 0,3° de margen, para que el
-    // filo, su línea y la nieve de la cumbre también queden dentro de la nube
-    float top = max(b.x, max(texture2D(uTerr, vec2((az - 0.2) / 360.0, v)).x, texture2D(uTerr, vec2((az + 0.2) / 360.0, v)).x));
-    if (top + 0.3 >= alt) return b.z > distKm ? 1.0 : 0.0;
+    vec4 b0 = texture2D(uTerr, vec2(u0, v)), b1 = texture2D(uTerr, vec2(u1, v));
+    float top = max(b0.x, b1.x);
+    float cover = 1.0 - smoothstep(top + 0.05, top + 0.3, alt);
+    if (cover <= 0.0) continue;
+    // la distancia del filo salta de una columna a otra (una cresta a 20 km junto a otra a 55): se promedia en ±1°
+    float dist = (mix(b0.z, b1.z, fa) * 2.0 + texture2D(uTerr, vec2(u0 - 2.5 / 1800.0, v)).z + texture2D(uTerr, vec2(u1 + 2.5 / 1800.0, v)).z
+      + texture2D(uTerr, vec2(u0 - 5.0 / 1800.0, v)).z + texture2D(uTerr, vec2(u1 + 5.0 / 1800.0, v)).z) / 6.0;
+    // borde blando: la base de una nube no corta la ladera a cuchillo (de 0,8 a 1,6 veces la distancia de entrada)
+    acc += rem * cover * smoothstep(0.8, 1.6, dist / max(distKm, 0.01));
+    rem *= 1.0 - cover;
+    if (rem < 0.01) break;
   }
-  return 0.0;
+  return acc;
 }
 void main() {
   vec3 d = normalize(vWorld - cameraPosition);

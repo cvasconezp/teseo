@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.77.5 — 2026-11-25
+
+- **Sin «almenas» en el horizonte.** Con nubes bajas, el corte de la base de las nubes sobre las montañas lejanas salía en escalones rectos que parecían construcciones (se vio desde Machu Picchu). La distancia de cada cresta saltaba de una columna a otra y el corte era a cuchillo. Ahora las franjas del relieve se componen de cerca a lejos, la distancia se promedia y el borde es blando: la nube envuelve las cumbres.
+
 ## 1.77.4 — 2026-11-25
 
 - **Cochasquí en 3D, más real.** Las pirámides truncas tienen la forma de la tierra gastada por siglos de lluvia: planta de esquinas redondeadas, la arista de arriba convertida en un hombro redondo, la plataforma apenas abombada y un pie que se abre en talud. Las rampas son lomos suaves que se funden con la pirámide y con la ladera, no planchas. Sin aristas de cuchillo. Las medidas (planta, alto, rampas y giro) son las mismas de antes.
