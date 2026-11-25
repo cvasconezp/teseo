@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.82.1 — La ficha del clima no desaparece al saltar entre puntos
+
+- Al saltar entre puntos de un sitio se repetía la consulta del clima; si el servicio rechazaba una, la ficha desaparecía. Ahora se conserva el último dato y se reintenta a los 30 s, y la consulta ya no se repite por diferencias de altitud menores de 150 m.
+
 ## 1.82.0 — Recorrer un sitio saltando entre sus puntos
 
 - En Machu Picchu aparece una tira deslizable con nueve puntos de visita (Intihuatana, mirador, Plaza principal, Plaza Sagrada, Templo del Sol, Templo del Cóndor, Tres Portadas, Roca Sagrada y Puerta de la Ciudad): al tocar uno, Teseo te sitúa ahí. El punto donde estás queda resaltado.

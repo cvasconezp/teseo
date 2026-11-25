@@ -2844,14 +2844,20 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // solo si es creíble; si no, ninguna (Open-Meteo usa entonces su propio modelo de terreno de 90 m). La altitud del
   // GPS del navegador no se usa: a veces llega mal y cada 150 m de error son 1 °C
   const wxElev = hzData && Number.isFinite(hzData.ground_m) ? hzData.ground_m : (elevPreset && Number.isFinite(elev) ? elev : null);
-  const wxNowKey = localActive && !viewFrom && lat != null && lon != null ? `${lat.toFixed(2)},${lon.toFixed(2)},${wxElev != null ? Math.round(wxElev / 50) : "x"}` : null;
+  const wxNowKey = localActive && !viewFrom && lat != null && lon != null ? `${lat.toFixed(2)},${lon.toFixed(2)},${wxElev != null ? Math.round(wxElev / 150) : "x"}` : null;
   useEffect(() => {
     if (!wxNowKey) { setWxNow(null); return undefined; }
     let alive = true;
-    const ask = () => fetch(nowUrl(lat, lon, wxElev)).then((r) => (r.ok ? r.json() : null)).then((j) => { const w = parseNow(j); if (alive) setWxNow(w ? { ...w, fetchedAt: Date.now() } : null); }).catch(() => {});
+    // (si la consulta falla —el servicio limita las consultas seguidas, p. ej. al saltar entre puntos de un sitio— se
+    // conserva lo último que se tenía y se reintenta al rato: la ficha del clima no desaparece)
+    let retry = 0;
+    const ask = () => fetch(nowUrl(lat, lon, wxElev)).then((r) => (r.ok ? r.json() : null)).then((j) => {
+      const w = parseNow(j); if (!alive) return;
+      if (w) setWxNow({ ...w, fetchedAt: Date.now() }); else retry = setTimeout(ask, 30000);
+    }).catch(() => { if (alive) retry = setTimeout(ask, 30000); });
     ask();
     const id = setInterval(ask, 15 * 60 * 1000);
-    return () => { alive = false; clearInterval(id); };
+    return () => { alive = false; clearInterval(id); clearTimeout(retry); };
   }, [wxNowKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   // siete modelos del mismo punto (src/sky/models.js): la pastilla y la tarjeta muestran su mediana y avisan si no
   // coinciden. Cada 30 minutos (Open-Meteo actualiza cada hora); si fallan, queda el modelo por defecto
