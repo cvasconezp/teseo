@@ -246,9 +246,11 @@ ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) s
 { const { MON_INFO, shapeCredit } = await import("../src/sky/monumentInfo.js"); const ck = ok;
   console.log("Fichas de las estructuras");
   ck(Object.keys(MON_INFO).every((id) => MONUMENTS.some((m) => m.id === id)), "cada ficha es de una estructura que existe");
-  ck(Object.values(MON_INFO).every((f) => f.kind.es && f.kind.en && f.body.es.length === f.body.en.length && f.facts.es.length === f.facts.en.length && f.sources.length >= 2 && f.sources.every((q) => /^https:\/\//.test(q.url) && q.label)), "cada ficha va en los dos idiomas y con al menos dos fuentes enlazadas");
+  ck(Object.values(MON_INFO).every((f) => f.kind.es && f.kind.en && f.body.es.length === f.body.en.length && (!f.facts || f.facts.es.length === f.facts.en.length) && (!f.teseo || (f.teseo.es && f.teseo.en)) && f.sources.length >= 1 && f.sources.every((q) => q.label && (!q.url || /^https:\/\//.test(q.url)))), "cada ficha va en los dos idiomas y con sus fuentes");
+  ck(MONUMENTS.filter((m) => m.label !== false && !m.modelHide && !MON_INFO[m.id]).length === 0, "todas las estructuras con rótulo tienen ficha");
+  ck(/reconstrucción|modelo 3D propio/.test(shapeCredit("akapana", "tiwanaku").text) && /Ghezzi y Ruggles/.test(shapeCredit("chankillo-7", "chankillo").text) && /ESO/.test(shapeCredit("vlt-ut1", "paranal").text), "el crédito de la forma nombra de dónde salen las medidas cuando se sabe");
   ck(/28 de octubre/.test(MON_INFO.intihuatana.teseo.es) && /13 de febrero/.test(MON_INFO.intihuatana.teseo.es) && /equinoccios no/.test(MON_INFO.intihuatana.teseo.es), "Intihuatana: el paso cenital (28 de octubre y 13 de febrero), no los equinoccios");
-  ck(shapeCredit("intihuatana", "machupicchu") === null && /CC BY 4\.0/.test(shapeCredit("mp-condor", "machupicchu").text) && /reconstrucción de Teseo/.test(shapeCredit("mp-templo-principal", "machupicchu").text) && /reconstrucción de Teseo/.test(shapeCredit("akapana", "tiwanaku").text) && /Teseo’s reconstruction/.test(shapeCredit("keops", "giza", "en").text), "toda estructura dice de dónde sale su forma: la maqueta (CC BY 4.0) o una reconstrucción propia");
+  ck(shapeCredit("intihuatana", "machupicchu") === null && /CC BY 4\.0/.test(shapeCredit("mp-condor", "machupicchu").text) && /modelo 3D propio/.test(shapeCredit("mp-templo-principal", "machupicchu").text) && /modelo 3D propio/.test(shapeCredit("akapana", "tiwanaku").text) && /own 3D model/.test(shapeCredit("keops", "giza", "en").text), "toda estructura dice de dónde sale su forma: la maqueta (CC BY 4.0) o una reconstrucción propia");
 }
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);

@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.86.0 — Fichas de todas las estructuras
+
+- **Todas las estructuras con nombre tienen ficha** (42 en total): el resto de Machu Picchu (Roca Sagrada, Templo del Cóndor, Casa del Inca, Grupo de las Tres Portadas, Espejos de Agua, Plaza Principal) y los demás sitios: Teotihuacan (Sol y Luna), Chichén Itzá, Guiza (Keops, Kefrén, Micerino), Stonehenge, Newgrange, Maeshowe, Coliseo, Cristo Redentor, Taj Mahal, Abu Simbel, Karnak, Angkor Wat, Chankillo, Tiwanaku (Akapana, Kalasasaya, Puerta del Sol, estela Ponce), Paranal (los cuatro telescopios del VLT), Cochasquí, Catequilla, Quitsato e Ingapirca.
+- **Fuentes:** cada ficha enumera de dónde sale su información, con enlace cuando existe. Se prefirieron organismos estatales e investigación publicada: UNESCO, INAH, Ministerio de Cultura del Perú y PromPerú, English Heritage, Historic Environment Scotland, Office of Public Works y National Museum of Ireland, ESO, y artículos científicos (Ghezzi y Ruggles; Ziółkowski, Sadowski y Kościuk; Casares; Šprajc y Sánchez; Romain; Villanueva Criales; Oberem; Cobo).
+- **Crédito de la forma:** cada ficha dice de dónde sale lo que se ve: escaneo láser (Intihuatana), maqueta del Ministerio de Cultura del Perú (ciudad de Machu Picchu) o modelo 3D propio de Teseo, y en ese caso de qué publicación salen las medidas.
+- Donde la investigación matiza la fama del lugar, la ficha lo dice: la serpiente de luz de Chichén Itzá no fija el equinoccio con precisión, y el estudio con escáner láser de los Espejos de Agua descarta su uso astronómico.
+
 ## 1.85.0 — Intihuatana: forma, sombra y ficha; fichas de las estructuras
 
 - **Forma del Intihuatana:** la roca tallada pasa de unos 570 a 10.500 triángulos del escaneo láser (se simplifica aparte del piso y los muros), con luz suave y granito pulido: se distinguen la base, la mesa y el prisma. El escaneo deja de ir dentro del programa: se descarga (0,25 MB) solo al estar en Machu Picchu.

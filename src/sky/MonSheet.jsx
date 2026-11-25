@@ -13,7 +13,7 @@ export default function MonSheet({ t, lang = "es", mon, onClose, onGo, here = fa
   return (
     <SheetShell t={t} lang={lang} title={mon.name} subtitle={info ? L(info.kind) : mon.sub || null} badge={d != null && d > 3 ? T.from(d.toLocaleString(lang === "es" ? "es" : "en-US"), compassLabel(mon.az, lang)) : null}
       resetKey={`mon:${mon.id}`} onClose={onClose} className="is-peak is-mon">
-      {info && info.facts && <dl className="sk-facts is-two">{L(info.facts).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>}
+      {info && info.facts && L(info.facts) && <dl className="sk-facts is-two">{L(info.facts).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>}
       {info && L(info.body).map((p, i) => <p key={i} className="mon-sheet-p">{p}</p>)}
       {info && info.teseo && <p className="sk-note" role="note">{L(info.teseo)}</p>}
       {!info && <p className="sk-note">{T.noInfo}</p>}
@@ -24,7 +24,7 @@ export default function MonSheet({ t, lang = "es", mon, onClose, onGo, here = fa
       {sc && <p className="peak-sheet-src"><b>{T.credits}. </b>{sc.text} <a href={sc.url} target="_blank" rel="noopener noreferrer">{lang === "es" ? "Ver" : "View"}</a></p>}
       {info && info.sources && (
         <div className="mon-sheet-srcs"><p className="peak-sheet-src"><b>{T.sources}</b></p>
-          <ul>{info.sources.map((s) => <li key={s.url}><a href={s.url} target="_blank" rel="noopener noreferrer">{s.label}</a></li>)}</ul></div>
+          <ul>{info.sources.map((s) => <li key={s.label}>{s.url ? <a href={s.url} target="_blank" rel="noopener noreferrer">{s.label}</a> : s.label}</li>)}</ul></div>
       )}
     </SheetShell>
   );
