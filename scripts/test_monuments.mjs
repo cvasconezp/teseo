@@ -3,6 +3,7 @@
 import { MONUMENTS, monumentsNear, buildFaces, toLocal, altAzOf, offsetOf, silhouette, withMonuments, groundRing, median, apexOf, footprintRadius, SH_STANDING, SH_LINTELS } from "../src/sky/monuments.js";
 import { placeMonuments, onPlatform, monumentLabels, faceUV, toneAt, groundHeight, reliefAt, reliefPoints, RELIEF_R, RELIEF_NA, groundSilhouette } from "../src/sky/monumentLayer.js";
 import { parseMachuModel, setMachuModel, modelGround } from "../src/sky/machuModel.js";
+import { allStops, stopsAt as allStopsAt, stopOf as allStopOf } from "../src/sky/stops.js";
 import { tierEdges, stairSteps, detailFor, tolaRings, llaqtaPlan, LLAQTA, MP_CONTROL, MP_RELIEF_FIX, mpReliefDelta, SITE_STOPS, stopsAt, stopOf } from "../src/sky/monuments.js";
 import { SITES } from "../src/sky/places.js";
 import { readFileSync } from "node:fs";
@@ -195,11 +196,11 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
       // la maqueta del Ministerio de Cultura (public/data/machu-maqueta.bin)
       const bin = readFileSync(new URL("../public/data/machu-maqueta.bin", import.meta.url)), mm = parseMachuModel(bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength));
       ok(mm.nv > 12000 && mm.nt > 25000 && mm.nv < 65536 && Math.max(...mm.cls) <= 6, "maqueta: se lee el archivo (vértices, triángulos y clases)");
-      ok(near(modelGround(0, 0, mm), 2452.7, 0.2) && near(modelGround(74.3, 2.5, mm), 2425.5, 0.3) && modelGround(104.9, -250.6, mm) === null && modelGround(900, 900, mm) === null, "maqueta: la cima del Intihuatana a 2.452,7 m, la plaza a 2.425,5 m; fuera de ella no hay suelo");
-      ok(st.filter((s0) => modelGround(...en(s0), mm) != null).length === 7 && modelGround(...en(st[1]), mm) === null && st.every((s0) => { const g0 = modelGround(...en(s0), mm); return g0 == null || Math.abs(g0 - s0.elev) < 1; }) && st.every((s0) => s0.look >= 0 && s0.look < 360), "los puntos de visita: siete sobre el suelo de la maqueta (el mirador queda fuera), con su altitud, y todos con un rumbo de mirada");
+      ok(near(modelGround(0, 0, mm), 2452.7, 0.2) && near(modelGround(74.3, 2.5, mm), 2425.5, 0.3) && modelGround(104.9, -250.6, mm) === null && modelGround(900, 900, mm) === null && near(modelGround(132.9, -192, mm), 2463.3, 0.3), "maqueta: la cima del Intihuatana a 2.452,7 m, la plaza a 2.425,5 m; fuera de ella no hay suelo");
+      ok(st.filter((s0) => modelGround(...en(s0), mm) != null).length === 8 && st.every((s0) => { const g0 = modelGround(...en(s0), mm); return g0 == null || Math.abs(g0 - s0.elev) < 1; }) && st.every((s0) => s0.look >= 0 && s0.look < 360), "los puntos de visita: los ocho sobre el suelo de la maqueta, con su altitud y un rumbo de mirada");
       { ok(buildFaces(ll2).some((f) => f.mat === "door"), "sin la maqueta cargada, la llaqta sigue saliendo de la planta de OpenStreetMap");
         setMachuModel(mm); const fm = buildFaces(ll2), tor = buildFaces(byId("mp-torreon"));
-        ok(fm.length > 25000 && fm.some((f) => f.mat === "thatch") && fm.some((f) => f.mat === "heath") && fm.some((f) => f.mat === "incafine") && fm.some((f) => f.mat === "incarustic") && !fm.some((f) => f.mat === "door") && tor.length === 0, "con la maqueta: terreno, andenes, muros finos y rústicos y techos; el Torreón propio no se dibuja dos veces");
+        ok(fm.length > 25000 && fm.some((f) => f.mat === "thatch") && fm.some((f) => f.mat === "heath") && fm.some((f) => f.mat === "inca") && fm.some((f) => f.mat === "incarustic") && !fm.some((f) => f.mat === "door") && tor.length === 0, "con la maqueta: terreno, andenes, muros finos y rústicos y techos; el Torreón propio no se dibuja dos veces");
         const here = { lat: st[2].lat, lon: st[2].lon, ground: 2440 }, o2 = offsetOf(ll2.lat, ll2.lon, here.lat, here.lon), abs0 = modelGround(o2.e, o2.n, mm);
         const rl = { reach: 440, radii: [0.5, 1], na: 4, h: new Array(8).fill(-1.7), abs0, exact: (e, n) => { const a0 = modelGround(o2.e + e, o2.n + n, mm); return a0 == null ? null : a0 - abs0 - 1.7; } };
         const it2 = placeMonuments([ll2, byId("intihuatana")], here, { [ll2.id]: 2440, intihuatana: 2440 }, rl);
@@ -207,6 +208,16 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
         const gs = groundSilhouette([], rl, 0.2);
         ok(gs.length === 1800 && Math.max(...gs) > 3 && Math.min(...gs) < 0, "el suelo del sitio entra en la silueta: donde sube sobre el horizonte, tapa el cielo");
         setMachuModel(null); }
+      // los demás sitios: puntos calculados frente a sus piezas principales
+      { const A = allStops(), names = Object.keys(A).sort().join(",");
+        ok(names === "catequilla,chankillo,cochasqui,giza,machupicchu,paranal,teotihuacan,tiwanaku" && Object.values(A).every((L) => L.length >= 2 && new Set(L.map((q) => q.id)).size === L.length), "puntos de visita en ocho sitios; cada uno, al menos la vista general y otro");
+        const bad = [];
+        for (const [sid, L] of Object.entries(A)) { if (sid === "machupicchu") continue; const ps = MONUMENTS.filter((m) => m.site === sid);
+          for (const q of L.slice(1)) { const m0 = byId(q.id), o0 = offsetOf(q.lat, q.lon, m0.lat, m0.lon);
+            if (!(Math.abs(((o0.az - q.look + 540) % 360) - 180) < 1.5) || o0.d < footprintRadius(m0) + 3 || ps.some((m) => m !== m0 && offsetOf(q.lat, q.lon, m.lat, m.lon).d < footprintRadius(m) + 3)) bad.push(sid + ":" + q.id); } }
+        ok(bad.length === 0, "cada punto calculado mira a su pieza, queda fuera de ella y no pisa ninguna otra" + (bad.length ? " — " + bad.join(" ") : ""));
+        const tw = allStopsAt(A.tiwanaku[1].lat, A.tiwanaku[1].lon);
+        ok(tw.site === "tiwanaku" && tw.here === A.tiwanaku[1].id && allStopsAt(0, 0) === null && allStopOf("keops").id === "keops" && allStopOf("mp-torreon").id === "sol", "stopsAt y stopOf funcionan en todos los sitios"); }
       ok(stopsAt(st[2].lat, st[2].lon).here === "plaza" && stopsAt(st[0].lat + 0.0003, st[0].lon).here === null && stopsAt(0, -78) === null && stopOf("mp-torreon").id === "sol" && stopOf("ponce") === null, "stopsAt dice en qué punto se está; stopOf lleva de un rótulo a su punto"); }
     ok(MP_CONTROL.length === 2 && near(MP_CONTROL[0].m, 2429.59, 1e-9) && MP_CONTROL[1].m > 2436 && MP_CONTROL[1].m < 2437.5, "cotas de control de JICA: Templo del Sol y Plaza Sagrada");
     ok(near(byId("mp-templo-principal").height, 4.05, 1e-9) && byId("mp-templo-principal").w === 11 && byId("mp-roca-sagrada").w === 7 && byId("mp-roca-sagrada").height === 3 && near(LLAQTA.wallT, 0.85, 1e-9), "medidas publicadas: Templo Principal 11 × 8 × 4,05 m, Roca Sagrada 7 × 3 m, muros de 0,85 m"); }

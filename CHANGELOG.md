@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.84.0 — Puntos de visita en más sitios; Machu Picchu: casas asentadas, mirador y nombres bajo el suelo
+
+- **Puntos de visita en siete sitios más:** Teotihuacan, Guiza, Cochasquí, Chankillo, Catequilla, Paranal y Tiwanaku. Cada uno tiene su «Vista general» y un punto frente a cada pieza principal, calculado para verla entera, mirando hacia ella y sin pisar ninguna otra (`src/sky/stops.js`).
+- **Las casas ya no flotan:** en la maqueta el piso de cada recinto era una losa suelta sobre la hierba y además venía del revés (no se dibujaba). Ahora los pisos se ven y llevan un zócalo de mampostería hasta el suelo.
+- **Mirador:** pasa a los andenes altos, junto a la Casa del Guardián de la maqueta, mirando a la ciudad. El suelo de fuera empalma con el borde de la maqueta y, más allá, se desvanece para dejar ver el relieve real.
+- **Nombres y toques bajo el suelo:** en un sitio con suelo propio ya no se nombra ni se puede tocar nada que quede detrás del terreno, los andenes, los muros o las montañas (antes se dejaba ver lo que estaba hasta 3° por debajo del filo).
+- **Muros finos:** usan el sillar de hiladas regulares en vez de la piedra lisa.
+
 ## 1.83.0 — Machu Picchu con la maqueta del Ministerio de Cultura
 
 - **La ciudad es ahora la maqueta «Machupicchu» del Ministerio de Cultura del Perú** (Sketchfab, CC BY 4.0): su terreno escalonado, los andenes con sus muros, los recintos con vanos, hornacinas y hastiales de verdad, y los techos de paja. Sustituye a los recintos levantados desde la planta de OpenStreetMap. Se descarga (0,3 MB) solo al estar en Machu Picchu; si falla, Teseo sigue con la planta de OpenStreetMap.

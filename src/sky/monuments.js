@@ -304,7 +304,7 @@ export const SITE_STOPS = {
   // (posiciones: sobre el suelo de la maqueta, a más de 3,9 m de cualquier muro; `look`: rumbo hacia lo que se viene a ver)
   machupicchu: [
     { id: "intihuatana", name: { es: "Intihuatana", en: "Intihuatana" }, lat: -13.16312, lon: -72.545683, elev: 2453, look: 0, at: ["intihuatana"] },
-    { id: "mirador", name: { es: "Mirador", en: "Viewpoint" }, lat: -13.165386, lon: -72.544715, elev: 2470, look: 347, lookAlt: -8, at: ["mp-roca-funeraria"] },
+    { id: "mirador", name: { es: "Mirador", en: "Viewpoint" }, lat: -13.164856, lon: -72.544457, elev: 2463, look: 333, lookAlt: -9, at: ["mp-roca-funeraria"] },
     { id: "plaza", name: { es: "Plaza principal", en: "Main plaza" }, lat: -13.163097, lon: -72.544997, elev: 2426, look: 265, lookAlt: 8, at: ["mp-plaza"] },
     { id: "sagrada", name: { es: "Plaza Sagrada", en: "Sacred Plaza" }, lat: -13.16369, lon: -72.545314, elev: 2444, look: 325, at: ["mp-templo-principal", "mp-tres-ventanas"] },
     { id: "sol", name: { es: "Templo del Sol", en: "Temple of the Sun" }, lat: -13.163998, lon: -72.544627, elev: 2426, look: 230, lookAlt: 12, at: ["mp-torreon", "mp-casa-inca"] },
@@ -508,13 +508,14 @@ export function llaqtaPlan(skip = [], clear = []) {
 // en los conjuntos de `fine` (Templo del Sol, Casa del Inca, Plaza Sagrada), rústica en el resto y en los andenes.
 function llaqtaModel(out, m) {
   const col = m.color, fine = m.fine || [], skipW = m.modelSkip || [];
-  const MAT = [null, "heath", "incarustic", "earth", "thatch", "thatch", "incafine"];
+  const MAT = [null, "heath", "incarustic", "earth", "thatch", "thatch", "inca"];
   eachModelFace((a, b, c, cls) => {
     let mat = MAT[cls];
     if (cls === 0) {
       const e = (a[0] + b[0] + c[0]) / 3, n = (a[1] + b[1] + c[1]) / 3;
       if (skipW.some(([x, y, r]) => Math.hypot(e - x, n - y) <= r)) return;
-      mat = fine.some(([x, y, r]) => Math.hypot(e - x, n - y) <= r) ? "incafine" : "incarustic";
+      // (sillar fino: hiladas regulares de bloques labrados; el resto, mampostería rústica con mortero)
+      mat = fine.some(([x, y, r]) => Math.hypot(e - x, n - y) <= r) ? "inca" : "incarustic";
     }
     out.push({ v: [a, b, c], c: col, mat });
   });

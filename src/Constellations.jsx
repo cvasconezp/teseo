@@ -73,7 +73,8 @@ import { fetchNearTerrain, createNearTerrainLayer, SUMMIT_LIFT_M, reliefFromNear
 import { DEFAULT_LAYERS, presetState, presetOf } from "./sky/layerPresets.js";
 import { useKeepAwake } from "./sky/keepAwake.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit, fetchLandColors } from "./sky/horizon.js";
-import { monumentsNear, stopsAt, stopOf, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
+import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
+import { stopsAt, stopOf } from "./sky/stops.js";
 import { loadMachuModel, machuModel, modelGround } from "./sky/machuModel.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints, groundSilhouette } from "./sky/monumentLayer.js";
 const NEAR_RELIEF_R = [0.03, 0.06, 0.1, 0.15, 0.22, 0.3, 0.4, 0.52, 0.68, 0.9];
@@ -2144,6 +2145,9 @@ export default function Constellations({ lang = "es", onMenu = null }) {
           if (!inside || !ref.localModeOn || !(ref.monGround || ref.hzData)) return false;
           tmpB.set((x / W) * 2 - 1, -((y / H) * 2 - 1), 0.5).unproject(ref.camera).sub(ref.camera.position).normalize();
           if (ref.monGround && tmpB.y < -0.008) return true;
+          // en un sitio con suelo propio (un sitio arqueológico), nada de nombres detrás del terreno, los andenes o los
+          // muros: ni lo que está a punto de salir (el horizonte efectivo ya incluye el suelo y los monumentos)
+          if (ref.monGround && ref.hzData && behindTerrain(ref.hzData, [tmpB.x, tmpB.y, tmpB.z], 0)) return true;
           // con las montañas a la vista: nada de nombres del otro lado del globo, salvo lo que está a punto de salir
           // (hasta 3° bajo el filo del relieve en esa dirección)
           const hzd = ref.hzData;
@@ -2977,7 +2981,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const rl = monBase.relief; if (!rl) return null;
     const mm = monNear.find((m) => m.model); if (!mm || !machuModel() || rl.abs0dem == null) return rl;
     const o = offsetOf(mm.lat, mm.lon, lat, lon), here = modelGround(o.e, o.n), abs0 = here != null ? here : rl.abs0dem, sh = rl.abs0dem - abs0;
-    return { ...rl, h: sh ? rl.h.map((v) => v + sh) : rl.h, abs0, exact: (e, n) => { const a = modelGround(o.e + e, o.n + n); return a == null ? null : a - abs0 - 1.7; } };
+    // (`edge`: para un punto fuera de la maqueta, a qué distancia está su borde y a qué altura: el suelo de fuera empalma con él)
+    const DIRS = Array.from({ length: 12 }, (_, i) => [Math.sin((i * Math.PI) / 6), Math.cos((i * Math.PI) / 6)]);
+    const edge = (e, n) => { for (const rr of [5, 10, 16, 24, 33, 44]) { let best = null; for (const [dx, dy] of DIRS) { const a = modelGround(o.e + e + rr * dx, o.n + n + rr * dy); if (a != null && (best == null || a > best)) best = a; } if (best != null) return { d: rr, h: best - abs0 - 1.7 }; } return null; };
+    return { ...rl, h: sh ? rl.h.map((v) => v + sh) : rl.h, abs0, edge, exact: (e, n) => { const a = modelGround(o.e + e, o.n + n); return a == null ? null : a - abs0 - 1.7; } };
   }, [monBase.relief, monNear, lat, lon, modelRev]);   // eslint-disable-line react-hooks/exhaustive-deps
   const monItems = useMemo(() => (monOn && hzData && monBase.status === "ok" && monBase.key === monKey
     ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases, siteRelief) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon, siteRelief, modelRev]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -4267,6 +4274,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         vtmp.set(x, y, z);
         if (ref.localQuat) vtmp.applyQuaternion(ref.localQuat);
         if (depthDir && vtmp.dot(depthDir) <= 0) return;
+        // en un sitio con suelo propio, lo que queda bajo el suelo o detrás del terreno y los muros no se puede tocar
+        if (ref.monGround && ref.localModeOn && ref.localQuat) {
+          const L0 = vtmp.length() || 1, dy = vtmp.y / L0;
+          if (dy < -0.008 || (ref.hzData && behindTerrain(ref.hzData, [vtmp.x / L0, dy, vtmp.z / L0], 0))) return;
+        }
         if (!screenOf(ref.camera, vtmp, r.width, r.height, mode, sp)) return;
         if (Math.abs(sp.x - px) > 120 || Math.abs(sp.y - py) > 120) return;  // lejos del dedo: ni se considera
         cands.push({ sx: sp.x, sy: sp.y, r: rObj, prio, make, label, kind });

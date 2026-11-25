@@ -14,7 +14,8 @@ Cambios respecto al original (se declaran en CREDITS.md):
     hasta él con un desplazamiento suave (entero a menos de 60 m de la piedra, nulo a más de 130 m).
  4. CIMA DEL INTIHUATANA: se quitan los muros de la maqueta dentro de la huella del escaneo láser (intiScan.js).
  5. ZÓCALO: se quitan los faldones que bajan hasta la base de la maqueta (no son terreno).
- 6. Solo geometría: no se usan sus texturas. Vértices soldados al centímetro.
+ 6. PISOS: se orientan hacia arriba y se les añade un zócalo de 1,6 m (en la maqueta son losas sueltas sobre la hierba).
+ 7. Solo geometría: no se usan sus texturas. Vértices soldados al centímetro.
 Formato del .bin: Uint32[nv, nt] · Int16[nv·3] (este, norte, altura − 2400 m; unidad 2 cm) · Uint16[nt·3] · Uint8[nt] clase
  clases: 0 muro · 1 hierba · 2 muro de andén · 3 piso de tierra · 4 techo de paja · 5 madera · 6 canal o escalinata
 """
@@ -59,6 +60,24 @@ q = np.round(V * 50).astype(np.int64)                       # unidad: 2 cm
 u, inv = np.unique(q, axis=0, return_inverse=True); F = inv.reshape(-1)[F]
 ok = (F[:, 0] != F[:, 1]) & (F[:, 1] != F[:, 2]) & (F[:, 0] != F[:, 2]); F, C = F[ok], C[ok]
 used = np.unique(F); remap = np.full(len(u), -1); remap[used] = np.arange(len(used)); u = u[used]; F = remap[F]
+# PISOS Y HIERBA MIRANDO ARRIBA (en la maqueta muchos vienen del revés y no se verían)
+a, b, c = u[F[:, 0]], u[F[:, 1]], u[F[:, 2]]
+nz = (b[:, 0] - a[:, 0]) * (c[:, 1] - a[:, 1]) - (c[:, 0] - a[:, 0]) * (b[:, 1] - a[:, 1])
+flip = ((C == 1) | (C == 3)) & (nz < 0); F[flip] = F[flip][:, [0, 2, 1]]
+# ZÓCALO DE LOS PISOS: en la maqueta el piso de cada recinto es una losa suelta, unos decímetros sobre la hierba, y el
+# recinto parecía flotar. Se le añade un borde vertical de 1,6 m hacia abajo (clase 2, mampostería) por todo su contorno.
+fl = F[C == 3]; edges = {}
+for t in fl:
+    for i in range(3):
+        e = (int(t[i]), int(t[(i + 1) % 3])); edges[e] = edges.get(e, 0) + 1
+bord = [e for e in edges if (e[1], e[0]) not in edges]
+uv = [tuple(x) for x in u.tolist()]; idx = {v: i for i, v in enumerate(uv)}; addF = []
+def low(i):
+    v = (uv[i][0], uv[i][1], uv[i][2] - 80)            # 80 × 2 cm = 1,6 m
+    if v not in idx: idx[v] = len(uv); uv.append(v)
+    return idx[v]
+for p0, p1 in bord: addF += [[p0, low(p0), low(p1)], [p0, low(p1), p1]]
+u = np.array(uv, np.int64); F = np.vstack([F, np.array(addF, np.int64)]); C = np.concatenate([C, np.full(len(addF), 2, np.uint8)])
 assert len(u) < 65536 and np.abs(u).max() < 32767, (len(u), np.abs(u).max())
 out = struct.pack("<II", len(u), len(F)) + u.astype("<i2").tobytes() + F.astype("<u2").tobytes() + C.tobytes()
 open("public/data/machu-maqueta.bin", "wb").write(out)

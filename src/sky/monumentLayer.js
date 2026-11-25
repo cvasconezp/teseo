@@ -203,6 +203,8 @@ export function groundHeight(e, n, items, grid = null) {
   const up = (items && items.up) || 0;
   // (dentro de la maqueta de un sitio el suelo es el suyo, exacto: no se interpola)
   if (grid && grid.exact) { const x = grid.exact(e, n); if (x != null) return x - up; }
+  // (y junto a su borde, por fuera, el suelo se acerca poco a poco al nivel de la maqueta: sin escalón entre los dos)
+  const near = grid && grid.edge ? grid.edge(e, n) : null;
   // (a los pies del observador manda siempre su propio suelo: si no, un monumento cercano y más alto podría
   // levantar el suelo por encima de sus ojos)
   // (`grid.flat`: radio del llano a los pies; 22 m si el sitio no dice otra cosa)
@@ -218,6 +220,7 @@ export function groundHeight(e, n, items, grid = null) {
     const w = grid ? Math.max(0, 1 / (r * r) - 1 / (80 * 80)) * 4 : 1 / (r * r);
     sw += w; sh += (it.dz + up - (it.m.lift || 0)) * w;
   }
+  if (near) { const k = Math.min(1, near.d / 45), t = k * k * (3 - 2 * k); return near.h * (1 - t) + (sh / sw) * t - up; }
   return sh / sw - up;
 }
 
@@ -258,7 +261,8 @@ export function createMonumentLayer({ onReady = null } = {}) {
       vertexColors: true, side: ground ? THREE.FrontSide : THREE.DoubleSide, shadowSide: THREE.BackSide, transparent: true, opacity: 1,
       // el suelo también escribe profundidad: lo que queda enterrado (el pie de una pirámide en ladera) no se ve a
       // través de él; un pequeño desplazamiento evita que parpadee con lo que se apoya justo encima
-      depthTest: true, depthWrite: true, ...(ground ? { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 } : {}), fog: false });
+      // (alphaTest: donde el suelo se ha desvanecido del todo no escribe profundidad: no tapa lo que hay detrás)
+      depthTest: true, depthWrite: true, ...(ground ? { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2, alphaTest: 0.02 } : {}), fog: false });
     m.color.setRGB(cfg.tint[0], cfg.tint[1], cfg.tint[2]);
     m.normalScale.set(cfg.normal, cfg.normal);
     m.aoMapIntensity = 1;
@@ -372,7 +376,10 @@ export function createMonumentLayer({ onReady = null } = {}) {
         pos.set([px, py, pz], i * 3); uv.set([e / tile, n / tile], i * 2);
         const f0 = skirt ? 0.9 * rEnd : Math.min(0.75 * rEnd, farN + 8);
         const fade = 1 - Math.min(1, Math.max(0, (r - f0) / (rEnd - f0)));
-        col.set([1, 1, 1, fade * fade * (3 - 2 * fade)], i * 4);
+        // (con la maqueta de un sitio, el piso propio solo acompaña su borde: más allá se desvanece y se ve el relieve de verdad)
+        let out = 1;
+        if (grid && grid.edge && !under) { const q2 = grid.edge(e * q, n * q); out = !q2 || q2.d > 24 ? 0 : q2.d <= 10 ? 1 : q2.d <= 16 ? 0.6 : 0.2; }
+        col.set([1, 1, 1, fade * fade * (3 - 2 * fade) * out], i * 4);
       };
       put(0, 0, 0, 0);
       for (let j = 0; j <= NR; j++) {
