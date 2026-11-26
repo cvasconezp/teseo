@@ -79,7 +79,7 @@ const CH_WALL = { site: "chankillo", kind: "walls", thick: 1.1, ring: 3, far: 26
 const chankilloRest = [
   { id: "chankillo-templo", site: "chankillo", name: { es: "Templo Fortificado", en: "Fortified Temple" }, sub: { es: "tres murallas · modelo del Ministerio de Cultura", en: "three walls · Ministry of Culture model" },
     lat: -9.556834, lon: -78.236026, kind: "llaqta", height: 8, foot: 235, far: 3200, walkIn: true, solid: false, relief: true, aloof: true,
-    model: "chankillo", modelOnly: true, modelMats: ["sand", "sand"], absBase: CHANKILLO_BASE_M, labelAt: [-3, -2, 112], color: TAN, mat: "tower", ground: "sand" },
+    model: "chankillo", modelOnly: true, modelMats: ["tower", "sand"], absBase: CHANKILLO_BASE_M, labelAt: [-3, -2, 112], color: TAN, mat: "tower", ground: "sand" },
   { ...CH_WALL, id: "chankillo-obs", name: { es: "Edificio de observación", en: "Observation building" }, sub: { es: "con su corredor de 40 m · ruinas bajas", en: "with its 40 m corridor · low ruins" },
     lat: -9.560891, lon: -78.229756, foot: 47, height: 1, segs: [[5.1,19.2,34.1,0.6],[34.1,0.6,8.8,-44.1],[8.8,-44.1,-23.9,-22.5],[-23.9,-22.5,5.1,19.2],[36.3,-0.6,16.6,-35.4],[-32.9,13.6,-25.2,26.9],[-32.9,13.6,-12.8,-0.3],[-6.6,42.9,9.4,33.0]] },
   { ...CH_WALL, id: "chankillo-plaza-o", name: { es: "Plaza oeste", en: "Western plaza" }, label: false,
@@ -527,7 +527,11 @@ function llaqtaModel(out, m) {
   const col = m.color, fine = m.fine || [], skipW = m.modelSkip || [];
   // (otra maqueta —el Templo Fortificado de Chankillo—: sus propios materiales por clase, sin sillares finos)
   // (el tono de cada cara es el de la fotografía del modelo: piedra y sombra más oscuras, arena más clara)
-  if (m.modelMats) { const mdl = siteModel(m.model); eachModelFace((a, b, c, cls, t) => { out.push({ v: [a, b, c], c: col, mat: m.modelMats[cls] || m.mat, smooth: true, uv: [a, b, c].map((q) => [q[0] + q[2] * 0.35, q[1] + q[2] * 0.6]), ...(mdl.tone ? { tone: 0.62 + (mdl.tone[t] / 63) * 0.62 } : {}) }); }, mdl); return; }
+  if (m.modelMats) { const mdl = siteModel(m.model); eachModelFace((a, b, c, cls, t) => {
+    // (clase 0: los muros, de caras planas —hiladas horizontales, como los de los recintos—; el resto, terreno liso)
+    if (cls === 0) out.push({ v: [a, b, c], c: col, mat: m.modelMats[0] || m.mat });
+    else out.push({ v: [a, b, c], c: col, mat: m.modelMats[cls] || m.mat, smooth: true, uv: [a, b, c].map((q) => [q[0] + q[2] * 0.35, q[1] + q[2] * 0.6]), ...(mdl.tone ? { tone: 0.62 + (mdl.tone[t] / 63) * 0.62 } : {}) });
+  }, mdl); return; }
   const MAT = [null, "heath", "incarustic", "earth", "thatch", "thatch", "inca"];
   eachModelFace((a, b, c, cls) => {
     let mat = MAT[cls];

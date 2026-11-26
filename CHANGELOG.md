@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.90.0 — Templo Fortificado de Chankillo: murallas como muros
+
+- **Las murallas se ven como muros**, con la misma mampostería que los recintos del este, y no como lomas de arena. Van por donde la maqueta del Ministerio de Cultura del Perú muestra un muro (una cresta de más de 0,6 m o un escalón de más de 37°) y con el alto que la maqueta mide en cada punto: unos 2,4 km de muro entre las murallas, los dos edificios circulares y el rectangular. Donde la maqueta no muestra muro, no se dibuja.
+- El aparejo es una textura genérica, no el de Chankillo; la ficha y los créditos lo dicen.
+- El punto «Templo Fortificado» pasa a estar al oeste de los edificios circulares, a 8 m del muro más cercano y mirando hacia ellos.
+
 ## 1.89.1 — Chankillo: las torres ya no flotan y los muros bajan a 1 m
 
 - **Las Trece Torres, apoyadas en su cresta:** flotaban varios metros sobre el suelo. La fila sube 16 m de la torre 1 a la 13, y el filo de la cresta se marcaba torre a torre: las bajas hundían el suelo bajo las altas. Ahora el filo sigue la línea que une las torres, cada tramo a su altura, y el suelo sube hasta el pie de cada una. La fila se trata además como un solo grupo: desde los recintos del este, las dos últimas quedaban fuera del suelo del sitio.

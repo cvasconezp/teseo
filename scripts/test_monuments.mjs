@@ -292,6 +292,8 @@ ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) s
   const b = fs.readFileSync(new URL("../public/data/chankillo-templo.bin", import.meta.url)), mdl = parseTonedModel(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), CHANKILLO_BASE_M);
   const gS = modelGround(-8.8, -5.2, mdl), gR = modelGround(-1.1, -55.8, mdl);
   ok(mdl.nv < 65536 && mdl.nt > 80000 && b.length < 1.3e6 && mdl.tone.length === mdl.nt && mdl.cls.every((c) => c < 2), "templo de Chankillo: maqueta de menos de 1,3 MB, con clase y tono por cara");
+  { let w = 0, top = 0; for (let t = 0; t < mdl.nt; t++) if (mdl.cls[t] === 0) w++; const F = buildFaces(by("chankillo-templo")).filter((f) => f.mat === "tower"); for (const f of F) for (const q of f.v) top = Math.max(top, q[2]);
+    ok(w > 5000 && w < 12000 && (F.length === w || F.length === 0), `templo de Chankillo: ${w} caras de muro (clase 0), con la mampostería de los recintos y sin suavizar`); }
   ok(gS > 309 && gS < 313 && gR > 303 && gR < 308 && modelGround(400, 0, mdl) == null, "templo de Chankillo: el suelo de la maqueta está a su cota (unos 310 m en lo alto) y fuera no hay");
   const T = by("chankillo-templo"), O = by("chankillo-obs"), E = by("chankillo-este");
   const mouth = offsetOf(-9.561185, -78.229591, O.lat, O.lon);

@@ -10,8 +10,10 @@ rectangular. Viene sin posición, sin orientación y algo inclinado. Cambios hec
     (0,981) y posición. Margen: unos metros.
   · NIVELADO: el modelo venía inclinado unos 7°; se gira hasta que su terreno coincide con el modelo de elevación
     (rejilla de 10 m de /api/elevation, guardada en scripts/data/chankillo-dem.json) y se pone a su cota.
-  · SIMPLIFICACIÓN a unos 104.000 triángulos; cada cara se clasifica por su pendiente: 0 = muro, 1 = suelo, y
+  · SIMPLIFICACIÓN a unos 104.000 triángulos, todos de clase 1 (terreno); cada cara
     guarda el tono (claro u oscuro) de la fotografía del modelo en ese punto: el byte de cada cara es clase + 4 · tono (0–63).
+  · MURALLAS como muros (clase 0): donde la maqueta muestra un muro (cresta o escalón), por su eje va un muro de
+    caras planas con el alto que mide la maqueta (wall_ribbons). Donde no lo muestra, no se dibuja.
   · FALDÓN de 8 m bajo el borde, para que no se vea por debajo donde el relieve de fuera queda más bajo.
 Uso: python3 scripts/build_chankillo_templo.py modelo.glb   (necesita numpy, scipy y fast_simplification)
 """
@@ -65,6 +67,95 @@ def fit_plan(mod, utm):
         u, v = x, -z; A.append([u, -v, 1, 0]); B.append(E); A.append([v, u, 0, 1]); B.append(N)
     return np.linalg.lstsq(np.array(A), np.array(B), rcond=None)[0]
 
+def wall_ribbons(Vs, Fs, R=0.5):
+    """Las murallas, como muros: dónde hay muro lo dice la propia maqueta (crestas de más de 0,6 m sobre el suelo de
+    alrededor o escalones de más de 37°); se saca su eje, y por él va un muro de caras planas con el alto que mide la
+    maqueta en cada punto. No se inventa ninguno: donde la maqueta no muestra muro, no se dibuja.
+    → (vértices, caras) que se añaden a la malla con clase 0 (muro)."""
+    import warnings; warnings.filterwarnings("ignore")
+    from skimage.morphology import skeletonize, convex_hull_image, remove_small_objects
+    e0, n0 = Vs[:, 0].min(), Vs[:, 1].min(); W = int((Vs[:, 0].max() - e0) / R) + 2; H = int((Vs[:, 1].max() - n0) / R) + 2
+    Z = np.full((H, W), -1e9); tri = Vs[Fs]; rs = np.random.RandomState(0)
+    for k in range(14):
+        u = rs.rand(len(Fs)); v = rs.rand(len(Fs)); m = u + v > 1; u[m] = 1 - u[m]; v[m] = 1 - v[m]
+        p = tri[:, 0] + (tri[:, 1] - tri[:, 0]) * u[:, None] + (tri[:, 2] - tri[:, 0]) * v[:, None]
+        np.maximum.at(Z, (((p[:, 1] - n0) / R).astype(int), ((p[:, 0] - e0) / R).astype(int)), p[:, 2])
+    has = Z > -1e8; Z = Z[tuple(ndimage.distance_transform_edt(~has, return_distances=False, return_indices=True))]
+    near = ndimage.distance_transform_edt(~has) < 3; Z = ndimage.median_filter(Z, 3)
+    rel = Z - ndimage.grey_opening(ndimage.median_filter(Z, 5), size=(25, 25)); gy, gx = np.gradient(ndimage.gaussian_filter(Z, 1.0), R); sl = np.hypot(gx, gy)
+    ridge = remove_small_objects(rel > 1.0, 200); lab, nl = ndimage.label(ridge, np.ones((3, 3))); sz = ndimage.sum(ridge, lab, range(1, nl + 1))
+    hull = ndimage.binary_dilation(convex_hull_image(np.isin(lab, 1 + np.argsort(sz)[-3:])), iterations=6) & ndimage.binary_erosion(near, iterations=10)
+    m = ((rel > 0.6) | (sl > 0.75)) & hull
+    m = remove_small_objects(ndimage.binary_opening(ndimage.binary_closing(m, iterations=2), iterations=1), 160)
+    half = ndimage.distance_transform_edt(m) * R                 # medio ancho del muro en su eje
+    sk = skeletonize(m)
+    # eje → grafo de píxeles; se podan los ramales cortos y se sacan las líneas entre nudos
+    N8 = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+    px = set(map(tuple, np.argwhere(sk)))
+    nb = lambda q: [(q[0] + a, q[1] + b) for a, b in N8 if (q[0] + a, q[1] + b) in px]
+    for _ in range(3):                                           # poda de ramales de menos de 6 m
+        for q in [q for q in px if len(nb(q)) == 1]:
+            path = [q]; cur = q
+            while True:
+                nx = [t for t in nb(cur) if t not in path]
+                if len(nx) != 1 or len(nb(nx[0])) > 2: break
+                cur = nx[0]; path.append(cur)
+                if len(path) > 12 / R: break
+            if len(path) <= 6 / R and len([t for t in nb(cur) if t not in path]) >= 1:
+                for t in path: px.discard(t)
+    deg = {q: len(nb(q)) for q in px}; nodes = {q for q in px if deg[q] != 2}; seen = set(); lines = []
+    def walk(a, b):
+        path = [a, b]; seen.add((a, b)); seen.add((b, a))
+        while path[-1] not in nodes:
+            nx = [t for t in nb(path[-1]) if t != path[-2]]
+            if not nx: break
+            # (en un píxel de paso, se sigue por el vecino que no sea contiguo al anterior)
+            nx.sort(key=lambda t: -(abs(t[0] - path[-2][0]) + abs(t[1] - path[-2][1])))
+            if (path[-1], nx[0]) in seen: break
+            seen.add((path[-1], nx[0])); seen.add((nx[0], path[-1])); path.append(nx[0])
+            if path[-1] == a: break
+        return path
+    for a in nodes:
+        for b in nb(a):
+            if (a, b) not in seen: lines.append(walk(a, b))
+    for a in px:                                                 # anillos sin nudos
+        if a not in nodes and not any((a, b) in seen for b in nb(a)): b = nb(a)[0]; lines.append(walk(a, b))
+    def rdp(P, eps):
+        if len(P) < 3: return P
+        a, b = P[0], P[-1]; d = b - a; L = np.hypot(*d)
+        dist = np.abs(d[0] * (P[:, 1] - a[1]) - d[1] * (P[:, 0] - a[0])) / L if L > 1e-9 else np.hypot(P[:, 0] - a[0], P[:, 1] - a[1])
+        i = int(np.argmax(dist))
+        return np.vstack([rdp(P[:i + 1], eps)[:-1], rdp(P[i:], eps)]) if dist[i] > eps else np.array([a, b])
+    samp = lambda A, y, x: ndimage.map_coordinates(A, [y, x], order=1, mode="nearest")
+    Zmax = ndimage.maximum_filter(Z, 5); Zmin = ndimage.minimum_filter(Z, 13)
+    OV, OF, total = [], [], 0.0
+    for ln in lines:
+        P = np.array(ln, float)[:, ::-1]                         # (x, y) en píxeles
+        if (len(P) - 1) * R < 7: continue
+        P = rdp(P, 0.35 / R)
+        # nudos cada 3 m como mucho
+        Q = [P[0]]
+        for a, b in zip(P[:-1], P[1:]):
+            k = max(1, int(np.ceil(np.hypot(*(b - a)) * R / 3.0)))
+            for i in range(1, k + 1): Q.append(a + (b - a) * i / k)
+        Q = np.array(Q); closed = np.hypot(*(Q[0] - Q[-1])) < 2
+        top = samp(Zmax, Q[:, 1], Q[:, 0]); low = samp(Zmin, Q[:, 1], Q[:, 0]); hw = np.clip(samp(half, Q[:, 1], Q[:, 0]) * 0.8, 0.5, 2.2)
+        if len(Q) >= 5: top = ndimage.median_filter(top, 3, mode="nearest"); hw = ndimage.uniform_filter1d(hw, 5, mode="nearest")
+        if np.median(top - low) < 0.7: continue
+        T = np.gradient(Q, axis=0); T /= np.maximum(np.hypot(T[:, 0], T[:, 1]), 1e-9)[:, None]; Nn = np.c_[-T[:, 1], T[:, 0]]
+        b0 = len(OV)
+        for q, nn, t, l, w in zip(Q, Nn, top, low, hw):
+            for sgn in (1, -1):
+                x, y = (q + sgn * nn * w / R) * R + [e0, n0]; OV.append([x, y, t + 0.12]); OV.append([x, y, l - 0.8])
+        for i in range(len(Q) - 1):
+            a = b0 + 4 * i; LT, LB, RT, RB, LT2, LB2, RT2, RB2 = a, a + 1, a + 2, a + 3, a + 4, a + 5, a + 6, a + 7
+            OF += [[LT, LB, LB2], [LT, LB2, LT2], [RT, RB2, RB], [RT, RT2, RB2], [LT, LT2, RT2], [LT, RT2, RT]]
+            total += np.hypot(*(Q[i + 1] - Q[i])) * R
+        if not closed:
+            for a in (b0, b0 + 4 * (len(Q) - 1)): OF += [[a, a + 2, a + 3], [a, a + 3, a + 1]]
+    print("murallas: %d líneas, %.0f m de muro, %d vértices, %d caras" % (len(lines), total, len(OV), len(OF)))
+    return np.array(OV), np.array(OF, np.int64)
+
 def main(path):
     V, F, Lum = load_glb(path); V, F, keep = weld(V, F); Lum = Lum[keep]; print("modelo:", len(V), "vértices,", len(F), "triángulos")
     a, b, te, tn = fit_plan(CTRL_MODEL, CTRL_UTM); sc = math.hypot(a, b); print("escala %.4f, giro %.2f°" % (sc, math.degrees(math.atan2(b, a))))
@@ -94,7 +185,7 @@ def main(path):
     # caras hacia arriba (el suelo se pisa); clase por pendiente
     n = np.cross(Vs[Fs[:, 1]] - Vs[Fs[:, 0]], Vs[Fs[:, 2]] - Vs[Fs[:, 0]]); L = np.linalg.norm(n, axis=1); ok = L > 1e-9; Fs, n, L = Fs[ok], n[ok], L[ok]
     if np.sum(n[:, 2] * L) < 0: Fs = Fs[:, ::-1]; n = -n
-    cls = np.where(np.abs(n[:, 2]) / L < 0.62, 0, 1).astype(np.uint8)
+    cls = np.ones(len(Fs), np.uint8)             # la maqueta entera es terreno (1); los muros (0) se añaden después
     # tono de la fotografía en cada cara: el del vértice original más cercano a su centro, suavizado y llevado a 0–63
     from scipy.spatial import cKDTree
     cen = Vs[Fs].mean(1); dd, ii = cKDTree(P).query(cen, k=6); lum = Lum[ii].mean(1)
@@ -110,6 +201,9 @@ def main(path):
         Fl.append([p, low[p], low[q]]); Fl.append([p, low[q], q]); cl += [1, 1]
     tone = np.concatenate([tone, np.full(len(Fl) - len(tone), 32, np.uint8)])
     Vs = np.array(Vl); Fs = np.array(Fl); cls = np.array(cl, np.uint8)
+    # las murallas, como muros de caras planas sobre su eje (clase 0), con tono neutro
+    WV, WF = wall_ribbons(Vs[:len(Vs) - len(low)], Fs[:len(Fs) - 2 * len(bnd)])
+    Fs = np.vstack([Fs, WF + len(Vs)]); Vs = np.vstack([Vs, WV]); cls = np.concatenate([cls, np.zeros(len(WF), np.uint8)]); tone = np.concatenate([tone, np.full(len(WF), 40, np.uint8)])
     assert len(Vs) < 65536, len(Vs)
     q = np.c_[Vs[:, 0] / U, Vs[:, 1] / U, (Vs[:, 2] - BASE_M) / U]; assert np.abs(q).max() < 32767, np.abs(q).max()
     with open(OUT, "wb") as f:

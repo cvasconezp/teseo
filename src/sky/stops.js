@@ -14,11 +14,11 @@ const AUTO = {
   // (a 3 m de donde la sitúa el mapa de Ghezzi). Las torres, a 45 m (caben varias a la vista). El punto de observación
   // este: a unos 200 m de las torres; desde él los ocasos de junio y de diciembre caen en los extremos de la fila
   // (Ghezzi y Ruggles 2007). Posición aproximada: la que cumple esas dos direcciones (197 m al este del eje).
-  // El Templo Fortificado: dentro, en lo más alto del edificio circular del sur, sobre el suelo de su maqueta.
+  // El Templo Fortificado: dentro, 25 m al oeste del edificio circular del sur (a 8 m del muro más cercano), sobre el suelo de su maqueta.
   chankillo: ["chankillo", [{ id: "chankillo-7", dist: 45, lookAlt: 13 }],
     [{ id: "este", name: { es: "Punto de observación este", en: "Eastern observing point" }, lat: -9.561131, lon: -78.225674, look: 270, lookAlt: 4, at: [] },
       { id: "recintos", name: { es: "Recintos del este", en: "Eastern buildings" }, lat: -9.562556, lon: -78.225559, look: 230, lookAlt: 0, at: ["chankillo-este"] },
-      { id: "templo", name: { es: "Templo Fortificado", en: "Fortified Temple" }, lat: -9.556881, lon: -78.236106, look: 27, lookAlt: -6, at: ["chankillo-templo"] }],
+      { id: "templo", name: { es: "Templo Fortificado", en: "Fortified Temple" }, lat: -9.556943, lon: -78.236318, look: 60, lookAlt: 5, at: ["chankillo-templo"] }],
     { name: { es: "Punto de observación oeste", en: "Western observing point" }, look: 90, lookAlt: 3, at: ["chankillo-obs"] }],
   catequilla: ["catequilla", ["catequilla-muro", "catequilla-disco"]],
   paranal: ["paranal", ["vlt-ut1", "vlt-ut4"]],
