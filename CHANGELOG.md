@@ -1,5 +1,18 @@
 # Cambios
 
+## 1.100.0 — El suelo de trece sitios, medido con láser desde el aire (LiDAR)
+
+- **Qué es:** en trece sitios arqueológicos el suelo ya no sale del relieve global (un dato cada 30 m), sino de mediciones con láser desde el aire (LiDAR) de organismos públicos, con un dato cada 0,5 o 1 m y sin árboles ni edificios. En los sitios de tierra (túmulos, fosos, terraplenes) ese relieve **es** el monumento: se ve tal como está hoy, medido, no dibujado.
+- **Tres sitios que ya estaban, mejorados:**
+  - **Stonehenge:** aparecen el foso y el banco circulares, la Avenida y los túmulos de alrededor (Environment Agency). La Piedra del Talón se apoya en su suelo, casi 2 m más bajo que el círculo. Puntos nuevos: «Desde la Avenida», «Foso y banco» y una toma aérea sobre el eje del solsticio.
+  - **Maeshowe:** el túmulo, su foso y su banco son ahora los medidos (Historic Environment Scotland); del modelo anterior queda la boca del pasillo.
+  - **Newgrange:** la loma y el entorno son los medidos (Discovery Programme y Geological Survey Ireland). El LiDAR mostró que el túmulo estaba dibujado 45 m al norte de su sitio: ahora está en su centro medido, y el lugar «Newgrange» queda a 110 m, frente a la entrada.
+- **Diez sitios nuevos en la lista:** Avebury y Silbury Hill (Inglaterra); el Anillo de Brodgar y las Piedras de Stenness (Orcadas); Knowth y Dowth (Irlanda); Serpent Mound, Monks Mound en Cahokia y los terraplenes de Newark —el Octágono y el Gran Círculo— (EE. UU., con datos del USGS). Cada uno con su vista general, sus tomas aéreas y su ficha con fuentes.
+- **Piedras en pie medidas, no supuestas:** las de Brodgar (17 y la Comet Stone), Stenness (4) y Avebury (25) se colocan donde el propio LiDAR las detecta, con la altura que mide. Solo van las detecciones seguras: no se añade ninguna para completar un anillo, y la ficha dice que la altura medida puede quedar corta.
+- **Lo que dicen las fichas:** qué es medido, qué es modelo propio y qué fue restaurado o reconstruido (la fachada de cuarzo de Newgrange, el perfil de Maeshowe, Serpent Mound en 1886–87, los muros del Octágono). Donde las fuentes no coinciden se da el rango (la altura de Silbury Hill, la edad de Serpent Mound, las piedras de Brodgar), y donde no hay alineación astronómica publicada se dice.
+- **Al elegir uno de estos sitios en la lista,** la vista se orienta sola hacia el monumento.
+- **Créditos:** cada dato con su organismo y su licencia (Open Government Licence, CC BY 4.0, dominio público) en «Créditos y datos» y en CREDITS.md. El Cañón del Chaco no entró: allí el dato abierto es de 10 m y no muestra los muros.
+
 ## 1.99.0 — «Acerca de Teseo»: videoteca, animaciones y el hilo de la página
 
 - **Videoteca:** los ocho videos dejan de estar repartidos por la página y pasan a una sola sección, ordenados según el mismo recorrido (tu cielo, los viajes, las grandes preguntas). Cada uno se abre en un reproductor encima de la página, con anterior y siguiente; se cierra con Escape y deja de descargar al cerrarlo. Los enlaces `#v-…` de siempre siguen funcionando.

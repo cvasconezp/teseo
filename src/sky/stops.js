@@ -4,6 +4,8 @@
 // frente a ella —del lado de la vista general—, a una distancia que la deja entera a la vista y fuera de las demás.
 import { MONUMENTS, SITE_STOPS, footprintRadius, offsetOf, apexOf } from "./monuments.js";
 import { SITES } from "./places.js";
+import { LIDAR_SITES } from "./lidarSites.js";
+import { LIDAR_PLAN } from "./lidarPlan.js";
 
 // sitio → [lugar de la vista general, piezas principales] (solo piezas que se pisan a ras de suelo)
 const AUTO = {
@@ -72,7 +74,7 @@ export function frontStop(m, vlat, vlon, others = [], side = null, dist = null) 
 // cada grupo tiene la suya, sobre su centro. Altura: la mitad de su radio más 25 m (40 a 220 m) y siempre 40 m por encima
 // de lo más alto que quede justo debajo. Mira hacia la pieza principal del grupo (la de mayor planta); si está debajo,
 // mira hacia abajo, casi en vertical. Un grupo que ya tiene su toma escrita a mano (el templo de Chankillo) no lleva otra.
-const AIR_SITES = ["teotihuacan", "chichenitza", "giza", "stonehenge", "newgrange", "ingapirca", "maeshowe", "abusimbel", "karnak",
+const AIR_SITES = [...Object.keys(LIDAR_PLAN).filter((k) => !LIDAR_PLAN[k].own), "teotihuacan", "chichenitza", "giza", "stonehenge", "newgrange", "ingapirca", "maeshowe", "abusimbel", "karnak",
   "angkorwat", "coliseo", "cochasqui", "machupicchu", "chankillo", "catequilla", "tiwanaku"];
 const named = (m) => m.label !== false && m.name && m.name.es;
 // (Machu Picchu: la planta de la llaqta abarca casi todo el sitio, de unos 500 m: una sola toma, sobre su centro)
@@ -100,7 +102,8 @@ export function aerialStops(site, existing = []) {
   const ms = MONUMENTS.filter((m) => (m.site || m.id) === site);
   if (!ms.length) return [];
   const la0 = ms.reduce((a, m) => a + m.lat, 0) / ms.length, lo0 = ms.reduce((a, m) => a + m.lon, 0) / ms.length;
-  const P = ms.map((m) => { const o = offsetOf(la0, lo0, m.lat, m.lon); return { m, e: o.e, n: o.n, r: footprintRadius(m) || 0 }; });
+  // (el suelo LiDAR de un sitio abarca cientos de metros: para encuadrar la toma cuenta el radio de lo que se viene a ver —`airR`—, no el de la maqueta)
+  const P = ms.map((m) => { const o = offsetOf(la0, lo0, m.lat, m.lon); return { m, e: o.e, n: o.n, r: m.lidar ? m.airR || 0 : footprintRadius(m) || 0 }; });
   let D = 0; for (const a of P) for (const b of P) D = Math.max(D, Math.hypot(a.e - b.e, a.n - b.n) + a.r + b.r);
   const k = AIR_K[site] || Math.max(1, Math.min(4, Math.ceil(D / 700)));
   // k-medias: la primera semilla, la primera pieza del sitio; cada siguiente, la pieza más alejada de las ya elegidas (siempre sale igual)
@@ -124,18 +127,21 @@ export function aerialStops(site, existing = []) {
       ce += u[0] * (10.5 - o.d); cn += u[1] * (10.5 - o.d);
     }
     const [lat, lon] = at(la0, lo0, ce, cn), rc = Math.max(...g.map((p) => Math.hypot(p.e - c.e, p.n - c.n) + p.r));
-    if (existing.some((q) => q.air && offsetOf(lat, lon, q.lat, q.lon).d < Math.max(rc, 60))) return;
-    let air = AIR_H[site] || Math.min(220, Math.max(40, 0.5 * rc + 25));
+    if (!LIDAR_PLAN[site] && existing.some((q) => q.air && offsetOf(lat, lon, q.lat, q.lon).d < Math.max(rc, 60))) return;
+    // (`airH` en la pieza del suelo LiDAR: altura fija de la toma, para que quepa el foso o el anillo entero)
+    const airH = AIR_H[site] || (g.map((p) => p.m.airH).find((v) => v > 0)) || 0;
+    let air = airH || Math.min(220, Math.max(40, 0.5 * rc + 25));
     // (la pieza principal: con nombre y que no sea un muro bajo —las torres, no el edificio de observación—; si no, la de mayor planta)
     const main = g.filter((p) => named(p.m) && p.m.kind !== "walls").sort((a, b) => b.r - a.r)[0] || g.filter((p) => named(p.m)).sort((a, b) => b.r - a.r)[0] || g[0];
-    const topOf = (m) => (m.labelAt ? m.height || 0 : apexOf(m)[2] || m.height || 0);
+    // (el suelo LiDAR no es un obstáculo: su «alto» es el del terreno, que ya cuenta en la altura de la toma)
+    const topOf = (m) => (m.lidar ? 0 : m.labelAt ? m.height || 0 : apexOf(m)[2] || m.height || 0);
     // EN DIAGONAL, NO DESDE EL CENIT: si la toma cae sobre una pieza alta (una pirámide, El Castillo), se aparta a un
     // costado hasta ver la pieza principal de lado y desde arriba, como la de Kefrén (que no se toca: no cae sobre la cima): a su radio más vez y media su
     // alto, en la dirección del resto del grupo o, si no hay, hacia el suroeste. Las piezas bajas (un recinto, una
     // plaza) sí se ven bien desde encima
     let le = ce, ln = cn;
     let moved = false;
-    if (!AIR_H[site] && g.some((p) => topOf(p.m) >= 8 && Math.hypot(p.e - ce, p.n - cn) <= 0.6 * p.r + 5)) {
+    if (!airH && g.some((p) => topOf(p.m) >= 8 && Math.hypot(p.e - ce, p.n - cn) <= 0.6 * p.r + 5)) {
       moved = true;
       const rest = g.filter((p) => p !== main), mx = rest.length ? rest.reduce((a, p) => a + p.e, 0) / rest.length : main.e - 1, my = rest.length ? rest.reduce((a, p) => a + p.n, 0) / rest.length : main.n - 1;
       let ux = mx - main.e, uy = my - main.n, ul = Math.hypot(ux, uy);
@@ -171,6 +177,18 @@ export function allStops() {
     for (const x of extra || []) stops.push({ elev: null, ...x });
     if (stops.length > 1) out[site] = stops;
   }
+  // los sitios con suelo LiDAR (lidarPlan.js): la vista general —su lugar— mirando hacia lo que se viene a ver, y sus
+  // puntos propios, dados en metros desde el origen de la maqueta
+  for (const [site, P] of Object.entries(LIDAR_PLAN)) {
+    const view = SITES.find((s) => s.id === site), L = LIDAR_SITES[site]; if (!view || !L) continue;
+    const stops = out[site] ? [...out[site]] : [{ id: "vista", name: { es: "Vista general", en: "Overview" }, lat: view.lat, lon: view.lon, elev: view.elev ?? null, at: P.own ? [] : [site],
+      ...(P.look != null ? { look: P.look, lookAlt: P.lookAlt != null ? P.lookAlt : 2 } : {}) }];
+    for (const q of P.stops || []) {
+      const [la, lo] = at(L.lat, L.lon, q.at[0], q.at[1]);
+      stops.push({ id: q.id, name: { es: q.es, en: q.en }, lat: +la.toFixed(6), lon: +lo.toFixed(6), elev: null, look: q.look, lookAlt: q.lookAlt != null ? q.lookAlt : 2, ...(q.air ? { air: q.air } : {}), at: q.for || [] });
+    }
+    out[site] = stops;
+  }
   // las tomas aéreas; los sitios que no tenían puntos de visita estrenan la vista general y la toma aérea
   for (const site of AIR_SITES) {
     let stops = out[site];
@@ -178,7 +196,8 @@ export function allStops() {
       const view = SITES.find((s) => s.id === site); if (!view) continue;
       stops = [{ id: "vista", name: { es: "Vista general", en: "Overview" }, lat: view.lat, lon: view.lon, elev: view.elev ?? null, at: [] }];
     }
-    const auto = aerialStops(site, stops);
+    // (`noAuto`: Newark, de 1 km, trae sus tomas aéreas a mano y no lleva la automática)
+    const auto = LIDAR_PLAN[site] && LIDAR_PLAN[site].noAuto ? [] : aerialStops(site, stops);
     out[site] = [...stops, ...auto, ...extraAir(site)];
   }
   return (cache = out);

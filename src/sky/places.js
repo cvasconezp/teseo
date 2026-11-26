@@ -11,6 +11,10 @@
 // cumbres (natural=peak y natural=volcano), que en OSM están en el punto de la cima. Al elegir una montaña, la
 // app busca además la cumbre en el modelo de terreno (/api/summit) y te pone de pie en ella.
 
+import { LIDAR_SITES } from "./lidarSites.js";
+import { LIDAR_PLAN } from "./lidarPlan.js";
+import { LIDAR_INFO } from "./lidarInfo.js";
+
 export const GEOCODER = "https://geocoding-api.open-meteo.com/v1/search";
 export const PHOTON = "https://photon.komoot.io/api/";
 /** Códigos de GeoNames que son montañas, y el radio (m) en el que buscar su cumbre: un macizo (MT) es grande. */
@@ -46,8 +50,8 @@ export const SITES = [
     note: { es: "El observatorio de ESO con el Very Large Telescope, a 2.635 m en el desierto de Atacama (Chile). Desde la explanada, con los cuatro telescopios de 8,2 m al norte.", en: "ESO's observatory with the Very Large Telescope, at 2,635 m in the Atacama Desert (Chile). From the platform, with the four 8.2 m telescopes to the north." } },
   { id: "stonehenge", region: "world", wiki: { es: "Stonehenge", en: "Stonehenge" }, name: { es: "Stonehenge", en: "Stonehenge" }, lat: 51.178844, lon: -1.826189, elev: null,
     note: { es: "Desde el centro del círculo de piedras (llanura de Salisbury, Inglaterra; 3000–2000 a. C.): el eje mira hacia donde sale el Sol en el solsticio de junio, sobre la Piedra del Talón.", en: "From the centre of the stone circle (Salisbury Plain, England; 3000–2000 BCE): its axis points to the June solstice sunrise, over the Heel Stone." } },
-  { id: "newgrange", region: "world", wiki: { es: "Newgrange", en: "Newgrange" }, name: { es: "Newgrange", en: "Newgrange" }, lat: 53.69464, lon: -6.47457, elev: null,
-    note: { es: "Frente a la entrada de esta tumba de corredor de hacia el 3200 a. C. (Irlanda): en el solsticio de invierno, el Sol naciente entra por una abertura sobre la puerta y alumbra la cámara.", en: "Passage tomb from about 3200 BCE (Ireland): at the winter solstice the rising Sun shines through a roof-box and lights the chamber." } },
+  { id: "newgrange", region: "world", wiki: { es: "Newgrange", en: "Newgrange" }, name: { es: "Newgrange", en: "Newgrange" }, lat: 53.694001, lon: -6.474415, elev: null,
+    note: { es: "A unos 110 m al sureste, frente a la entrada de esta tumba de corredor de hacia el 3200 a. C. (Irlanda): en el solsticio de invierno, el Sol naciente entra por una abertura sobre la puerta y alumbra la cámara.", en: "Passage tomb from about 3200 BCE (Ireland): at the winter solstice the rising Sun shines through a roof-box and lights the chamber." } },
   { id: "giza", region: "world", wiki: { es: "Necr%C3%B3polis_de_Guiza", en: "Giza_pyramid_complex" }, name: { es: "Pirámides de Guiza", en: "Pyramids of Giza" }, lat: 29.97120, lon: 31.12380, elev: null,
     note: { es: "Desde el mirador del suroeste: Micerino delante, Kefrén y la Gran Pirámide de Keops (hacia el 2600 a. C.) detrás (Egipto).", en: "From the south-west viewpoint: Menkaure in front, Khafre and the Great Pyramid of Khufu (about 2600 BCE) behind (Egypt)." } },
   { id: "ingapirca", region: "ec", wiki: { es: "Ingapirca", en: "Ingapirca" }, name: { es: "Ingapirca", en: "Ingapirca" }, lat: -2.548950, lon: -78.87188, elev: null,
@@ -94,6 +98,11 @@ export const SITES = [
     note: { es: "Estatua de 1931 en la cima del Corcovado, sobre Río de Janeiro (Brasil): 30 m de figura sobre un pedestal de 8 m, con los brazos abiertos de 28 m. Desde la terraza, delante de ella. Una de las siete maravillas modernas (2007).", en: "1931 statue on top of Corcovado, above Rio de Janeiro (Brazil): a 30 m figure on an 8 m pedestal, with outstretched arms 28 m wide. From the terrace in front of it. One of the New Seven Wonders (2007)." } },
   { id: "tajmahal", region: "wonders", wiki: { es: "Taj_Mahal", en: "Taj_Mahal" }, name: { es: "Taj Mahal", en: "Taj Mahal" }, lat: 27.173643, lon: 78.041944, elev: null,
     note: { es: "Mausoleo mogol del siglo XVII en Agra (India), de mármol blanco, con la cúpula hasta 73 m. Desde el jardín, 150 m al sur. Una de las siete maravillas modernas (2007).", en: "17th-century Mughal mausoleum in Agra (India), in white marble, with its dome rising to 73 m. From the garden, 150 m to the south. One of the New Seven Wonders (2007)." } },
+  // los sitios con suelo LiDAR nuevos (lidarPlan.js y lidarInfo.js): el lugar es su punto de vista, en metros desde el origen de la maqueta
+  ...Object.keys(LIDAR_PLAN).filter((k) => !LIDAR_PLAN[k].own && LIDAR_SITES[k] && LIDAR_INFO[k]).map((k) => {
+    const L = LIDAR_SITES[k], P = LIDAR_PLAN[k], I = LIDAR_INFO[k], v = P.view || [0, 0];
+    return { id: k, region: I.region, wiki: I.wiki, name: I.place, lat: +(L.lat + v[1] / 110574).toFixed(6), lon: +(L.lon + v[0] / (111320 * Math.cos((L.lat * Math.PI) / 180))).toFixed(6), elev: null, note: I.note };
+  }),
 ];
 
 /** Orden de los grupos de la lista desplegable de sitios. */

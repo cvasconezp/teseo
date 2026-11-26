@@ -1,3 +1,6 @@
+import { LIDAR_SITES } from "./lidarSites.js";
+import { LIDAR_PLAN } from "./lidarPlan.js";
+import { LIDAR_INFO } from "./lidarInfo.js";
 // Fichas de los monumentos (MonSheet.jsx): qué son, qué se sabe y qué se discute, con sus fuentes. Se prefieren
 // organismos del Estado e investigación científica; lo que es cálculo de Teseo se dice aparte. Clave: id de la pieza.
 export const MON_INFO = {
@@ -361,9 +364,39 @@ const CH_MAP = {
 };
 for (const id of ["chankillo-obs", "chankillo-plaza-o", "chankillo-este", "chankillo-este-n"]) BY_ID[id] = CH_MAP;
 const OWN_IDS = new Set(["mp-tres-ventanas", "mp-templo-principal", "mp-roca-sagrada"]);
+// Sitios con suelo LiDAR (lidarSites.js): la ficha de los nuevos viene de lidarInfo.js; el crédito de la forma, del
+// conjunto de datos de cada uno. Qué hace Teseo con el dato: scripts/lidar/build_site.py.
+for (const [k, I] of Object.entries(LIDAR_INFO)) if (!LIDAR_PLAN[k] || !LIDAR_PLAN[k].own) MON_INFO[k] = { kind: I.kind, facts: I.facts, body: I.body, teseo: I.teseo, sources: I.sources };
+// (lo que Teseo mide en el propio relieve LiDAR —scripts/lidar—, dicho como tal en la ficha)
+const LIDAR_MEASURED = {
+  silbury: { es: " Medido por Teseo en el LiDAR: la cima queda entre 37 y 39 m sobre el fondo del foso y unos 28 m sobre el terreno más alto, al sur; la cifra depende de dónde se tome el pie, y eso puede explicar buena parte de la diferencia entre fuentes.", en: " Measured by Teseo on the LiDAR: the summit stands 37 to 39 m above the ditch floor and about 28 m above the higher ground to the south; the figure depends on where the foot is taken, which may explain much of the gap between sources." },
+  cahokia: { es: " Medido por Teseo en el LiDAR: la cima queda entre 30 y 34 m sobre la llanura, según el lado.", en: " Measured by Teseo on the LiDAR: the summit stands 30 to 34 m above the plain, depending on the side." },
+  greatcircle: { es: " Medido por Teseo en el LiDAR: la cresta del muro traza un círculo de unos 362 m de diámetro y queda unos 4,6 m sobre el fondo del foso interior.", en: " Measured by Teseo on the LiDAR: the crest of the wall traces a circle about 362 m across and stands about 4.6 m above the floor of the inner ditch." },
+  newark: { es: " Medido por Teseo en el LiDAR: los muros del Octágono se alzan hoy entre 1,6 y 2,3 m sobre el terreno.", en: " Measured by Teseo on the LiDAR: the Octagon walls stand between 1.6 and 2.3 m above the ground today." },
+  avebury: { es: " Medido por Teseo en el LiDAR: hoy la cresta del banco queda entre 8 y 12 m sobre el fondo del foso.", en: " Measured by Teseo on the LiDAR: today the crest of the bank stands 8 to 12 m above the ditch floor." },
+};
+for (const [k, t] of Object.entries(LIDAR_MEASURED)) if (MON_INFO[k] && MON_INFO[k].teseo) MON_INFO[k] = { ...MON_INFO[k], teseo: { es: MON_INFO[k].teseo.es + t.es, en: MON_INFO[k].teseo.en + t.en } };
+// (los tres sitios que ya existían: su ficha dice ahora de dónde sale el suelo)
+const LIDAR_OWN = {
+  stonehenge: { es: " El foso, el banco, la Avenida y los túmulos de alrededor son el relieve medido con láser desde el aire (LiDAR) por la Environment Agency.", en: " The ditch, the bank, the Avenue and the barrows around are the relief measured by airborne laser (LiDAR) by the Environment Agency." },
+  newgrange: { es: " La loma y el entorno son el relieve LiDAR del valle del Boyne (Discovery Programme y Geological Survey Ireland); con él, el túmulo se ha movido a su centro medido, 45 m al sur de donde estaba. La fachada de cuarzo es una reconstrucción moderna, y su forma original se discute.", en: " The ridge and its surroundings are the Boyne Valley LiDAR relief (Discovery Programme and Geological Survey Ireland); with it, the mound has moved to its measured centre, 45 m south of where it was. The quartz façade is a modern reconstruction, and its original form is debated." },
+  maeshowe: { es: " El túmulo, su foso y su banco son ahora el relieve medido con LiDAR por Historic Environment Scotland (0,5 m por punto); la boca del pasillo es un añadido de Teseo. El perfil exterior del túmulo se rehízo en 1910–1913.", en: " The mound, its ditch and its bank are now the relief measured by LiDAR by Historic Environment Scotland (0.5 m per point); the passage mouth is Teseo’s addition. The outer profile of the mound was rebuilt in 1910–1913." },
+};
+for (const [k, t] of Object.entries(LIDAR_OWN)) if (MON_INFO[k] && MON_INFO[k].teseo) MON_INFO[k] = { ...MON_INFO[k], teseo: { es: MON_INFO[k].teseo.es + t.es, en: MON_INFO[k].teseo.en + t.en } };
+const lidarCredit = (site) => {
+  const L = LIDAR_SITES[site]; if (!L) return null;
+  return {
+    es: `Forma: el relieve es una medición con láser desde el aire (LiDAR), no un modelo dibujado: ${L.credit || L.src}. Cambios de Teseo: se convierte en una malla de triángulos (error vertical menor de ${L.res <= 0.5 ? 3 : 6} cm en el centro), se sube o baja entera para casar con el relieve global de alrededor, se suaviza el borde y se oscurecen un poco los hoyos y se aclaran los bultos para que el relieve se lea con el Sol alto. Muestra el terreno tal como está hoy, sin árboles ni edificios.`,
+    en: `Shape: the relief is an airborne laser survey (LiDAR), not a drawn model: ${L.credit || L.src}. Teseo’s changes: turned into a triangle mesh (vertical error under ${L.res <= 0.5 ? 3 : 6} cm at the centre), shifted up or down as a whole to match the surrounding global relief, smoothed at the edge, with hollows slightly darkened and bumps lightened so the relief reads under a high Sun. It shows the ground as it is today, without trees or buildings.`,
+    url: L.url,
+  };
+};
+const LIDAR_PIECE_SITE = { "stonehenge-suelo": "stonehenge", "newgrange-suelo": "newgrange", maeshowe: "maeshowe" };
+for (const k of Object.keys(LIDAR_PLAN)) if (!LIDAR_PLAN[k].own) LIDAR_PIECE_SITE[k] = k;
 /** Crédito de la forma de una estructura: { text, url }. `site`: el sitio de la pieza (monuments.js). */
 export function shapeCredit(id, site, lang = "es") {
   if (id === "intihuatana") return null;                        // (su ficha ya cita el escaneo entre las fuentes)
+  if (LIDAR_PIECE_SITE[id]) { const c = lidarCredit(LIDAR_PIECE_SITE[id]); if (c) return { text: c[lang] || c.es, url: c.url }; }
   if (BY_ID[id]) return { text: BY_ID[id][lang] || BY_ID[id].es, url: BY_ID[id].url };
   const c = !OWN_IDS.has(id) && SHAPE[site] ? SHAPE[site] : OWN;
   const m = c === OWN && MEAS[site] ? (lang === "es" ? ` Medidas: ${MEAS[site]}.` : ` Measurements: ${MEAS[site]}.`) : "";
