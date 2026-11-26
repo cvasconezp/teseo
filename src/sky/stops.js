@@ -9,7 +9,9 @@ import { SITES } from "./places.js";
 const AUTO = {
   teotihuacan: ["teotihuacan", ["sol", "luna"]],
   giza: ["giza", ["keops", "kefren", "micerino"]],
-  cochasqui: ["cochasqui", ["cq-g", "cq-e", "cq-m", "cqm-a"]],
+  // (la G queda ladera arriba: a 21 m de su cara oeste, esa cara —unos 24 m sobre los ojos— tapaba todo el cielo y
+  // parecía estarse dentro. A 65 m de la cara se la ve entera)
+  cochasqui: ["cochasqui", [{ id: "cq-g", dist: 133, lookAlt: 9 }, "cq-e", "cq-m", "cqm-a"]],
   // Chankillo. La «vista general» es el punto de observación oeste: la boca del corredor del edificio de observación
   // (a 3 m de donde la sitúa el mapa de Ghezzi). Las torres, a 45 m (caben varias a la vista). El punto de observación
   // este: a unos 200 m de las torres; desde él los ocasos de junio y de diciembre caen en los extremos de la fila

@@ -19,7 +19,7 @@
 // Marco local: E (este), N (norte), U (arriba), en metros desde el centro de la base del monumento.
 
 import { INTI_SCAN } from "./intiScan.js";
-import { machuModel, eachModelFace, MODEL_BASE_M, intiScan, siteModel, CHANKILLO_BASE_M } from "./machuModel.js";
+import { machuModel, eachModelFace, modelGround, MODEL_BASE_M, intiScan, siteModel, CHANKILLO_BASE_M } from "./machuModel.js";
 import { MP_BUILDINGS, MP_TERRACES, MP_WALLS, MP_STEPS } from "./machuData.js";
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
@@ -322,7 +322,7 @@ export const MONUMENTS = [
   // datos CC BY-NC 3.0, con su crédito). Posición: la del nodo de OpenStreetMap. Orientación: la del sistema de
   // coordenadas del escaneo, que coincide con los andenes de OpenStreetMap con 7° de margen.
   { id: "intihuatana", site: "machupicchu", name: { es: "Intihuatana", en: "Intihuatana" }, sub: { es: "escaneo láser de 2009", en: "2009 laser scan" }, lat: -13.163075, lon: -72.545683,
-    kind: "scan", scan: intiScan, gnomon: true, wallMat: "granitefine", floorMat: "earth", height: INTI_SCAN.gnomonTop, rot: 0, lift: 0.22, absLevel: 2452.8, foot: 1.6, far: 300, level: true, relief: true, seat: "ground", color: GRANITE, mat: "granitefine", ground: "heath", solid: true },
+    kind: "scan", scan: intiScan, gnomon: true, fitModel: true, wallMat: "granitefine", floorMat: "earth", height: INTI_SCAN.gnomonTop, rot: 0, lift: 0.22, absLevel: 2452.8, foot: 1.6, far: 300, level: true, relief: true, seat: "ground", color: GRANITE, mat: "granitefine", ground: "heath", solid: true },
 ];
 
 /** Radio (m) de la planta: hasta él no se puede estar «dentro» del monumento. */
@@ -527,6 +527,114 @@ export function llaqtaPlan(skip = [], clear = []) {
 // La llaqta con la maqueta del Ministerio de Cultura (machuModel.js): terreno, andenes, muros y techos de una sola
 // pieza, a su altura sobre el nivel del mar (las alturas de las caras van referidas a MODEL_BASE_M). La piedra: fina
 // en los conjuntos de `fine` (Templo del Sol, Casa del Inca, Plaza Sagrada), rústica en el resto y en los andenes.
+// EL PIE DE LOS MUROS DE ANDÉN, HASTA EL SUELO: en la maqueta de Machu Picchu algunos muros de contención (y los zócalos
+// de los pisos) acaban antes de llegar a la terraza de abajo, y la plataforma que sostienen se veía flotando, con huecos
+// en arco (al sureste del Intihuatana). Sus vértices bajos se bajan hasta el suelo del lado bajo del muro (el piso o la
+// hierba de la maqueta a 0,8 m, el más bajo de los dos lados), 30 cm por debajo. Solo para dibujar: el suelo que se
+// pisa no cambia. Se calcula una vez por maqueta
+const FOOT = new WeakMap();
+function footDrop(mdl) {
+  let out = FOOT.get(mdl);
+  if (out) return out;
+  out = new Map();
+  const base = mdl.base != null ? mdl.base : MODEL_BASE_M;
+  eachModelFace((a, b, c, cls, t) => {
+    if (cls !== 2 && cls !== 3) return;
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz; const nz = ux * vy - uy * vx, nl = Math.hypot(nx, ny, nz);
+    if (!nl || Math.abs(nz) / nl > 0.35) return;                                // (solo caras casi verticales)
+    const hl = Math.hypot(nx, ny); nx /= hl; ny /= hl;
+    const top = Math.max(a[2], b[2], c[2]), cx = (a[0] + b[0] + c[0]) / 3, cy = (a[1] + b[1] + c[1]) / 3;
+    const g1 = modelGround(cx + nx * 0.8, cy + ny * 0.8, mdl), g2 = modelGround(cx - nx * 0.8, cy - ny * 0.8, mdl);
+    const gs = [g1, g2].filter((g) => g != null);
+    if (!gs.length) return;
+    const g = Math.min(...gs) - base - 0.3;
+    let any = false;
+    const L = [a, b, c].map((q) => { if (q[2] < top - 0.3 && g < q[2] - 0.15 && q[2] - g < 8) { any = true; return [q[0], q[1], g]; } return q; });
+    if (any) out.set(t, L);
+  }, mdl);
+  FOOT.set(mdl, out);
+  return out;
+}
+
+// EL ESCANEO SOBRE LA MAQUETA: la maqueta (planta de OpenStreetMap, alzado reconstruido) deja la cima del
+// Intihuatana como un llano a la altura de su piso de arriba. El escaneo láser mide además, más abajo, un recinto al
+// sur (piso 0,6 m más bajo, muros de 2,4 m) y las terrazas del oeste y del este: el llano los tapaba y solo asomaban
+// los muros del recinto, como un bloque con arcos flotando sobre el césped. Del escaneo se dibuja lo que concuerda
+// con la maqueta: la roca, el piso de la cima y sus bordes; no lo que tiene a menos de un metro un piso medido más de
+// 30 cm por debajo del de la maqueta (celdas de medio metro). Se calcula una vez por maqueta y escaneo
+const COVER = new WeakMap();
+function scanCover(mdl) {
+  const S = intiScan(), m = MONUMENTS.find((x) => x.id === "intihuatana");
+  if (!S || !m) return null;
+  let byScan = COVER.get(mdl);
+  if (byScan && byScan.S === S) return byScan.cov;
+  const o = offsetOf(MP0[0], MP0[1], m.lat, m.lon), cells = new Map(), box = [Infinity, Infinity, -Infinity, -Infinity];
+  for (let k = 0; k < S.cls.length; k++) {
+    if (S.cls[k] !== 2 && S.cls[k] !== 3) continue;                              // (pisos)
+    let x = 0, y = 0, z = 0;
+    for (let q = 0; q < 3; q++) { const i = S.f[3 * k + q]; x += S.v[3 * i]; y += S.v[3 * i + 1]; z += S.v[3 * i + 2]; }
+    const e = o.e + x / 300, n = o.n + y / 300, key = Math.floor(e * 2) * 8192 + Math.floor(n * 2), za = z / 300 + m.absLevel, cur = cells.get(key);
+    if (cur == null || za < cur) cells.set(key, za);
+    box[0] = Math.min(box[0], e); box[1] = Math.min(box[1], n); box[2] = Math.max(box[2], e); box[3] = Math.max(box[3], n);
+  }
+  // (y el más bajo a menos de un metro: los muros de un recinto se van con su piso)
+  const near = new Map();
+  for (const [k, z] of cells) {
+    const x = Math.floor(k / 8192), y = k - x * 8192;
+    for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) { const kk = (x + dx) * 8192 + (y + dy), c = near.get(kk); if (c == null || z < c) near.set(kk, z); }
+  }
+  const cov = { cells: near, box };
+  COVER.set(mdl, { S, cov });
+  return cov;
+}
+
+// (a, b, c: puntos del escaneo en m, desde la punta del gnomon; true si la cara se dibuja)
+function fitToModel(m) {
+  const mdl = machuModel(), cov = mdl ? scanCover(mdl) : null;
+  if (!cov) return null;
+  const o = offsetOf(MP0[0], MP0[1], m.lat, m.lon);
+  return (a, b, c) => {
+    const e = o.e + (a[0] + b[0] + c[0]) / 3, n = o.n + (a[1] + b[1] + c[1]) / 3, z = cov.cells.get(Math.floor(e * 2) * 8192 + Math.floor(n * 2));
+    if (z == null) return true;
+    const g = modelGround(e, n, mdl);
+    return g == null || z >= g - 0.3;
+  };
+}
+
+// EL FALDÓN DEL ESCANEO: el escaneo láser tiene huecos y su borde de abajo queda deshilachado donde el láser no llegó
+// (al pie de los muros de las terrazas, detrás de las rocas). Sobre la maqueta del sitio eso se veía como un bloque
+// con patas y arcos, flotando sobre el césped. Cada borde suelto que es el pie de una cara empinada (la cara sube desde
+// él) se prolonga hacia abajo hasta el suelo de la maqueta, 30 cm por debajo (o 2,5 m si allí no hay maqueta): los
+// arcos se cierran y el muro llega al suelo. La forma medida no cambia; solo se tapa lo que el láser no vio
+function scanSkirt(out, S, m, P, mats, col, fit = null) {
+  const mdl = machuModel(), o = mdl ? offsetOf(MP0[0], MP0[1], m.lat, m.lon) : null;
+  const use = new Map(), key = (i, j) => (i < j ? i * 1048576 + j : j * 1048576 + i);
+  // (los bordes, de lo que se dibuja: lo que se deja fuera por `fit` también abre bordes)
+  const drawn = (k) => !fit || S.cls[k] === 0 || fit(P(S.f[3 * k]), P(S.f[3 * k + 1]), P(S.f[3 * k + 2]));
+  const on = new Uint8Array(S.cls.length); for (let k = 0; k < S.cls.length; k++) on[k] = drawn(k) ? 1 : 0;
+  for (let k = 0; k < S.cls.length; k++) if (on[k]) for (let q = 0; q < 3; q++) { const kk = key(S.f[3 * k + q], S.f[3 * k + (q + 1) % 3]); use.set(kk, (use.get(kk) || 0) + 1); }
+  for (let k = 0; k < S.cls.length; k++) {
+    if (!on[k]) continue;
+    for (let q = 0; q < 3; q++) {
+      const i = S.f[3 * k + q], j = S.f[3 * k + (q + 1) % 3], l = S.f[3 * k + (q + 2) % 3];
+      if (use.get(key(i, j)) !== 1) continue;
+      const A = P(i), B = P(j), C = P(l);
+      if (C[2] < Math.max(A[2], B[2]) + 0.05) continue;                          // (solo el pie: la cara sube desde el borde)
+      const ux = B[0] - A[0], uy = B[1] - A[1], uz = B[2] - A[2], vx = C[0] - A[0], vy = C[1] - A[1], vz = C[2] - A[2];
+      const nz = Math.abs(ux * vy - uy * vx), nl = Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, nz);
+      if (!nl || nz / nl > 0.7) continue;                                         // (caras empinadas, no el piso)
+      const gAt = (x, y) => { const g = o ? modelGround(o.e + x, o.n + y, mdl) : null; return g == null ? null : g - m.absLevel; };
+      const ga = gAt(A[0], A[1]), gb = gAt(B[0], B[1]);
+      const za = (ga != null ? ga : A[2] - 2.5) - 0.3, zb = (gb != null ? gb : B[2] - 2.5) - 0.3;
+      if (A[2] - za < 0.12 && B[2] - zb < 0.12) continue;
+      const A2 = [A[0], A[1], Math.min(za, A[2])], B2 = [B[0], B[1], Math.min(zb, B[2])], mat = mats[S.cls[k]] === mats[2] ? mats[1] : mats[S.cls[k]];
+      const uv = (p) => (Math.abs(ux) >= Math.abs(uy) ? [p[0], p[2]] : [p[1], p[2]]);
+      out.push({ v: [A, A2, B2], c: col, mat, uv: [uv(A), uv(A2), uv(B2)] }, { v: [A, B2, B], c: col, mat, uv: [uv(A), uv(B2), uv(B)] });
+    }
+  }
+}
+
 function llaqtaModel(out, m, d = 0) {
   const col = m.color, fine = m.fine || [], skipW = m.modelSkip || [];
   // (otra maqueta —el Templo Fortificado de Chankillo—: sus propios materiales por clase, sin sillares finos)
@@ -540,8 +648,10 @@ function llaqtaModel(out, m, d = 0) {
     else out.push({ v: [a, b, c], c: col, mat: m.modelMats[cls] || m.mat, smooth: true, uv: [a, b, c].map((q) => [q[0] + q[2] * 0.35, q[1] + q[2] * 0.6]), ...(mdl.tone ? { tone: 0.62 + (mdl.tone[t] / 63) * 0.62 } : {}) });
   }, mdl); return; }
   const MAT = [null, "heath", "incarustic", "earth", "thatch", "thatch", "inca"];
-  eachModelFace((a, b, c, cls) => {
+  const mdl = machuModel(), drop = mdl ? footDrop(mdl) : null;
+  eachModelFace((a, b, c, cls, t) => {
     let mat = MAT[cls];
+    if (drop && drop.has(t)) { const L = drop.get(t); a = L[0]; b = L[1]; c = L[2]; }
     if (cls === 0) {
       const e = (a[0] + b[0] + c[0]) / 3, n = (a[1] + b[1] + c[1]) / 3;
       if (skipW.some(([x, y, r]) => Math.hypot(e - x, n - y) <= r)) return;
@@ -1174,13 +1284,16 @@ export function buildFaces(m, opt = {}) {
     const mats = [m.mat, m.wallMat || m.mat, m.floorMat || m.mat, m.floorMat || m.mat], P = (i) => [S.v[3 * i] / 100, S.v[3 * i + 1] / 100, S.v[3 * i + 2] / 100];
     // (luz suave —la normal de cada vértice es la media de sus caras— y textura proyectada por el plano dominante de
     // cada cara: sin eso, los miles de triángulos del escaneo se veían como papel arrugado)
+    const fit = m.fitModel ? fitToModel(m) : null;
     for (let k = 0; k < S.cls.length; k++) {
       const a = P(S.f[3 * k]), b = P(S.f[3 * k + 1]), c = P(S.f[3 * k + 2]);
+      if (fit && S.cls[k] !== 0 && !fit(a, b, c)) continue;
       const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], wx = c[0] - a[0], wy = c[1] - a[1], wz = c[2] - a[2];
       const nx = Math.abs(uy * wz - uz * wy), ny = Math.abs(uz * wx - ux * wz), nz = Math.abs(ux * wy - uy * wx);
       const uvOf = nz >= nx && nz >= ny ? (q) => [q[0], q[1]] : nx >= ny ? (q) => [q[1], q[2]] : (q) => [q[0], q[2]];
       out.push({ v: [a, b, c], c: col, mat: mats[S.cls[k]], smooth: S.cls[k] !== 3, uv: [uvOf(a), uvOf(b), uvOf(c)] });
     }
+    if (m.fitModel) scanSkirt(out, S, m, P, mats, col, fitToModel(m));
   } else if (m.kind === "intihuatana") {
     // tres cuerpos de la misma roca: el afloramiento tallado, la mesa y el prisma
     const q = (x, y) => { const r = rotP([x, y, 0], m.rot); return [r[0], r[1]]; };

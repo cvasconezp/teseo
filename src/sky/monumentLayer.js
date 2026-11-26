@@ -564,6 +564,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
     group,
     set(list, st, grid = null) { last = { list, st, grid }; build(list, grid); paint(st); show(); },
     get grid() { return last ? last.grid : null; },
+    get k() { return k; },
     /** Con el relieve 3D alrededor (terrain3d.js) el suelo del sitio no se alarga en un faldón llano. */
     /** El color del relieve cercano para el suelo propio (de near3d.colorMap; null para volver al de la foto). */
     setNear(cm) {

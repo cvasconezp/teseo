@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.97.1 — Machu Picchu sin bloque flotante; la Pirámide G, vista desde fuera
+
+- **Machu Picchu, junto al Intihuatana:** al sureste de la piedra se veía un bloque gris con arcos que parecía flotar sobre el césped. Eran los muros de un recinto del escaneo láser de 2009: la maqueta del sitio (planta de OpenStreetMap, alzado reconstruido) deja la cima como un llano y tapaba el piso del recinto y las terrazas de alrededor, más bajos, así que solo asomaban los muros. Ahora del escaneo se dibuja lo que concuerda con la maqueta (la roca tallada, el piso de la cima y sus bordes); lo demás queda fuera, y el borde de abajo del escaneo, donde el láser no llegó, baja hasta el suelo en vez de quedar deshilachado.
+- **El pie de los muros de andén** de la maqueta llega hasta la terraza de abajo: donde quedaba corto, la plataforma que sostenía se veía en el aire.
+- **Cochasquí, Pirámide G:** el punto de visita estaba a 21 m, pegado a su cara oeste, que sube unos 24 m por encima de los ojos y tapaba el cielo (parecía estar dentro de la pirámide). Ahora está a 133 m, cuesta abajo, y se ve la pirámide entera.
+
 ## 1.97.0 — El relieve cercano, con sus colores en su sitio; tomas aéreas en diagonal; Intihuatana
 
 - **El relieve cercano tenía la distancia invertida:** la imagen de satélite se pintaba volteada, de modo que a 1 km se veía lo que hay a 18 km y al revés (en Chankillo, el mar a pocos cientos de metros del templo; en otros lugares, campos y ríos que no estaban ahí). Afectaba a todos los lugares. Ahora cada color va en su distancia, y el suelo de los sitios en 3D, que toma ese mismo color, empalma con las montañas de alrededor.

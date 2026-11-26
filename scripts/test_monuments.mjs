@@ -127,7 +127,7 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   const ih = bbox(buildFaces(byId("intihuatana")));
   void ih;
   { const S = intiScan(), f = buildFaces(byId("intihuatana"));
-    ok(byId("intihuatana").kind === "scan" && f.length === S.cls.length && S.f.length === 3 * S.cls.length && Math.max(...S.f) < S.v.length / 3 && /CC BY-NC 3\.0/.test(INTI_SCAN.credit) && /Arkansas/.test(INTI_SCAN.credit), "Machu Picchu: la cima del Intihuatana es la malla del escaneo láser, con su crédito y su licencia");
+    ok(byId("intihuatana").kind === "scan" && f.length >= S.cls.length && f.length - S.cls.length < 400 && S.f.length === 3 * S.cls.length && Math.max(...S.f) < S.v.length / 3 && /CC BY-NC 3\.0/.test(INTI_SCAN.credit) && /Arkansas/.test(INTI_SCAN.credit), "Machu Picchu: la cima del Intihuatana es la malla del escaneo láser, con su crédito y su licencia");
     ok(S.cls.filter((c) => c === 0).length > 9000 && S.cls.includes(1) && S.cls.includes(2) && f.some((x) => x.mat === "earth") && f.every((x) => x.uv && x.uv.length === 3) && f.some((x) => x.smooth), "la malla separa la roca tallada (más de 9.000 triángulos), los muros y el piso; va con luz suave y textura proyectada"); }
   ok(near(Math.max(...Array.from(intiScan().cls).flatMap((c, t) => (c === 0 ? [0, 1, 2].map((j) => intiScan().v[3 * intiScan().f[3 * t + j] + 2] / 100) : []))), 1.68, 0.03) && ih.u1 < 3 && near(offsetOf(site("machupicchu-intihuatana").lat, site("machupicchu-intihuatana").lon, byId("intihuatana").lat, byId("intihuatana").lon).d, 5, 0.5), "Machu Picchu: el gnomon del Intihuatana, 1,68 m sobre el piso (medido), a 5 m del punto de vista");
   // Cochasquí y Machu Picchu (aproximados)
