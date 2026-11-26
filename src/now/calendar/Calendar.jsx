@@ -13,6 +13,10 @@ import { NOW_SHARE_KINDS } from "../../share/eventText.js";
 import { feedUrl, subscribeLinks } from "./feed.js";
 import { TC, describeEvent } from "./i18n.js";
 import { downloadIcs } from "./ics.js";
+import {
+  VIEW_KEY, VIEWS, PHASE_SHAPE, dayKeyOf, dayKeyOfMs, monthOfKey, partsOf, addDays, addMonths, monthGrid, weekOf, groupByDay,
+  eventsOfWeek, defaultSelected, nextDayWithEvents, monthRange, clampMonth, dayMarks, moonOfDay, moonLitPath, todayMarkerIndex,
+} from "./views.js";
 import { loadIssPasses } from "./issLoader.js";
 import { ShareButton } from "../share/NowShare.jsx";
 import {
@@ -277,8 +281,44 @@ const monthLabel = (key, lang) => {
 };
 const isoOf = ev => (ev.allDay ? new Date(ev.t).toISOString().slice(0, 10) : new Date(ev.t).toISOString());
 
+// ─── Luna, nudos del hilo y marcas del mes ───────────────────────────────────
+/** Disco de la Luna con su parte iluminada (decorativo: el texto va aparte). */
+function MoonGlyph({ illum, waxing, size = 24, className = "" }) {
+  const d = moonLitPath(illum, waxing);
+  return (
+    <svg className={`cal-moon ${className}`} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="9" className="cal-moon__dark" />
+      {d && <path d={d} className="cal-moon__lit" />}
+      <circle cx="12" cy="12" r="9" fill="none" className="cal-moon__rim" />
+    </svg>
+  );
+}
+/** Nudo del hilo: la fase de la Luna si es fase principal; si no, el icono del tipo en un círculo del color del tipo. */
+function Knot({ ev }) {
+  const phase = ev.type === "moon" ? PHASE_SHAPE[ev.sub] : null;
+  return (
+    <span className={`cal-knot${phase ? " cal-knot--moon" : ""}`} aria-hidden="true">
+      {phase ? <MoonGlyph illum={phase.illum} waxing={phase.waxing} size={28} /> : ICONS[ev.type] ? ICONS[ev.type]() : null}
+    </span>
+  );
+}
+/** Marcas de tipo del mes: forma + color (la forma basta con la visión nocturna). viewBox 10×10. */
+const MARKS = {
+  moon: <circle cx="5" cy="5" r="3.6" />,
+  eclipse: <circle cx="5" cy="5" r="3.1" fill="none" strokeWidth="1.7" />,
+  meteor: <path d="M1.8 8.2 8.2 1.8" fill="none" strokeWidth="2" strokeLinecap="round" />,
+  planet: <rect x="1.8" y="1.8" width="6.4" height="6.4" rx="0.8" />,
+  season: <path d="M5 1 9.2 9 0.8 9z" />,
+  milestone: <path d="M5 0.4 6.4 3.6 9.6 5 6.4 6.4 5 9.6 3.6 6.4 0.4 5 3.6 3.6z" />,
+  iss: <path d="M5 1.2v7.6M1.2 5h7.6" fill="none" strokeWidth="2" strokeLinecap="round" />,
+  launch: <path d="M1.4 7.4 5 2.6l3.6 4.8" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+};
+const Mark = ({ type }) => (
+  <svg className={`cal-mark cal-t--${type}`} width="10" height="10" viewBox="0 0 10 10" fill="currentColor" stroke="currentColor" strokeWidth="0" aria-hidden="true" focusable="false">{MARKS[type]}</svg>
+);
+
 // ─── Un evento ───────────────────────────────────────────────────────────────
-function EventItem({ ev, lang, fmt, t, api, push, now }) {
+function EventItem({ ev, lang, fmt, t, api, push, now, cls = "" }) {
   const info = useMemo(() => describeEvent(ev, lang, fmt), [ev, lang, fmt]);
   const vis = info.vis;
   const visLabel = vis ? (vis.state === true ? t.visYes : vis.state === "partial" ? t.visPartial : t.visNo) : null;
@@ -294,8 +334,8 @@ function EventItem({ ev, lang, fmt, t, api, push, now }) {
   const remind = useReminder({ ev, title: info.title, lang, api, push, t, onIcs });
   const cd = countdownText(ev, now, lang);
   return (
-    <li className={`cal-ev cal-ev--${ev.type}${vis && vis.state === false ? " is-off" : ""}${cd.state === "past" ? " is-past" : ""}`}>
-      <span className="cal-ev__icon" aria-hidden="true">{ICONS[ev.type] ? ICONS[ev.type]() : null}</span>
+    <li className={`cal-ev cal-ev--${ev.type}${vis && vis.state === false ? " is-off" : ""}${cd.state === "past" ? " is-past" : ""}${cls}`}>
+      <Knot ev={ev} />
       <div className="cal-ev__body">
         <p className="cal-ev__when"><time dateTime={isoOf(ev)}>{whenText(ev, lang)}</time><span className={`cal-cd is-${cd.state}`}>{cd.text}</span></p>
         <h5 className="cal-ev__title">{info.title}</h5>
@@ -432,7 +472,124 @@ function Subscribe({ place, placeName, lang, t }) {
   );
 }
 
+// ─── El hilo: eventos colgados de un hilo vertical (dorado hasta «hoy») ───────
+/** Lista de eventos en el hilo. `byMonth`: con separadores por mes. `marker`: pone «Hoy» donde está el ahora. */
+function ThreadList({ events, byMonth, marker, now, lang, fmt, t, api, push }) {
+  const mi = marker ? todayMarkerIndex(events, now) : -1;
+  const groups = byMonth ? groupByMonth(events) : [{ key: "", items: events }];
+  let idx = 0;
+  const todayLi = <li key="today" className="cal-today"><span className="cal-today__dot" aria-hidden="true" /><span className="cal-today__t">{t.views.today}</span></li>;
+  return (
+    <div className="cal-thread">
+      {groups.map((g, gi) => {
+        const start = idx;
+        const items = [];
+        g.items.forEach(ev => {
+          if (idx === mi) items.push(todayLi);
+          items.push(<EventItem key={ev.id} ev={ev} lang={lang} fmt={fmt} t={t} api={api} push={push} now={now} cls={mi >= 0 && idx < mi ? " is-done" : ""} />);
+          idx++;
+        });
+        if (gi === groups.length - 1 && idx === mi) items.push(todayLi);
+        return (
+          <div key={g.key || "week"} className="cal-month">
+            {g.key && <h4 className={`now-sub cal-month__h${mi >= 0 && start < mi ? " is-done" : ""}`}>{monthLabel(g.key, lang)}</h4>}
+            <ol className="cal-list">{items}</ol>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ViewSwitch({ view, onChange, t }) {
+  return (
+    <div className="cal-views" role="group" aria-label={t.views.label}>
+      {VIEWS.map(v => (
+        <button key={v} type="button" className="cal-views__btn" aria-pressed={view === v} onClick={() => onChange(v)}>{t.views[v]}</button>
+      ))}
+    </div>
+  );
+}
+
+// ─── El mes: cuadrícula mensual + el hilo de la semana elegida ────────────────
+const dayDate = (key) => { const [y, m, d] = partsOf(key); return new Date(y, m - 1, d, 12); };
+function MonthView({ byDay, month, range, setMonth, sel, setSel, todayKey, filter, more, lang, fmt, t, api, push, now }) {
+  const V = t.views, gridRef = useRef(null), gid = useId();
+  const weeks = useMemo(() => monthGrid(month), [month]);
+  const moons = useMemo(() => { const o = {}; weeks.flat().forEach(c => { if (c) o[c.key] = moonOfDay(c.key); }); return o; }, [weeks]);
+  const L = loc(lang);
+  const longDate = (key) => dayDate(key).toLocaleDateString(L, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const shortDate = (key) => dayDate(key).toLocaleDateString(L, { day: "numeric", month: "short" });
+  const types = useMemo(() => { const s = new Set(); weeks.flat().forEach(c => { if (c) (byDay.get(c.key) || []).forEach(e => s.add(e.type)); }); return TYPES.filter(k => s.has(k)); }, [weeks, byDay]);
+  const week = useMemo(() => eventsOfWeek(byDay, sel), [byDay, sel]);
+  const wk = weekOf(sel);
+  const hasToday = wk.includes(todayKey);
+  const next = useMemo(() => nextDayWithEvents(byDay, wk[6]), [byDay, sel]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const jump = (k) => { setMonth(monthOfKey(k)); setSel(k); };
+  const onKey = (e, key) => {
+    const delta = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+    if (!delta) return;
+    const el = gridRef.current && gridRef.current.querySelector(`[data-day="${addDays(key, delta)}"]`);
+    if (el) { e.preventDefault(); el.focus(); }
+  };
+  const canPrev = month > range.first, canNext = month < range.last;
+  return (
+    <div className="cal-mv">
+      <div className="cal-mv__cal">
+        <div className="cal-mv__nav">
+          <button type="button" className="cal-mv__arrow" onClick={() => setMonth(addMonths(month, -1))} disabled={!canPrev} aria-label={V.prev}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="m14.5 5.5-6.5 6.5 6.5 6.5" /></svg>
+          </button>
+          <h4 id={gid} className="cal-mv__title" aria-live="polite">{monthLabel(month, lang)}</h4>
+          <button type="button" className="cal-mv__arrow" onClick={() => setMonth(addMonths(month, 1))} disabled={!canNext} aria-label={V.next}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="m9.5 5.5 6.5 6.5-6.5 6.5" /></svg>
+          </button>
+        </div>
+        <div className="cal-mv__dow" aria-hidden="true">{V.dow.map((d, i) => <span key={i}>{d}</span>)}</div>
+        <div ref={gridRef} className="cal-mv__grid" role="group" aria-labelledby={gid}>
+          {weeks.flat().map((c, i) => {
+            if (!c) return <span key={`b${i}`} className="cal-day cal-day--blank" aria-hidden="true" />;
+            const list = byDay.get(c.key) || [], m = moons[c.key], marks = dayMarks(list, TYPES);
+            const isToday = c.key === todayKey;
+            return (
+              <button key={c.key} type="button" data-day={c.key} className={`cal-day${isToday ? " is-today" : ""}${list.length ? " has-ev" : ""}`}
+                aria-pressed={sel === c.key} aria-current={isToday ? "date" : undefined}
+                aria-label={V.dayLabel(longDate(c.key), list.length, isToday)}
+                onClick={() => setSel(c.key)} onKeyDown={(e) => onKey(e, c.key)}>
+                <span className="cal-day__n" aria-hidden="true">{c.day}</span>
+                <MoonGlyph illum={m.illum} waxing={m.waxing} size={16} className="cal-day__moon" />
+                <span className="cal-day__marks" aria-hidden="true">{marks.types.map(k => <Mark key={k} type={k} />)}{marks.more > 0 && <span className="cal-day__plus">+</span>}</span>
+              </button>
+            );
+          })}
+        </div>
+        {types.length > 0 && (
+          <ul className="cal-mv__legend" aria-label={V.legend}>
+            {types.map(k => <li key={k}><Mark type={k} />{t.types[k]}</li>)}
+          </ul>
+        )}
+      </div>
+      <div className="cal-mv__week">
+        <h4 className="now-sub cal-week__h">{V.weekOf(shortDate(wk[0]), shortDate(wk[6]))}</h4>
+        {week.length > 0
+          ? <ThreadList events={week} marker={hasToday} now={now} lang={lang} fmt={fmt} t={t} api={api} push={push} />
+          : (
+            <div className="cal-week__empty">
+              <p>{filter === "all" ? V.emptyWeek : V.emptyWeekFilter}</p>
+              {next
+                ? <button type="button" className="btn btn--ghost cal-btn" onClick={() => jump(next)}>{V.goNext(shortDate(next))}</button>
+                : !more && <p className="cal-week__hint">{V.noMore}</p>}
+            </div>
+          )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Datos ───────────────────────────────────────────────────────────────────
+function readView() {
+  try { const v = localStorage.getItem(VIEW_KEY); return VIEWS.includes(v) ? v : "thread"; } catch { return "thread"; }
+}
 function usePlace() {
   const [place, setPlace] = useState(() => readPlace(typeof localStorage !== "undefined" ? localStorage : null));
   useEffect(() => {
@@ -515,8 +672,21 @@ export default function Calendar({ lang = "es", api = "" }) {
   const [limit, setLimit] = useState(STEP);
   useEffect(() => { setLimit(STEP); }, [filter, more]);
   const visible = useMemo(() => shown.slice(0, limit), [shown, limit]);
-  const groups = useMemo(() => groupByMonth(visible), [visible]);
   const present = useMemo(() => new Set(events.map(e => e.type)), [events]);
+
+  // vistas «El hilo» / «El mes» (la elección se recuerda en localStorage)
+  const [view, setView] = useState(readView);
+  const chooseView = (v) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* sin almacenamiento: no se recuerda */ } };
+  const todayKey = dayKeyOfMs(now);
+  const byDay = useMemo(() => groupByDay(shown), [shown]);
+  const range = useMemo(() => {   // meses que ya cubre la agenda (y los de sus eventos, por si alguno cae justo en el borde)
+    const r = monthRange(from, days);
+    for (const e of events) { const m = monthOfKey(dayKeyOf(e)); if (m < r.first) r.first = m; if (m > r.last) r.last = m; }
+    return r;
+  }, [from, days, events]);
+  const [pickMonth, setPickMonth] = useState(null), [pickDay, setPickDay] = useState(null);
+  const month = clampMonth(pickMonth || monthOfKey(todayKey), range);
+  const sel = pickDay && monthOfKey(pickDay) === month ? pickDay : defaultSelected({ todayKey, monthKey: month, byDay });
 
   // «Lo próximo»: el siguiente evento importante (aunque esté más allá de los 30 días de la lista)
   const [nextTick, setNextTick] = useState(0);
@@ -541,6 +711,7 @@ export default function Calendar({ lang = "es", api = "" }) {
         </p>
         <PushTest api={api} lang={lang} t={t} push={push} />
         <Subscribe place={place} placeName={placeName} lang={lang} t={t} />
+        <ViewSwitch view={view} onChange={chooseView} t={t} />
       </header>
 
       {highlight && filter === "all" && (
@@ -563,15 +734,14 @@ export default function Calendar({ lang = "es", api = "" }) {
       {!ready && <div className="now-state" aria-hidden="true"><span className="now-skel" /><span className="now-skel now-skel--short" /></div>}
       {ready && shown.length === 0 && <div className="now-empty"><p className="now-empty__title">{t.empty}</p></div>}
       <div id={listId}>
-        {ready && groups.map(g => (
-          <div key={g.key} className="cal-month">
-            <h4 className="now-sub cal-month__h">{monthLabel(g.key, lang)}</h4>
-            <ol className="cal-list">{g.items.map(ev => <EventItem key={ev.id} ev={ev} lang={lang} fmt={fmt} t={t} api={api} push={push} now={now} />)}</ol>
-          </div>
-        ))}
+        {ready && view === "thread" && <ThreadList events={visible} byMonth marker now={now} lang={lang} fmt={fmt} t={t} api={api} push={push} />}
+        {ready && view === "month" && (
+          <MonthView byDay={byDay} month={month} range={range} setMonth={(m) => setPickMonth(clampMonth(m, range))} sel={sel} setSel={setPickDay}
+            todayKey={todayKey} filter={filter} more={more} lang={lang} fmt={fmt} t={t} api={api} push={push} now={now} />
+        )}
       </div>
 
-      {ready && shown.length > limit && (
+      {ready && view === "thread" && shown.length > limit && (
         <button type="button" className="btn btn--ghost now-more cal-next" aria-controls={listId}
           onClick={() => setLimit(l => l + 10)}>
           {t.moreEvents(Math.min(10, shown.length - limit), shown.length - limit)}
