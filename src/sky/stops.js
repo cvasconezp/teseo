@@ -2,7 +2,7 @@
 // Machu Picchu los trae a mano (monuments.SITE_STOPS, sobre el suelo de su maqueta). En los demás sitios con varias
 // piezas se calculan: la «Vista general» es el lugar del sitio (places.SITES) y, por cada pieza principal, un punto
 // frente a ella —del lado de la vista general—, a una distancia que la deja entera a la vista y fuera de las demás.
-import { MONUMENTS, SITE_STOPS, footprintRadius, offsetOf } from "./monuments.js";
+import { MONUMENTS, SITE_STOPS, footprintRadius, offsetOf, apexOf } from "./monuments.js";
 import { SITES } from "./places.js";
 
 // sitio → [lugar de la vista general, piezas principales] (solo piezas que se pisan a ras de suelo)
@@ -65,6 +65,58 @@ export function frontStop(m, vlat, vlon, others = [], side = null, dist = null) 
   return null;
 }
 
+// TOMAS AÉREAS (`air`: los ojos suben esos metros sobre el suelo, como desde un dron) en los sitios arqueológicos. Desde
+// el centro del sitio; si es extenso, sus piezas se agrupan (k-medias, un grupo por cada 700 m de extensión, hasta 4) y
+// cada grupo tiene la suya, sobre su centro. Altura: la mitad de su radio más 25 m (40 a 220 m) y siempre 40 m por encima
+// de lo más alto que quede justo debajo. Mira hacia la pieza principal del grupo (la de mayor planta); si está debajo,
+// mira hacia abajo, casi en vertical. Un grupo que ya tiene su toma escrita a mano (el templo de Chankillo) no lleva otra.
+const AIR_SITES = ["teotihuacan", "chichenitza", "giza", "stonehenge", "newgrange", "ingapirca", "maeshowe", "abusimbel", "karnak",
+  "angkorwat", "coliseo", "cochasqui", "machupicchu", "chankillo", "catequilla", "tiwanaku"];
+const named = (m) => m.label !== false && m.name && m.name.es;
+// (Machu Picchu: la planta de la llaqta abarca casi todo el sitio, de unos 500 m: una sola toma, sobre su centro)
+const AIR_K = { machupicchu: 1 }, AIR_H = { machupicchu: 150 };
+export function aerialStops(site, existing = []) {
+  const ms = MONUMENTS.filter((m) => (m.site || m.id) === site);
+  if (!ms.length) return [];
+  const la0 = ms.reduce((a, m) => a + m.lat, 0) / ms.length, lo0 = ms.reduce((a, m) => a + m.lon, 0) / ms.length;
+  const P = ms.map((m) => { const o = offsetOf(la0, lo0, m.lat, m.lon); return { m, e: o.e, n: o.n, r: footprintRadius(m) || 0 }; });
+  let D = 0; for (const a of P) for (const b of P) D = Math.max(D, Math.hypot(a.e - b.e, a.n - b.n) + a.r + b.r);
+  const k = AIR_K[site] || Math.max(1, Math.min(4, Math.ceil(D / 700)));
+  // k-medias: la primera semilla, la primera pieza del sitio; cada siguiente, la pieza más alejada de las ya elegidas (siempre sale igual)
+  const C = [{ e: P[0].e, n: P[0].n }];
+  while (C.length < k) { let best = null, bd = -1; for (const p of P) { const d = Math.min(...C.map((c) => Math.hypot(p.e - c.e, p.n - c.n))); if (d > bd) { bd = d; best = p; } } C.push({ e: best.e, n: best.n }); }
+  let lab = P.map(() => 0);
+  for (let it = 0; it < 20; it++) {
+    lab = P.map((p) => { let bi = 0, bd = Infinity; C.forEach((c, i) => { const d = Math.hypot(p.e - c.e, p.n - c.n); if (d < bd) { bd = d; bi = i; } }); return bi; });
+    C.forEach((c, i) => { const g = P.filter((_, j) => lab[j] === i); if (!g.length) return; const w = g.reduce((a, p) => a + p.r + 10, 0); c.e = g.reduce((a, p) => a + p.e * (p.r + 10), 0) / w; c.n = g.reduce((a, p) => a + p.n * (p.r + 10), 0) / w; });
+  }
+  const out = [];
+  C.forEach((c, i) => {
+    const g = P.filter((_, j) => lab[j] === i); if (!g.length) return;
+    // (si coincide con un punto en tierra —en Stonehenge y el Coliseo la vista general es el centro mismo—, se aparta de
+    // él hasta quedar a 10 m: así, de pie en ese punto, no se sube al aire)
+    let ce = c.e, cn = c.n;
+    for (let it = 0; it < 4; it++) {
+      const [la1, lo1] = at(la0, lo0, ce, cn), hit = existing.find((q) => !q.air && offsetOf(la1, lo1, q.lat, q.lon).d < 10);
+      if (!hit) break;
+      const o = offsetOf(hit.lat, hit.lon, la1, lo1), u = o.d > 0.5 ? [o.e / o.d, o.n / o.d] : [0, 1];
+      ce += u[0] * (10.5 - o.d); cn += u[1] * (10.5 - o.d);
+    }
+    const [lat, lon] = at(la0, lo0, ce, cn), rc = Math.max(...g.map((p) => Math.hypot(p.e - c.e, p.n - c.n) + p.r));
+    if (existing.some((q) => q.air && offsetOf(lat, lon, q.lat, q.lon).d < Math.max(rc, 60))) return;
+    let air = AIR_H[site] || Math.min(220, Math.max(40, 0.5 * rc + 25));
+    for (const p of g) if (Math.hypot(p.e - c.e, p.n - c.n) <= p.r + 5) air = Math.max(air, (p.m.labelAt ? p.m.height || 0 : apexOf(p.m)[2] || p.m.height || 0) + 40);   // (`labelAt` es donde va el rótulo, no su alto)
+    // (la pieza principal: con nombre y que no sea un muro bajo —las torres, no el edificio de observación—; si no, la de mayor planta)
+    const main = g.filter((p) => named(p.m) && p.m.kind !== "walls").sort((a, b) => b.r - a.r)[0] || g.filter((p) => named(p.m)).sort((a, b) => b.r - a.r)[0] || g[0];
+    const o = offsetOf(lat, lon, main.m.lat, main.m.lon);
+    const look = o.d > 25 ? Math.round(o.az) : 0, lookAlt = o.d > 25 ? Math.max(-75, Math.min(-15, -Math.round(Math.atan2(air, o.d) / RAD))) : -65;
+    const nm = C.length > 1 && named(main.m) ? main.m.name : null;
+    out.push({ id: `aire-${i + 1}`, name: nm ? { es: `Desde el aire · ${nm.es}`, en: `From the air · ${nm.en || nm.es}` } : { es: "Desde el aire", en: "From the air" },
+      lat: +lat.toFixed(6), lon: +lon.toFixed(6), elev: null, look, lookAlt, air: Math.round(air), at: [] });
+  });
+  return out;
+}
+
 let cache = null;
 /** Todos los puntos de visita: { sitio: [{ id, name: { es, en }, lat, lon, elev, look, lookAlt, at: [ids de rótulos] }] }. */
 export function allStops() {
@@ -80,6 +132,15 @@ export function allStops() {
     }
     for (const x of extra || []) stops.push({ elev: null, ...x });
     if (stops.length > 1) out[site] = stops;
+  }
+  // las tomas aéreas; los sitios que no tenían puntos de visita estrenan la vista general y la toma aérea
+  for (const site of AIR_SITES) {
+    let stops = out[site];
+    if (!stops) {
+      const view = SITES.find((s) => s.id === site); if (!view) continue;
+      stops = [{ id: "vista", name: { es: "Vista general", en: "Overview" }, lat: view.lat, lon: view.lon, elev: view.elev ?? null, at: [] }];
+    }
+    out[site] = [...stops, ...aerialStops(site, stops)];
   }
   return (cache = out);
 }

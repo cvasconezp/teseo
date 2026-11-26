@@ -14,12 +14,12 @@ rectangular. Viene sin posición, sin orientación y algo inclinado. Cambios hec
     guarda el tono (claro u oscuro) de la fotografía del modelo en ese punto: el byte de cada cara es clase + 4 · tono (0–63).
   · MURALLAS como muros (clase 0): donde la maqueta muestra un muro (cresta de más de 0,45 m o escalón de más de 32°), por su eje va un muro de
     caras planas con el alto que mide la maqueta (walls_and_floors). Donde no lo muestra, no se dibuja.
-  · COMPLETADAS con la misma lógica: las tres murallas, el muro que rodea los edificios y los dos edificios circulares son
-    anillos cerrados; donde a uno le falta un arco, se completa siguiendo su radio a ambos lados, con su alto y su ancho.
-    El edificio rectangular: se cierran los lados que faltan y sus tabiques se completan entre los tramos visibles.
-    Los huecos de menos de 3,5 m quedan: pueden ser puertas.
+  · TRAZADO GEOMÉTRICO, completado con la misma lógica: las tres murallas son curvas cerradas suaves; cada edificio
+    circular, dos círculos concéntricos; el edificio rectangular, un cuadrado de unos 35 m con una cruz. Ancho constante
+    y alto alisado.
+  · PUERTAS: un vano de 3 m junto a cada parapeto (muro corto pegado a una muralla), a 25 m o más de otra.
   · SUELO LIMPIO: los montículos de escombro (derrumbes de menos de 6 m de ancho) se rebajan hasta el suelo de
-    alrededor, salvo bajo los muros; las terrazas y la ladera quedan como están.
+    alrededor, también bajo los muros (si no, la arena asomaba por encima); las terrazas y la ladera quedan como están.
   · RECORTE a 25 m por fuera de la muralla exterior; en los últimos 20 m el suelo baja hasta el relieve de alrededor.
   · FALDÓN de 4 m bajo el borde, para que no se vea por debajo donde el relieve de fuera queda más bajo.
 Uso: python3 scripts/build_chankillo_templo.py modelo.glb   (necesita numpy, scipy y fast_simplification)
@@ -81,7 +81,7 @@ def walls_and_floors(Vs, Fs, R=0.5, debug=None):
       de 32°, dentro del recinto (el contorno de la muralla exterior). Se saca su eje, y por él va un muro de caras
       planas con el alto que la maqueta mide en cada punto. Donde la maqueta no muestra muro, no se dibuja.
     · SUELO LIMPIO: los montículos de escombro (lo que sobresale menos de 6 m de ancho: muros caídos, derrumbes) se
-      rebajan hasta el suelo de alrededor (apertura morfológica), salvo bajo los muros. Las terrazas y la ladera quedan.
+      rebajan hasta el suelo de alrededor (apertura morfológica), también bajo los muros. Las terrazas y la ladera quedan.
     → (Vs con el suelo rebajado, cuánto bajó cada vértice, vértices y caras de los muros)."""
     import warnings; warnings.filterwarnings("ignore")
     from skimage.morphology import skeletonize, convex_hull_image, remove_small_objects, disk
@@ -162,8 +162,7 @@ def walls_and_floors(Vs, Fs, R=0.5, debug=None):
     # los muros, pero su contorno sale pixelado. Así que a lo detectado se le ajustan formas limpias:
     #   · los dos edificios circulares: círculos (centro y radio por mínimos cuadrados), uno por anillo;
     #   · las tres murallas (la interior rodea los edificios): curvas cerradas suaves —su radio en cada acimut, desde el
-    #     centro del recinto, alisado con sus primeros armónicos—; donde la maqueta muestra un hueco limpio de 2 a 5 m
-    #     entre dos tramos seguidos, queda abierto (una puerta);
+    #     centro del recinto, alisado con sus primeros armónicos—; sus puertas se abren junto a los parapetos (más abajo);
     #   · el edificio rectangular: rectas (su contorno y los tabiques que se ven);
     #   · el resto (parapetos de las puertas, muros sueltos): rectas si casi lo son, si no curvas suavizadas.
     # Cada muro lleva un ancho constante y su alto (el que mide la maqueta) alisado a lo largo de su recorrido.
@@ -192,7 +191,7 @@ def walls_and_floors(Vs, Fs, R=0.5, debug=None):
     for r_ in west:
         if not groups or r_ - groups[-1][-1] > 6: groups.append([r_])
         else: groups[-1].append(r_)
-    rings_ = []
+    rings_ = []; doors_all = []; ringinfo = []; Zmax9 = ndimage.maximum_filter(Z, 9)
     for g in groups:
         if len(g) < 2: continue
         r0 = float(np.median(g)); rk = track(r0, 3.0)
@@ -203,27 +202,12 @@ def walls_and_floors(Vs, Fs, R=0.5, debug=None):
         if any(np.median(np.abs(rf - o)) < 6 for o in rings_): continue
         rings_.append(rf)
         ang = np.radians(np.arange(360)); P = C0 + np.c_[np.sin(ang), np.cos(ang)] * rf[:, None] / R
-        # puertas: huecos limpios de 2 a 5 m en lo detectado (con muro a los dos lados)
-        have = samp(ndimage.distance_transform_edt(~ndimage.binary_dilation(m, iterations=1)) * R, P[:, 1], P[:, 0]) < 1.2
-        door = np.zeros(360, bool); k0 = int(np.argmax(have)); run = []
-        for t in list((np.arange(360) + k0) % 360) + [k0]:
-            if not have[t]: run.append(t); continue
-            if run:
-                Lr = len(run) * math.radians(1) * rf[run[0]]
-                if 2.0 <= Lr <= 5.0: door[run] = True
-            run = []
+        # (su alto cada 0,25°, con el punto más alto a ±2 m del trazado: sirve para colocar las puertas, más abajo)
+        a2 = np.arange(0, 360, 0.25); r2 = np.interp(a2, np.arange(361), np.r_[rf, rf[0]]); P2 = C0 + np.c_[np.sin(np.radians(a2)), np.cos(np.radians(a2))] * r2[:, None] / R
+        hp = samp(Zmax9 - floor, P2[:, 1], P2[:, 0]); ds = np.radians(0.25) * r2
         hw = float(np.clip(np.median(pw[np.abs(rr0 - np.interp(th0, np.arange(361), np.r_[rf, rf[0]])) < 2]), 0.7, 1.8)) if len(pw) else 1.0
-        if not door.any(): shapes.append(wall(np.vstack([P, P[:1]]), True, hw))
-        else:
-            k1 = int(np.argmax(door)); seq = (np.arange(360) + k1) % 360; segs = []; cur = []
-            for t in seq:
-                if door[t]:
-                    if len(cur) > 1: segs.append(cur)
-                    cur = []
-                else: cur.append(t)
-            if len(cur) > 1: segs.append(cur)
-            for sg in segs: shapes.append(wall(P[sg], False, hw))
-        print("  muralla: radio %.0f m por el oeste, muro detectado en el %.0f %% del contorno, %d puertas" % (r0, cov * 100, int(np.sum(np.diff(np.r_[door, door[0]].astype(int)) == 1))))
+        ringinfo.append((len(shapes), P2, hp, ds, hw)); shapes.append(wall(np.vstack([P, P[:1]]), True, hw))
+        print("  muralla: radio %.0f m por el oeste, muro detectado en el %.0f %% del contorno" % (r0, cov * 100))
     # · los edificios circulares: círculos por mínimos cuadrados, uno por anillo
     def fit_circle(P):
         A = np.c_[2 * P, np.ones(len(P))]; b = (P ** 2).sum(1); cx, cy, c_ = np.linalg.lstsq(A, b, rcond=None)[0]; return np.array([cx, cy]), math.sqrt(c_ + cx * cx + cy * cy)
@@ -293,6 +277,34 @@ def walls_and_floors(Vs, Fs, R=0.5, debug=None):
         else: Q2 = chaikin(rdp(Q, 1.0 / R))
         shapes.append(wall(Q2, False, float(np.clip(np.median(c["hw"]), 0.6, 1.4)))); extra += 1
     print("  otros muros: %d" % extra)
+    # PUERTAS. En la maqueta los vanos no se distinguen (los derrumbes los dejan como bajadas suaves del muro), pero sí
+    # los parapetos que los protegían: los muros cortos (menos de 25 m) pegados a una muralla (a menos de 6 m). Cada
+    # parapeto marca una puerta: un vano de 3 m en el punto más bajo de la muralla a menos de 10 m de él
+    ndoors = [0] * len(ringinfo)
+    extras = shapes[len(shapes) - extra:]                       # (antes de partir las murallas: luego se añaden tramos al final)
+    for k, (si, P2, hp, ds, hw) in enumerate(ringinfo):
+        cut = np.zeros(len(P2), bool); tr = cKDTree(P2)
+        for sh_ in extras:
+            Q = sh_["Q"]; Lq = np.hypot(*np.diff(Q, axis=0).T).sum() * R
+            if Lq > 25: continue
+            dd, ii = tr.query(Q); j = int(np.argmin(dd))
+            if dd[j] * R > 6: continue
+            c0_ = ii[j]; span = int(10 / ds[c0_]); idx = [(c0_ + t) % len(P2) for t in range(-span, span + 1)]
+            cm = idx[int(np.argmin(hp[idx]))]; half_ = int(1.5 / ds[cm])
+            sp_ = int(25 / ds[cm])                                                                    # (a menos de 25 m de otra: es la misma)
+            if cut[[(cm + t) % len(P2) for t in range(-sp_, sp_ + 1)]].any(): continue
+            cut[[(cm + t) % len(P2) for t in range(-half_, half_ + 1)]] = True; doors_all.append(P2[cm]); ndoors[k] += 1
+        if cut.any():
+            N2 = len(P2); k1 = int(np.argmax(cut)); seq = (np.arange(N2) + k1) % N2; segs = []; cur = []
+            for t in seq:
+                if cut[t]:
+                    if len(cur) > 1: segs.append(cur)
+                    cur = []
+                else: cur.append(t)
+            if len(cur) > 1: segs.append(cur)
+            new_ = [wall(P2[sg[::4] + ([sg[-1]] if (len(sg) - 1) % 4 else [])], False, hw) for sg in segs]
+            shapes[si] = new_[0]; shapes += new_[1:]
+    print("  puertas (junto a sus parapetos): %s" % ", ".join("%d en la muralla %d" % (n, k + 1) for k, n in enumerate(ndoors)))
     curves = shapes; bridges = []
     OV, OF, total, filled = [], [], 0.0, 0.0; foot = np.zeros_like(m); axis = np.zeros(m.shape, np.uint8)
     for c in curves:
@@ -321,7 +333,8 @@ def walls_and_floors(Vs, Fs, R=0.5, debug=None):
     # el suelo, rebajado donde sobresale sobre el suelo limpio (fuera de la huella de los muros y dentro del recinto)
     yy = (Vs[:, 1] - n0) / R; xx = (Vs[:, 0] - e0) / R
     fl = samp(floor, yy, xx); inF = samp(foot.astype(float), yy, xx) > 0.5; inH = samp(ndimage.binary_dilation(hull, iterations=int(8 / R)).astype(float), yy, xx) > 0.5
-    drop = np.where(~inF & inH, np.maximum(0.0, Vs[:, 2] - (fl + 0.1)), 0.0)
+    # (también bajo los muros: si no, donde el trazado limpio no cae justo sobre el montículo de la maqueta, la arena asoma por encima del muro)
+    drop = np.where(inH, np.maximum(0.0, Vs[:, 2] - (fl + 0.1)), 0.0)
     V2 = Vs.copy(); V2[:, 2] -= drop
     print("murallas: %d líneas, %.0f m de muro (con los completados), %d caras; suelo limpio: %d vértices rebajados (hasta %.1f m)" % (len(lines), total, len(OF), int((drop > 0.05).sum()), drop.max()))
     if debug:
@@ -329,6 +342,8 @@ def walls_and_floors(Vs, Fs, R=0.5, debug=None):
         gy2, gx2 = np.gradient(Z, R); sh = np.clip(0.5 + 0.5 * (gx2 - gy2) / 1.5, 0, 1) * near
         img = np.stack([sh * 200] * 3, -1).astype(np.uint8); img[hull & ~m] = (img[hull & ~m] * 0.85).astype(np.uint8)
         img[foot] = (img[foot] * 0.5 + np.array([0, 60, 120])).astype(np.uint8); img[axis == 1] = (255, 255, 0); img[axis == 2] = (255, 60, 60)
+        for q in doors_all:
+            y_, x_ = int(q[1]), int(q[0]); img[max(0, y_ - 3):y_ + 4, max(0, x_ - 3):x_ + 4] = (255, 40, 40)
         Image.fromarray(img[::-1]).save(debug)
     outer = (C0 * R + [e0, n0], max(rings_, key=lambda q: q.mean()) if rings_ else None)
     return V2, drop, np.array(OV), np.array(OF, np.int64), outer
@@ -374,7 +389,7 @@ def main(path):
         nn = np.cross(Vs[Fs[:, 1]] - Vs[Fs[:, 0]], Vs[Fs[:, 2]] - Vs[Fs[:, 0]]); LL = np.linalg.norm(nn, axis=1) + 1e-12
         ce = Vs[Fs].mean(1)[:, :2] - c0m; thf = (np.degrees(np.arctan2(ce[:, 0], ce[:, 1])) + 360) % 360
         inside = np.hypot(*ce.T) < np.interp(thf, np.arange(361), np.r_[rfo, rfo[0]]) - 2
-        steep = np.abs(nn[:, 2]) / LL < 0.45; cls[steep & inside] = 0; print("taludes de plataforma como mampostería: %d caras" % int((steep & inside).sum()))
+        zz = Vs[Fs][:, :, 2]; steep = (np.abs(nn[:, 2]) / LL < 0.45) & (zz.max(1) - zz.min(1) > 1.0); cls[steep & inside] = 0; print("taludes de plataforma como mampostería: %d caras" % int((steep & inside).sum()))
     # (el suelo limpio, de un tono más parejo: sin las manchas oscuras de los derrumbes)
     fd = drop[Fs].max(1) > 0.3; tone[fd] = np.round(40 + (tone[fd].astype(float) - 40) * 0.35).astype(np.uint8)
     # RECORTE Y EMPALME con el relieve de alrededor: se queda el templo y 25 m por fuera de su muralla exterior; en

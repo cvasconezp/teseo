@@ -366,10 +366,11 @@ export function onPlatform(m, o) {
   return Math.abs(e * c - n * sn) < hw && Math.abs(e * sn + n * c) < hd;
 }
 
-export function monumentsNear(lat, lon, km = 20) {
+// (`air`: desde una toma aérea —como desde un dron— se ve también la pieza que queda debajo: no se descarta por estar dentro de su planta)
+export function monumentsNear(lat, lon, km = 20, { air = 0 } = {}) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [];
   return MONUMENTS.map((m) => ({ m, o: offsetOf(lat, lon, m.lat, m.lon) }))
-    .filter(({ m, o }) => o.d <= Math.min(km * 1000, m.far || Infinity) && (m.core == null || o.d > m.core) && (m.walkIn || m.kind === "stonehenge" || o.d > footprintRadius(m) + 3 || onPlatform(m, o)))
+    .filter(({ m, o }) => o.d <= Math.min(km * 1000, m.far || Infinity) && (m.core == null || o.d > m.core) && (air > 0 || m.walkIn || m.kind === "stonehenge" || o.d > footprintRadius(m) + 3 || onPlatform(m, o)))
     .sort((a, b) => a.o.d - b.o.d).map(({ m }) => m);
 }
 

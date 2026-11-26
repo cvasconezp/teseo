@@ -2929,9 +2929,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // monumentos: los que hay a menos de 25 km del lugar, asentados sobre el suelo del modelo de relieve (la altura
   // del terreno alrededor de cada uno y bajo el observador, de /api/elevation)
   useEffect(() => { try { localStorage.setItem(MONUMENTS_KEY, monOn ? "1" : "0"); } catch { /* no-op */ } }, [monOn]);
-  const monNear = useMemo(() => (localActive && !viewFrom ? monumentsNear(lat, lon, 25) : []), [localActive, viewFrom, lat, lon]);
   // puntos de visita del sitio (para saltar de uno a otro) y el que se ofreció al tocar su rótulo en la escena
   const siteStops = useMemo(() => (localActive && !viewFrom ? stopsAt(lat, lon) : null), [localActive, viewFrom, lat, lon]);
+  // (un punto de visita aéreo —`air`, como desde un dron—: solo si se está justo en él)
+  const airLift = useMemo(() => { const q = siteStops && siteStops.stops.find((x) => x.air && offsetOf(lat, lon, x.lat, x.lon).d < 3); return q ? q.air : 0; }, [siteStops, lat, lon]);
+  const monNear = useMemo(() => (localActive && !viewFrom ? monumentsNear(lat, lon, 25, { air: airLift }) : []), [localActive, viewFrom, lat, lon, airLift]);
   // saltar a un punto de visita: te sitúa allí mirando hacia lo que se viene a ver (`look`)
   const goStop = useCallback((s0, from, nameAs = null) => {
     track("sky_stop", { stop: s0.id, from });
@@ -3010,8 +3012,6 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [monBase.relief, monBase.status, monBase.key, monKey, monNear, lat, lon, modelRev]);   // eslint-disable-line react-hooks/exhaustive-deps
   // (con la maqueta cargada no se dibuja nada hasta tener con qué ponerla a su altura: sin eso salía un instante vista desde abajo)
   const modelWaits = monNear.some((m) => m.model && siteModel(m.model)) && !siteRelief;
-  // (un punto de visita aéreo —`air`, como desde un dron sobre el Templo Fortificado de Chankillo—: solo si se está justo en él)
-  const airLift = useMemo(() => { const q = siteStops && siteStops.stops.find((x) => x.air && offsetOf(lat, lon, x.lat, x.lon).d < 3); return q ? q.air : 0; }, [siteStops, lat, lon]);
   const monItems = useMemo(() => (monOn && hzData && monBase.status === "ok" && monBase.key === monKey && !modelWaits
     ? placeMonuments(monNear, { lat, lon, ground: monBase.ground, air: airLift }, monBase.bases, siteRelief) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon, siteRelief, modelRev, modelWaits, airLift]);   // eslint-disable-line react-hooks/exhaustive-deps
   const summitLift = placeSummit && nearData && monItems.length === 0 ? SUMMIT_LIFT_M : 0;

@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.94.0 — Tomas aéreas en los sitios arqueológicos y puertas del templo
+
+- **Tomas aéreas («Desde el aire») en los 16 sitios arqueológicos con piezas en 3D**, como desde un dron sobre el centro del sitio, mirando hacia su pieza principal. En los sitios extensos hay varias, una por zona: Guiza (Keops y Kefrén), Teotihuacan (Sol y Luna), Cochasquí (pirámides y montículos) y Chankillo (templo, Trece Torres y recintos del este). La altura depende del tamaño de la zona, siempre 40 m o más por encima de lo que queda debajo. Stonehenge, Chichén Itzá, Newgrange, Ingapirca, Maeshowe, Abu Simbel, Karnak, Angkor Wat y el Coliseo estrenan puntos de visita: la vista general y la toma aérea.
+- Desde una toma aérea se dibuja también la pieza que queda justo debajo.
+- **Puertas del Templo Fortificado:** diez vanos de 3 m, cada uno junto al parapeto que lo protegía (los parapetos se ven en la maqueta; los vanos no, por los derrumbes).
+- **La arena ya no tapa los muros:** el suelo de la maqueta se rebaja también bajo ellos. Los taludes en mampostería son solo los de más de 1 m de alto (sin astillas oscuras en el suelo).
+
 ## 1.93.0 — Chankillo: muros de piedra gris y el templo asentado en su cerro
 
 - **Muros de piedra gris** (piedra de campo con mortero) en el Templo Fortificado y en los recintos del oeste y del este: se distinguen del suelo de arena. Las torres siguen claras, como en las fotos.

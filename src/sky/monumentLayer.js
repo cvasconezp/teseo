@@ -66,7 +66,8 @@ export function placeMonuments(list, { lat, lon, ground, air = 0 }, bases, relie
   }
   // Subido a una plataforma (`standOn`): si el lugar cae dentro de la plataforma de una pirámide, los ojos van a 1,7 m
   // sobre ella, así que todo lo demás (y el suelo) baja lo que haga falta.
-  const st = out.find((it) => onPlatform(it.m, it.o));
+  // (desde una toma aérea no: `air` ya se mide desde el suelo, con margen sobre la cima de lo que quede debajo)
+  const st = air > 0 ? null : out.find((it) => onPlatform(it.m, it.o));
   if (st) { const up = st.dz + st.m.height + EYE_M; if (up > 0.01) { for (const it of out) it.dz -= up; out.up = up; } }
   // Vista aérea (`air`, en m): los ojos suben sobre el suelo como desde un dron; todo lo demás baja lo mismo
   if (air > 0 && out.length) { for (const it of out) it.dz -= air; out.up = (out.up || 0) + air; }

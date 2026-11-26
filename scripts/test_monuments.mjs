@@ -213,14 +213,26 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
         setMachuModel(null); }
       // los demás sitios: puntos calculados frente a sus piezas principales
       { const A = allStops(), names = Object.keys(A).sort().join(",");
-        ok(names === "catequilla,chankillo,cochasqui,giza,machupicchu,paranal,teotihuacan,tiwanaku" && Object.values(A).every((L) => L.length >= 2 && new Set(L.map((q) => q.id)).size === L.length), "puntos de visita en ocho sitios; cada uno, al menos la vista general y otro");
+        ok(names === "abusimbel,angkorwat,catequilla,chankillo,chichenitza,cochasqui,coliseo,giza,ingapirca,karnak,machupicchu,maeshowe,newgrange,paranal,stonehenge,teotihuacan,tiwanaku" && Object.values(A).every((L) => L.length >= 2 && new Set(L.map((q) => q.id)).size === L.length), "puntos de visita en diecisiete sitios; cada uno, al menos la vista general y otro");
+        { const air = Object.entries(A).filter(([s]) => s !== "paranal").map(([s, L]) => [s, L.filter((q) => q.air)]);
+          ok(air.every(([, L]) => L.length >= 1 && L.every((q) => q.air >= 40 && q.air <= 220 && q.lookAlt < 0)) && A.giza.filter((q) => q.air).length === 2 && A.machupicchu.filter((q) => q.air).length === 1 && A.stonehenge.filter((q) => q.air).length === 1 && !A.paranal.some((q) => q.air),
+            "tomas aéreas en los dieciséis sitios arqueológicos: una en los compactos, varias en los extensos (Guiza, dos), entre 40 y 220 m, mirando hacia abajo"); }
+        { const bad2 = []; for (const [s, L] of Object.entries(A)) for (const q of L.filter((x) => x.air)) for (const m of MONUMENTS.filter((m) => (m.site || m.id) === s)) { const o = offsetOf(q.lat, q.lon, m.lat, m.lon); if (o.d <= footprintRadius(m) && (m.labelAt ? m.height || 0 : apexOf(m)[2] || m.height || 0) > q.air - 30) bad2.push(s + ":" + q.id); }
+          ok(bad2.length === 0, "ninguna toma aérea queda dentro de una pieza: siempre 30 m o más por encima de lo que tiene debajo" + (bad2.length ? " — " + bad2.join(" ") : "")); }
+        { const bad3 = [], bad4 = [];
+          for (const [s, L] of Object.entries(A)) for (const q of L.filter((x) => x.air)) {
+            const near = monumentsNear(q.lat, q.lon, 25, { air: q.air }), own = MONUMENTS.filter((m) => (m.site || m.id) === s && offsetOf(q.lat, q.lon, m.lat, m.lon).d <= Math.min(25000, m.far || Infinity));
+            if (!near.length || own.some((m) => !near.includes(m))) bad3.push(s + ":" + q.id);
+            if (L.some((x) => !x.air && offsetOf(q.lat, q.lon, x.lat, x.lon).d < 6) || allStopsAt(q.lat, q.lon).here !== q.id) bad4.push(s + ":" + q.id); }
+          ok(bad3.length === 0, "desde cada toma aérea se dibujan todas las piezas de su sitio, también la que queda debajo" + (bad3.length ? " — " + bad3.join(" ") : ""));
+          ok(bad4.length === 0, "ninguna toma aérea coincide con un punto en tierra (de pie en la vista general no se sube al aire)" + (bad4.length ? " — " + bad4.join(" ") : "")); }
         const bad = [];
         for (const [sid, L] of Object.entries(A)) { if (sid === "machupicchu") continue; const ps = MONUMENTS.filter((m) => m.site === sid && m.kind !== "walls" && !m.modelOnly);
-          for (const q of L.slice(1)) { if (!q.at.length || !byId(q.id)) continue; const m0 = byId(q.id), o0 = offsetOf(q.lat, q.lon, m0.lat, m0.lon);
+          for (const q of L.slice(1)) { if (q.air || !q.at.length || !byId(q.id)) continue; const m0 = byId(q.id), o0 = offsetOf(q.lat, q.lon, m0.lat, m0.lon);
             if (!(Math.abs(((o0.az - q.look + 540) % 360) - 180) < 1.5) || ps.some((m) => onPiece(m, q.lat, q.lon, m === m0 ? 2 : 3)) || offsetOf(L[0].lat, L[0].lon, q.lat, q.lon).d < 40) bad.push(sid + ":" + q.id); } }
         ok(bad.length === 0, "cada punto calculado mira a su pieza, queda fuera de su planta, no pisa ninguna otra y está a más de 40 m de la vista general" + (bad.length ? " — " + bad.join(" ") : ""));
         { const T = A.tiwanaku, d01 = offsetOf(T[0].lat, T[0].lon, T[1].lat, T[1].lon).d, ak = byId("akapana");
-          ok(T.length === 2 && d01 > 150 && T[1].look === 270 && offsetOf(T[1].lat, T[1].lon, ak.lat, ak.lon).d > footprintRadius(ak), "Tiwanaku: la vista general (el frente de Kalasasaya) y Akapana desde el este, fuera de su radio y lejos de la vista general"); }
+          ok(T.length === 3 && T[2].air > 0 && d01 > 150 && T[1].look === 270 && offsetOf(T[1].lat, T[1].lon, ak.lat, ak.lon).d > footprintRadius(ak), "Tiwanaku: la vista general (el frente de Kalasasaya) y Akapana desde el este, fuera de su radio y lejos de la vista general"); }
         const tw = allStopsAt(A.tiwanaku[1].lat, A.tiwanaku[1].lon);
         ok(tw.site === "tiwanaku" && tw.here === A.tiwanaku[1].id && allStopsAt(0, 0) === null && allStopOf("keops").id === "keops" && allStopOf("mp-torreon").id === "sol", "stopsAt y stopOf funcionan en todos los sitios"); }
       ok(allStopsAt(st[2].lat, st[2].lon).here === "plaza" && allStopsAt(st[0].lat + 0.0003, st[0].lon).here === null && allStopsAt(0, -78) === null && allStopOf("mp-torreon").id === "sol" && allStopOf("ponce") === null, "stopsAt dice en qué punto se está; stopOf lleva de un rótulo a su punto"); }
@@ -300,7 +312,7 @@ ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) s
   ok(T && T.model === "chankillo" && T.modelOnly && T.absBase === CHANKILLO_BASE_M && offsetOf(by("chankillo-7").lat, by("chankillo-7").lon, T.lat, T.lon).d > 950, "el Templo Fortificado está a 1 km al noroeste de las torres, con su maqueta");
   ok(O.kind === "walls" && O.segs.length === 8 && mouth.d < 60 && buildFaces(O).length === O.segs.length * 10 && E.segs.length === 23 && MONUMENTS.filter((m) => m.kind === "walls").every((m) => m.height <= 1), "edificio de observación y recintos del este: muros trazados de 1 m como máximo (ruinas: no se reconstruye su alzado); el punto oeste queda junto al edificio");
   const st = stopsAt(-9.561185, -78.229591).stops;
-  ok(st.map((q) => q.id).join(",") === "vista,chankillo-7,este,recintos,templo,templo-aire" && st[5].air === 60 && st[0].name.es === "Punto de observación oeste" && st[0].at[0] === "chankillo-obs" && modelGround(...(() => { const o = offsetOf(T.lat, T.lon, st[4].lat, st[4].lon); return [o.e, o.n]; })(), mdl) != null, "Chankillo: seis puntos de visita (uno aéreo, a 60 m); el del templo cae sobre el suelo de su maqueta");
+  ok(st.slice(0, 6).map((q) => q.id).join(",") === "vista,chankillo-7,este,recintos,templo,templo-aire" && st[5].air === 60 && st.slice(6).every((q) => q.air) && st[0].name.es === "Punto de observación oeste" && st[0].at[0] === "chankillo-obs" && modelGround(...(() => { const o = offsetOf(T.lat, T.lon, st[4].lat, st[4].lon); return [o.e, o.n]; })(), mdl) != null, "Chankillo: seis puntos de visita más sus tomas aéreas; el del templo cae sobre el suelo de su maqueta");
   ok(["chankillo-templo", "chankillo-obs", "chankillo-este"].every((id) => MON_INFO[id] && MON_INFO[id].sources.length >= 3) && /Ministerio de Cultura/.test(shapeCredit("chankillo-templo", "chankillo").text) && /CC BY 4\.0/.test(shapeCredit("chankillo-templo", "chankillo").text) && /trazaron a mano/.test(shapeCredit("chankillo-obs", "chankillo").text) && /Ghezzi y Ruggles \(2007\)/.test(shapeCredit("chankillo-7", "chankillo").text), "Chankillo: fichas con fuentes y crédito de la forma de cada pieza");
   { const { placeMonuments } = await import("../src/sky/monumentLayer.js"); const T0 = by("chankillo-templo"), q = { lat: -9.556924, lon: -78.236026 };
     const base = placeMonuments([T0], { ...q, ground: 300 }, { [T0.id]: 300 }), air = placeMonuments([T0], { ...q, ground: 300, air: 60 }, { [T0.id]: 300 });
