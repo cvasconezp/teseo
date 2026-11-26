@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.101.1 — Nieve y aguanieve según la temperatura del lugar
+
+- **En una cumbre fría ya no «llueve»:** el código del tiempo de Open-Meteo sale de su celda del modelo, más baja y cálida que una cumbre (en el Cotopaxi, con −4 °C en la cima, decía «lluvia»). Ahora, con la temperatura del lugar, la lluvia pasa a **nieve** con 0 °C o menos y a **aguanieve** entre 0 y 2 °C, en la barra del tiempo, en la tarjeta (horas y días; el día, por su máxima) y en el cielo: la nieve se dibuja más blanca, como un velo parejo sin hilos y, si cae donde estás, en copos en vez de gotas. Las tormentas no cambian.
+
 ## 1.101.0 — «Acerca» con escenas grabadas en Teseo, meteoros «desde tu lugar» y el calendario por mes
 
 - **Acerca, más corta y directa:** Ruta, Ahora y los tres laboratorios de Preguntas pasan de tarjetas con captura a botones con icono. La videoteca queda en una sola fila que se desliza. «De dónde sale cada cosa» y las notas de cada figura se pliegan (siguen ahí, a un toque). «Apoya a Teseo» conserva sus cuatro tarjetas al final.

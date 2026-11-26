@@ -139,7 +139,7 @@ uniform float uOver[3];
 uniform float uCov[3];
 uniform float uOverR;
 uniform float uFogB;
-uniform float uRain;
+uniform float uRain, uSnow;
 uniform float uMottle;
 uniform vec3 uRainCol;
 varying vec3 vWorld;
@@ -256,6 +256,7 @@ void main() {
         float dn = lowDens(hd * x);
         // mantos verticales (la lluvia cae en cortinas, no en una pared lisa)
         float streak = 0.45 + 0.55 * vnoise(hd * x / 0.7 + vec2(float(i) * 7.3, z * 0.15));   // columnas de ~1 km, fijas en el sitio
+        streak = mix(streak, 0.7 + 0.3 * vnoise(hd * x / 1.6 + vec2(float(i) * 3.1, z * 0.05)), uSnow);   // la nieve: velo más parejo, sin hilos
         veil += (1.0 - veil) * dn * uRain * 0.34 * streak * wz;
       }
     }
@@ -264,10 +265,15 @@ void main() {
     if (here > 0.05 && d.y > 0.0) {
       float sx = az * 286.5, id = floor(sx), fx = fract(sx);
       float line = smoothstep(0.42, 0.5, fx) * smoothstep(0.58, 0.5, fx);
-      float dash = step(0.45, fract(asin(d.y) * (3.0 + 4.0 * rhash(id + 3.1)) + rhash(id)));
-      veil += (1.0 - veil) * here * 0.07 * line * dash * (1.0 - smoothstep(0.75, 0.95, d.y));
+      float vy = fract(asin(d.y) * (3.0 + 4.0 * rhash(id + 3.1)) + rhash(id));
+      float dash = step(0.45, vy);
+      // (la nieve: copos —puntos— en vez de hilos)
+      // (redondos: la celda es ~10 veces más alta que ancha)
+      float flake = 1.0 - smoothstep(0.22, 0.42, length(vec2(fx - 0.5, (fract(vy * 6.0) - 0.5) * 9.5)));
+      float fall = mix(line * dash, flake * step(0.55, rhash(id + floor(vy * 6.0) * 1.7)) * 3.5, uSnow);
+      veil += (1.0 - veil) * here * 0.07 * fall * (1.0 - smoothstep(0.75, 0.95, d.y));
     }
-    acc = vec4(uRainCol * veil, veil);
+    acc = vec4(mix(uRainCol, max(uRainCol, uLit * 0.92), uSnow) * veil, veil);   // la nieve, más blanca
   }
 ${LAYERS.map(layerGlsl).join("\n")}
   if (acc.a < 0.003) discard;
@@ -416,7 +422,7 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
     uSun: { value: new THREE.Vector3(0, 1, 0) }, uRim: { value: 0 }, uHaze: { value: 0 },
     uMapOn: { value: 0 }, uMapW: { value: 0 }, uMapHalf: { value: 151.5 }, uMap: { value: null },
     uMapOff: { value: [new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2()] },
-    uOver: { value: [0, 0, 0] }, uCov: { value: [0, 0, 0] }, uOverR: { value: 25 }, uFogB: { value: 0 }, uRain: { value: 0 }, uMottle: { value: 0 }, uRainCol: { value: new THREE.Color(0.5, 0.52, 0.56) },
+    uOver: { value: [0, 0, 0] }, uCov: { value: [0, 0, 0] }, uOverR: { value: 25 }, uFogB: { value: 0 }, uRain: { value: 0 }, uSnow: { value: 0 }, uMottle: { value: 0 }, uRainCol: { value: new THREE.Color(0.5, 0.52, 0.56) },
   };
   let mapTex = null, mapSat = null;
   const mat = (side) => new THREE.ShaderMaterial({
@@ -477,6 +483,7 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
         const wx = st.wx;
         uniforms.uFogB.value = wx && wx.beta > 0 ? wx.beta : 0;
         uniforms.uRain.value = wx && wx.rain > 0 ? wx.rain : 0;
+        uniforms.uSnow.value = wx && wx.snow > 0 ? Math.min(1, wx.snow) : 0;
         uniforms.uMottle.value = wx ? (wx.overcast || 0) * L.day : 0;
         setC(uniforms.uRainCol, L.rain);
       }

@@ -28,7 +28,7 @@ function parseHours(h, n) {
       dew: g("dew_point_2m", i, -90, 50), hPa: g("pressure_msl", i, 800, 1100),
       pop: g("precipitation_probability", i, 0, 100), mm: g("precipitation", i, 0, 500), uv: g("uv_index", i, 0, 30), visKm: vis != null ? vis / 1000 : null, cloud: g("cloud_cover", i, 0, 100),
       windKmh: ws, windFrom: ws != null && wd != null ? ((wd % 360) + 360) % 360 : null,
-      code: Number.isFinite(h.weather_code && h.weather_code[i]) ? h.weather_code[i] : null, day: !(h.is_day && h.is_day[i] === 0),
+      code: Number.isFinite(h.weather_code && h.weather_code[i]) ? codeAtTemp(h.weather_code[i], g("temperature_2m", i, -90, 70)) : null, day: !(h.is_day && h.is_day[i] === 0),
     };
   }).filter((x) => Number.isFinite(x.t));
 }
@@ -38,7 +38,8 @@ function parseDays(d, n) {
   if (!d || !Array.isArray(d.time)) return [];
   const g = (k, i, lo, hi) => n(d[k] && d[k][i], lo, hi);
   return d.time.map((t, i) => ({
-    t: Number(t), code: Number.isFinite(d.weather_code && d.weather_code[i]) ? d.weather_code[i] : null,
+    // (del día, con su máxima: nieve solo si ni a la hora más cálida pasa de 0 °C)
+    t: Number(t), code: Number.isFinite(d.weather_code && d.weather_code[i]) ? codeAtTemp(d.weather_code[i], g("temperature_2m_max", i, -90, 70)) : null,
     tmax: g("temperature_2m_max", i, -90, 70), tmin: g("temperature_2m_min", i, -90, 70), mm: g("precipitation_sum", i, 0, 2000),
   })).filter((x) => Number.isFinite(x.t));
 }
@@ -63,7 +64,7 @@ export function parseNow(json) {
   // windKmh: velocidad a 10 m del suelo; windFrom: de dónde viene (grados desde el norte hacia el este), como en meteorología.
   // Para la tarjeta: feels (sensación, °C), rh (humedad, %), pop (probabilidad de lluvia, %), uv, visKm, cloud (%)
   return {
-    temp: c.temperature_2m, code: Number.isFinite(c.weather_code) ? c.weather_code : null, day: c.is_day !== 0, windKmh: ws, windFrom: wd,
+    temp: c.temperature_2m, code: Number.isFinite(c.weather_code) ? codeAtTemp(c.weather_code, c.temperature_2m) : null, day: c.is_day !== 0, windKmh: ws, windFrom: wd,
     feels: n(c.apparent_temperature, -90, 70), rh: n(c.relative_humidity_2m, 0, 100), pop: n(c.precipitation_probability, 0, 100),
     uv: n(c.uv_index, 0, 30), visKm: n(c.visibility, 0) != null ? c.visibility / 1000 : null, cloud: n(c.cloud_cover, 0, 100),
     dew: n(c.dew_point_2m, -90, 50), hPa: n(c.pressure_msl, 800, 1100),
@@ -71,6 +72,22 @@ export function parseNow(json) {
     hours: parseHours(json.hourly, n),
     days: parseDays(json.daily, n),
   };
+}
+
+// LLUVIA, NIEVE O AGUANIEVE SEGÚN LA TEMPERATURA DEL LUGAR: el código de Open-Meteo sale de su celda del modelo, más
+// baja y más cálida que una cumbre; en el Cotopaxi, con −4 °C en la cima, decía «lluvia». La temperatura sí viene
+// corregida a la altura del lugar (se pide con elevation), así que la lluvia pasa a nieve con 0 °C o menos y a
+// aguanieve por debajo de 2 °C (códigos WMO 68 y 69: lluvia y nieve). Las tormentas y lo demás no cambian
+export const SNOW_MAX_C = 0, SLEET_MAX_C = 2;
+const RAIN_LIGHT = new Set([51, 53, 56, 61, 66, 80]), RAIN_MOD = new Set([55, 57, 63, 81]), RAIN_HEAVY = new Set([65, 67, 82]);
+const SHOWERS = new Set([80, 81, 82]);
+export function codeAtTemp(code, t) {
+  if (code == null || !Number.isFinite(t)) return code;
+  const light = RAIN_LIGHT.has(code), heavy = RAIN_HEAVY.has(code);
+  if (!light && !heavy && !RAIN_MOD.has(code)) return code;
+  if (t <= SNOW_MAX_C) return SHOWERS.has(code) ? (light ? 85 : 86) : light ? 71 : heavy ? 75 : 73;
+  if (t < SLEET_MAX_C) return light ? 68 : 69;
+  return code;
 }
 
 /** Código WMO → icono (icons.jsx) y nombre del estado. */
@@ -81,23 +98,24 @@ export function wxKind(code, day = true) {
   if (code === 3) return "cloud";
   if (code === 45 || code === 48) return "fog";
   if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snow";
+  if (code === 68 || code === 69) return "sleet";
   if (code >= 95) return "storm";
   if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
   return "cloud";
 }
 
 export const WX_NAMES = {
-  es: { sun: "Despejado", moon: "Despejado", partly: "Parcialmente nublado", partly_night: "Parcialmente nublado", cloud: "Nublado", fog: "Niebla", rain: "Lluvia", snow: "Nieve", storm: "Tormenta" },
-  en: { sun: "Clear", moon: "Clear", partly: "Partly cloudy", partly_night: "Partly cloudy", cloud: "Cloudy", fog: "Fog", rain: "Rain", snow: "Snow", storm: "Thunderstorm" },
+  es: { sun: "Despejado", moon: "Despejado", partly: "Parcialmente nublado", partly_night: "Parcialmente nublado", cloud: "Nublado", fog: "Niebla", rain: "Lluvia", sleet: "Aguanieve", snow: "Nieve", storm: "Tormenta" },
+  en: { sun: "Clear", moon: "Clear", partly: "Partly cloudy", partly_night: "Partly cloudy", cloud: "Cloudy", fog: "Fog", rain: "Rain", sleet: "Sleet", snow: "Snow", storm: "Thunderstorm" },
 };
 /** «posible lluvia» y compañía: lo que el pronóstico da con poca probabilidad (marca pequeña junto al icono). */
 export const WX_MAYBE = {
-  es: { rain: "posible lluvia", snow: "posible nieve", storm: "posible tormenta" },
-  en: { rain: "chance of rain", snow: "chance of snow", storm: "chance of thunderstorms" },
+  es: { rain: "posible lluvia", sleet: "posible aguanieve", snow: "posible nieve", storm: "posible tormenta" },
+  en: { rain: "chance of rain", sleet: "chance of sleet", snow: "chance of snow", storm: "chance of thunderstorms" },
 };
 
 /** Lo que moja, de menos a más severo (para elegir el peor). */
-export const WET = { rain: 1, snow: 2, storm: 3 };
+export const WET = { rain: 1, sleet: 1.5, snow: 2, storm: 3 };
 /** Probabilidad (%) por debajo de la cual la lluvia, la nieve o la tormenta de una hora solo se marcan como posibles. */
 export const MAYBE_POP = 30;
 const nubes = (cloud, day) => (cloud != null && cloud < 25 ? (day ? "sun" : "moon") : cloud != null && cloud < 70 ? (day ? "partly" : "partly_night") : "cloud");

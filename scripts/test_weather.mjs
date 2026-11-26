@@ -337,5 +337,22 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
     "el sombreador repite la transición; la pasada por distancia se apaga con el relieve cercano");
 }
 
+// lluvia, nieve o aguanieve según la temperatura del lugar (nowWeather.codeAtTemp)
+{
+  const nw = await import("../src/sky/nowWeather.js"), rl = await import("../src/sky/rainLook.js");
+  ok(nw.codeAtTemp(61, -4) === 71 && nw.codeAtTemp(63, -4) === 73 && nw.codeAtTemp(65, 0) === 75 && nw.codeAtTemp(80, -1) === 85 && nw.codeAtTemp(82, -1) === 86,
+    "con 0 °C o menos, la lluvia es nieve (y los chubascos, de nieve)");
+  ok(nw.codeAtTemp(61, 1) === 68 && nw.codeAtTemp(65, 1.9) === 69 && nw.codeAtTemp(61, 2) === 61 && nw.codeAtTemp(95, -10) === 95 && nw.codeAtTemp(3, -10) === 3 && nw.codeAtTemp(61, null) === 61,
+    "entre 0 y 2 °C, aguanieve; las tormentas, las nubes y sin temperatura no cambian");
+  ok(nw.wxKind(68) === "sleet" && nw.wxKind(71) === "snow" && nw.WX_NAMES.es.sleet === "Aguanieve" && nw.WET.sleet > nw.WET.rain,
+    "la aguanieve tiene su icono y su nombre");
+  const j = { current: { temperature_2m: -4, weather_code: 63, is_day: 1, time: 1800000000 }, hourly: { time: [1800000000], temperature_2m: [-4], weather_code: [61] }, daily: { time: [1799990000], weather_code: [63], temperature_2m_max: [1], temperature_2m_min: [-6] } };
+  const now = nw.parseNow(j);
+  ok(now.code === 73 && now.hours[0].code === 71 && now.days[0].code === 69, "en la cumbre del Cotopaxi a −4 °C: nieve ahora y en la hora; el día, con 1 °C de máxima, aguanieve");
+  const fc = { low: 1, mid: 0, high: 0, precip: 0.9, mm: 2 };
+  ok(rl.rainLook({ ...fc, code: 73 }).snow === 1 && rl.rainLook({ ...fc, code: 68 }).snow === 0.5 && rl.rainLook({ ...fc, code: 63 }).snow === 0 && rl.rainLook({ ...fc, code: 69 }).rain > 0,
+    "lo que cae: nieve, aguanieve (mitad) o lluvia");
+}
+
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

@@ -16,6 +16,7 @@
 export const RAIN_BY_CODE = {
   51: 0.25, 53: 0.35, 55: 0.45, 56: 0.3, 57: 0.45,       // llovizna
   61: 0.45, 63: 0.7, 65: 1, 66: 0.45, 67: 0.8,           // lluvia
+  68: 0.4, 69: 0.65,                                     // aguanieve (nowWeather.codeAtTemp)
   71: 0.3, 73: 0.5, 75: 0.8, 77: 0.3,                    // nieve
   80: 0.5, 81: 0.75, 82: 1, 85: 0.5, 86: 0.8,            // chubascos
   95: 1, 96: 1, 99: 1,                                   // tormenta
@@ -117,7 +118,9 @@ export function rainLook(fc, sat = null, w = 0) {
   let beta = Math.max(vb, 2 * Math.pow(rain, 2.2));
   if (FOG.has(fc.code) && !Number.isFinite(fc.visKm)) beta = Math.max(beta, K / 0.5);
   if (over != null && w > 0) beta *= 1 - w + w * sstep(0.15, 0.6, over);
-  return { rain, shower, beta };
+  // (cuánto de lo que cae es nieve: 1 nieve, 0,5 aguanieve; cloudsLayer la dibuja más blanca, lenta y en copos)
+  const c = fc.code, snow = (c >= 71 && c <= 77) || c === 85 || c === 86 ? 1 : c === 68 || c === 69 ? 0.5 : 0;
+  return { rain, shower, beta, snow };
 }
 
 /**
@@ -175,5 +178,5 @@ export function weatherSky(st, clouds, look) {
   // de noche, sin luz del Sol, las nubes ya las pinta cloudsLayer; el resplandor del crepúsculo se apaga bajo ellas
   const colors = { ...c, zenith, horizon, sunGlow: mix3(c.sunGlow, horizon, o * 0.6), glow: c.glow * (1 - 0.9 * o),
     ground: mix3(c.ground, horizon, 0.1 * o * day) };
-  return { ...st, colors, wx: { rain, overcast: o, beta, shower: !!(look && look.shower) } };
+  return { ...st, colors, wx: { rain, overcast: o, beta, shower: !!(look && look.shower), snow: look && look.snow ? look.snow : 0 } };
 }

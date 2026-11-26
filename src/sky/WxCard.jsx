@@ -28,7 +28,7 @@ import { wxIcon, dayIcon, WX_NAMES, WX_MAYBE, compass8, fmtWind, hourAt } from "
 import "./weather.css";
 
 const pct = (f) => `${Math.round(f * 100)} %`;
-const BADGE = { rain: "droplet", snow: "flake", storm: "bolt" };
+const BADGE = { rain: "droplet", sleet: "flake", snow: "flake", storm: "bolt" };
 /** Icono del tiempo con su marca pequeña de «posible lluvia / nieve / tormenta» (wxIcon o dayIcon de nowWeather.js). */
 export function WxIco({ ic, size = 22 }) {
   return (

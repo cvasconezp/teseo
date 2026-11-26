@@ -1,7 +1,7 @@
 {
   "name": "teseo",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "version": "1.101.0",
+  "version": "1.101.1",
   "private": true,
   "type": "module",
   "dependencies": {
