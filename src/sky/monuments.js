@@ -75,7 +75,8 @@ const chankillo = CH_TOWERS.map(([e, n, rot, h], i) => ({
 //  · Edificio de observación (oeste), de unos 34 × 51 m, con el corredor de 40 m por fuera de su muro sureste: su
 //    boca, a 3 m del lugar «Chankillo» de Teseo, es el punto de observación oeste.
 //  · Muros de la plaza oeste, y los recintos del este (trazado simplificado: 23 de sus muros principales).
-const CH_WALL = { site: "chankillo", kind: "walls", thick: 1.1, ring: 3, far: 2600, relief: true, aloof: true, walkIn: true, color: TAN, mat: "tower", ground: "sand", solid: false };
+// (`far` 700: de más lejos —desde el templo o desde el aire— un muro de 1 m es un trazo suelto en el aire, sin el suelo de su sitio)
+const CH_WALL = { site: "chankillo", kind: "walls", thick: 1.1, ring: 3, far: 700, relief: true, aloof: true, walkIn: true, color: TAN, mat: "tower", ground: "sand", solid: false };
 const chankilloRest = [
   { id: "chankillo-templo", site: "chankillo", name: { es: "Templo Fortificado", en: "Fortified Temple" }, sub: { es: "tres murallas · modelo del Ministerio de Cultura", en: "three walls · Ministry of Culture model" },
     lat: -9.556834, lon: -78.236026, kind: "llaqta", height: 8, foot: 235, far: 3200, walkIn: true, solid: false, relief: true, aloof: true,

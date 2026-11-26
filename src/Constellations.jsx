@@ -3010,8 +3010,10 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   }, [monBase.relief, monBase.status, monBase.key, monKey, monNear, lat, lon, modelRev]);   // eslint-disable-line react-hooks/exhaustive-deps
   // (con la maqueta cargada no se dibuja nada hasta tener con qué ponerla a su altura: sin eso salía un instante vista desde abajo)
   const modelWaits = monNear.some((m) => m.model && siteModel(m.model)) && !siteRelief;
+  // (un punto de visita aéreo —`air`, como desde un dron sobre el Templo Fortificado de Chankillo—: solo si se está justo en él)
+  const airLift = useMemo(() => { const q = siteStops && siteStops.stops.find((x) => x.air && offsetOf(lat, lon, x.lat, x.lon).d < 3); return q ? q.air : 0; }, [siteStops, lat, lon]);
   const monItems = useMemo(() => (monOn && hzData && monBase.status === "ok" && monBase.key === monKey && !modelWaits
-    ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases, siteRelief) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon, siteRelief, modelRev, modelWaits]);   // eslint-disable-line react-hooks/exhaustive-deps
+    ? placeMonuments(monNear, { lat, lon, ground: monBase.ground, air: airLift }, monBase.bases, siteRelief) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon, siteRelief, modelRev, modelWaits, airLift]);   // eslint-disable-line react-hooks/exhaustive-deps
   const summitLift = placeSummit && nearData && monItems.length === 0 ? SUMMIT_LIFT_M : 0;
   // sin relieve propio del sitio, el piso de los monumentos sigue el relieve 3D (una loma no queda como un llano)
   // (más fina que la de /api/elevation: 10 anillos × 72 acimuts; cada edificio queda en su explanada)
@@ -3155,7 +3157,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const wait = nearPending || ref.near3d.loading;
     ref.terrain.setCovered(wait ? 1e9 : ref.near3d.coverKm); ref.monuments.setSkirt(!(ref.near3d.coverKm > 0) && !wait);
     ref._dirty = true;
-  }, [hzData, nearData, hzKey, ready, summitLift, nearPending, monItems.length, monBase.ground]);
+  }, [hzData, nearData, hzKey, ready, summitLift, nearPending, monItems.length, monItems.up, monBase.ground]);
 
   // columnas de ceniza (ilustrativas): la simulación pedida desde la ficha de un volcán y, suaves, las de los que el
   // Smithsonian da en erupción este año y se ven en el horizonte; el viento, del pronóstico (capa media)

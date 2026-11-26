@@ -293,15 +293,18 @@ ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) s
   const gS = modelGround(-8.8, -5.2, mdl), gR = modelGround(-1.1, -55.8, mdl);
   ok(mdl.nv < 65536 && mdl.nt > 80000 && b.length < 1.3e6 && mdl.tone.length === mdl.nt && mdl.cls.every((c) => c < 2), "templo de Chankillo: maqueta de menos de 1,3 MB, con clase y tono por cara");
   { let w = 0, top = 0; for (let t = 0; t < mdl.nt; t++) if (mdl.cls[t] === 0) w++; const F = buildFaces(by("chankillo-templo")).filter((f) => f.mat === "tower"); for (const f of F) for (const q of f.v) top = Math.max(top, q[2]);
-    ok(w > 5000 && w < 12000 && (F.length === w || F.length === 0), `templo de Chankillo: ${w} caras de muro (clase 0), con la mampostería de los recintos y sin suavizar`); }
+    ok(w > 7000 && w < 12000 && (F.length === w || F.length === 0), `templo de Chankillo: ${w} caras de muro (clase 0), con la mampostería de los recintos y sin suavizar`); }
   ok(gS > 309 && gS < 313 && gR > 303 && gR < 308 && modelGround(400, 0, mdl) == null, "templo de Chankillo: el suelo de la maqueta está a su cota (unos 310 m en lo alto) y fuera no hay");
   const T = by("chankillo-templo"), O = by("chankillo-obs"), E = by("chankillo-este");
   const mouth = offsetOf(-9.561185, -78.229591, O.lat, O.lon);
   ok(T && T.model === "chankillo" && T.modelOnly && T.absBase === CHANKILLO_BASE_M && offsetOf(by("chankillo-7").lat, by("chankillo-7").lon, T.lat, T.lon).d > 950, "el Templo Fortificado está a 1 km al noroeste de las torres, con su maqueta");
   ok(O.kind === "walls" && O.segs.length === 8 && mouth.d < 60 && buildFaces(O).length === O.segs.length * 10 && E.segs.length === 23 && MONUMENTS.filter((m) => m.kind === "walls").every((m) => m.height <= 1), "edificio de observación y recintos del este: muros trazados de 1 m como máximo (ruinas: no se reconstruye su alzado); el punto oeste queda junto al edificio");
   const st = stopsAt(-9.561185, -78.229591).stops;
-  ok(st.map((q) => q.id).join(",") === "vista,chankillo-7,este,recintos,templo" && st[0].name.es === "Punto de observación oeste" && st[0].at[0] === "chankillo-obs" && modelGround(...(() => { const o = offsetOf(T.lat, T.lon, st[4].lat, st[4].lon); return [o.e, o.n]; })(), mdl) != null, "Chankillo: cinco puntos de visita; el del templo cae sobre el suelo de su maqueta");
+  ok(st.map((q) => q.id).join(",") === "vista,chankillo-7,este,recintos,templo,templo-aire" && st[5].air === 60 && st[0].name.es === "Punto de observación oeste" && st[0].at[0] === "chankillo-obs" && modelGround(...(() => { const o = offsetOf(T.lat, T.lon, st[4].lat, st[4].lon); return [o.e, o.n]; })(), mdl) != null, "Chankillo: seis puntos de visita (uno aéreo, a 60 m); el del templo cae sobre el suelo de su maqueta");
   ok(["chankillo-templo", "chankillo-obs", "chankillo-este"].every((id) => MON_INFO[id] && MON_INFO[id].sources.length >= 3) && /Ministerio de Cultura/.test(shapeCredit("chankillo-templo", "chankillo").text) && /CC BY 4\.0/.test(shapeCredit("chankillo-templo", "chankillo").text) && /trazaron a mano/.test(shapeCredit("chankillo-obs", "chankillo").text) && /Ghezzi y Ruggles \(2007\)/.test(shapeCredit("chankillo-7", "chankillo").text), "Chankillo: fichas con fuentes y crédito de la forma de cada pieza");
+  { const { placeMonuments } = await import("../src/sky/monumentLayer.js"); const T0 = by("chankillo-templo"), q = { lat: -9.556924, lon: -78.236026 };
+    const base = placeMonuments([T0], { ...q, ground: 300 }, { [T0.id]: 300 }), air = placeMonuments([T0], { ...q, ground: 300, air: 60 }, { [T0.id]: 300 });
+    ok(air.up === 60 && Math.abs(air[0].dz - (base[0].dz - 60)) < 1e-9, "«Templo desde el aire»: los ojos suben 60 m y todo lo demás baja lo mismo"); }
   // las torres no flotan: la fila sube 16 m de la 1 a la 13 y el suelo dibujado llega al pie de cada una, desde cualquier punto
   {
     const { placeMonuments, groundHeight, reliefPoints, markAloof } = await import("../src/sky/monumentLayer.js");

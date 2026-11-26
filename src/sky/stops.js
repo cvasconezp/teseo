@@ -14,11 +14,14 @@ const AUTO = {
   // (a 3 m de donde la sitúa el mapa de Ghezzi). Las torres, a 45 m (caben varias a la vista). El punto de observación
   // este: a unos 200 m de las torres; desde él los ocasos de junio y de diciembre caen en los extremos de la fila
   // (Ghezzi y Ruggles 2007). Posición aproximada: la que cumple esas dos direcciones (197 m al este del eje).
-  // El Templo Fortificado: dentro, 25 m al oeste del edificio circular del sur (a 8 m del muro más cercano), sobre el suelo de su maqueta.
+  // «Templo desde el aire»: como desde un dron, 60 m sobre el centro del recinto (`air`), mirando hacia las torres.
+  // El Templo Fortificado: dentro, en la explanada al sureste de los dos edificios circulares (a 9 m del muro más cercano), sobre
+  // el suelo de su maqueta, mirando hacia ellos.
   chankillo: ["chankillo", [{ id: "chankillo-7", dist: 45, lookAlt: 13 }],
     [{ id: "este", name: { es: "Punto de observación este", en: "Eastern observing point" }, lat: -9.561131, lon: -78.225674, look: 270, lookAlt: 4, at: [] },
       { id: "recintos", name: { es: "Recintos del este", en: "Eastern buildings" }, lat: -9.562556, lon: -78.225559, look: 230, lookAlt: 0, at: ["chankillo-este"] },
-      { id: "templo", name: { es: "Templo Fortificado", en: "Fortified Temple" }, lat: -9.556943, lon: -78.236318, look: 60, lookAlt: 5, at: ["chankillo-templo"] }],
+      { id: "templo", name: { es: "Templo Fortificado", en: "Fortified Temple" }, lat: -9.557105, lon: -78.235889, look: 315, lookAlt: 4, at: ["chankillo-templo"] },
+      { id: "templo-aire", name: { es: "Templo desde el aire", en: "Temple from the air" }, lat: -9.556924, lon: -78.236026, look: 135, lookAlt: -38, air: 60, at: [] }],
     { name: { es: "Punto de observación oeste", en: "Western observing point" }, look: 90, lookAlt: 3, at: ["chankillo-obs"] }],
   catequilla: ["catequilla", ["catequilla-muro", "catequilla-disco"]],
   paranal: ["paranal", ["vlt-ut1", "vlt-ut4"]],

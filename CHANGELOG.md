@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.91.0 — Templo Fortificado: ruinas reconstruidas y vista aérea
+
+- **Murallas completadas con la misma lógica:** las tres murallas y el muro que rodea los edificios son anillos cerrados; donde a uno le falta un arco, se completa siguiendo su radio a ambos lados, con su alto y su ancho. El edificio rectangular se cierra como un rectángulo con sus cuatro cuartos. Los huecos de menos de 3,5 m quedan abiertos: pueden ser puertas.
+- **Calles limpias:** el suelo entre muros se limpia de derrumbes (lo que sobresale menos de 6 m de ancho se rebaja hasta el suelo de alrededor); las terrazas y la ladera quedan como están, y los muros salen del suelo limpio.
+- La detección de muros abarca toda la muralla exterior, también por el este, y ya no confunde con muros la ladera del borde noroeste.
+- **«Templo desde el aire»:** nuevo punto de visita, como desde un dron 60 m sobre el centro del recinto, mirando hacia las Trece Torres; desde ahí se puede girar y ver todo el templo.
+- El punto «Templo Fortificado» pasa a la explanada al sureste de los dos edificios circulares.
+- Los muros bajos del oeste y del este de Chankillo ya no se dibujan a más de 700 m: desde el templo se veían como trazos sueltos en el aire.
+
 ## 1.90.0 — Templo Fortificado de Chankillo: murallas como muros
 
 - **Las murallas se ven como muros**, con la misma mampostería que los recintos del este, y no como lomas de arena. Van por donde la maqueta del Ministerio de Cultura del Perú muestra un muro (una cresta de más de 0,6 m o un escalón de más de 37°) y con el alto que la maqueta mide en cada punto: unos 2,4 km de muro entre las murallas, los dos edificios circulares y el rectangular. Donde la maqueta no muestra muro, no se dibuja.
