@@ -6,6 +6,8 @@
 // La altitud del lugar va en la consulta, como en nowWeather.js: cada modelo corrige su temperatura a esa altura.
 // Puro salvo fetchModels(); se prueba en scripts/test_models.mjs.
 
+import { wxKind, codeAtTemp } from "./nowWeather.js";
+
 export const OPEN_METEO = "https://api.open-meteo.com/v1/forecast";
 export const MODELS = ["ecmwf_ifs025", "gfs_seamless", "icon_seamless", "meteofrance_seamless", "ukmo_seamless", "jma_seamless", "gem_seamless"];
 /** Desde cuándo los modelos «no coinciden»: grados de diferencia entre el más frío y el más cálido, y mm de lluvia en el día. */
@@ -14,7 +16,7 @@ export const SPREAD_T = 3, SPREAD_MM = 10;
 /** URL: el lugar con 2 decimales (≈ 1 km), su altitud si se sabe; de 1 h atrás a 7 días adelante, hora a hora y por día (en su hora local). */
 export function modelsUrl(lat, lon, elev) {
   const q = new URLSearchParams({
-    latitude: lat.toFixed(2), longitude: lon.toFixed(2), hourly: "temperature_2m",
+    latitude: lat.toFixed(2), longitude: lon.toFixed(2), hourly: "temperature_2m,weather_code",
     daily: "temperature_2m_max,temperature_2m_min,precipitation_sum", models: MODELS.join(","),
     past_hours: "1", forecast_hours: "168", forecast_days: "7", timeformat: "unixtime", timezone: "auto",
   });
@@ -40,14 +42,14 @@ export function stats(xs) {
 }
 
 /**
- * Respuesta → { hours: [{ t, temps: [°C por modelo] }], days: [{ t (s, medianoche local), tmax, tmin, mm: [por modelo] }] }
+ * Respuesta → { hours: [{ t, temps: [°C por modelo], codes: [código WMO por modelo] }], days: [{ t (s, medianoche local), tmax, tmin, mm: [por modelo] }] }
  * (cada lista, con un valor por modelo o null) o null si no trae lo esperado.
  */
 export function parseModels(json) {
   const h = json && json.hourly, d = json && json.daily;
   if (!h || !Array.isArray(h.time)) return null;
   const col = (blk, k, i) => MODELS.map((m) => num(blk[`${k}_${m}`] && blk[`${k}_${m}`][i]));
-  const hours = h.time.map((t, i) => ({ t: Number(t), temps: col(h, "temperature_2m", i) })).filter((x) => Number.isFinite(x.t));
+  const hours = h.time.map((t, i) => ({ t: Number(t), temps: col(h, "temperature_2m", i), codes: col(h, "weather_code", i) })).filter((x) => Number.isFinite(x.t));
   const days = d && Array.isArray(d.time)
     ? d.time.map((t, i) => ({ t: Number(t), tmax: col(d, "temperature_2m_max", i), tmin: col(d, "temperature_2m_min", i), mm: col(d, "precipitation_sum", i) })).filter((x) => Number.isFinite(x.t))
     : [];
@@ -66,6 +68,28 @@ export function tempAt(mod, s) {
   return stats(MODELS.map((_, k) => (a.temps[k] != null && b.temps[k] != null ? a.temps[k] + (b.temps[k] - a.temps[k]) * f : null)));
 }
 
+/**
+ * QUÉ CIELO DAN LOS MODELOS a la hora más cercana a `s` (±30 min): cada uno vota por lo suyo —lluvia, aguanieve,
+ * nieve, tormenta o seco (despejado, nubes, niebla)—, con su código pasado por su propia temperatura (nieve o
+ * aguanieve en frío, nowWeather.codeAtTemp). { n, counts: { rain, sleet, snow, storm, dry } } o null con menos de 3.
+ * Para el icono (nowWeather.voteIcon: por mayoría) y la barra de acuerdo de la tarjeta.
+ */
+export function skyVote(mod, s) {
+  const hs = mod && mod.hours;
+  if (!hs || !hs.length || !Number.isFinite(s)) return null;
+  let best = null, bd = Infinity;
+  for (const x of hs) { const d = Math.abs(x.t - s); if (d < bd) { bd = d; best = x; } }
+  if (!best || bd > 1800 || !best.codes) return null;
+  const counts = { rain: 0, sleet: 0, snow: 0, storm: 0, dry: 0 };
+  let n = 0;
+  best.codes.forEach((c, k) => {
+    if (c == null) return;
+    const kind = wxKind(codeAtTemp(c, best.temps ? best.temps[k] : null));
+    counts[kind in counts ? kind : "dry"]++; n++;
+  });
+  return n >= 3 ? { n, counts } : null;
+}
+
 /** El día (de los modelos) que contiene `s`: { t, tmax, tmin, mm } con stats() en cada uno, o null. */
 export function dayAt(mod, s) {
   const ds = mod && mod.days;
@@ -78,11 +102,14 @@ export function dayAt(mod, s) {
  * ¿Coinciden los modelos? Con la temperatura de esa hora (stats) y la lluvia de ese día (stats): null si coinciden
  * (o faltan datos), o { t: [lo, hi] | null, mm: [lo, hi] | null } con lo que no coincide. Hacen falta al menos 3 modelos.
  */
-export function disagreement(temp, mm) {
+export function disagreement(temp, mm, vote = null) {
   const tOff = temp && temp.n >= 3 && temp.hi - temp.lo >= SPREAD_T;
   const mOff = mm && mm.n >= 3 && mm.hi - mm.lo >= SPREAD_MM;
-  if (!tOff && !mOff) return null;
-  return { t: temp && temp.n >= 3 ? [temp.lo, temp.hi] : null, mm: mm && mm.n >= 3 ? [mm.lo, mm.hi] : null, n: Math.max(temp ? temp.n : 0, mm ? mm.n : 0) };
+  // (y el cielo: si 3 o más dan que cae algo y 3 o más que no —en 7, un 4 contra 3—, no coinciden en si llueve)
+  const wet = vote ? vote.n - vote.counts.dry : 0, skyOff = !!(vote && vote.n >= 3 && Math.min(wet, vote.counts.dry) >= 3);
+  if (!tOff && !mOff && !skyOff) return null;
+  return { t: tOff || mOff ? (temp && temp.n >= 3 ? [temp.lo, temp.hi] : null) : null, mm: tOff || mOff ? (mm && mm.n >= 3 ? [mm.lo, mm.hi] : null) : null, sky: skyOff, skyN: vote ? vote.n : 0,
+    n: Math.max(temp ? temp.n : 0, mm ? mm.n : 0, vote ? vote.n : 0) };
 }
 
 // ── red ──────────────────────────────────────────────────────────────────────────────────────────────────

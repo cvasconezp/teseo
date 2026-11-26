@@ -65,6 +65,17 @@
 .sk-stage .sk-wxc-hero-r b { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .sk-stage .sk-wxc-unsure { display: flex; align-items: flex-start; gap: 6px; margin: 10px 0 0; padding: 7px 9px; border-radius: 10px; background: rgba(240, 180, 60, 0.14); border: 1px solid rgba(240, 180, 60, 0.4); color: #f6d58e; font-size: 12px; line-height: 1.35; }
 .sk-stage .sk-wxc-unsure svg { flex: none; margin-top: 1px; }
+/* barra de acuerdo: qué dan los 7 modelos a esta hora (solo lo que alguno da) */
+.sk-stage .sk-wxc-vote { margin: 10px 0 0; }
+.sk-stage .sk-wxc-vote-bar { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; }
+.sk-stage .sk-wxc-vote-bar i { display: block; min-width: 4px; }
+.sk-stage .sk-wxc-vote-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 12px; color: rgba(255, 255, 255, 0.72); }
+.sk-stage .sk-wxc-vote-key span { display: inline-flex; align-items: center; gap: 4px; }
+.sk-stage .sk-wxc-vote-bar .is-rain { background: #5b9cf0; } .sk-stage .sk-wxc-vote-key .is-rain { color: #8fbaf5; }
+.sk-stage .sk-wxc-vote-bar .is-storm { background: #e9a83a; } .sk-stage .sk-wxc-vote-key .is-storm { color: #f0c06d; }
+.sk-stage .sk-wxc-vote-bar .is-sleet { background: #9fc0e6; } .sk-stage .sk-wxc-vote-key .is-sleet { color: #b9d1ee; }
+.sk-stage .sk-wxc-vote-bar .is-snow { background: #e6edf6; } .sk-stage .sk-wxc-vote-key .is-snow { color: #e6edf6; }
+.sk-stage .sk-wxc-vote-bar .is-dry { background: rgba(255, 255, 255, 0.22); } .sk-stage .sk-wxc-vote-key .is-dry { color: rgba(255, 255, 255, 0.6); }
 .sk-stage .sk-wxc-sec .sk-wxc-row { margin-top: 12px; }
 .sk-stage .sk-wxc-strip { display: flex; gap: 6px; margin: 6px -12px 0; padding: 0 12px 6px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding: 0 12px; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.2) transparent; }
 .sk-stage .sk-wxc-cell { flex: 0 0 60px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 2px 7px; border-radius: 12px; border: 1px solid transparent; background: rgba(255, 255, 255, 0.06); color: inherit; font: inherit; cursor: pointer; scroll-snap-align: start; font-variant-numeric: tabular-nums; }

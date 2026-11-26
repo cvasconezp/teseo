@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.102.0 — El cielo por votación de los 7 modelos
+
+- **El icono del tiempo, por mayoría:** antes salía de un solo pronóstico (la combinación «mejor» de Open-Meteo). Ahora cada uno de los 7 modelos (ECMWF, GFS, ICON, Météo-France, UKMO, JMA y GEM) vota a esa hora por lluvia, aguanieve, nieve, tormenta o seco, con su código pasado por su propia temperatura. Si más de la mitad dan algo que cae, ese es el icono (en empate, lo más severo); si 2 o más dan tormenta sin ser mayoría, va como «posible tormenta»; si solo 2 o 3 dan algo, el icono de las nubes con «posible …». Vale para la barra del tiempo y la tarjeta.
+- **Barra de acuerdo en la tarjeta:** bajo la temperatura, una barra con lo que dan los modelos (p. ej. «Lluvia 4 · Tormenta 2 · Seco 1»); lo que ningún modelo da no se muestra, y si ninguno da algo que cae, no hay barra.
+- **«Poca certeza» también por el cielo:** el aviso sale además cuando 3 o más modelos dan que cae algo (lluvia o nieve) y 3 o más que no. Las horas de la franja también llevan el icono por votación.
+- La temperatura y los milímetros siguen con la mediana de los modelos.
+
 ## 1.101.1 — Nieve y aguanieve según la temperatura del lugar
 
 - **En una cumbre fría ya no «llueve»:** el código del tiempo de Open-Meteo sale de su celda del modelo, más baja y cálida que una cumbre (en el Cotopaxi, con −4 °C en la cima, decía «lluvia»). Ahora, con la temperatura del lugar, la lluvia pasa a **nieve** con 0 °C o menos y a **aguanieve** entre 0 y 2 °C, en la barra del tiempo, en la tarjeta (horas y días; el día, por su máxima) y en el cielo: la nieve se dibuja más blanca, como un velo parejo sin hilos y, si cae donde estás, en copos en vez de gotas. Las tormentas no cambian.

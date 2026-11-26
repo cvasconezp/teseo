@@ -101,10 +101,10 @@ import IssSheet from "./sky/IssSheet.jsx";
 import PeakSheet from "./sky/PeakSheet.jsx";
 import MonSheet from "./sky/MonSheet.jsx";
 import { WxCard, WxIco } from "./sky/WxCard.jsx";
-import { fetchModels, tempAt } from "./sky/models.js";
+import { fetchModels, tempAt, skyVote } from "./sky/models.js";
 import { riseTransitSet, H0_SUN } from "./sky/riseset.js";
 import { TOUR_STOPS, TOUR_T, CANDIDATES, pickVisible, sunsetAt, gizaView, KHUFU, VOLCANO_VIEW, SANGAY, bearing, deepKind, nameOf } from "./sky/tour.js";
-import { nowUrl, parseNow, wxIcon, WX_NAMES, WX_MAYBE, fmtTemp, fmtWind, windText, windVector, hourAt, wxForPlace } from "./sky/nowWeather.js";
+import { nowUrl, parseNow, wxIcon, voteIcon, WX_NAMES, WX_MAYBE, fmtTemp, fmtWind, windText, windVector, hourAt, wxForPlace } from "./sky/nowWeather.js";
 import { fetchVolcanoes, matchVolcanoes, recentEruption, eruptingInView, volcanoesOnSkyline, VT as VOLC_T } from "./sky/volcanoes.js";
 import { angleOf as terrainAngleOf } from "./sky/terrainLayer.js";
 import { createPlumeLayer, veiColumnKm, plumeParams } from "./sky/plumeLayer.js";
@@ -4590,7 +4590,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   );
   const wxPill = wxNow && localMode && !viewFrom ? (() => {
     // el icono de ahora; con poca probabilidad, la lluvia o la tormenta solo como marca pequeña (wxIcon)
-    const ic = wxIcon(wxNow.code, wxNow.day, wxNow.pop, wxNow.cloud), k = ic.kind;
+    // (por mayoría de los 7 modelos, como en la tarjeta; sin ellos, el pronóstico del lugar)
+    const ic = voteIcon(skyVote(wxMod, Date.now() / 1000), wxIcon(wxNow.code, wxNow.day, wxNow.pop, wxNow.cloud), wxNow.day, wxNow.cloud), k = ic.kind;
     const nm = `${(WX_NAMES[lang] || WX_NAMES.es)[k]}${ic.maybe ? ` · ${(WX_MAYBE[lang] || WX_MAYBE.es)[ic.maybe]}` : ""}`;
     // la temperatura de ahora: la mediana de los modelos (si hay al menos 3), como en la tarjeta
     const mt = wxMod ? tempAt(wxMod, Date.now() / 1000) : null, tNow = mt && mt.n >= 3 ? mt.med : wxNow.temp;

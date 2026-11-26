@@ -52,7 +52,11 @@ export const WX = {
       noBest: "Sin ventana despejada",
       hourAria: (h, t, p, c) => `${h}: ${t}, lluvia ${p}, ${c} de nubes. Llevar el cielo a esa hora`,
       dayRain: "Lluvia del día",
-      unsure: (t, mm, n, today) => `Poca certeza: ${n} modelos dan ${[t ? `de ${t[0]} a ${t[1]} °C a esta hora` : null, mm ? `de ${mm[0]} a ${mm[1]} mm ${today ? "hoy" : "ese día"}` : null].filter(Boolean).join(" y ")}`,
+      unsure: (t, mm, n, today, sky, skyN) => {
+        const what = [t ? `de ${t[0]} a ${t[1]} °C a esta hora` : null, mm ? `de ${mm[0]} a ${mm[1]} mm ${today ? "hoy" : "ese día"}` : null].filter(Boolean).join(" y ");
+        return what ? `Poca certeza: ${n} modelos dan ${what}${sky ? ", y no coinciden en si cae algo (lluvia o nieve)" : ""}` : `Poca certeza: los ${skyN || n} modelos no coinciden en si cae algo (lluvia o nieve)`;
+      },
+      dry: "Seco", agreeAria: (parts, n) => `Qué dan los ${n} modelos a esta hora: ${parts}`,
       rain: "Lluvia", rainHour: (mm) => `${mm} mm en esa hora`, rh: "Humedad", dew: (t) => `Punto de rocío ${t}`,
       windFrom: (d) => `Viene del ${d}`, uv: "Índice UV", uvNight: "de noche", uvLevels: ["Bajo", "Moderado", "Alto", "Muy alto", "Extremo"],
       vis: "Visibilidad", pressure: "Presión", seaLevel: "A nivel del mar",
@@ -119,7 +123,11 @@ export const WX = {
       noBest: "No clear window",
       hourAria: (h, t, p, c) => `${h}: ${t}, rain ${p}, ${c} cloud. Move the sky to that time`,
       dayRain: "Rain today",
-      unsure: (t, mm, n, today) => `Low confidence: ${n} models give ${[t ? `${t[0]} to ${t[1]} °C at this hour` : null, mm ? `${mm[0]} to ${mm[1]} mm ${today ? "today" : "that day"}` : null].filter(Boolean).join(" and ")}`,
+      unsure: (t, mm, n, today, sky, skyN) => {
+        const what = [t ? `${t[0]} to ${t[1]} °C at this hour` : null, mm ? `${mm[0]} to ${mm[1]} mm ${today ? "today" : "that day"}` : null].filter(Boolean).join(" and ");
+        return what ? `Low confidence: ${n} models give ${what}${sky ? ", and disagree on whether anything falls (rain or snow)" : ""}` : `Low confidence: the ${skyN || n} models disagree on whether anything falls (rain or snow)`;
+      },
+      dry: "Dry", agreeAria: (parts, n) => `What the ${n} models give at this hour: ${parts}`,
       rain: "Rain", rainHour: (mm) => `${mm} mm that hour`, rh: "Humidity", dew: (t) => `Dew point ${t}`,
       windFrom: (d) => `From the ${d}`, uv: "UV index", uvNight: "at night", uvLevels: ["Low", "Moderate", "High", "Very high", "Extreme"],
       vis: "Visibility", pressure: "Pressure", seaLevel: "At sea level",

@@ -22,9 +22,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { WX } from "./i18n-wx.js";
 import { cloudsAt, hourlySeries, bestWindow, coverClass } from "./weather.js";
-import { tempAt, dayAt, disagreement } from "./models.js";
+import { tempAt, dayAt, disagreement, skyVote } from "./models.js";
 import { satWeight, mergeClouds, fuseSat } from "./satClouds.js";
-import { wxIcon, dayIcon, WX_NAMES, WX_MAYBE, compass8, fmtWind, hourAt } from "./nowWeather.js";
+import { wxIcon, voteIcon, dayIcon, WX_NAMES, WX_MAYBE, compass8, fmtWind, hourAt } from "./nowWeather.js";
 import "./weather.css";
 
 const pct = (f) => `${Math.round(f * 100)} %`;
@@ -110,8 +110,10 @@ export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = fals
   const v = hr || now;
   // ahora, con satélite: la nubosidad que se ve desde tu sitio (pesada por la bóveda del cielo), no la media de 300 km
   const cc = hr ? (data ? cloudsAt(data, hr.t) : null) : c && c.dome ? { ...c, ...c.dome } : c;
-  // el icono: el código de esa hora, pero con poca probabilidad la lluvia o la tormenta solo como marca (wxIcon)
-  const ic = wxIcon(v.code, v.day, v.pop, v.cloud), k = ic.kind;
+  // el icono: lo que dan la mayoría de los 7 modelos a esa hora (voteIcon); sin ellos, el código del pronóstico del
+  // lugar, con poca probabilidad la lluvia o la tormenta solo como marca (wxIcon)
+  const vote = skyVote(mod, hr ? hr.t : nowS);
+  const ic = voteIcon(vote, wxIcon(v.code, v.day, v.pop, v.cloud), v.day, v.cloud), k = ic.kind;
   const maybeTxt = (m) => (m ? (WX_MAYBE[lang] || WX_MAYBE.es)[m] : null);
   // con el satélite reciente, cuántas nubes hay lo dice él (octas de la OMM); lluvia, niebla, nieve o tormenta, el código
   const name0 = !hr && satW > 0 && cc && ["sun", "moon", "partly", "partly_night", "cloud"].includes(k) ? (WX[lang] || WX.es).cover[coverClass(cc.total)] : (WX_NAMES[lang] || WX_NAMES.es)[k];
@@ -122,7 +124,11 @@ export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = fals
   const temp = mT && mT.n >= 3 ? mT.med : v.temp;
   const dayMm = mDay && mDay.mm && mDay.mm.n >= 3 ? mDay.mm.med : day ? day.mm : null;
   const mmTxt = (x) => (x == null ? "—" : x < 0.05 ? "0 mm" : x < 10 ? `${dec(Math.round(x * 10) / 10)} mm` : `${Math.round(x)} mm`);
-  const dis = disagreement(mT, mDay && mDay.mm);
+  const dis = disagreement(mT, mDay && mDay.mm, vote);
+  // la barra de acuerdo: qué dan los modelos, solo lo que alguno da (sin ceros) y solo si alguno da algo que cae
+  const VOTE_ORDER = ["rain", "storm", "sleet", "snow", "dry"];
+  const voteParts = vote && VOTE_ORDER.some((q) => q !== "dry" && vote.counts[q] > 0) ? VOTE_ORDER.filter((q) => vote.counts[q] > 0).map((q) => ({ q, c: vote.counts[q] })) : null;
+  const voteName = (q) => (q === "dry" ? tw.dry : (WX_NAMES[lang] || WX_NAMES.es)[q]);
   const isToday = !!(day && nowS >= day.t && nowS < day.t + 86400);
   const nModels = Math.max(mT ? mT.n : 0, mDay && mDay.mm ? mDay.mm.n : 0);
   const windTxt = v.windKmh == null ? "—" : v.windKmh < 1 || v.windFrom == null ? tw.calm : fmtWind(v.windKmh);
@@ -175,9 +181,17 @@ export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = fals
         </div>
         <div className="sk-wxc-hero-r"><small>{tw.dayRain}</small><b>{mmTxt(dayMm)}</b></div>
       </div>
+      {voteParts && (
+        <div className="sk-wxc-vote" role="img" aria-label={tw.agreeAria(voteParts.map((p) => `${voteName(p.q)} ${p.c}`).join(", "), vote.n)}>
+          <div className="sk-wxc-vote-bar">{voteParts.map((p) => <i key={p.q} className={`is-${p.q}`} style={{ flex: p.c }} />)}</div>
+          <div className="sk-wxc-vote-key">{voteParts.map((p) => (
+            <span key={p.q}><Icon name={p.q === "dry" ? "wx_cloud" : `wx_${p.q}`} size={13} className={`is-${p.q}`} />{voteName(p.q)} {p.c}</span>
+          ))}</div>
+        </div>
+      )}
       {dis && (
         <p className="sk-wxc-unsure" role="note"><Icon name="warn" size={14} />
-          {tw.unsure(dis.t ? dis.t.map((x) => Math.round(x)) : null, dis.mm ? dis.mm.map((x) => Math.round(x)) : null, dis.n, isToday)}</p>
+          {tw.unsure(dis.t ? dis.t.map((x) => Math.round(x)) : null, dis.mm ? dis.mm.map((x) => Math.round(x)) : null, dis.n, isToday, dis.sky, dis.skyN)}</p>
       )}
 
       <div className="sk-wxc-row"><small><Icon name="wx_cloud" size={14} />{tw.cover}</small><b>{total != null ? pct(total) : "—"}</b></div>
@@ -203,7 +217,8 @@ export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = fals
               const cl = sIdx >= 0 && series[sIdx].total != null ? series[sIdx].total : x.cloud != null ? x.cloud / 100 : null;
               const best = win && sIdx >= win.i0 && sIdx <= win.i1;
               const on = selHour === x.t;
-              const t = tempH(x), hic = wxIcon(x.code, x.day, x.pop, x.cloud);
+              // (cada hora, como el icono grande: por mayoría de los modelos)
+              const t = tempH(x), hic = voteIcon(skyVote(mod, x.t), wxIcon(x.code, x.day, x.pop, x.cloud), x.day, x.cloud);
               return (
                 <button key={x.t} type="button" className={`sk-wxc-cell${on ? " is-on" : ""}${best ? " is-best" : ""}`} aria-pressed={on}
                   aria-label={`${tw.hourAria(hh(x.t), t != null ? fmtT(t) : "—", x.pop != null ? `${Math.round(x.pop)} %` : "—", cl != null ? pct(cl) : "—")}${hic.maybe ? ` (${maybeTxt(hic.maybe)})` : ""}`}

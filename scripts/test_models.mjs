@@ -1,5 +1,6 @@
 // Pruebas de src/sky/models.js: mediana y rango de siete modelos del tiempo (node scripts/test_models.mjs)
-import { MODELS, modelsUrl, median, stats, parseModels, tempAt, dayAt, disagreement, fetchModels } from "../src/sky/models.js";
+import { MODELS, modelsUrl, median, stats, parseModels, tempAt, dayAt, disagreement, fetchModels, skyVote } from "../src/sky/models.js";
+import { voteIcon } from "../src/sky/nowWeather.js";
 
 let pass = 0, fail = 0;
 const ok = (c, msg) => { if (c) { pass++; console.log("  ✓ " + msg); } else { fail++; console.log("  ✗ " + msg); } };
@@ -53,6 +54,27 @@ ok(disagreement({ n: 5, lo: 10, hi: 11 }, { n: 5, lo: 0, hi: 12 }).t[0] === 10, 
   let err = null;
   try { await fetchModels(3, 4, null, { fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({ reason: "límite" }) }), now: 0 }); } catch (e) { err = e.message; }
   ok(err === "límite", "si Open-Meteo falla, rechaza con su motivo");
+}
+
+// el cielo por votación: qué dan los modelos a esa hora (lluvia, tormenta, nieve, aguanieve o seco)
+{
+  const T = 1800000000, j = { hourly: { time: [T] }, daily: { time: [] } };
+  const codes = [61, 95, 63, 61, 96, 80, 3], temps = [16, 16, 16, 16, 16, 16, 16];
+  MODELS.forEach((m, k) => { j.hourly[`temperature_2m_${m}`] = [temps[k]]; j.hourly[`weather_code_${m}`] = [codes[k]]; });
+  const mod = parseModels(j), v = skyVote(mod, T + 600);
+  ok(/weather_code/.test(modelsUrl(0, 0)) && v && v.n === 7 && v.counts.rain === 4 && v.counts.storm === 2 && v.counts.dry === 1 && skyVote(mod, T + 4000) === null,
+    "skyVote cuenta lo que da cada modelo a la hora más cercana (±30 min)");
+  const base = { kind: "cloud", maybe: null };
+  ok(JSON.stringify(voteIcon(v, base)) === JSON.stringify({ kind: "rain", maybe: "storm" }), "mayoría de lluvia, con 2 que dan tormenta: lluvia y «posible tormenta»");
+  ok(JSON.stringify(voteIcon({ n: 7, counts: { rain: 2, sleet: 0, snow: 0, storm: 1, dry: 4 } }, { kind: "rain", maybe: null }, true, 80)) === JSON.stringify({ kind: "cloud", maybe: "rain" }),
+    "si solo 3 de 7 dan algo que cae: las nubes, con «posible lluvia» (aunque el pronóstico del lugar diga lluvia)");
+  ok(voteIcon({ n: 7, counts: { rain: 0, sleet: 0, snow: 0, storm: 4, dry: 3 } }, base).kind === "storm" && voteIcon({ n: 7, counts: { rain: 1, sleet: 0, snow: 0, storm: 0, dry: 6 } }, { kind: "sun", maybe: null }).kind === "sun"
+    && voteIcon(null, base) === base, "4 de 7 con tormenta: tormenta; casi todos secos: el sol del lugar; sin votos, el pronóstico del lugar");
+  const cold = { hourly: { time: [T] }, daily: { time: [] } };
+  MODELS.forEach((m) => { cold.hourly[`temperature_2m_${m}`] = [-3]; cold.hourly[`weather_code_${m}`] = [63]; });
+  ok(skyVote(parseModels(cold), T).counts.snow === 7, "cada modelo, con su temperatura: en frío, la lluvia cuenta como nieve");
+  ok(disagreement(null, null, { n: 7, counts: { rain: 4, sleet: 0, snow: 0, storm: 0, dry: 3 } }).sky === true && disagreement(null, null, v) === null,
+    "4 contra 3: no coinciden en si llueve; 6 de 7 con algo que cae, sí");
 }
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);

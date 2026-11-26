@@ -131,6 +131,23 @@ export function wxIcon(code, day = true, pop = null, cloud = null) {
 }
 
 /**
+ * El icono por mayoría de los modelos (models.skyVote): si más de la mitad dan algo que cae, lo que más dan (en un
+ * empate, lo más severo), y una tormenta que dan 2 o más, como marca pequeña; si lo dan 2 o más pero no la mitad, el
+ * icono de las nubes con esa marca («posible …»); si no, el de las nubes. Lo que no moja (sol, nubes, niebla) sale de
+ * `base` (wxIcon del pronóstico del lugar); sin votos, `base` tal cual.
+ */
+export function voteIcon(vote, base, day = true, cloud = null) {
+  if (!vote || !vote.n) return base;
+  const dry = base && !WET[base.kind] ? base.kind : nubes(cloud, day), c = vote.counts;
+  const wetKinds = ["storm", "snow", "sleet", "rain"].filter((k) => c[k] > 0);
+  const wet = wetKinds.reduce((a, k) => a + c[k], 0);
+  const top = wetKinds.reduce((a, k) => (!a || c[k] > c[a] ? k : a), null);
+  if (wet * 2 > vote.n) return { kind: top, maybe: top !== "storm" && c.storm >= 2 ? "storm" : null };
+  if (wet >= 2) return { kind: dry, maybe: top };
+  return { kind: dry, maybe: null };
+}
+
+/**
  * Icono de un día que represente el día, no su peor hora: con sus horas (hours de parseNow; hacen falta 12 o más),
  * lluvia, nieve o tormenta solo si se esperan en 3 horas o más (con 40 % o más de probabilidad); si no, el de sus nubes
  * de día (o niebla, si dura), y la marca pequeña de lo que pueda caer (30 % o más). Sin horas, el código del día.
