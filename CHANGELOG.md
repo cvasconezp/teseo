@@ -2,7 +2,8 @@
 
 ## 1.100.0 — «Acerca» más sintética y meteoros «desde tu lugar»
 
-- **Acerca, más corta y directa:** «Apoya a Teseo» sube al principio, justo después de «Qué es», con PayPal, el código QR (en una ventana propia) y GitHub a un toque. Ruta, Ahora y los tres laboratorios de Preguntas pasan de tarjetas con captura a botones con icono. La videoteca queda en una sola fila que se desliza. «De dónde sale cada cosa» y las notas de cada figura se pliegan (siguen ahí, a un toque).
+- **Acerca, más corta y directa:** Ruta, Ahora y los tres laboratorios de Preguntas pasan de tarjetas con captura a botones con icono. La videoteca queda en una sola fila que se desliza. «De dónde sale cada cosa» y las notas de cada figura se pliegan (siguen ahí, a un toque). «Apoya a Teseo» conserva sus cuatro tarjetas al final.
+- **La portada abre con un amanecer:** primero se ven las estrellas; el cielo aclara, el Sol asoma tras las montañas y las oculta. Es una ilustración (lo dice su pie); en la app la hora y el punto se calculan con el relieve real.
 - **Figuras sin marco:** las tres animaciones respiran sobre el fondo, con el Sol con brillo y sin controles a la vista (queda «Pausar»), en la línea del sitio de Killa Ñan.
 - **Ahora · cuántos meteoros verás desde tu lugar:** cada lluvia da dos estimaciones, bajo un cielo oscuro y desde una ciudad, con la relación estándar de la IMO (tasa teórica × seno de la altura del radiante ÷ r^(6,5 − magnitud límite)). El índice r y la velocidad de las 12 lluvias vienen del Calendario 2027 de la IMO, tabla 5. Con el radiante a menos de 10° no se estima. La tasa teórica se conserva como referencia.
 - **Ahora · el evento, a la mejor hora:** la lluvia ya no es un evento de todo el día: va en la ventana en que el radiante está más alto para tu lugar (hasta dos horas), en la lista, en «Lo próximo», en los avisos y en la suscripción de calendario. Donde el radiante no sube o no hay noche, sigue como antes.
