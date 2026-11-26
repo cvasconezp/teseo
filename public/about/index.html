@@ -345,15 +345,6 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
 .act:hover{border-color:rgba(242,196,109,.6);background:rgba(242,196,109,.06)}
 .act:hover small{color:var(--soft)}
 @media (max-width:520px){.acts{flex-direction:column}.act{width:100%}}
-/* apoyo: una franja con las acciones a la vista */
-.apoya{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:18px 48px;align-items:center}
-.apoya__txt{display:flex;flex-direction:column;gap:10px}
-.apoya__acts{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.apoya__pp{grid-column:1 / -1}
-.apoya__pp .fine{margin-top:6px}
-#paypal-box:not(:empty){max-width:520px}
-@media (max-width:860px){.apoya{grid-template-columns:minmax(0,1fr)}}
-#dlg-qr .qr{margin:4px auto}
 /* videoteca: una sola fila que se desliza */
 .vt--strip{display:flex;grid-template-columns:none;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;padding:4px 2px 12px;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 .vt--strip .vt__i{flex:0 0 clamp(132px,15vw,168px);scroll-snap-align:start}
@@ -390,8 +381,11 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
 .vt--strip{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 56px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 56px),transparent);padding-right:56px}
 .anim--marte .anim__bar{right:auto;left:10px}
 .vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
-.apoya__pp .fine+.fine{margin-top:4px}
+.hero .anim figcaption{padding:10px 2px 0;font-size:14px;color:var(--muted)}
 /* animaciones: cada figura */
+.anim--amanecer .am-lab{font-size:22px;fill:#EEF0FA;paint-order:stroke;stroke:rgba(4,8,15,.7);stroke-width:4px;stroke-linejoin:round}
+.anim--amanecer .am-ln{stroke:#EEF0FA;stroke-width:.8;stroke-opacity:.45;fill:none}
+@container (max-width:460px){.anim--amanecer .am-lab{font-size:27px}}
 .anim--horizonte .hz-t{font-size:15px;fill:var(--soft)}
 .anim--horizonte .hz-g{fill:var(--gold)}
 .anim--horizonte .hz-m{fill:var(--muted)}
@@ -466,10 +460,36 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
         </div>
         <p class="fine">No account · no ads · in English and Spanish · in the browser or installed as an app</p>
       </div>
-      <figure class="hero__fig">
-        <div class="shot"><img src="/acerca/img/cielo-catequilla-junio.webp" width="1280" height="800" alt="Teseo shows sunrise from Catequilla hill: over the real outline of the mountains, the gold mark “Sunrise · June solstice, 66.6°” and, next to it, the label “Cochasquí, 15 km”. The app is shown in Spanish."></div>
-        <figcaption>From Catequilla, at latitude zero, on 21 June 2027 at 06:21: the first ray of sunlight appears next to Cochasquí. Simulated by Teseo over the real terrain.</figcaption>
-      </figure>
+      <figure class="anim anim--amanecer hero__fig" data-anim="amanecer">
+  <div class="anim__stage">
+    <svg viewBox="0 0 640 400" role="img" aria-label="A sunrise over a mountain range with a snow-capped volcano. At first it is night and the stars are visible. The sky brightens, the Sun climbs leaving a golden thread, appears behind the mountains, and the stars can no longer be seen.">
+      <defs>
+        <linearGradient id="am-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040812"/><stop offset="1" stop-color="#101c3a"/></linearGradient>
+        <linearGradient id="am-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#27407a"/><stop offset=".55" stop-color="#b9788a"/><stop offset=".8" stop-color="#f0a765"/><stop offset="1" stop-color="#f6c98a"/></linearGradient>
+        <linearGradient id="am-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5d8fd6"/><stop offset="1" stop-color="#cfe0f5"/></linearGradient>
+        <radialGradient id="am-g"><stop offset="0" stop-color="#ffe9b8" stop-opacity=".95"/><stop offset=".35" stop-color="#F2C46D" stop-opacity=".45"/><stop offset="1" stop-color="#F2C46D" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="640" height="400" fill="url(#am-n)"/>
+      <rect class="am-dawn" width="640" height="400" fill="url(#am-d)" opacity="0"/>
+      <rect class="am-day" width="640" height="400" fill="url(#am-c)" opacity="0"/>
+      <g class="am-s1" fill="#EEF0FA"><circle cx="41.7" cy="194.8" r="0.8"/><circle cx="144.3" cy="29.3" r="1.1"/><circle cx="55.0" cy="30.4" r="1.1"/><circle cx="48.4" cy="137.2" r="0.9"/><circle cx="400.5" cy="141.2" r="0.8"/><circle cx="367.5" cy="99.3" r="0.9"/><circle cx="40.7" cy="203.2" r="1"/><circle cx="202.0" cy="193.6" r="0.9"/><circle cx="75.5" cy="138.5" r="0.9"/><circle cx="241.4" cy="133.2" r="0.8"/><circle cx="359.7" cy="149.3" r="1.1"/><circle cx="431.1" cy="106.2" r="1"/><circle cx="298.8" cy="217.8" r="1"/><circle cx="492.4" cy="28.4" r="1"/><circle cx="288.5" cy="147.0" r="0.8"/><circle cx="84.7" cy="104.1" r="1"/><circle cx="105.6" cy="120.0" r="0.8"/><circle cx="365.0" cy="207.0" r="1"/><circle cx="221.5" cy="88.8" r="1.1"/><circle cx="369.2" cy="112.6" r="0.8"/><circle cx="52.0" cy="174.5" r="1"/><circle cx="410.6" cy="233.4" r="1.1"/><circle cx="225.8" cy="221.6" r="1"/><circle cx="115.5" cy="36.3" r="0.8"/><circle cx="164.5" cy="98.0" r="1.1"/><circle cx="183.1" cy="40.8" r="1.1"/><circle cx="544.2" cy="72.6" r="1.1"/><circle cx="619.7" cy="163.6" r="1.1"/><circle cx="602.0" cy="44.0" r="0.9"/><circle cx="105.2" cy="158.2" r="0.8"/><circle cx="310.7" cy="142.6" r="1"/><circle cx="239.5" cy="137.4" r="0.9"/><circle cx="415.5" cy="176.5" r="1.1"/></g>
+      <g class="am-s2" fill="#EEF0FA"><circle cx="211.5" cy="43.9" r="1.6"/><circle cx="237.3" cy="23.0" r="1.3"/><circle cx="270.2" cy="131.7" r="1.3"/><circle cx="196.7" cy="188.7" r="1.6"/><circle cx="335.5" cy="206.9" r="1.6"/><circle cx="604.6" cy="27.5" r="1.3"/><circle cx="593.9" cy="116.7" r="1.6"/><circle cx="187.3" cy="96.8" r="1.6"/><circle cx="146.4" cy="74.7" r="1.6"/><circle cx="61.6" cy="111.1" r="1.3"/><circle cx="185.7" cy="42.8" r="1.3"/><circle cx="437.3" cy="126.0" r="1.3"/><circle cx="566.1" cy="185.5" r="1.6"/><circle cx="118" cy="96" r="1.9"/><circle cx="134" cy="88" r="1.9"/><circle cx="150" cy="80" r="1.9"/><circle cx="520" cy="70" r="1.9"/><circle cx="520" cy="118" r="1.9"/><circle cx="500" cy="92" r="1.9"/><circle cx="542" cy="96" r="1.9"/><path class="am-ln" d="M118 96L150 80M520 70V118M500 92L542 96"/></g>
+      <line class="am-th" x1="236" y1="330" x2="236" y2="330" stroke="#F2C46D" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 6"/>
+      <circle class="am-glow" cx="236" cy="330" r="70" fill="url(#am-g)" opacity="0"/>
+      <circle class="am-sun" cx="236" cy="330" r="13" fill="#ffe2a0"/>
+      <path class="am-far" d="M0 300C60 285 110 262 160 268C200 272 230 250 270 246C300 243 320 232 345 210C362 196 372 176 384 168C392 162 400 166 408 176C424 198 446 222 480 236C520 252 560 240 600 252L640 258V400H0Z" fill="#1b2748"/>
+      <path class="am-snow" d="M360 197C368 184 378 171 384 168C392 162 400 166 408 176C413 183 418 191 423 198L413 193L404 200L394 191L384 199L374 190Z" fill="#c9d3ea"/>
+      <path class="am-near" d="M0 340C70 322 120 330 180 318C240 306 280 326 340 320C400 314 440 296 500 304C560 312 600 300 640 296V400H0Z" fill="#0a1020"/>
+      <text class="am-lab am-l1" x="20" y="378">Before sunrise: the stars of your sky</text>
+      <text class="am-lab am-l2" x="20" y="378" opacity="0">The Sun rises behind your mountains and hides them</text>
+      <rect class="am-veil" width="640" height="400" fill="url(#am-n)" opacity="0"/>
+    </svg>
+  </div>
+  <div class="anim__bar">
+    <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pause</span><span data-when="paused">Play</span><span class="vh"> the animation: sunrise</span></button>
+  </div>
+  <figcaption>Illustration. In Teseo, the time and the spot where the Sun appears are calculated from the real terrain of your place.</figcaption>
+</figure>
     </div>
   </div>
 
@@ -489,30 +509,8 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
     </div>
   </section>
 
-  <!-- Apoya: arriba, a un paso -->
-  <section id="apoya" class="alt">
-    <div class="wrap sec sec--tight">
-      <div class="apoya">
-        <div class="apoya__txt">
-          <h2>Support Teseo</h2>
-          <p class="soft">Teseo is and will stay free, with no ads and without asking you for data. Donations pay for the servers, the domain and the time to keep improving it.</p>
-        </div>
-        <div class="apoya__acts">
-          <button class="btn btn--gold" type="button" id="paypal-load" aria-controls="paypal-box">Donate with PayPal</button>
-          <button class="btn btn--ghost" type="button" data-open="dlg-qr" aria-haspopup="dialog">With a QR code, in Ecuador</button>
-          <a class="btn btn--ghost btn--give" href="https://github.com/sponsors/cvasconezp" target="_blank" rel="noopener noreferrer">Sponsor on GitHub</a>
-        </div>
-        <div class="apoya__pp">
-          <div id="paypal-box" aria-live="polite"></div>
-          <p class="fine">PayPal: a one-off donation, from any country, with your account or a card. GitHub: a monthly contribution from USD 5, with no fee.</p>
-          <p class="fine">The PayPal button only loads when you press it. Not working? <a href="https://www.paypal.com/ncp/payment/ZLGL2E3JZUHG2" target="_blank" rel="noopener noreferrer">Open PayPal in a new tab</a>.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- 1 · Tu cielo -->
-  <section id="tu-cielo" class="chap">
+  <section id="tu-cielo" class="alt chap">
     <div class="wrap sec">
       <p class="kicker kn">1 · The thread starts at your feet</p>
       <div class="split">
@@ -593,7 +591,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   </section>
 
   <!-- 2 · Viajes por el Sistema Solar -->
-  <section id="viajes" class="alt chap">
+  <section id="viajes" class="chap">
     <div class="wrap sec">
       <div class="head">
         <p class="kicker kn">2 · Follow the thread across the Solar System</p>
@@ -641,7 +639,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   </section>
 
   <!-- 3 · Las grandes preguntas -->
-  <section id="ciencia" class="chap">
+  <section id="ciencia" class="alt chap">
     <div class="wrap sec">
       <div class="head">
         <p class="kicker kn">3 · All the way to the big questions</p>
@@ -711,7 +709,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   </section>
 
   <!-- 4 · Cómo sabe Teseo que es cierto -->
-  <section id="fuentes" class="alt chap" aria-label="How Teseo knows it is true, and its data sources">
+  <section id="fuentes" class="chap" aria-label="How Teseo knows it is true, and its data sources">
     <div class="wrap sec">
       <div class="head">
         <p class="kicker kn">4 · How Teseo knows it is true</p>
@@ -799,7 +797,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   </section>
 
   <!-- 5 · El hilo lo tejemos juntos -->
-  <section id="talleres" class="chap">
+  <section id="talleres" class="alt chap">
     <div class="wrap sec">
       <p class="kicker kn">5 · We weave the thread together</p>
       <div class="split">
@@ -852,7 +850,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   </section>
 
   <!-- Videoteca -->
-  <section id="videoteca" class="alt">
+  <section id="videoteca">
     <div class="wrap sec sec--tight">
       <div class="head">
         <p class="kicker">The same thread, on video</p>
@@ -912,6 +910,51 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
     </div>
   </section>
 
+  <!-- Apoya -->
+  <section id="apoya" class="alt">
+    <div class="wrap sec">
+      <div class="head">
+        <h2>Support Teseo</h2>
+        <p class="soft">Teseo is and will stay free, with no ads and without asking you for data. Donations pay for the servers, the domain and the time to keep improving it.</p>
+      </div>
+      <div class="give">
+        <div class="give-col">
+        <article class="is-main">
+          <p class="tag">One-off, from any country</p>
+          <h3>Donate with PayPal</h3>
+          <p class="grow">With your PayPal account or a card. You choose the amount.</p>
+          <button class="btn btn--gold btn--sm" type="button" id="paypal-load" aria-controls="paypal-box">Donate with PayPal</button>
+          <div id="paypal-box" aria-live="polite"></div>
+          <p class="fine">The PayPal button only loads when you press it. Not working? <a href="https://www.paypal.com/ncp/payment/ZLGL2E3JZUHG2" target="_blank" rel="noopener noreferrer">Open PayPal in a new tab</a>.</p>
+        </article>
+        <article>
+          <p class="tag">Monthly</p>
+          <h3>GitHub Sponsors</h3>
+          <p class="grow">A monthly contribution from your GitHub account, from USD 5, to keep the project going over time. GitHub charges no fees.</p>
+          <a class="btn btn--ghost btn--sm btn--give" href="https://github.com/sponsors/cvasconezp" target="_blank" rel="noopener noreferrer">Sponsor on GitHub</a>
+        </article>
+        </div>
+        <div class="give-col">
+        <article class="ec">
+          <p class="tag">In Ecuador</p>
+          <h3>QR code or bank transfer</h3>
+          <p class="grow">Scan the code with DeUna or the Banco Pichincha app, enter the amount and you're done. Rather transfer from another bank? We'll send you the details by WhatsApp.</p>
+          <figure class="qr"><img src="/acerca/img/qr-donar.png" width="240" height="240" loading="lazy" alt="QR code to donate to Teseo from Ecuador."><figcaption><a href="/acerca/img/qr-donar.png" download="teseo-qr-donar.png">Save the code</a></figcaption></figure>
+          <a class="btn btn--ghost btn--sm btn--give" href="https://wa.me/593987489892?text=Hi%2C%20I%27d%20like%20to%20support%20Teseo%20with%20a%20bank%20transfer.%20Could%20you%20send%20me%20the%20account%20details%3F" target="_blank" rel="noopener noreferrer">Ask for the details on WhatsApp</a>
+          <p class="fine">The account is in the name of Carlos Vásconez-Paredes, who created Teseo.</p>
+        </article>
+        <article>
+          <p class="tag">No money needed</p>
+          <h3>Share and contribute</h3>
+          <p class="grow">Share a postcard or a 360° photo, or tell us about a bug or an idea. Everything helps.</p>
+          <a class="btn btn--ghost btn--sm" href="https://wa.me/593987489892?text=Hi%2C%20I%20want%20to%20tell%20you%20something%20about%20Teseo%20%28a%20problem%20or%20an%20idea%29%3A%0A%0A" data-report target="_blank" rel="noopener noreferrer">Report a problem</a>
+          <p class="fine">Also by <a href="mailto:teseo@yachaydeep.com?subject=Teseo%3A%20a%20problem%20or%20an%20idea" data-report>email</a>. Do you code? <a href="https://github.com/cvasconezp/teseo" target="_blank" rel="noopener noreferrer">See the code</a>.</p>
+        </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Cierre -->
   <section>
     <div class="wrap end">
@@ -936,21 +979,6 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
     <p><b>Android:</b> open teseo.yachaydeep.com in Chrome → ⋮ menu → “Install app”. (The video is narrated in Spanish.)</p>
     <p><b>iPhone:</b> in Safari, Share → “Add to Home Screen”.</p>
     <a class="btn btn--gold btn--sm" href="/">Open Teseo</a>
-  </div>
-</dialog>
-
-<dialog id="dlg-qr" class="dlg" aria-labelledby="dlg-qr-t">
-  <div class="dlg__box">
-    <div class="dlg__head">
-      <h2 id="dlg-qr-t">With a QR code or bank transfer</h2>
-      <button type="button" class="dlg__x" data-close aria-label="Close">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
-      </button>
-    </div>
-    <p>Scan the code with DeUna or the Banco Pichincha app, enter the amount and you’re done. Rather transfer from another bank? We’ll send you the details by WhatsApp.</p>
-    <figure class="qr"><img src="/acerca/img/qr-donar.png" width="240" height="240" loading="lazy" alt="QR code to donate to Teseo from Ecuador."><figcaption><a href="/acerca/img/qr-donar.png" download="teseo-qr-donar.png">Save the code</a></figcaption></figure>
-    <a class="btn btn--ghost btn--sm btn--give" href="https://wa.me/593987489892?text=Hi%2C%20I%27d%20like%20to%20support%20Teseo%20with%20a%20bank%20transfer.%20Could%20you%20send%20me%20the%20account%20details%3F" target="_blank" rel="noopener noreferrer">Ask for the details on WhatsApp</a>
-    <p class="fine">The account is in the name of Carlos Vásconez-Paredes, who created Teseo.</p>
   </div>
 </dialog>
 
@@ -1132,6 +1160,30 @@ window.TeseoAnim=(function(){
     return {redraw:function(){if(!run){if(t>0)api.frame(t,0);else api.still();}}};
   }
   return {register:register,reduce:reduce};
+})();
+(function(){
+  var fig=document.querySelector('.anim[data-anim="amanecer"]');if(!fig||!window.TeseoAnim)return;
+  function Q(s){return fig.querySelector(s)}
+  var sun=Q('.am-sun'),glow=Q('.am-glow'),th=Q('.am-th'),dawn=Q('.am-dawn'),day=Q('.am-day'),s1=Q('.am-s1'),s2=Q('.am-s2'),far=Q('.am-far'),snow=Q('.am-snow'),near=Q('.am-near'),l1=Q('.am-l1'),l2=Q('.am-l2'),veil=Q('.am-veil');
+  var X0=236,Y0=330,X1=268,Y1=150,T=18;
+  function ss(a,b,x){x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)}
+  function mix(a,b,k){return Math.round(a+(b-a)*k)}
+  function rgb(a,b,k){return 'rgb('+mix(a[0],b[0],k)+','+mix(a[1],b[1],k)+','+mix(a[2],b[2],k)+')'}
+  function draw(u,v){
+    var x=X0+(X1-X0)*u,y=Y0+(Y1-Y0)*u,k=ss(.2,.9,u);
+    sun.setAttribute('cx',x);sun.setAttribute('cy',y);glow.setAttribute('cx',x);glow.setAttribute('cy',y);
+    glow.setAttribute('opacity',ss(.15,.5,u));
+    th.setAttribute('x2',x);th.setAttribute('y2',y);th.setAttribute('opacity',ss(.3,.45,u));
+    dawn.setAttribute('opacity',ss(.08,.5,u));day.setAttribute('opacity',ss(.55,1,u)*.6);
+    s1.setAttribute('opacity',1-ss(.12,.38,u));s2.setAttribute('opacity',1-ss(.3,.58,u));
+    far.setAttribute('fill',rgb([27,39,72],[70,78,112],k));snow.setAttribute('fill',rgb([201,211,234],[255,236,214],k));near.setAttribute('fill',rgb([10,16,32],[30,34,52],k));
+    l1.setAttribute('opacity',1-ss(.3,.42,u));l2.setAttribute('opacity',ss(.44,.56,u));
+    veil.setAttribute('opacity',v);
+  }
+  TeseoAnim.register(fig,{
+    frame:function(t){var c=t%T,u=c<2.5?0:c<12?ss(0,1,(c-2.5)/9.5)*.5+((c-2.5)/9.5)*.5:1,v=c>15.5?(c<16.8?ss(15.5,16.8,c):1-ss(17,18,c)):0;if(c>=16.8)u=0;draw(u,v)},
+    still:function(){draw(.62,0)}
+  });
 })();
 (function(){
   var fig=document.querySelector('.anim[data-anim="horizonte"]');if(!fig||!window.TeseoAnim)return;
