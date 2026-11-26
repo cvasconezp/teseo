@@ -1,6 +1,6 @@
 # Cambios
 
-## 1.100.0 — «Acerca» más sintética y meteoros «desde tu lugar»
+## 1.101.0 — «Acerca» con escenas grabadas en Teseo, meteoros «desde tu lugar» y el calendario por mes
 
 - **Acerca, más corta y directa:** Ruta, Ahora y los tres laboratorios de Preguntas pasan de tarjetas con captura a botones con icono. La videoteca queda en una sola fila que se desliza. «De dónde sale cada cosa» y las notas de cada figura se pliegan (siguen ahí, a un toque). «Apoya a Teseo» conserva sus cuatro tarjetas al final.
 - **La portada abre con un amanecer grabado en Teseo:** desde Catequilla, el 21 de junio de 2027 entre las 05:40 y las 06:40, con el relieve real: las estrellas se apagan y el Sol asoma por la marca del solsticio, hacia Cochasquí. Se puede pausar y no se mueve con «reducir movimiento».
