@@ -3,6 +3,7 @@
 // calculados. Los textos de la fuente (descripción de lanzamientos, regiones de la NASA) se muestran
 // tal cual, en inglés y marcados como tales.
 import { PLANET_EN } from "./astro.js";
+import { MIN_RATE_ALT } from "./meteors.js";
 
 export const TC = {
   es: {
@@ -38,10 +39,12 @@ export const TC = {
     seeSky: "Ver en el cielo", seeSkyFor: (t) => `Ver en el cielo: ${t}`, seeSkyNote: "Abre el Cielo con el astro elegido, tal como está ahora.",
     whatLabel: "Qué ver", approxDate: "Fecha aproximada",
     allDayNote: "Fecha del catálogo; el máximo real puede variar ±1 día.",
+    meteorWindowNote: "Hora: cuando el radiante está más alto esa noche, según la fecha del catálogo; el máximo real puede variar ±1 día.",
+    meteorRateSrc: "Cómo se calcula: THZ × sen(altura del radiante) ÷ r^(6,5 − magnitud límite), fórmula estándar de la IMO (r: Calendario 2027, tabla 5). Cielo oscuro = magnitud límite 6,5; ciudad = 4,5 (valores de referencia, no medidos en tu cielo); sin nubes.",
     localTime: "Fechas y horas en la zona horaria de tu dispositivo.",
     utc: "UTC", opensNew: "se abre en una pestaña nueva",
     sources: "Fuentes",
-    srcText: "Fases de la Luna y planetas: efemérides de Teseo (Schlyter), contrastadas con el USNO y con In-The-Sky.org. Eclipses: catálogo de la NASA (GSFC, F. Espenak). Estaciones: Meeus, Astronomical Algorithms, cap. 27. Hitos del espacio: NASA (fuente en cada evento). Meteoros: catálogo de la IMO. ISS: CelesTrak + SGP4. Lanzamientos: Launch Library 2.",
+    srcText: "Fases de la Luna y planetas: efemérides de Teseo (Schlyter), contrastadas con el USNO y con In-The-Sky.org. Eclipses: catálogo de la NASA (GSFC, F. Espenak). Estaciones: Meeus, Astronomical Algorithms, cap. 27. Hitos del espacio: NASA (fuente en cada evento). Meteoros: catálogo de la IMO (r: Calendario 2027, tabla 5; tasa visible: fórmula estándar de la IMO, Handbook for Meteor Observers, cap. 7). ISS: CelesTrak + SGP4. Lanzamientos: Launch Library 2.",
     issNote: "Las pasadas de la ISS se calculan para los próximos 10 días como máximo.",
     launchNote: "Solo se muestran lanzamientos tripulados, de ciencia, a la Luna o pruebas de vehículos nuevos; los de megaconstelaciones de rutina (Starlink, Kuiper…) se omiten.",
     reason: { crew: "Tripulado", science: "Ciencia", moon: "Luna", test: "Prueba de vehículo nuevo" },
@@ -115,10 +118,12 @@ export const TC = {
     seeSky: "See in the sky", seeSkyFor: (t) => `See in the sky: ${t}`, seeSkyNote: "Opens the Sky tab on the chosen object, as it is right now.",
     whatLabel: "What to look for", approxDate: "Approximate date",
     allDayNote: "Catalog date; the real peak can vary by ±1 day.",
+    meteorWindowNote: "Time: when the radiant is highest that night, based on the catalog date; the real peak can vary by ±1 day.",
+    meteorRateSrc: "How it is calculated: ZHR × sin(radiant altitude) ÷ r^(6.5 − limiting magnitude), the standard IMO formula (r: 2027 Calendar, table 5). Dark sky = limiting magnitude 6.5; city = 4.5 (reference values, not measured at your sky); no clouds.",
     localTime: "Dates and times in your device's time zone.",
     utc: "UTC", opensNew: "opens in a new tab",
     sources: "Sources",
-    srcText: "Moon phases and planets: Teseo ephemeris (Schlyter), checked against USNO and In-The-Sky.org. Eclipses: NASA catalog (GSFC, F. Espenak). Seasons: Meeus, Astronomical Algorithms, ch. 27. Space milestones: NASA (source on each event). Meteors: IMO catalog. ISS: CelesTrak + SGP4. Launches: Launch Library 2.",
+    srcText: "Moon phases and planets: Teseo ephemeris (Schlyter), checked against USNO and In-The-Sky.org. Eclipses: NASA catalog (GSFC, F. Espenak). Seasons: Meeus, Astronomical Algorithms, ch. 27. Space milestones: NASA (source on each event). Meteors: IMO catalog (r: 2027 Calendar, table 5; visible rate: standard IMO formula, Handbook for Meteor Observers, ch. 7). ISS: CelesTrak + SGP4. Launches: Launch Library 2.",
     issNote: "ISS passes are computed for at most the next 10 days.",
     launchNote: "Only crewed, science, lunar or new-vehicle test launches are shown; routine megaconstellation launches (Starlink, Kuiper…) are left out.",
     reason: { crew: "Crewed", science: "Science", moon: "Moon", test: "New vehicle test" },
@@ -246,14 +251,22 @@ export function describeEvent(ev, lang, f) {
         ? (mo.up ? (es ? `La Luna (${f.pct(mo.illum)} iluminada) es fina y casi no estorba.` : `The Moon (${f.pct(mo.illum)} lit) is thin and barely gets in the way.`) : (es ? "A esa hora la Luna está bajo el horizonte: no estorba." : "At that time the Moon is below the horizon: no interference."))
         : mo.level === "some" ? (es ? `La Luna (${f.pct(mo.illum)} iluminada) está en el cielo y aclara algo el fondo.` : `The Moon (${f.pct(mo.illum)} lit) is up and brightens the background a little.`)
         : (es ? `La Luna (${f.pct(mo.illum)} iluminada) estorba: aclara el cielo y apaga los meteoros débiles.` : `The Moon (${f.pct(mo.illum)} lit) gets in the way: it brightens the sky and hides faint meteors.`);
+      // meteoros por hora desde este lugar (relación de la IMO, ver meteors.js): enteros; por debajo de 1, «menos de uno»
+      const ph = (x) => { const n = Math.round(x); return x < 1 - 1e-9 ? (es ? "menos de uno por hora" : "fewer than one per hour") : n === 1 ? (es ? "1 por hora" : "1 per hour") : (es ? `unos ${f.n(n, 0)} por hora` : `about ${f.n(n, 0)} per hour`); };
+      const rt = d.rates;
+      const rateTxt = rt
+        ? (es ? `Con el radiante a ${f.n(d.maxAlt, 0)}°, verías ${ph(rt.dark)} bajo un cielo oscuro y ${ph(rt.city)} desde una ciudad (son estimaciones).` : `With the radiant at ${f.n(d.maxAlt, 0)}°, you would see ${ph(rt.dark)} under a dark sky and ${ph(rt.city)} from a city (these are estimates).`)
+        : d.risesInNight && d.maxAlt < MIN_RATE_ALT && Number.isFinite(o.r)
+          ? (es ? `Con el radiante a menos de ${MIN_RATE_ALT}° la IMO no da una fórmula fiable, así que no estimamos cuántos verías: serán muy pocos.` : `With the radiant below ${MIN_RATE_ALT}° the IMO gives no reliable formula, so we do not estimate how many you would see: very few.`)
+          : "";
       out.what = es
-        ? `${peakIn} según el catálogo de la IMO: hasta ~${o.zhr} meteoros por hora (THZ, la tasa teórica con cielo ideal; verás menos). Sin instrumentos: tumbado, mirando a todo el cielo desde un lugar oscuro, tras 20 min de adaptación. ${d.risesInNight ? `El radiante llega a ${f.n(d.maxAlt, 0)}° a las ${f.time(d.best.t)}.` : ""} ${moonTxt}`
-        : `${peakIn} per the IMO catalog: up to ~${o.zhr} meteors per hour (ZHR, the theoretical rate under ideal skies; you will see fewer). No instruments: lie back, look at the whole sky from a dark site after 20 min of adaptation. ${d.risesInNight ? `The radiant reaches ${f.n(d.maxAlt, 0)}° at ${f.time(d.best.t)}.` : ""} ${moonTxt}`;
+        ? `${peakIn} según el catálogo de la IMO: hasta ~${o.zhr} meteoros por hora (THZ, la tasa teórica con cielo ideal; verás menos). Sin instrumentos: tumbado, mirando a todo el cielo desde un lugar oscuro, tras 20 min de adaptación. ${d.risesInNight ? `El radiante llega a ${f.n(d.maxAlt, 0)}° a las ${f.time(d.best.t)}.` : ""} ${rateTxt} ${moonTxt}`
+        : `${peakIn} per the IMO catalog: up to ~${o.zhr} meteors per hour (ZHR, the theoretical rate under ideal skies; you will see fewer). No instruments: lie back, look at the whole sky from a dark site after 20 min of adaptation. ${d.risesInNight ? `The radiant reaches ${f.n(d.maxAlt, 0)}° at ${f.time(d.best.t)}.` : ""} ${rateTxt} ${moonTxt}`;
       out.what = out.what.replace(/\s+/g, " ").trim();
       if (!d.risesInNight) vis(false, es ? "El radiante no sube sobre el horizonte durante la noche desde tu lugar." : "The radiant does not rise above the horizon during the night from your place.");
       else if (d.maxAlt < 15) vis(true, es ? `El radiante sube solo a ${f.n(d.maxAlt, 0)}°: verás pocos meteoros.` : `The radiant only reaches ${f.n(d.maxAlt, 0)}°: you will see few meteors.`);
       else vis(true, es ? `El radiante sube hasta ${f.n(d.maxAlt, 0)}° esa noche.` : `The radiant rises to ${f.n(d.maxAlt, 0)}° that night.`);
-      out.note = T.allDayNote;
+      out.note = [ev.allDay ? T.allDayNote : T.meteorWindowNote, rt ? T.meteorRateSrc : ""].filter(Boolean).join(" ");
       out.sky = `#sky?o=meteors~${encodeURIComponent(o.name)}`;
       break;
     }
@@ -347,7 +360,7 @@ export function describeEvent(ev, lang, f) {
     }
     default: break;
   }
-  out.icsDesc = [out.what, out.vis ? out.vis.text : "", out.region ? `NASA: ${out.region}` : "", T.ics.descTail].filter(Boolean).join("\n");
+  out.icsDesc = [out.what, out.vis ? out.vis.text : "", ev.type === "meteor" ? out.note : "", out.region ? `NASA: ${out.region}` : "", T.ics.descTail].filter(Boolean).join("\n");
   return out;
 }
 

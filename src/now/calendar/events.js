@@ -2,7 +2,7 @@
 // NEUTROS (sin textos): los textos ES/EN salen de i18n.js. Todo se calcula o se cita:
 //   Luna ........ src/special/math.js (nextPhase; validado con el USNO, ~15 min)
 //   Eclipses .... eclipses.js (lista NASA GSFC 2026–2028; visibilidad lunar calculada)
-//   Meteoros .... meteors.js (catálogo IMO de la app + radiante y Luna calculados)
+//   Meteoros .... meteors.js (catálogo IMO de la app + radiante, Luna y tasa visible calculados; a la mejor hora del lugar)
 //   Planetas .... planets.js (src/ephemeris.js; oposiciones, elongaciones, conjunciones)
 //   Estaciones .. seasons.js (Meeus, cap. 27)
 //   ISS ......... pasadas del backend (/api/iss/passes), solo las visibles
@@ -16,6 +16,12 @@ import { findOppositions, findElongations, findConjunctions } from "./planets.js
 import { findEclipses } from "./eclipses.js";
 import { findSeasons } from "./seasons.js";
 import { findShowerPeaks } from "./meteors.js";
+
+// Lluvia de meteoros → evento: a la mejor hora del lugar (inicio = radiante más alto de la noche; ventana de ≤ 2 h) o,
+// si ese lugar no tiene mejor hora (el radiante no sube), de todo el día en la fecha del catálogo.
+const meteorEvent = (p) => (p.window
+  ? { id: p.id, type: "meteor", sub: "shower", t: p.window.start, durationMin: p.window.durationMin, visible: p.risesInNight, data: p }
+  : { id: p.id, type: "meteor", sub: "shower", t: p.date, allDay: true, durationMin: 24 * 60, visible: p.risesInNight, data: p });
 import { filterLaunches } from "./launchFilter.js";
 import { milestoneEvents } from "./milestones.js";
 
@@ -74,9 +80,7 @@ export function buildSkyEvents({ from = Date.now(), days = 90, lat = QUITO.lat, 
     ev.push({ id: `${e.id}`, type: "eclipse", sub: e.body, t: e.t, durationMin: e.body === "moon" ? Math.max(60, e.umbMin || 60) : 120, visible, data: e });
   }
 
-  for (const p of findShowerPeaks(showers, from, to, lat, lon)) {
-    ev.push({ id: p.id, type: "meteor", sub: "shower", t: p.date, allDay: true, durationMin: 24 * 60, visible: p.risesInNight, data: p });
-  }
+  for (const p of findShowerPeaks(showers, from, to, lat, lon)) ev.push(meteorEvent(p));
 
   const mag = (name, t) => { try { const m = bodyMagnitude(stateAt(t)[name].raw); return m ? m.V : null; } catch { return null; } };
   for (const o of findOppositions(from, to)) {
@@ -118,7 +122,7 @@ export function nextHighlight({ now = Date.now(), lat = QUITO.lat, lon = QUITO.l
   const to = now + days * DAY;
   const ev = [];
   for (const e of findEclipses(now, to, lat, lon)) ev.push({ id: `${e.id}`, type: "eclipse", sub: e.body, t: e.t, durationMin: 120, visible: null, data: e });
-  for (const p of findShowerPeaks(showers, now, to, lat, lon)) ev.push({ id: p.id, type: "meteor", sub: "shower", t: p.date, allDay: true, durationMin: 24 * 60, visible: p.risesInNight, data: p });
+  for (const p of findShowerPeaks(showers, now, to, lat, lon)) ev.push(meteorEvent(p));
   for (const s of findSeasons(now, to)) {
     const sub = ["marEquinox", "junSolstice", "sepEquinox", "decSolstice"][s.k], decl = s.k === 1 ? 23.44 : s.k === 3 ? -23.44 : 0;
     ev.push({ id: `season-${sub}-${ymd(s.t)}`, type: "season", sub, t: s.t, durationMin: 30, visible: null, data: { k: s.k, kind: s.kind, noonAlt: sunNoonAlt(lat, decl) } });

@@ -40,6 +40,25 @@ SHOWERS = [
      217.0, 76.0, "12-22", "12-17", "12-26", 10, "8P/Tuttle"),
 ]
 
+# Índice poblacional r y velocidad geocéntrica V∞ (km/s): Tabla 5, «Working List of Visual Meteor
+# Showers», de IMO Meteor Shower Calendar 2027 (37.ª edición, J. Rendtel, publicada el 6-jul-2026):
+# https://www.imo.net/files/meteor-shower/cal2027.pdf  (página 25). Con r = None (o V = None) la app
+# no muestra la estimación de meteoros visibles de esa lluvia.
+IMO_RV = {
+    "Quadrantids": (2.1, 41),
+    "Lyrids": (2.1, 49),
+    "Eta Aquariids": (2.4, 66),
+    "Southern Delta Aquariids": (2.5, 41),
+    "Perseids": (2.2, 59),
+    "September Epsilon Perseids": (2.5, 64),
+    "Draconids": (2.6, 20),
+    "Orionids": (2.5, 66),
+    "Southern Taurids": (2.3, 27),
+    "Leonids": (2.5, 71),
+    "Geminids": (2.6, 35),
+    "Ursids": (2.8, 33),
+}
+
 
 def build():
     objects = []
@@ -55,10 +74,14 @@ def build():
             "end": end,         # MM-DD fin de actividad (puede cruzar el año)
             "zhr": zhr,         # tasa horaria cenital en el máximo
             "parent": parent,   # cuerpo progenitor
+            "r": IMO_RV.get(en, (None, None))[0],   # índice poblacional (IMO 2027, tabla 5)
+            "v": IMO_RV.get(en, (None, None))[1],   # velocidad V∞ en km/s (IMO 2027, tabla 5)
         })
     meta = {
         "source": ("Lluvias de meteoros anuales principales (radiantes J2000 "
-                   "aprox., IMO / referencias estándar)."),
+                   "aprox., IMO / referencias estándar). r y v (índice poblacional y "
+                   "velocidad en km/s): IMO, Meteor Shower Calendar 2027, tabla 5, "
+                   "https://www.imo.net/files/meteor-shower/cal2027.pdf."),
         "note": ("El radiante es una dirección en el cielo, no un objeto a una "
                  "distancia; por eso no lleva años luz."),
         "count": len(objects),
