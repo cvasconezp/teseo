@@ -331,7 +331,9 @@ export const MONUMENTS = [
 export const SITE_STOPS = {
   // (posiciones: sobre el suelo de la maqueta, a más de 3,9 m de cualquier muro; `look`: rumbo hacia lo que se viene a ver)
   machupicchu: [
-    { id: "intihuatana", name: { es: "Intihuatana", en: "Intihuatana" }, lat: -13.16312, lon: -72.545683, elev: 2453, look: 0, at: ["intihuatana"] },
+    // (Intihuatana: 5 m al oeste de la piedra, en el piso llano de la cima, mirándola. Al sur quedaba pegado al muro de
+    // la terraza del escaneo —1,4 m, a 2–5 m— y desde ahí se veía un bloque gris que no se entendía qué era)
+    { id: "intihuatana", name: { es: "Intihuatana", en: "Intihuatana" }, lat: -13.163075, lon: -72.545729, elev: 2453, look: 90, lookAlt: 2, at: ["intihuatana"] },
     { id: "mirador", name: { es: "Mirador", en: "Viewpoint" }, lat: -13.164856, lon: -72.544457, elev: 2463, look: 333, lookAlt: -9, at: [] },
     { id: "plaza", name: { es: "Plaza Principal", en: "Main Plaza" }, lat: -13.163097, lon: -72.544997, elev: 2426, look: 265, lookAlt: 8, at: ["mp-plaza"] },
     { id: "sagrada", name: { es: "Templo Principal", en: "Main Temple" }, lat: -13.16369, lon: -72.545314, elev: 2444, look: 325, at: ["mp-templo-principal", "mp-tres-ventanas"] },

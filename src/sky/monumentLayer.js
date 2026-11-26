@@ -167,15 +167,14 @@ const GLSL_MAP = `
     float tsR = length(tsEN);
     // (el mismo desenfoque cerca que el relieve: un píxel del satélite ocupa muchas columnas de la imagen polar y
     // saldrían rayas que salen del centro)
-    // (la fila de arriba de la imagen es la cercana —comprobado contra la imagen del servidor—: v = 1 cerca)
-    vec2 tsNuv = vec2(fract(atan(tsEN.x, tsEN.y) / 6.2831853 + 1.0), 1.0 - clamp(log(max(tsR, uNearL.x) / uNearL.x) / uNearL.y, 0.0, 1.0));
+    vec2 tsNuv = vec2(fract(atan(tsEN.x, tsEN.y) / 6.2831853 + 1.0), clamp(log(max(tsR, uNearL.x) / uNearL.x) / uNearL.y, 0.0, 1.0));
     float tsLod = clamp(log2(2600.0 / max(tsR, 30.0)), 0.0, 6.5);
     vec3 tsC0 = texture2D(uNear, tsNuv, tsLod).rgb;
     // (la misma conversión que hace el relieve: el mosaico es más claro y menos saturado que el suelo visto de lado.
     // Sin su cambio de los restos de nubes por el color del monte: aquí confundía con nubes la arena clara del desierto)
     float tsG = (tsC0.r + tsC0.g + tsC0.b) / 3.0;
     // (algo menos saturado que en el relieve: la luz y la curva de película de las piezas ya lo saturan)
-    vec3 tsAlb = (vec3(tsG) + (tsC0 - tsG) * 0.85) * 0.6 * min(1.0, 0.62 / max(0.05, tsG));
+    vec3 tsAlb = (vec3(tsG) + (tsC0 - tsG) * 1.1) * 0.6 * min(1.0, 0.62 / max(0.05, tsG));
     vec3 tsSat = pow(tsAlb, vec3(2.2));
     float tsDet = clamp(tsC.g / tsAvg, 0.55, 1.5);
     diffuseColor.rgb = tsSat * tsDet * uNearGain;
@@ -330,7 +329,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
   let meshes = [], items = [], enabledFlag = true, k = 1, pending = 0;
   // uniformes comunes a todos los materiales (los propios de cada uno, en su copia)
   const shared = { uK: { value: 1 }, uHaze: { value: new THREE.Color(0.5, 0.6, 0.75) }, uHazeK: { value: 1 / 14000 }, uExposure: { value: 0.9 },
-    uNear: { value: null }, uNearOn: { value: 0 }, uNearL: { value: new THREE.Vector2(60, 1) }, uNearGain: { value: 1.3 } };
+    uNear: { value: null }, uNearOn: { value: 0 }, uNearL: { value: new THREE.Vector2(60, 1) }, uNearGain: { value: 1.2 } };
   // luces solo para los monumentos (las demás capas usan materiales sin luz)
   const sun = new THREE.DirectionalLight(0xffffff, 0);
   sun.castShadow = true;

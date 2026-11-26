@@ -310,6 +310,10 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
         loading = false;
         clear();
         tex.colorSpace = THREE.NoColorSpace;                      // los colores se escriben tal cual, como las franjas
+        // (la fila 0 de la imagen es la más cercana —D_MIN— y la malla pone v = 0 en su primer anillo: sin voltear. Con
+        // el volteo por defecto el relieve cercano se pintaba con la distancia invertida —a 1 km, lo que hay a 18 km—:
+        // en Chankillo, el mar a pocos cientos de metros del templo)
+        tex.flipY = false;
         tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
         tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter; tex.anisotropy = ANISO;
         const G = nearGeometry(near.data, UNITS_PER_M, lift, ground);
@@ -345,7 +349,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
         new THREE.TextureLoader().setCrossOrigin("anonymous").load(url, (tex) => {
           if (done || !mesh) { tex.dispose(); return; }
           done = true; clearTimeout(tm);
-          tex.colorSpace = THREE.NoColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+          tex.colorSpace = THREE.NoColorSpace; tex.flipY = false; tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;   // (sin voltear: ver arriba)
           // (filtro anisotrópico: las laderas se ven de costado; sin él la GPU toma una versión borrosa de la imagen)
           tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter; tex.anisotropy = aniso;
           const prev = uniforms.map.value, k = (tex.image && tex.image.width ? tex.image.width : 2048) / 2048;

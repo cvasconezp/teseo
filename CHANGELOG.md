@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.97.0 — El relieve cercano, con sus colores en su sitio; tomas aéreas en diagonal; Intihuatana
+
+- **El relieve cercano tenía la distancia invertida:** la imagen de satélite se pintaba volteada, de modo que a 1 km se veía lo que hay a 18 km y al revés (en Chankillo, el mar a pocos cientos de metros del templo; en otros lugares, campos y ríos que no estaban ahí). Afectaba a todos los lugares. Ahora cada color va en su distancia, y el suelo de los sitios en 3D, que toma ese mismo color, empalma con las montañas de alrededor.
+- **Tomas aéreas en diagonal, no desde el cenit:** las que caían sobre la cima de una pieza alta (Pirámide del Sol y de la Luna, Keops, El Castillo, Newgrange, Abu Simbel, Karnak, Angkor Wat, Pirámide G de Cochasquí) se apartan a un costado y la miran de lado y desde arriba, como la de Kefrén, que no cambia.
+- **Machu Picchu, Intihuatana:** el punto de visita quedaba pegado al muro de la terraza que rodea la cima (1,4 m, a 2–5 m) y se veía un bloque gris que no se entendía. Ahora está 5 m al oeste de la piedra, en el piso llano de la cima, mirándola.
+
 ## 1.96.0 — El suelo de los sitios en 3D, del color del relieve que lo rodea
 
 - **Sin parche de otro color:** el suelo propio de cada sitio (y el terreno de la maqueta del Templo Fortificado de Chankillo) toma ahora el color de la misma imagen de satélite (Sentinel-2) que pinta las montañas de alrededor, punto por punto, con la misma conversión que usa el relieve; de la foto de arena, tierra o hierba solo conserva el detalle menudo. Mientras la imagen no ha cargado, o si falla, se ve el color de siempre.

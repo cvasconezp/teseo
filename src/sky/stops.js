@@ -124,14 +124,31 @@ export function aerialStops(site, existing = []) {
     const [lat, lon] = at(la0, lo0, ce, cn), rc = Math.max(...g.map((p) => Math.hypot(p.e - c.e, p.n - c.n) + p.r));
     if (existing.some((q) => q.air && offsetOf(lat, lon, q.lat, q.lon).d < Math.max(rc, 60))) return;
     let air = AIR_H[site] || Math.min(220, Math.max(40, 0.5 * rc + 25));
-    for (const p of g) if (Math.hypot(p.e - c.e, p.n - c.n) <= p.r + 5) air = Math.max(air, (p.m.labelAt ? p.m.height || 0 : apexOf(p.m)[2] || p.m.height || 0) + 40);   // (`labelAt` es donde va el rótulo, no su alto)
     // (la pieza principal: con nombre y que no sea un muro bajo —las torres, no el edificio de observación—; si no, la de mayor planta)
     const main = g.filter((p) => named(p.m) && p.m.kind !== "walls").sort((a, b) => b.r - a.r)[0] || g.filter((p) => named(p.m)).sort((a, b) => b.r - a.r)[0] || g[0];
-    const o = offsetOf(lat, lon, main.m.lat, main.m.lon);
-    const look = o.d > 25 ? Math.round(o.az) : 0, lookAlt = o.d > 25 ? Math.max(-75, Math.min(-15, -Math.round(Math.atan2(air, o.d) / RAD))) : -65;
+    const topOf = (m) => (m.labelAt ? m.height || 0 : apexOf(m)[2] || m.height || 0);
+    // EN DIAGONAL, NO DESDE EL CENIT: si la toma cae sobre una pieza alta (una pirámide, El Castillo), se aparta a un
+    // costado hasta ver la pieza principal de lado y desde arriba, como la de Kefrén (que no se toca: no cae sobre la cima): a su radio más vez y media su
+    // alto, en la dirección del resto del grupo o, si no hay, hacia el suroeste. Las piezas bajas (un recinto, una
+    // plaza) sí se ven bien desde encima
+    let le = ce, ln = cn;
+    let moved = false;
+    if (!AIR_H[site] && g.some((p) => topOf(p.m) >= 8 && Math.hypot(p.e - ce, p.n - cn) <= 0.6 * p.r + 5)) {
+      moved = true;
+      const rest = g.filter((p) => p !== main), mx = rest.length ? rest.reduce((a, p) => a + p.e, 0) / rest.length : main.e - 1, my = rest.length ? rest.reduce((a, p) => a + p.n, 0) / rest.length : main.n - 1;
+      let ux = mx - main.e, uy = my - main.n, ul = Math.hypot(ux, uy);
+      if (ul < 20) { ux = -Math.SQRT1_2; uy = -Math.SQRT1_2; ul = 1; }
+      const D = main.r + 1.5 * Math.max(20, topOf(main.m)) + 20;
+      le = main.e + (ux / ul) * D; ln = main.n + (uy / ul) * D;
+      air = Math.max(40, Math.min(220, topOf(main.m) * 1.3 + 30));
+    }
+    const [lat2, lon2] = at(la0, lo0, le, ln);
+    for (const p of g) if (Math.hypot(p.e - le, p.n - ln) <= p.r + 5) air = Math.max(air, topOf(p.m) + 40);
+    const o = offsetOf(lat2, lon2, main.m.lat, main.m.lon);
+    const look = o.d > 25 ? Math.round(o.az) : 0, lookAlt = o.d > 25 ? Math.max(-75, Math.min(-15, -Math.round(Math.atan2(moved ? air - topOf(main.m) * 0.4 : air, o.d) / RAD))) : -65;
     const nm = C.length > 1 && named(main.m) ? main.m.name : null;
     out.push({ id: `aire-${i + 1}`, name: nm ? { es: `Desde el aire · ${nm.es}`, en: `From the air · ${nm.en || nm.es}` } : { es: "Desde el aire", en: "From the air" },
-      lat: +lat.toFixed(6), lon: +lon.toFixed(6), elev: null, look, lookAlt, air: Math.round(air), at: [] });
+      lat: +lat2.toFixed(6), lon: +lon2.toFixed(6), elev: null, look, lookAlt, air: Math.round(air), at: [] });
   });
   return out;
 }

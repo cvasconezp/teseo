@@ -1803,6 +1803,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         // mirar a una altura/azimut del lugar (pruebas y capturas; solo en «Mi cielo»)
         lookAltAz: (alt, az, span) => { const v = altAzToLocal(alt, az); r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), span, true); r.wake(); },
         // monumentos (pruebas): cuántos hay, si hay relieve cercano y el rango de alturas de cada malla
+        monItems: () => r.monuments.items.map((it) => ({ id: it.m.id, d: +it.o.d.toFixed(1), dz: +it.dz.toFixed(2) })).slice(0, 40), up: () => r.monuments.items.up || 0,
         mon: () => ({ grid: r.monuments.grid ? { reach: r.monuments.grid.reach, h: r.monuments.grid.h.slice(0, 24).map((v) => +v.toFixed(1)) } : null, n: r.monuments.items.length, loading: r.monuments.loading, vis: r.monuments.group.visible, meshes: r.monuments.group.children.filter((c) => c.isMesh).map((c) => { c.geometry.computeBoundingBox(); const b = c.geometry.boundingBox; return [c.renderOrder, c.geometry.attributes.position.count, +b.min.y.toFixed(1), +b.max.y.toFixed(1), Number.isFinite(b.min.y)]; }) }),
         // mirar a una dirección ecuatorial (la de un cuerpo de bodies()), con el campo `span`
         lookEq: (nx, ny, nz, span) => { r.lookAt(new THREE.Vector3(nx, ny, nz).normalize().applyQuaternion(r.localQuat), span, true); r.wake(); },
