@@ -74,6 +74,7 @@ def fit_plan(mod, utm):
     return np.linalg.lstsq(np.array(A), np.array(B), rcond=None)[0]
 
 def walls_and_floors(Vs, Fs, R=0.5, debug=None):
+    from scipy.spatial import cKDTree
     """Las murallas, como muros, y el suelo entre ellas, limpio.
     · Dónde hay muro lo dice la propia maqueta: crestas de más de 0,45 m sobre el suelo de alrededor o escalones de más
       de 32°, dentro del recinto (el contorno de la muralla exterior). Se saca su eje, y por él va un muro de caras
@@ -156,128 +157,142 @@ def walls_and_floors(Vs, Fs, R=0.5, debug=None):
         if len(Q) >= 5: top = ndimage.median_filter(top, 3, mode="nearest"); hw = ndimage.uniform_filter1d(hw, 5, mode="nearest")
         if np.median(top - low) < 0.7: continue
         curves.append({"Q": Q, "h": np.maximum(top - low, 0.7), "hw": hw, "closed": closed, "fill": False})
-    # COMPLETAR con la misma lógica: las tres murallas, el muro que rodea los edificios y los dos edificios circulares
-    # son anillos cerrados. Cada anillo se sigue alrededor de su centro (su radio en cada acimut, de grado en grado,
-    # tomando el muro detectado más cercano al radio que traía); donde falta un arco, se completa interpolando el radio
-    # entre los dos lados, con el alto y el ancho de los extremos. Los huecos de menos de 3,5 m quedan: pueden ser puertas.
-    pts = np.vstack([c["Q"] for c in curves]); ph = np.concatenate([c["h"] for c in curves]); pw = np.concatenate([c["hw"] for c in curves])
-    axis0 = np.zeros(m.shape, bool)
-    for q in pts.astype(int): axis0[min(max(q[1], 0), m.shape[0] - 1), min(max(q[0], 0), m.shape[1] - 1)] = True
-    dax = ndimage.distance_transform_edt(~ndimage.binary_dilation(axis0, iterations=2)) * R + 1.0
-    from scipy.spatial import cKDTree
-    tree = cKDTree(pts)
-    def ring(cen, r0, a0, tol=3.0, maxgap=100):
-        c = np.array([(cen[0] - e0) / R, (cen[1] - n0) / R]); d = (pts - c) * R; th = (np.degrees(np.arctan2(d[:, 0], d[:, 1])) + 360) % 360; rr = np.hypot(*d.T)
+    # TRAZADO GEOMÉTRICO, completado con la misma lógica. La maqueta es casi una foto aérea en relieve: dice dónde van
+    # los muros, pero su contorno sale pixelado. Así que a lo detectado se le ajustan formas limpias:
+    #   · los dos edificios circulares: círculos (centro y radio por mínimos cuadrados), uno por anillo;
+    #   · las tres murallas (la interior rodea los edificios): curvas cerradas suaves —su radio en cada acimut, desde el
+    #     centro del recinto, alisado con sus primeros armónicos—; donde la maqueta muestra un hueco limpio de 2 a 5 m
+    #     entre dos tramos seguidos, queda abierto (una puerta);
+    #   · el edificio rectangular: rectas (su contorno y los tabiques que se ven);
+    #   · el resto (parapetos de las puertas, muros sueltos): rectas si casi lo son, si no curvas suavizadas.
+    # Cada muro lleva un ancho constante y su alto (el que mide la maqueta) alisado a lo largo de su recorrido.
+    pts = np.vstack([c["Q"] for c in curves]); pw = np.concatenate([c["hw"] for c in curves])
+    hgt = lambda Q: samp(Zmax, Q[:, 1], Q[:, 0]) - samp(floor, Q[:, 1], Q[:, 0])
+    def smooth_h(Q, closed, win_m=30.0):
+        L = np.hypot(*np.diff(Q, axis=0).T).mean() * R if len(Q) > 1 else 1.0; k = max(1, int(win_m / max(L, 0.3)))
+        return np.maximum(ndimage.uniform_filter1d(ndimage.median_filter(hgt(Q), min(len(Q), 7), mode="wrap" if closed else "nearest"), min(len(Q), k), mode="wrap" if closed else "nearest"), 0.9)
+    def wall(Q, closed, hw):
+        return {"Q": Q, "h": smooth_h(Q, closed), "hw": np.full(len(Q), float(hw)), "closed": closed, "fill": False}
+    shapes = []
+    # · las murallas: radio por acimut desde el centro del recinto, seguido de grado en grado
+    C0 = np.array([(0.0 - e0) / R, (-10.0 - n0) / R]); d0 = (pts - C0) * R; th0 = (np.degrees(np.arctan2(d0[:, 0], d0[:, 1])) + 360) % 360; rr0 = np.hypot(*d0.T)
+    def track(r0, tol):
         NB = 360; rk = np.full(NB, np.nan); last = r0; trend = 0.0; miss = 0
         for step in range(NB):
-            b = (a0 + step) % NB; sel = (np.abs(((th - b + 180) % 360) - 180) < 0.6) & (np.abs(rr - last) < tol + 0.04 * miss)
+            b = (270 + step) % NB; sel = (np.abs(((th0 - b + 180) % 360) - 180) < 0.6) & (np.abs(rr0 - last) < tol + 0.04 * miss)
             if sel.any():
-                r_ = rr[sel][np.argmin(np.abs(rr[sel] - last))]; rk[b] = r_; trend = 0.7 * trend + 0.3 * (r_ - last) if miss == 0 else 0.0; last = r_; miss = 0
+                r_ = rr0[sel][np.argmin(np.abs(rr0[sel] - last))]; rk[b] = r_; trend = 0.7 * trend + 0.3 * (r_ - last) if miss == 0 else 0.0; last = r_; miss = 0
             else: miss += 1; last += trend * 0.5
-        ok = ~np.isnan(rk)
-        if ok.sum() < 90: return [], ok.mean(), None
-        idx = np.arange(NB); rf = np.interp(idx, idx[ok], rk[ok], period=NB)
-        rf = ndimage.uniform_filter1d(rf, 3, mode="wrap")
-        P = c + np.c_[np.sin(np.radians(idx)), np.cos(np.radians(idx))] * rf[:, None] / R
-        have = samp(dax, P[:, 1], P[:, 0]) < 2.5
-        out = []
-        if have.all(): return out, ok.mean(), P
-        k0 = int(np.argmax(have)); order = (np.arange(NB) + k0) % NB; run = []
-        for b in list(order) + [order[0]]:
-            if not have[b]: run.append(b); continue
-            if run:
-                if len(run) <= maxgap:
-                    seg = [(run[0] - 1) % NB] + run + [b]; Q = P[seg]; L = np.hypot(*np.diff(Q, axis=0).T).sum() * R
-                    if L >= 3.5 + 2 * rf[run[0]] * math.radians(1):
-                        _, ia = tree.query(Q[0]); _, ib = tree.query(Q[-1]); s_ = np.linspace(0, 1, len(Q))
-                        out.append({"Q": Q, "h": ph[ia] + (ph[ib] - ph[ia]) * s_, "hw": pw[ia] + (pw[ib] - pw[ia]) * s_, "closed": False, "fill": True})
-                run = []
-        return out, ok.mean(), P
-    # centro del recinto y de los dos edificios circulares (en m desde el origen del archivo), y radio de partida por el oeste
-    C0 = (0.0, -10.0)
-    def r_at(cen, az, lo, hi):
-        c = np.array([(cen[0] - e0) / R, (cen[1] - n0) / R]); d = (pts - c) * R; th = (np.degrees(np.arctan2(d[:, 0], d[:, 1])) + 360) % 360; rr = np.hypot(*d.T)
-        sel = (np.abs(((th - az + 180) % 360) - 180) < 3) & (rr > lo) & (rr < hi)
-        return sorted(rr[sel])
-    bridges = []
-    west = r_at(C0, 270, 40, 140); groups = []
+        return rk
+    def fourier(rk, K):
+        ok = ~np.isnan(rk); idx = np.arange(len(rk)); rf = np.interp(idx, idx[ok], rk[ok], period=len(rk))
+        F = np.fft.rfft(rf); F[K + 1:] = 0; return np.fft.irfft(F, len(rk))
+    west = sorted(rr0[(np.abs(((th0 - 270 + 180) % 360) - 180) < 3) & (rr0 > 35) & (rr0 < 140)]); groups = []
     for r_ in west:
         if not groups or r_ - groups[-1][-1] > 6: groups.append([r_])
         else: groups[-1].append(r_)
-    # (cada grupo se sigue alrededor; es un anillo si se encuentra muro en más de la mitad de los acimuts: así quedan
-    # fuera las puertas con sus parapetos, que también cortan el radio oeste)
-    # (y no repite uno ya seguido: si su recorrido va a menos de 6 m de otro anillo, es el mismo)
-    taken = []
+    rings_ = []
     for g in groups:
         if len(g) < 2: continue
-        f_, cov, P_ = ring(C0, float(np.median(g)), 270)
-        # (el muro que rodea los edificios es alargado, no centrado: su radio cambia deprisa; se sigue con más margen)
-        if cov < 0.5: f_, cov, P_ = ring(C0, float(np.median(g)), 270, tol=6.0)
-        dup = P_ is not None and any(np.median(np.hypot(*(P_ - T_).T)) * R < 6 for T_ in taken)
-        print("  radio %.0f m: muro en el %.0f %% de los acimuts%s" % (np.median(g), cov * 100, " (no es un anillo)" if cov < 0.5 else " (repetido)" if dup else ""))
-        if cov >= 0.5 and not dup: bridges += f_; taken.append(P_)
-    for cen in ((-3.2, -2.0), (19.5, 42.2)):                      # los dos edificios circulares
-        rs_ = r_at(cen, 270, 4, 26); gr = []
-        for r_ in rs_:
-            if not gr or r_ - gr[-1][-1] > 3: gr.append([r_])
-            else: gr[-1].append(r_)
-        for g in gr:
-            f_, cov, _ = ring(cen, float(np.median(g)), 270, tol=2.0, maxgap=180)
-            if cov >= 0.5: bridges += f_
-    # el edificio rectangular: un rectángulo con tabiques paralelos a sus lados. Se mide su orientación y su contorno con
-    # los muros que se ven; se cierran los lados que faltan y los tabiques se completan entre sus tramos visibles
-    # (y hasta el lado más cercano, si queda a menos de 8 m)
-    def fillline(A, B, step=1.0):
-        n = max(2, int(np.hypot(*(B - A)) * R / step) + 1); Q = A + (B - A) * np.linspace(0, 1, n)[:, None]
-        have = samp(dax, Q[:, 1], Q[:, 0]) < 2.0; out = []; run = []
-        for k in list(range(n)) + [None]:
-            if k is not None and not have[k]: run.append(k); continue
-            if run and (len(run) + 1) * step >= 3.5:
-                seg = Q[max(run[0] - 1, 0): min(run[-1] + 2, n)]; _, ia = tree.query(seg[0]); _, ib = tree.query(seg[-1]); s_ = np.linspace(0, 1, len(seg))
-                out.append({"Q": seg, "h": ph[ia] + (ph[ib] - ph[ia]) * s_, "hw": pw[ia] + (pw[ib] - pw[ia]) * s_, "closed": False, "fill": True})
+        r0 = float(np.median(g)); rk = track(r0, 3.0)
+        if np.mean(~np.isnan(rk)) < 0.5: rk = track(r0, 6.0)        # (la interior es alargada: su radio cambia deprisa)
+        cov = np.mean(~np.isnan(rk))
+        if cov < 0.5: continue
+        rf = fourier(rk, 12)
+        if any(np.median(np.abs(rf - o)) < 6 for o in rings_): continue
+        rings_.append(rf)
+        ang = np.radians(np.arange(360)); P = C0 + np.c_[np.sin(ang), np.cos(ang)] * rf[:, None] / R
+        # puertas: huecos limpios de 2 a 5 m en lo detectado (con muro a los dos lados)
+        have = samp(ndimage.distance_transform_edt(~ndimage.binary_dilation(m, iterations=1)) * R, P[:, 1], P[:, 0]) < 1.2
+        door = np.zeros(360, bool); k0 = int(np.argmax(have)); run = []
+        for t in list((np.arange(360) + k0) % 360) + [k0]:
+            if not have[t]: run.append(t); continue
+            if run:
+                Lr = len(run) * math.radians(1) * rf[run[0]]
+                if 2.0 <= Lr <= 5.0: door[run] = True
             run = []
-        return out
-    Bc = np.array([(-1.1 - e0) / R, (-55.8 - n0) / R]); allT = np.vstack([np.gradient(c["Q"], axis=0) for c in curves[:len(curves) - len(bridges)]])
-    allQ = np.vstack([c["Q"] for c in curves[:len(curves) - len(bridges)]]); allT /= np.maximum(np.hypot(*allT.T), 1e-9)[:, None]
-    sel = np.hypot(*(allQ - Bc).T) * R < 18; Pb, Tb = allQ[sel], allT[sel]
-    # orientación: la de los muros rectos que se ven (el ángulo con más tangentes alineadas)
-    ang_ = np.degrees(np.arctan2(Tb[:, 1], Tb[:, 0])) % 90; hist_a = np.histogram(ang_, bins=90, range=(0, 90))[0]
-    hist_a = ndimage.uniform_filter1d(hist_a.astype(float), 5, mode="wrap"); A_ = math.radians(int(np.argmax(hist_a)) + 0.5)
-    u = np.array([math.cos(A_), math.sin(A_)]); v = np.array([-u[1], u[0]])
-    # sus muros más gastados (la mitad sureste apenas sobresale): un relieve local más fino, solo alrededor del edificio
-    yy0, xx0 = np.mgrid[0:m.shape[0], 0:m.shape[1]]; around = np.hypot(xx0 - Bc[0], yy0 - Bc[1]) * R < 26
+        hw = float(np.clip(np.median(pw[np.abs(rr0 - np.interp(th0, np.arange(361), np.r_[rf, rf[0]])) < 2]), 0.7, 1.8)) if len(pw) else 1.0
+        if not door.any(): shapes.append(wall(np.vstack([P, P[:1]]), True, hw))
+        else:
+            k1 = int(np.argmax(door)); seq = (np.arange(360) + k1) % 360; segs = []; cur = []
+            for t in seq:
+                if door[t]:
+                    if len(cur) > 1: segs.append(cur)
+                    cur = []
+                else: cur.append(t)
+            if len(cur) > 1: segs.append(cur)
+            for sg in segs: shapes.append(wall(P[sg], False, hw))
+        print("  muralla: radio %.0f m por el oeste, muro detectado en el %.0f %% del contorno, %d puertas" % (r0, cov * 100, int(np.sum(np.diff(np.r_[door, door[0]].astype(int)) == 1))))
+    # · los edificios circulares: círculos por mínimos cuadrados, uno por anillo
+    def fit_circle(P):
+        A = np.c_[2 * P, np.ones(len(P))]; b = (P ** 2).sum(1); cx, cy, c_ = np.linalg.lstsq(A, b, rcond=None)[0]; return np.array([cx, cy]), math.sqrt(c_ + cx * cx + cy * cy)
+    circ = []
+    for cen in ((-3.2, -2.0), (19.5, 42.2)):
+        c = np.array([(cen[0] - e0) / R, (cen[1] - n0) / R]); rr = np.hypot(*(pts - c).T) * R
+        hist, edges = np.histogram(rr[rr < 26], bins=np.arange(0, 26.5, 1.0)); hist = ndimage.uniform_filter1d(hist.astype(float), 3)
+        peaks = []
+        for i in np.argsort(-hist):                                # los anillos: picos de al menos 4 puntos, separados 5 m
+            if hist[i] < 4 or i < 4: continue
+            if all(abs(i - j) >= 5 for j in peaks): peaks.append(i)
+        for i in sorted(peaks):
+            r_ = (edges[i] + edges[i + 1]) / 2; P = pts[np.abs(rr - r_) < 2.0]
+            if len(P) < 12: continue
+            cc, rad = fit_circle(P)
+            circ.append((cen, cc, rad, float(np.clip(np.median(pw[np.abs(rr - r_) < 2.0]), 0.7, 1.6))))
+    for cen in ((-3.2, -2.0), (19.5, 42.2)):
+        cs = [x for x in circ if x[0] == cen]
+        if not cs: continue
+        for _, cc, rad, hw in cs:
+            ang = np.radians(np.arange(0, 361, 5)); P = cc + np.c_[np.sin(ang), np.cos(ang)] * rad
+            shapes.append(wall(P, True, hw)); print("  edificio circular: anillo de %.1f m de radio" % (rad * R))
+    # · el edificio rectangular: en el relieve es casi un cuadrado (unos 36 m de lado) partido en cuatro cuartos iguales por
+    #   una cruz. Se busca el cuadrado —centro, giro y lado— cuyos seis muros (contorno y cruz) caen mejor sobre lo que
+    #   sobresale en la maqueta, partiendo de lo leído en el relieve
     relL = Z - ndimage.grey_opening(ndimage.median_filter(Z, 3), size=(15, 15))
-    mL = remove_small_objects(ndimage.binary_opening((relL > 0.3) & around, iterations=1), 30); skL = skeletonize(mL); PL = np.argwhere(skL)[:, ::-1].astype(float)
-    rect = 0; ext = {}
-    def lines_along(ax_, other):
-        po, pa = PL @ other, PL @ ax_; out = []
-        hist, edges = np.histogram(po, bins=np.arange(po.min(), po.max() + 1, 1.0))
-        hist = ndimage.uniform_filter1d(hist.astype(float), 3)
-        for i in range(len(hist)):
-            if hist[i] < 0.6 * 8 / R or hist[i] < hist[max(0, i - 3): i + 4].max(): continue
-            c_ = (edges[i] + edges[i + 1]) / 2; on = np.sort(pa[np.abs(po - c_) < 1.0 / R])
-            # (el tramo recto más largo, sin huecos de más de 4 m)
-            br = np.where(np.diff(on) > 4 / R)[0]; parts = np.split(on, br + 1); best_ = max(parts, key=lambda q: q[-1] - q[0])
-            if (best_[-1] - best_[0]) * R >= 8: out.append((c_, best_[0], best_[-1]))
-        return out
-    Lu, Lv = lines_along(u, v), lines_along(v, u)
-    if Lu and Lv:
-        vlo, vhi = min(l[0] for l in Lu), max(l[0] for l in Lu); ulo, uhi = min(l[0] for l in Lv), max(l[0] for l in Lv)
-        for (ax_, other, Ls, lo_a, hi_a, lo_o, hi_o) in ((u, v, Lu, ulo, uhi, vlo, vhi), (v, u, Lv, vlo, vhi, ulo, uhi)):
-            for c_, a0, a1 in Ls:
-                edge = abs(c_ - lo_o) < 1.5 / R or abs(c_ - hi_o) < 1.5 / R
-                if edge: a0, a1 = lo_a, hi_a
-                else:
-                    a0 = lo_a if a0 - lo_a < 8 / R else a0; a1 = hi_a if hi_a - a1 < 8 / R else a1
-                A0, A1 = ax_ * a0 + other * c_, ax_ * a1 + other * c_
-                add = fillline(A0, A1)
-                for c2 in add:                                     # su alto, el que mide la maqueta (al menos 0,7 m)
-                    hh = samp(Zmax, c2["Q"][:, 1], c2["Q"][:, 0]) - samp(floor, c2["Q"][:, 1], c2["Q"][:, 0])
-                    c2["h"] = np.maximum(ndimage.uniform_filter1d(hh, 5, mode="nearest"), 0.7); c2["hw"] = np.full(len(c2["Q"]), 0.7)
-                bridges += add; rect += len(add)
-        ext = ((uhi - ulo) * R, (vhi - vlo) * R)
-    print("edificio rectangular: %s, %d tramos completados" % ("%.0f × %.0f m" % ext if ext else "sin medir", rect))
-    curves += bridges; used = ()
+    def sq_lines(cx, cy, ang, hl):
+        u = np.array([math.cos(ang), math.sin(ang)]); v = np.array([-u[1], u[0]]); c = np.array([cx, cy])
+        K = [c + hl * (-u + v), c + hl * (u + v), c + hl * (u - v), c + hl * (-u - v)]
+        return [(K[0], K[1]), (K[1], K[2]), (K[2], K[3]), (K[3], K[0]), ((K[0] + K[3]) / 2, (K[1] + K[2]) / 2), ((K[0] + K[1]) / 2, (K[3] + K[2]) / 2)]
+    tt = np.linspace(0, 1, 60)
+    def score(prm):
+        P = np.vstack([a + (b - a) * tt[:, None] for a, b in sq_lines(*prm)]); P = (P - [e0, n0]) / R
+        return samp(relL, P[:, 1], P[:, 0]).mean()
+    best = (-1e9, None)
+    for dx in np.arange(-3, 3.01, 0.5):
+        for dy in np.arange(-3, 3.01, 0.5):
+            for da in np.arange(-4, 4.01, 1.0):
+                for dh in np.arange(-2, 2.01, 0.5):
+                    prm = (-6.7 + dx, -50.35 + dy, math.radians(-30.9 + da), 18.1 + dh); sc_ = score(prm)
+                    if sc_ > best[0]: best = (sc_, prm)
+    rectL = []
+    for a, b in sq_lines(*best[1]):
+        n = max(2, int(np.hypot(*(b - a)) / 2) + 1); Q = ((a + (b - a) * np.linspace(0, 1, n)[:, None]) - [e0, n0]) / R
+        shapes.append(wall(Q, False, 0.6)); rectL.append(Q)
+    print("  edificio rectangular: cuadrado de %.1f m de lado, girado %.1f°, centro (%.1f, %.1f) m; relieve medio sobre sus muros %.2f m" % (2 * best[1][3], math.degrees(best[1][2]), best[1][0], best[1][1], best[0]))
+    # · el resto: lo que no cae sobre ninguna de esas formas, simplificado
+    def chaikin(P, it=3):
+        for _ in range(it):
+            Q = [P[0]]
+            for a, b in zip(P[:-1], P[1:]): Q += [0.75 * a + 0.25 * b, 0.25 * a + 0.75 * b]
+            Q.append(P[-1]); P = np.array(Q)
+        return P
+    sp = np.vstack([np.vstack([a + (b - a) * t for t in np.linspace(0, 1, 6)]) for sh_ in shapes for a, b in zip(sh_["Q"][:-1], sh_["Q"][1:])])
+    ftree = cKDTree(sp); extra = 0
+    for c in curves:
+        dd, _ = ftree.query(c["Q"]); free = dd * R > 3.0
+        if free.mean() < 0.6: continue
+        # (dentro del edificio rectangular mandan su contorno y su cruz)
+        cxq, cyq, aq, hq = best[1]; uq = np.array([math.cos(aq), math.sin(aq)]); rel_ = c["Q"].mean(0) * R + [e0, n0] - [cxq, cyq]
+        if abs(rel_ @ uq) < hq + 2 and abs(rel_ @ np.array([-uq[1], uq[0]])) < hq + 2: continue
+        Q = c["Q"][free] if free.all() else c["Q"]
+        if (len(Q) < 2) or np.hypot(*np.diff(Q, axis=0).T).sum() * R < 6: continue
+        a, b = Q[0], Q[-1]; d = b - a; Ld = np.hypot(*d)
+        res = np.abs(d[0] * (Q[:, 1] - a[1]) - d[1] * (Q[:, 0] - a[0])).max() / Ld * R if Ld > 1e-6 else 99
+        if res < 0.6: n = max(2, int(Ld * R / 2) + 1); Q2 = a + d * np.linspace(0, 1, n)[:, None]
+        else: Q2 = chaikin(rdp(Q, 1.0 / R))
+        shapes.append(wall(Q2, False, float(np.clip(np.median(c["hw"]), 0.6, 1.4)))); extra += 1
+    print("  otros muros: %d" % extra)
+    curves = shapes; bridges = []
     OV, OF, total, filled = [], [], 0.0, 0.0; foot = np.zeros_like(m); axis = np.zeros(m.shape, np.uint8)
     for c in curves:
         Q, h, hw, closed = c["Q"], c["h"], c["hw"], c["closed"]
@@ -302,7 +317,6 @@ def walls_and_floors(Vs, Fs, R=0.5, debug=None):
                 if 0 <= yy_ < axis.shape[0] and 0 <= xx_ < axis.shape[1]: axis[yy_, xx_] = 1 if not c["fill"] else 2
         if not closed:
             for a in (b0, b0 + 4 * (len(Q) - 1)): OF += [[a, a + 2, a + 3], [a, a + 3, a + 1]]
-    print("tramos completados: %d (%.0f m)" % (len(bridges), filled))
     # el suelo, rebajado donde sobresale sobre el suelo limpio (fuera de la huella de los muros y dentro del recinto)
     yy = (Vs[:, 1] - n0) / R; xx = (Vs[:, 0] - e0) / R
     fl = samp(floor, yy, xx); inF = samp(foot.astype(float), yy, xx) > 0.5; inH = samp(ndimage.binary_dilation(hull, iterations=int(8 / R)).astype(float), yy, xx) > 0.5
@@ -315,7 +329,8 @@ def walls_and_floors(Vs, Fs, R=0.5, debug=None):
         img = np.stack([sh * 200] * 3, -1).astype(np.uint8); img[hull & ~m] = (img[hull & ~m] * 0.85).astype(np.uint8)
         img[foot] = (img[foot] * 0.5 + np.array([0, 60, 120])).astype(np.uint8); img[axis == 1] = (255, 255, 0); img[axis == 2] = (255, 60, 60)
         Image.fromarray(img[::-1]).save(debug)
-    return V2, drop, np.array(OV), np.array(OF, np.int64)
+    outer = (C0 * R + [e0, n0], max(rings_, key=lambda q: q.mean()) if rings_ else None)
+    return V2, drop, np.array(OV), np.array(OF, np.int64), outer
 
 def main(path):
     V, F, Lum = load_glb(path); V, F, keep = weld(V, F); Lum = Lum[keep]; print("modelo:", len(V), "vértices,", len(F), "triángulos")
@@ -352,7 +367,13 @@ def main(path):
     cen = Vs[Fs].mean(1); dd, ii = cKDTree(P).query(cen, k=6); lum = Lum[ii].mean(1)
     lo, hi = np.percentile(lum, [2, 98]); tone = np.clip(np.round((lum - lo) / (hi - lo) * 63), 0, 63).astype(np.uint8)
     # las murallas como muros y el suelo entre ellas limpio (antes del faldón, para que el borde baje con el suelo)
-    Vs, drop, WV, WF = walls_and_floors(Vs, Fs, debug="/tmp/chk-work/walls.png")
+    Vs, drop, WV, WF, (c0m, rfo) = walls_and_floors(Vs, Fs, debug="/tmp/chk-work/walls.png")
+    # (dentro del recinto, los taludes casi verticales —los lados de las plataformas— son muros de contención: mampostería)
+    if rfo is not None:
+        nn = np.cross(Vs[Fs[:, 1]] - Vs[Fs[:, 0]], Vs[Fs[:, 2]] - Vs[Fs[:, 0]]); LL = np.linalg.norm(nn, axis=1) + 1e-12
+        ce = Vs[Fs].mean(1)[:, :2] - c0m; thf = (np.degrees(np.arctan2(ce[:, 0], ce[:, 1])) + 360) % 360
+        inside = np.hypot(*ce.T) < np.interp(thf, np.arange(361), np.r_[rfo, rfo[0]]) - 2
+        steep = np.abs(nn[:, 2]) / LL < 0.45; cls[steep & inside] = 0; print("taludes de plataforma como mampostería: %d caras" % int((steep & inside).sum()))
     # (el suelo limpio, de un tono más parejo: sin las manchas oscuras de los derrumbes)
     fd = drop[Fs].max(1) > 0.3; tone[fd] = np.round(40 + (tone[fd].astype(float) - 40) * 0.35).astype(np.uint8)
     # faldón bajo el borde

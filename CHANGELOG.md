@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.92.0 — Templo Fortificado: trazado limpio
+
+- **Formas limpias en lugar del contorno pixelado** de la maqueta: las tres murallas son curvas cerradas suaves; cada edificio circular tiene dos anillos concéntricos, círculos ajustados a lo que se ve (de unos 21 y 10 m de radio); el edificio rectangular es un cuadrado de unos 35 m partido en cuatro cuartos por una cruz, ajustado al relieve. Los muros sueltos (parapetos de las puertas) quedan rectos o en curvas suavizadas.
+- Cada muro tiene un ancho constante y su alto, el que mide la maqueta, alisado a lo largo de su recorrido: sin escalones ni bordes dentados.
+- Los taludes casi verticales dentro del recinto (los lados de las plataformas, como la del edificio rectangular) se ven como muros de contención de mampostería.
+- Las puertas de las murallas todavía no están marcadas.
+
 ## 1.91.0 — Templo Fortificado: ruinas reconstruidas y vista aérea
 
 - **Murallas completadas con la misma lógica:** las tres murallas y el muro que rodea los edificios son anillos cerrados; donde a uno le falta un arco, se completa siguiendo su radio a ambos lados, con su alto y su ancho. El edificio rectangular se cierra como un rectángulo con sus cuatro cuartos. Los huecos de menos de 3,5 m quedan abiertos: pueden ser puertas.
