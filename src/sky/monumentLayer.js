@@ -8,7 +8,7 @@
 // las sombras, sombras propias y sobre el suelo, bruma con la distancia y un suelo continuo desde los pies del
 // observador hasta la base de cada monumento. De noche, una silueta apenas iluminada por el cielo.
 import * as THREE from "three";
-import { buildFaces, toLocal, offsetOf, EYE_M, apexOf, altAzOf, groundPatch, footprintRadius, onPlatform } from "./monuments.js";
+import { buildFaces, toLocal, offsetOf, EYE_M, apexOf, altAzOf, groundPatch, footprintRadius, onPlatform, silhouette } from "./monuments.js";
 import { terrainPalette } from "./horizon.js";
 import { makeMonumentTexture, MON_MATS } from "./monumentTextures.js";
 
@@ -99,12 +99,17 @@ export function groundSilhouette(items, relief, step = 0.2, reach = 440) {
  */
 export function monumentLabels(items, lang = "es", sil = null, step = 0.2) {
   // (la pirámide sobre cuya plataforma se está de pie no lleva etiqueta: no tiene cima a la vista)
-  return (items || []).filter(({ m, o }) => m.label !== false && !onPlatform(m, o)).map(({ m, o, dz }) => {
-    const v = toLocal(apexOf(m), o, dz), q = altAzOf(v);
+  return (items || []).filter(({ m, o }) => m.label !== false && !onPlatform(m, o)).map((it) => {
+    const { m, o, dz } = it, v = toLocal(apexOf(m), o, dz), q = altAzOf(v);
     let alt = q.alt;
+    // (solo con la silueta de SU pieza: con la de todas, el nombre de una pieza que queda detrás de otra más cercana
+    // —Micerino detrás de Keops, o cualquiera vista desde el aire, con otras piezas debajo— subía hasta el borde de la
+    // otra y se veía lejos de la suya. Y como mucho 3° por encima de su cima)
     if (sil && m.solid) {
-      const n = sil.length, c = Math.round(q.az / step), w = Math.max(1, Math.round(1 / step));
-      for (let j = c - w; j <= c + w; j++) alt = Math.max(alt, sil[((j % n) + n) % n]);
+      const own = silhouette([it], step), n = own.length, c = Math.round(q.az / step), w = Math.max(1, Math.round(1 / step));
+      let top = alt;
+      for (let j = c - w; j <= c + w; j++) top = Math.max(top, own[((j % n) + n) % n]);
+      alt = Math.min(top, q.alt + 3);
     }
     const hgt = m.height != null && m.kind !== "stepped" ? m.height : apexOf(m)[2];
     return { id: m.id, site: m.site, name: m.name[lang] || m.name.es, ele_m: hgt < 30 ? Math.round(hgt * 10) / 10 : Math.round(hgt), sub: m.sub ? (m.sub[lang] || m.sub.es) : null, az: q.az, alt, dist_km: o.d / 1000, monument: true };

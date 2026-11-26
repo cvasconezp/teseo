@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.95.0 — Rótulos junto a su estructura y Machu Picchu por sectores desde el aire
+
+- **Los rótulos de las estructuras ya no se ven lejos de ellas:** el nombre se apoyaba en lo más alto que se veía en su dirección, y eso incluía otras piezas que estaban delante. Desde el punto de Keops, el de Micerino subía hasta el borde de Keops; desde el aire, el de la Pirámide del Sol quedaba casi en el horizonte. Ahora cada nombre se apoya solo en su propia pieza y queda como mucho 3° sobre su cima. Afectaba a Guiza, Teotihuacan, Cochasquí, Machu Picchu, Tiwanaku y Paranal.
+- **Machu Picchu desde el aire, por sectores:** además de la toma de toda la ciudad (ahora a 120 m), cinco tomas más bajas, a 70–80 m: sector sagrado, Plaza Principal, Torreón y Cóndor, Puerta de la Ciudad y Roca Sagrada.
+
 ## 1.94.0 — Tomas aéreas en los sitios arqueológicos y puertas del templo
 
 - **Tomas aéreas («Desde el aire») en los 16 sitios arqueológicos con piezas en 3D**, como desde un dron sobre el centro del sitio, mirando hacia su pieza principal. En los sitios extensos hay varias, una por zona: Guiza (Keops y Kefrén), Teotihuacan (Sol y Luna), Cochasquí (pirámides y montículos) y Chankillo (templo, Trece Torres y recintos del este). La altura depende del tamaño de la zona, siempre 40 m o más por encima de lo que queda debajo. Stonehenge, Chichén Itzá, Newgrange, Ingapirca, Maeshowe, Abu Simbel, Karnak, Angkor Wat y el Coliseo estrenan puntos de visita: la vista general y la toma aérea.

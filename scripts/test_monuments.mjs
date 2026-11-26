@@ -215,8 +215,8 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
       { const A = allStops(), names = Object.keys(A).sort().join(",");
         ok(names === "abusimbel,angkorwat,catequilla,chankillo,chichenitza,cochasqui,coliseo,giza,ingapirca,karnak,machupicchu,maeshowe,newgrange,paranal,stonehenge,teotihuacan,tiwanaku" && Object.values(A).every((L) => L.length >= 2 && new Set(L.map((q) => q.id)).size === L.length), "puntos de visita en diecisiete sitios; cada uno, al menos la vista general y otro");
         { const air = Object.entries(A).filter(([s]) => s !== "paranal").map(([s, L]) => [s, L.filter((q) => q.air)]);
-          ok(air.every(([, L]) => L.length >= 1 && L.every((q) => q.air >= 40 && q.air <= 220 && q.lookAlt < 0)) && A.giza.filter((q) => q.air).length === 2 && A.machupicchu.filter((q) => q.air).length === 1 && A.stonehenge.filter((q) => q.air).length === 1 && !A.paranal.some((q) => q.air),
-            "tomas aéreas en los dieciséis sitios arqueológicos: una en los compactos, varias en los extensos (Guiza, dos), entre 40 y 220 m, mirando hacia abajo"); }
+          ok(air.every(([, L]) => L.length >= 1 && L.every((q) => q.air >= 40 && q.air <= 220 && q.lookAlt < 0)) && A.giza.filter((q) => q.air).length === 2 && A.machupicchu.filter((q) => q.air).length === 6 && A.stonehenge.filter((q) => q.air).length === 1 && !A.paranal.some((q) => q.air),
+            "tomas aéreas en los dieciséis sitios arqueológicos: una en los compactos, varias en los extensos (Guiza, dos; Machu Picchu, la ciudad entera y cinco sectores), entre 40 y 220 m, mirando hacia abajo"); }
         { const bad2 = []; for (const [s, L] of Object.entries(A)) for (const q of L.filter((x) => x.air)) for (const m of MONUMENTS.filter((m) => (m.site || m.id) === s)) { const o = offsetOf(q.lat, q.lon, m.lat, m.lon); if (o.d <= footprintRadius(m) && (m.labelAt ? m.height || 0 : apexOf(m)[2] || m.height || 0) > q.air - 30) bad2.push(s + ":" + q.id); }
           ok(bad2.length === 0, "ninguna toma aérea queda dentro de una pieza: siempre 30 m o más por encima de lo que tiene debajo" + (bad2.length ? " — " + bad2.join(" ") : "")); }
         { const bad3 = [], bad4 = [];
@@ -317,6 +317,13 @@ ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) s
   { const { placeMonuments } = await import("../src/sky/monumentLayer.js"); const T0 = by("chankillo-templo"), q = { lat: -9.556924, lon: -78.236026 };
     const base = placeMonuments([T0], { ...q, ground: 300 }, { [T0.id]: 300 }), air = placeMonuments([T0], { ...q, ground: 300, air: 60 }, { [T0.id]: 300 });
     ok(air.up === 60 && Math.abs(air[0].dz - (base[0].dz - 60)) < 1e-9, "«Templo desde el aire»: los ojos suben 60 m y todo lo demás baja lo mismo"); }
+  // los rótulos se apoyan en su propia pieza: nunca más de 3° por encima de su cima (antes subían al borde de otra pieza delante)
+  { const { placeMonuments, monumentLabels } = await import("../src/sky/monumentLayer.js"); const { silhouette, toLocal } = await import("../src/sky/monuments.js"); const bad = [];
+    for (const [s, L] of Object.entries(allStops())) for (const q of L) {
+      const near = monumentsNear(q.lat, q.lon, 25, { air: q.air || 0 }), items = placeMonuments(near, { lat: q.lat, lon: q.lon, ground: 100, air: q.air || 0 }, Object.fromEntries(near.map((m) => [m.id, 100])), null);
+      const a = monumentLabels(items, "es", silhouette(items, 0.2), 0.2), b = monumentLabels(items, "es", null, 0.2);
+      a.forEach((x, i) => { if (x.alt - b[i].alt > 3.01) bad.push(s + ":" + q.id + ":" + x.id); }); }
+    ok(bad.length === 0, "en todos los puntos de visita, cada rótulo queda a menos de 3° de la cima de su pieza" + (bad.length ? " — " + bad.slice(0, 6).join(" ") : "")); }
   // las torres no flotan: la fila sube 16 m de la 1 a la 13 y el suelo dibujado llega al pie de cada una, desde cualquier punto
   {
     const { placeMonuments, groundHeight, reliefPoints, markAloof } = await import("../src/sky/monumentLayer.js");

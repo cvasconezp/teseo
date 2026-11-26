@@ -74,7 +74,26 @@ const AIR_SITES = ["teotihuacan", "chichenitza", "giza", "stonehenge", "newgrang
   "angkorwat", "coliseo", "cochasqui", "machupicchu", "chankillo", "catequilla", "tiwanaku"];
 const named = (m) => m.label !== false && m.name && m.name.es;
 // (Machu Picchu: la planta de la llaqta abarca casi todo el sitio, de unos 500 m: una sola toma, sobre su centro)
-const AIR_K = { machupicchu: 1 }, AIR_H = { machupicchu: 150 };
+const AIR_K = { machupicchu: 1 }, AIR_H = { machupicchu: 120 };
+// (además, en un sitio grande con muchos rincones, tomas más bajas por sector: sobre el centro de sus piezas —`over`—, a
+// `air` metros, mirando hacia `toward`. Machu Picchu: desde 120 m la ciudad se ve entera pero lejana)
+const AIR_EXTRA = {
+  machupicchu: [
+    { id: "aire-sagrado", es: "Desde el aire · Sector sagrado", en: "From the air · Sacred sector", over: ["intihuatana", "mp-templo-principal", "mp-tres-ventanas"], toward: ["mp-plaza"], air: 70 },
+    { id: "aire-plaza", es: "Desde el aire · Plaza Principal", en: "From the air · Main Plaza", over: ["mp-plaza", "mp-tres-portadas", "mp-espejos"], toward: ["mp-templo-principal"], air: 70 },
+    { id: "aire-urbano", es: "Desde el aire · Torreón y Cóndor", en: "From the air · Torreón and Condor", over: ["mp-torreon", "mp-casa-inca", "mp-condor"], toward: ["mp-plaza"], air: 70 },
+    { id: "aire-puerta", es: "Desde el aire · Puerta de la Ciudad", en: "From the air · City Gate", over: ["mp-puerta", "mp-roca-funeraria"], toward: ["mp-plaza"], air: 80 },
+    { id: "aire-roca", es: "Desde el aire · Roca Sagrada", en: "From the air · Sacred Rock", over: ["mp-roca-sagrada"], toward: ["mp-plaza"], air: 70 },
+  ],
+};
+function extraAir(site) {
+  const byId = (id) => MONUMENTS.find((m) => m.id === id), mean = (ids) => { const L = ids.map(byId).filter(Boolean); return [L.reduce((a, m) => a + m.lat, 0) / L.length, L.reduce((a, m) => a + m.lon, 0) / L.length]; };
+  return (AIR_EXTRA[site] || []).map((x) => {
+    const [lat, lon] = mean(x.over), [tl, tn] = mean(x.toward), o = offsetOf(lat, lon, tl, tn);
+    return { id: x.id, name: { es: x.es, en: x.en }, lat: +lat.toFixed(6), lon: +lon.toFixed(6), elev: null, look: Math.round(o.az),
+      lookAlt: Math.max(-60, Math.min(-25, -Math.round(Math.atan2(x.air, o.d) / RAD))), air: x.air, at: [] };
+  });
+}
 export function aerialStops(site, existing = []) {
   const ms = MONUMENTS.filter((m) => (m.site || m.id) === site);
   if (!ms.length) return [];
@@ -140,7 +159,8 @@ export function allStops() {
       const view = SITES.find((s) => s.id === site); if (!view) continue;
       stops = [{ id: "vista", name: { es: "Vista general", en: "Overview" }, lat: view.lat, lon: view.lon, elev: view.elev ?? null, at: [] }];
     }
-    out[site] = [...stops, ...aerialStops(site, stops)];
+    const auto = aerialStops(site, stops);
+    out[site] = [...stops, ...auto, ...extraAir(site)];
   }
   return (cache = out);
 }
