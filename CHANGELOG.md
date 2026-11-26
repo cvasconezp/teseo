@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.99.0 — «Acerca de Teseo»: videoteca, animaciones y el hilo de la página
+
+- **Videoteca:** los ocho videos dejan de estar repartidos por la página y pasan a una sola sección, ordenados según el mismo recorrido (tu cielo, los viajes, las grandes preguntas). Cada uno se abre en un reproductor encima de la página, con anterior y siguiente; se cierra con Escape y deja de descargar al cerrarlo. Los enlaces `#v-…` de siempre siguen funcionando.
+- **Animaciones en lugar de videos:** tres figuras que se mueven solas y se pueden pausar. *Tu horizonte real*: el Sol sale por el horizonte plano, pero lo ves cuando supera tus montañas. *Viaje a Marte*: órbitas a escala, periodos reales y la nave sobre media elipse de Hohmann (259 días), con el botón «Salir hoy» para ver por qué no sirve cualquier día. *El espectro*: las rayas del hidrógeno, el helio, el sodio y el calcio en su longitud de onda de laboratorio. Cada pie de figura dice qué es dato y qué es simplificación.
+- **El hilo conductor:** un trazo dorado nace bajo el titular y acompaña la lectura; en pantallas anchas baja por el margen y enciende cada capítulo al llegar a él, y en las demás corre bajo la barra.
+- **Cualquier pantalla, a lo ancho y a lo alto:** teléfonos desde 320 px, tabletas, portátiles y monitores muy anchos; con el teléfono acostado la barra deja de quedarse fija y los reproductores pasan a dos columnas. Respeta «reducir movimiento» y, sin JavaScript, cada video sigue siendo un enlace a su archivo.
+- **/about** se genera igual que antes desde /acerca, con las figuras y la videoteca en inglés.
+
 ## 1.98.0 — Las nubes tapan las montañas por su altura; Chankillo y Cochasquí
 
 - **Las montañas, tapadas solo donde están dentro de la nube:** antes, con un manto de nubes medias, se borraban todas las montañas por igual (la mirada «entraba» en la capa antes del filo, fuera cual fuera su altura). Ahora el relieve se tapa por altura: lo que queda bajo la base de las nubes se ve, solo con la bruma del aire, y lo que la supera se va cubriendo de forma gradual (desde 400 m bajo la base calculada hasta 100 m sobre ella). Con imagen de satélite reciente (GOES-19 y los demás), la nube cuenta donde el satélite la ve, sobre esa ladera; sin ella, la cobertura del pronóstico, en manchas. Las bases: las nubes bajas, la calculada por temperatura y punto de rocío; las medias, desde 2 km sobre el suelo. En Cayambe, el 26 de noviembre a las 9h28, el Mojanda, el Fuya Fuya y el Cotacachi se ven y la cumbre del Cayambe queda en la nube, como a la vista.

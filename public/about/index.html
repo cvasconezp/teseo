@@ -78,8 +78,7 @@ h3{margin:0;font-size:20px;font-weight:600;line-height:1.3}
 p{margin:0}
 .lead{font-size:clamp(17px,1.6vw,20px);color:var(--soft);max-width:600px}
 .soft{color:var(--soft)}.muted{color:var(--muted)}
-section{border-top:1px solid var(--line);scroll-margin-top:72px}
-#instalar{scroll-margin-top:96px}
+section{border-top:1px solid var(--line)}
 .sec{padding-top:72px;padding-bottom:72px}
 .alt{background:var(--bg2)}
 .head{display:flex;flex-direction:column;gap:12px;max-width:760px;margin-bottom:34px}
@@ -114,22 +113,13 @@ a.card:hover{border-color:rgba(242,196,109,.45)}a.card:hover h3{color:#fff}
 .pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:28px}
 .pillars h3{color:var(--gold);font-size:19px;margin-bottom:6px}
 .pillars p{color:var(--soft);font-size:16px}
-/* videos */
-.vids{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:28px 24px;align-items:start}
-@media (max-width:480px){.vids{grid-template-columns:minmax(0,300px);justify-content:center}}
-.vid{display:flex;flex-direction:column;gap:12px}
-.vid video{width:100%;height:auto;aspect-ratio:9/16;border-radius:22px;border:1px solid var(--line);background:#000;object-fit:cover}
-.vid p{color:var(--soft);font-size:15px}
-.feat{display:flex;flex-wrap:wrap;gap:40px;align-items:center}
-.feat__vid{flex:0 1 300px;min-width:240px}
-.feat__txt{flex:1 1 360px;display:flex;flex-direction:column;gap:14px}
-.dlg{border:0;padding:0;background:transparent;color:var(--text);max-width:min(420px,calc(100vw - 24px));max-height:calc(100dvh - 24px)}
+.dlg{border:0;padding:0;background:transparent;color:var(--text);max-width:min(420px,calc(100vw - 24px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px)}
 .dlg::backdrop{background:rgba(2,4,10,.78)}
-.dlg__box{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:22px;background:var(--panel);border:1px solid var(--line2);overflow:auto;max-height:calc(100dvh - 24px)}
+.dlg__box{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:22px;background:var(--panel);border:1px solid var(--line2);overflow:auto;max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px)}
 .dlg__head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .dlg__head h2{font-size:26px}
 .dlg__x{flex:none;width:44px;height:44px;border-radius:999px;border:1px solid var(--line2);background:transparent;color:var(--text);display:grid;place-items:center;cursor:pointer}
-.dlg video{width:100%;max-height:58dvh;aspect-ratio:9/16;object-fit:contain;border-radius:16px;background:#000}
+.dlg video{width:100%;max-height:58vh;max-height:58dvh;aspect-ratio:9/16;object-fit:contain;border-radius:16px;background:#000}
 .dlg p{font-size:15px;color:var(--soft)}
 .pod audio{width:100%;max-width:560px;margin-top:6px;color-scheme:dark}
 /* podcast */
@@ -165,17 +155,10 @@ footer nav a{color:var(--soft)}
 .src li a{color:var(--text);text-decoration:none;font-weight:600;border-bottom:1px solid rgba(242,196,109,.35)}
 .src li a:hover{color:#FFE2A3;border-bottom-color:var(--gold)}
 .src li span{display:block}
-.cs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:18px}
-.cs a{display:flex;flex-direction:column;gap:6px;padding:18px 20px;border-radius:16px;border:1px solid var(--line2);text-decoration:none;color:inherit}
-.cs a:hover{border-color:rgba(126,224,195,.7)}
-.cs b{color:var(--teal);font-size:17px}
-.cs span{color:var(--soft);font-size:15px}
 .src-foot{margin-top:26px;color:var(--muted);font-size:15px}
 /* recorrido de la página: capítulos, imagen con números y la media de cada capítulo */
 .sub-h{margin-top:48px;font-size:24px}
 .sub-h+.soft{margin-top:6px}
-.chap-media{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:28px;align-items:start;margin-top:44px}
-@media (max-width:720px){.chap-media{grid-template-columns:minmax(0,1fr)}.chap-media .vid{max-width:300px}}
 .hot{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:26px;align-items:start;margin-top:18px}
 @media (max-width:900px){.hot{grid-template-columns:minmax(0,1fr)}}
 .hot__fig{position:relative;margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
@@ -188,18 +171,11 @@ footer nav a{color:var(--soft)}
 .hot__list b{color:var(--text);font-size:15px}
 .hot__list span{color:var(--muted);font-size:14px;line-height:1.45}
 .hot__list li:target{border-color:rgba(167,139,250,.6);background:rgba(167,139,250,.08)}
-.card--txt{padding-top:22px}
 .pod-side .pod{flex-direction:column;align-items:flex-start;gap:16px}
-.split-vid{display:flex;justify-content:center}
-.split-vid .vid{width:100%;max-width:300px}
 @media (max-width:600px){.hot__pt{width:24px;height:24px;font-size:12px;box-shadow:0 0 0 3px rgba(167,139,250,.28)}}
 /* síntesis: etiquetas, videos en franja, fuentes plegadas y ciencia ciudadana en lista */
 .tags{display:flex;flex-wrap:wrap;gap:8px}
 .tags span{padding:6px 12px;border-radius:999px;border:1px solid var(--line2);font-size:14px;color:var(--soft)}
-@media (max-width:720px){
-  .vids{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:16px;padding-bottom:10px;margin-right:calc(-1 * var(--pad, 20px))}
-  .vids .vid{flex:0 0 64%;max-width:260px;scroll-snap-align:start}
-}
 .src-more{margin-top:28px;border-top:1px solid var(--line)}
 .src-more summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:10px;min-height:48px;margin-top:14px;padding:0 18px;border-radius:999px;border:1px solid var(--line2);color:var(--text);font-weight:600}
 .src-more summary::-webkit-details-marker{display:none}
@@ -211,7 +187,6 @@ footer nav a{color:var(--soft)}
 .cs-list a{color:var(--teal);font-weight:600;text-decoration:none}
 .cs-list a:hover{text-decoration:underline}
 @media (max-width:760px){.links{gap:0 9px;font-size:13px;letter-spacing:-.005em}.links.is-scroll{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}}
-@media (max-width:720px){.vids{justify-content:flex-start}}
 @media (max-width:760px){.links a.lang-link{min-width:36px;padding:3px 9px;font-size:13px}}
 .social{display:flex;flex-direction:column;gap:6px;margin-top:4px}
 .social p{margin:0;color:var(--muted);font-size:15px}
@@ -234,7 +209,160 @@ footer nav a{color:var(--soft)}
 @media (min-width:1000px){.give article.ec{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:22px;row-gap:12px;align-content:start}
 .give article.ec>*:not(.qr){grid-column:1}.give article.ec .qr{grid-column:2;grid-row:1/span 5;align-self:center;margin:0}
 .give article.ec .btn{justify-self:start}}
+/* ===== rediseño nov-2026: hilo de la página, animaciones, videoteca y adaptación a ancho y alto ===== */
+:root{--top-h:72px}
+section{scroll-margin-top:calc(var(--top-h) + 8px)}
+.kicker{font-family:var(--serif);font-style:italic;font-weight:500;font-size:clamp(19px,2vw,22px);line-height:1.25;letter-spacing:0;text-transform:none}
+.pod .kicker,.hero .kicker{font-size:clamp(17px,1.7vw,20px)}
+.head .kicker{margin-bottom:2px}
+#tu-cielo .kicker,#talleres .kicker{margin-bottom:22px}
+/* el hilo: trazo de la portada (una sola vez, al cargar) */
+.hilo{display:block;width:min(240px,62%);height:auto;margin:-6px 0 -4px;overflow:visible}
+.hilo__p{stroke-dasharray:1;stroke-dashoffset:1;animation:hilo-traza 1.5s .25s cubic-bezier(.6,0,.2,1) forwards}
+.hilo__s{opacity:0;animation:hilo-astro .45s 1.6s ease-out forwards}
+@keyframes hilo-traza{to{stroke-dashoffset:0}}
+@keyframes hilo-astro{to{opacity:1}}
+/* el hilo: avance de la página. En pantallas anchas baja por el margen y enciende cada capítulo; en las demás corre bajo la barra */
+.top::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--gold);transform-origin:0 50%;transform:scaleX(var(--pag,0));pointer-events:none}
+.thread{display:none}
+@media (min-width:1300px){
+  .top::after{display:none}
+  main{position:relative}
+  .thread{display:block;position:absolute;left:calc(50% - 619px);top:0;width:2px;height:0;border-radius:2px;background:var(--line);pointer-events:none}
+  .thread i{position:absolute;left:0;top:0;width:100%;height:100%;border-radius:2px;background:var(--gold);transform-origin:50% 0;transform:scaleY(0)}
+  .kn{position:relative}
+  .kn::before{content:"";position:absolute;left:-47px;top:.42em;width:12px;height:12px;border-radius:50%;background:var(--panel);border:2px solid var(--line2);box-sizing:border-box;transition:background-color .3s,border-color .3s,box-shadow .3s}
+  .chap.is-reached .kn::before{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 5px rgba(242,196,109,.16)}
+}
+/* puntos de la imagen de fuentes: zona táctil de 44 px aunque el punto sea menor */
+.hot__pt::after{content:"";position:absolute;inset:-10px;border-radius:50%}
+.chips-h{margin-top:40px;color:var(--soft)}
+.chips-h+.chips{margin-top:12px}
+/* qué es */
+.what{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:20px 56px;align-items:start}
+.what__txt{display:flex;flex-direction:column;gap:16px}
+.what h2{margin-top:10px}
+@media (max-width:860px){.what{grid-template-columns:minmax(0,1fr)}}
+/* capítulos con animación */
+.stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.stack h3{font-family:var(--serif);font-weight:600;font-size:clamp(24px,2.6vw,30px);line-height:1.15}
+.split--top{align-items:flex-start}
+@media (min-width:960px){.split--rev>:first-child{order:2}}
+.sec .grid{margin-top:44px}
+/* enlaces a los videos */
+.vlinks{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+.vlink{display:inline-flex;align-items:center;gap:10px;min-height:48px;padding:5px 16px 5px 6px;border-radius:999px;border:1px solid var(--line2);color:var(--text);text-decoration:none;font-size:15px;line-height:1.25}
+.vlink::before,.vt__img::after{content:"";flex:none;width:36px;height:36px;border-radius:50%;background:var(--gold) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 6.5v11l9-5.5z' fill='%2304080F'/%3E%3C/svg%3E") 55% 50%/20px no-repeat}
+.vlink small{font-size:14px;color:var(--muted);white-space:nowrap}
+.vlink:hover{color:#fff;border-color:rgba(242,196,109,.6);background:rgba(242,196,109,.06)}
+.hero .fine{text-wrap:balance}
+@media (min-width:600px) and (max-width:1120px){.pillars{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.btn--text{min-height:44px;padding:0 6px 0 2px;border:0;background:transparent;color:var(--soft);font-weight:500;text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:5px}.btn--text:hover{color:#fff;text-decoration-color:var(--gold)}
+.btn--play::before{content:"";width:0;height:0;border-style:solid;border-width:6px 0 6px 10px;border-color:transparent transparent transparent currentColor}
+/* animaciones: base común */
+html:not(.js) .anim{display:none}
+.anim{margin:0;border-radius:20px;border:1px solid var(--line);background:var(--bg);overflow:hidden;container-type:inline-size}
+.alt .anim{background:#04080F}
+.anim__stage{position:relative}
+.anim__stage>svg{display:block;width:100%;height:auto;max-height:68svh}
+.anim__bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+.anim__btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line2);background:transparent;color:var(--soft);font:500 14px/1 var(--sans);cursor:pointer}
+.anim__btn:hover{color:#fff;border-color:rgba(242,196,109,.6)}
+.anim__btn[aria-pressed="true"]{color:#04080F;background:var(--gold);border-color:var(--gold)}
+.anim__toggle{margin-left:auto}
+.anim:not(.is-paused) [data-when="paused"],.anim.is-paused [data-when="playing"]{display:none}
+.anim figcaption{margin:0;padding:0 14px 14px;font-size:14px;line-height:1.45;color:var(--muted)}
+.anim text{font-family:var(--sans)}
+/* videoteca */
+.vt{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:26px 20px}
+@media (max-width:699px){.vt{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px}}
+@media (min-width:700px) and (max-width:980px){.vt{gap:22px 14px}.vt__a p{display:none}}
+.vt__i{scroll-margin-top:calc(var(--top-h) + 16px);min-width:0}
+.vt__a{display:flex;flex-direction:column;gap:8px;height:100%;color:inherit;text-decoration:none;border-radius:18px}
+.vt__img{position:relative;display:block;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#000}
+.vt__img video{display:block;width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;object-position:50% 0;transition:transform .35s ease}
+.vt__img::after{position:absolute;right:10px;bottom:10px;width:44px;height:44px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.vt__img b{position:absolute;left:10px;bottom:10px;padding:3px 9px;border-radius:999px;background:rgba(4,8,15,.82);font-size:13px;font-weight:600;color:var(--text)}
+.vt__c{margin-top:4px;font-family:var(--serif);font-style:italic;font-size:16px;line-height:1.2;color:var(--gold)}
+.vt__a h3{font-size:17px;line-height:1.3}
+.vt__a p{font-size:14px;line-height:1.45;color:var(--muted)}
+.vt__a:hover .vt__img{border-color:rgba(242,196,109,.55)}
+.vt__a:hover .vt__img video{transform:scale(1.03)}
+.vt__a:hover h3{color:#fff}
+.vt__i:target .vt__img{border-color:var(--gold);box-shadow:0 0 0 3px rgba(242,196,109,.3)}
+@media (max-width:420px){.vt__a p{display:none}.vt__a h3{font-size:15px}}
+.vt-note{margin-top:26px}
+/* reproductor de la videoteca */
+.dlg--video{max-width:min(440px,calc(100vw - 24px))}
+.dlg--video .dlg__head h2{font-size:clamp(22px,3vw,28px);line-height:1.12}
+.dlg--video video{width:auto;max-width:100%;height:min(60vh,calc((100vw - 60px) * 16 / 9));height:min(60dvh,calc(100dvh - 290px),calc((100vw - 60px) * 16 / 9));min-height:150px;max-height:none;margin:0 auto;aspect-ratio:9/16}
+.dlg__side{display:flex;flex-direction:column;gap:12px}
+.dlg__nav{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dlg__nav span{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+@media (min-width:720px) and (min-aspect-ratio:1/1){
+  .dlg--video{max-width:min(860px,calc(100vw - 24px))}
+  .dlg--video .dlg__box{display:grid;grid-template-columns:auto minmax(220px,340px);grid-template-rows:auto 1fr;gap:10px 22px}
+  .dlg--video .dlg__media{grid-row:1 / span 2}
+  .dlg--video video{height:min(calc(100vh - 64px),760px);height:min(calc(100dvh - 64px),760px);min-height:0}
+  .dlg--video .dlg__side{justify-content:flex-start;gap:22px}
+}
+/* pantallas bajas (teléfono acostado, ventanas pequeñas): la barra deja de quedarse fija y todo se compacta */
+h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
+@media (max-height:520px){
+  .top{position:static}
+  .hero{padding:26px 0 30px;gap:24px 36px}
+  .hero__txt{gap:12px}
+  .sec{padding-top:44px;padding-bottom:44px}
+  .end{padding-top:48px;padding-bottom:48px}
+  .dlg__box{padding:12px;gap:8px}
+  .anim{width:100%;max-width:420px;margin-inline:auto}
+  .anim__stage>svg{max-height:none}
+}
+@media (max-height:720px) and (min-width:640px) and (min-aspect-ratio:1/1){
+  #dlg-instalar{max-width:min(720px,calc(100vw - 24px))}
+  #dlg-instalar .dlg__box{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 18px;align-content:start}
+  #dlg-instalar .dlg__head{grid-column:2}
+  #dlg-instalar video{grid-column:1;grid-row:1 / span 5;width:auto;height:calc(100vh - 52px);height:calc(100dvh - 52px);max-height:none}
+  #dlg-instalar .dlg__box>:not(video):not(.dlg__head){grid-column:2}
+}
+/* pantallas estrechas y muy anchas */
+@media (max-width:360px){.links{width:calc(100% + 32px);margin:0 -16px;padding:0 16px}.btn{padding:0 18px}.hero{gap:30px;padding:40px 0}}
+@media (min-width:1700px){.wrap{max-width:1320px}body{font-size:18px}.thread{left:calc(50% - 679px)}}
+.wrap{padding-left:max(24px,env(safe-area-inset-left));padding-right:max(24px,env(safe-area-inset-right))}
+@media (max-width:360px){.wrap{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}}
+@media (prefers-reduced-motion:reduce){.hilo__p{animation:none;stroke-dashoffset:0}.hilo__s{animation:none;opacity:1}.vt__img video,.kn::before{transition:none}}
+@media (min-width:761px) and (max-width:1240px){.top .wrap{gap:8px 14px}.links{gap:2px 12px;font-size:14px}.brand small{font-size:11px}.top .btn{padding:0 14px;font-size:14px}}
+@media (min-width:761px) and (max-width:1010px){.brand small{display:none}.links{gap:2px 10px}}
+@media (min-width:761px) and (max-width:810px){.links{font-size:13px;gap:2px 8px}.top .btn{padding:0 11px}.btn--give svg{display:none}}
+@media (min-width:2200px){.wrap{max-width:1680px}body{font-size:21px}.thread{left:calc(50% - 859px)}.lead{max-width:760px}.head{max-width:960px}.card p,.pillars p{font-size:19px}.vt__a h3{font-size:20px}.vt__a p,.vlink{font-size:17px}h3{font-size:24px}}
+/* animaciones: cada figura */
+.anim--horizonte .hz-t{font-size:15px;fill:var(--soft)}
+.anim--horizonte .hz-g{fill:var(--gold)}
+.anim--horizonte .hz-m{fill:var(--muted)}
+.anim--horizonte .hz-k{font-size:14px;fill:var(--muted)}
+@container (max-width:420px){.anim--horizonte .hz-t{font-size:19px}.anim--horizonte .hz-k{font-size:19px}.anim--horizonte .hz-up{transform:translateY(-5px)}.anim--horizonte .hz-up2{transform:translateY(-10px)}.anim--horizonte .hz-kt{transform:translateY(-20px)}}
+.anim--horizonte.is-flat .hz-real,.anim--horizonte:not(.is-flat) .hz-flat{display:none}
+.anim--marte .m-orb{fill:none;stroke:rgba(255,255,255,.42);stroke-width:1}
+.anim--marte .m-ln{stroke:rgba(255,255,255,.45);stroke-width:1}
+.anim--marte .m-th{fill:none;stroke:var(--gold);stroke-width:2.6;stroke-linejoin:round}
+.anim--marte .m-arc{fill:none;stroke:var(--violet);stroke-width:2.4}
+.anim--marte .m-gh{fill:none;stroke:#D9826A;stroke-width:1.8;stroke-dasharray:3 3}
+.anim--marte .m-t{font-size:15px;fill:var(--soft);paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}
+.anim--marte .m-d{font-size:15px;fill:var(--muted)}
+.anim--marte .m-lab{font-size:16px;fill:var(--text);text-anchor:middle}
+.anim--marte .m-lab.is-w{fill:var(--soft)}
+@container (max-width:420px){.anim--marte .m-t,.anim--marte .m-d{font-size:22px}.anim--marte .m-lab{font-size:23px}}
+.anim--marte [aria-disabled="true"]:not([aria-pressed="true"]){opacity:.45;cursor:default}
+.anim--espectro .h{paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}
+.anim--espectro .t{font-size:16px;fill:var(--soft)}
+.anim--espectro .nm{font:600 30px var(--serif);fill:var(--text)}
+.anim--espectro .rd{font:600 17px var(--sans);fill:var(--gold)}
+.anim--espectro .lt{font:600 15px var(--sans);text-anchor:end}
+.anim--espectro .anim__bar{gap:6px}
+@container (max-width:420px){.anim--espectro .t{font-size:22px}.anim--espectro .lt{font-size:20px}.anim--espectro .rd{font-size:22px}}
+@container (max-width:400px){.anim--espectro .anim__btn{padding:0 11px;font-size:13px}.anim--espectro .anim__bar{padding:8px}}
 </style>
+<script>document.documentElement.className += " js";</script>
 <!-- Vercel Web Analytics: visitas sin cookies -->
 <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};</script>
 <script defer src="/_vercel/insights/script.js"></script>
@@ -256,6 +384,7 @@ footer nav a{color:var(--soft)}
       <a href="#ciencia">Questions</a>
       <a href="#fuentes">How it knows</a>
       <a href="#talleres">Join in</a>
+      <a href="#videoteca">Videos</a>
     </nav>
     <div class="top__ctas">
       <a class="btn btn--ghost btn--sm btn--give" href="#apoya"><svg width="16" height="16" viewBox="0 0 24 24" fill="#F2C46D" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.1 4.3 2.4h2c.7-1.3 2.2-2.4 4.3-2.4 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg>Support</a>
@@ -265,16 +394,19 @@ footer nav a{color:var(--soft)}
 </header>
 
 <main id="contenido">
+  <div class="thread" aria-hidden="true"><i></i></div>
   <!-- Portada -->
   <div class="wrap">
     <div class="hero">
       <div class="hero__txt">
         <p class="kicker">Planetarium and space navigator · free and source-available</p>
         <h1>The universe is a labyrinth. Teseo is your thread.</h1>
+        <svg class="hilo" viewBox="0 0 240 44" width="240" height="44" aria-hidden="true" focusable="false"><circle cx="8" cy="34" r="5" fill="#7EE0C3"/><path class="hilo__p" d="M17 30C66 -4 150 -6 206 16" pathLength="1" fill="none" stroke="#F2C46D" stroke-width="1.6" stroke-linecap="round"/><path class="hilo__s" d="M226 9l3 9 9 3-9 3-3 9-3-9-9-3 9-3z" fill="#F2C46D"/></svg>
         <p class="lead">See the sky from your exact spot, with your mountains, your clouds and your time. And find out how far everything is, how long it would take to get there and when to leave.</p>
         <div class="ctas">
           <a class="btn btn--gold" href="/">Open the sky</a>
-          <button class="btn btn--ghost" type="button" data-open="dlg-instalar" aria-haspopup="dialog">Install on your phone</button>
+          <a class="btn btn--ghost btn--play" href="#v-en-un-minuto" data-video="en-un-minuto">Teseo in one minute</a>
+          <button class="btn btn--text" type="button" data-open="dlg-instalar" aria-haspopup="dialog">Install on your phone</button>
         </div>
         <p class="fine">No account · no ads · in English and Spanish · in the browser or installed as an app</p>
       </div>
@@ -288,28 +420,23 @@ footer nav a{color:var(--soft)}
   <!-- Qué es: el hilo de esta página -->
   <section id="que-es">
     <div class="wrap sec">
-      <div class="feat">
-        <div class="vid feat__vid" id="v-en-un-minuto">
-          <video controls playsinline preload="none" poster="/acerca/video/en-un-minuto.jpg" width="540" height="960" aria-label="Video: Teseo in one minute (44 seconds, narrated in Spanish)">
-            <source src="/acerca/video/en-un-minuto.mp4" type="video/mp4">
-          </video>
-        </div>
-        <div class="feat__txt">
+      <div class="what">
+        <div>
           <p class="kicker">What it is</p>
           <h2>A thread to find your way in the universe</h2>
+        </div>
+        <div class="what__txt">
           <p class="soft">Teseo is a planetarium, an interplanetary navigator, a sky calendar and a lab, all at once. It doesn’t just tell you what’s up there: it works out distances, routes and departure dates with real physics and official data.</p>
           <p class="soft">It was born in Cayambe, at latitude zero, out of a need at Killa Ñan: to tell and share astronomy better from a single tool. This page follows its thread: from where you stand to the end of the universe.</p>
-          <p class="fine">Teseo in one minute: the sky map, your horizon, trips across the solar system and the big questions, filmed in the app itself. 44 seconds.</p>
-          <p class="fine">The videos are narrated in Spanish with synthetic voices; the app itself is also available in English.</p>
         </div>
       </div>
     </div>
   </section>
 
   <!-- 1 · Tu cielo -->
-  <section id="tu-cielo" class="alt">
+  <section id="tu-cielo" class="alt chap">
     <div class="wrap sec">
-      <p class="kicker">1 · The thread starts at your feet</p>
+      <p class="kicker kn">1 · The thread starts at your feet</p>
       <div class="split">
         <div style="display:flex;flex-direction:column;gap:18px">
           <h2>Your sky, not just any sky</h2>
@@ -323,26 +450,113 @@ footer nav a{color:var(--soft)}
           <div class="tags"><span>Andean astronomy</span><span>Cards read aloud</span><span>True depth of the constellations</span><span>360° photos and postcards</span></div>
           <div class="ctas"><a class="btn btn--gold btn--sm" href="/#sky">Open the sky where you are</a></div>
         </div>
-        <div class="split-vid">
-          <div class="vid" id="v-horizonte">
-          <video controls playsinline preload="none" poster="/acerca/video/horizonte.jpg" width="540" height="960" aria-label="Video: The sky begins at your mountains (1:19, narrated in Spanish)">
-            <source src="/acerca/video/horizonte.mp4" type="video/mp4">
-          </video>
-          <h3>The sky begins at your mountains</h3>
-          <p>Your real horizon, with the terrain, the curvature of the Earth, the clouds and the monuments. <span class="muted">1:19</span></p>
-        </div>
+        <div class="stack">
+          <figure class="anim anim--horizonte" data-anim="horizonte">
+  <div class="anim__stage">
+    <svg viewBox="0 0 560 420" role="img" aria-label="View towards the east at sunrise. The Sun climbs almost in a straight line, leaving a golden thread. With a flat horizon, the Sun has already risen once it crosses the dotted straight line, but your mountain range still hides it. It only appears when it clears the ridge: later, and at a different point. A time bar marks the gap between the two moments. Two buttons let you view the flat horizon alone.">
+      <defs>
+        <linearGradient id="hz-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050a17"/><stop offset="1" stop-color="#12203f"/></linearGradient>
+        <linearGradient id="hz-dawn" x1="0" y1="0" x2="0" y2="1"><stop offset=".3" stop-color="#4a5f9c" stop-opacity="0"/><stop offset=".72" stop-color="#4a5f9c" stop-opacity=".75"/></linearGradient>
+        <path id="hz-far" d="M0 238C28 230 52 205 92 203C130 201 150 224 186 223C214 222 224 197 252 196C282 195 300 214 328 206C352 199 392 128 424 104C432 98 446 97 454 104C482 128 512 190 560 214L560 420L0 420Z"/>
+        <clipPath id="hz-clip"><use href="#hz-far"/></clipPath>
+        <path id="hz-tp" d="M0 226C28 218 52 193 92 191C130 189 150 212 186 211"/>
+      </defs>
+      <rect width="560" height="420" fill="url(#hz-sky)"/>
+      <rect class="hz-ov" width="560" height="420" fill="url(#hz-dawn)" opacity="0"/>
+      <g class="hz-st" stroke="#EEF0FA" stroke-linecap="round" fill="none">
+        <path stroke-width="2.8" d="M34 40h.1M148 70h.1M270 38h.1M392 58h.1M470 52h.1M60 140h.1M300 140h.1M520 36h.1"/>
+        <path stroke-width="1.8" d="M72 92h.1M110 30h.1M190 24h.1M226 58h.1M312 86h.1M350 28h.1M424 22h.1M540 96h.1M505 130h.1M90 166h.1"/>
+      </g>
+      <circle class="hz-sun" cx="200" cy="345" r="11" fill="#F2C46D" opacity="0"/>
+      <g class="hz-real">
+        <use href="#hz-far" fill="#1c2b4f"/>
+        <path clip-path="url(#hz-clip)" fill="#DDE4F7" fill-opacity=".72" d="M340 70L520 70L520 172C506 156 490 164 480 148C470 160 460 142 448 154C438 146 428 164 414 150C402 160 392 150 380 162C366 156 352 170 340 166Z"/>
+        <path fill="#0a1122" d="M0 270C34 262 62 240 106 238C148 236 168 262 214 264C252 266 276 250 318 250C362 250 384 236 428 238C474 240 520 224 560 226L560 420L0 420Z"/>
+      </g>
+      <rect class="hz-flat" y="300" width="560" height="120" fill="#0a1122"/>
+      <line x1="0" y1="300" x2="560" y2="300" stroke="#C9CEE0" stroke-opacity=".6" stroke-width="1.4" stroke-dasharray="2 6" stroke-linecap="round"/>
+      <text class="hz-t hz-m" x="548" y="320" text-anchor="end" style="fill:var(--muted)">Flat horizon</text>
+      <text class="hz-t hz-real"><textPath href="#hz-tp" startOffset="16">Your real horizon</textPath></text>
+      <line x1="200" y1="345" x2="268" y2="100" stroke="#C9CEE0" stroke-opacity=".5" stroke-width="1.6" stroke-dasharray="2 6" stroke-linecap="round"/>
+      <line class="hz-seg hz-real" stroke="#F2C46D" stroke-width="3.2" stroke-linecap="round" opacity="0"/>
+      <line class="hz-th" x1="200" y1="345" x2="200" y2="345" stroke="#F2C46D" stroke-width="1.8" stroke-linecap="round" opacity="0"/>
+      <circle class="hz-ring hz-real" r="16" fill="none" stroke="#F2C46D" stroke-width="1.6" stroke-dasharray="3 4" opacity="0"/>
+      <g class="hz-mf" opacity="0">
+        <circle cx="212" cy="300" r="6" fill="#04080F" stroke="#7EE0C3" stroke-width="2.2"/>
+        <text class="hz-t hz-up" font-size="15" text-anchor="end" x="196" y="277">With a flat horizon:</text>
+        <text class="hz-t" font-size="15" text-anchor="end" x="196" y="293">already risen</text>
+      </g>
+      <g class="hz-mr hz-real" opacity="0">
+        <line class="hz-ld" stroke="#F2C46D" stroke-opacity=".7" stroke-width="1.2"/>
+        <circle class="hz-pt" r="5.5" fill="#F2C46D" stroke="#04080F" stroke-width="1.6"/>
+        <text class="hz-t hz-g hz-up2" text-anchor="end" x="226" y="112">With your mountains:</text>
+        <text class="hz-t hz-g hz-up" text-anchor="end" x="226" y="129">it appears here,</text>
+        <text class="hz-t hz-g" text-anchor="end" x="226" y="146">later</text>
+      </g>
+      <text class="hz-k hz-kt" x="16" y="381">Time</text>
+      <line x1="82" y1="376" x2="536" y2="376" stroke="#fff" stroke-opacity=".25" stroke-width="3" stroke-linecap="round"/>
+      <line class="hz-prog" x1="82" y1="376" x2="82" y2="376" stroke="#F2C46D" stroke-width="3" stroke-linecap="round"/>
+      <circle class="hz-kf" cy="376" r="6" fill="#04080F" stroke="#7EE0C3" stroke-width="2.2"/>
+      <text class="hz-k hz-kft" y="402" text-anchor="middle">flat</text>
+      <g class="hz-real"><circle class="hz-kr" cy="376" r="6" fill="#F2C46D" stroke="#04080F" stroke-width="1.6"/><text class="hz-k hz-krt" y="402" text-anchor="middle">real</text></g>
+    </svg>
+  </div>
+  <div class="anim__bar" role="group" aria-label="Horizon type">
+    <button type="button" class="anim__btn" data-hz="flat" aria-pressed="false">Flat horizon</button>
+    <button type="button" class="anim__btn" data-hz="real" aria-pressed="true">Your horizon</button>
+    <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pause</span><span data-when="paused">Play</span></button>
+  </div>
+  <figcaption>Illustration: the silhouette is an example. In Teseo the horizon is worked out from the real terrain of your place and the curvature of the Earth.</figcaption>
+</figure>
+          <div class="vlinks"><a class="vlink" href="#v-horizonte" data-video="horizonte">The sky begins at your mountains <small>Video · 1:19</small></a></div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- 2 · Viajes por el Sistema Solar -->
-  <section id="viajes">
+  <section id="viajes" class="chap">
     <div class="wrap sec">
       <div class="head">
-        <p class="kicker">2 · Follow the thread across the Solar System</p>
+        <p class="kicker kn">2 · Follow the thread across the Solar System</p>
         <h2>How far, how long and when to leave</h2>
         <p class="soft">From your sky, the thread runs on to the planets: Teseo works out journeys with real orbital physics and tells you what is happening up there today.</p>
+      </div>
+      <div class="split split--rev">
+        <div class="stack">
+          <h3>Why can’t we go to Mars on any day?</h3>
+          <p class="soft">The ship does not fly in a straight line: it covers half an ellipse around the Sun, and Mars has to be at the arrival point just as the ship gets there. That coincidence comes round every 26 months.</p>
+          <div class="vlinks"><a class="vlink" href="#v-marte" data-video="marte">Why can’t we go to Mars on any day? <small>Video · 2:08</small></a><a class="vlink" href="#v-jupiter" data-video="jupiter">The moons of Jupiter <small>Video · 2:12</small></a></div>
+        </div>
+        <div class="stack">
+          <figure class="anim anim--marte" data-anim="marte">
+  <div class="anim__stage">
+    <svg viewBox="0 0 560 490" role="img" aria-label="Top-down view of the Solar System: the Sun at the centre and the circular orbits of Earth and Mars, to scale. The ship leaves Earth and follows half an ellipse to the opposite point, where it crosses Mars’s orbit; the golden thread is its path. The trip takes 259 days, and Mars has to be exactly at the arrival point. That is why you can only leave when Mars is 44° ahead of Earth, which happens every 26 months. If you leave on any other day, the ship arrives and Mars is not there.">
+      <circle class="m-orb" cx="280" cy="222" r="118.1"/><circle class="m-orb" cx="280" cy="222" r="180"/>
+      <line class="m-ln" id="mE" x1="280" y1="222" x2="280" y2="222"/><line class="m-ln" id="mM" x1="280" y1="222" x2="280" y2="222"/>
+      <path class="m-arc" id="mA" d=""/>
+      <g id="mG"><path class="m-th" id="mP" d=""/></g>
+      <circle class="m-gh" id="mH" r="9" cx="0" cy="0"/>
+      <circle cx="280" cy="222" r="12" fill="#E8CF96"/>
+      <text class="m-t" x="280" y="250" text-anchor="middle">Sun</text>
+      <g id="mTe"><circle r="6.5" fill="var(--teal)"/><text class="m-t" id="mTeT" x="0" y="0" text-anchor="middle">Earth</text></g>
+      <g id="mTm"><circle r="5.5" fill="#C8674B"/><text class="m-t" id="mTmT" x="0" y="0" text-anchor="middle">Mars</text></g>
+      <g id="mS"><circle r="4.5" fill="var(--text)" stroke="var(--gold)" stroke-width="2"/><text class="m-t" id="mST" x="0" y="0" text-anchor="middle">Ship</text></g>
+      <text class="m-d" x="16" y="26">Cycle day: <tspan id="mD">0</tspan></text>
+      <text class="m-lab is-w" data-l="w" x="280" y="462">Not yet: wait for the launch window</text>
+      <text class="m-lab" data-l="h" x="280" y="462">Mars is 44° ahead</text>
+      <text class="m-lab" data-l="t" x="280" y="462">The ship follows half an ellipse</text>
+      <text class="m-lab" data-l="a" x="280" y="462">Arrival: 259 days later</text>
+      <text class="m-lab" data-l="f" x="280" y="462">Mars is not there: the ship arrives at an empty spot</text>
+    </svg>
+  </div>
+  <div class="anim__bar">
+    <button type="button" class="anim__btn" data-salir aria-pressed="false" aria-disabled="true">Leave today</button>
+    <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pause</span><span data-when="paused">Play</span></button>
+  </div>
+  <figcaption>Orbits to scale (1 AU and 1.524 AU), with the real periods of 365.25 and 686.98 days. Simplified model: circular orbits in a single plane. With the real orbits the window shifts a little each time; Teseo works it out from NASA JPL Horizons positions. While you wait, time runs faster than during the trip.</figcaption>
+</figure>
+        </div>
       </div>
       <div class="grid">
         <a class="card" href="/#ruta">
@@ -358,32 +572,64 @@ footer nav a{color:var(--soft)}
           <span class="go">See the calendar</span>
         </a>
       </div>
-      <div class="vids" style="margin-top:44px">
-        <div class="vid" id="v-marte">
-          <video controls playsinline preload="none" poster="/acerca/video/marte.jpg" width="540" height="960" aria-label="Video: Why can’t we go to Mars on any day? (2:08, narrated in Spanish)">
-            <source src="/acerca/video/marte.mp4" type="video/mp4">
-          </video>
-          <h3>Why can’t we go to Mars on any day?</h3>
-          <p>The Hohmann transfer, the 44° angle and the window that comes back every 26 months. <span class="muted">2:08</span></p>
-        </div>
-        <div class="vid" id="v-jupiter">
-          <video controls playsinline preload="none" poster="/acerca/video/jupiter.jpg" width="540" height="960" aria-label="Video: The moons of Jupiter (2:12, narrated in Spanish)">
-            <source src="/acerca/video/jupiter.mp4" type="video/mp4">
-          </video>
-          <h3>The moons of Jupiter</h3>
-          <p>Four tiny points of light that changed astronomy, and how to see them tonight. <span class="muted">2:12</span></p>
-        </div>
-      </div>
     </div>
   </section>
 
   <!-- 3 · Las grandes preguntas -->
-  <section id="ciencia" class="alt">
+  <section id="ciencia" class="alt chap">
     <div class="wrap sec">
       <div class="head">
-        <p class="kicker">3 · All the way to the big questions</p>
+        <p class="kicker kn">3 · All the way to the big questions</p>
         <h2>The science, from the inside</h2>
         <p class="soft">In Questions you don’t read about the universe: you experiment with it. Change a number and watch what happens, using the figures published by the science teams.</p>
+      </div>
+      <div class="split">
+        <div class="stack">
+          <h3>How do we know what a star is made of?</h3>
+          <p class="soft">Nobody has brought back a piece of a star. But its light, passed through a prism, arrives with dark lines: each element always leaves the same ones, like a barcode.</p>
+          <div class="vlinks"><a class="vlink" href="#v-estrellas" data-video="estrellas">How do we know what a star is made of? <small>Video · 1:43</small></a><a class="vlink" href="#v-vida-estrella" data-video="vida-estrella">How does a star live and die? <small>Video · 2:14</small></a><a class="vlink" href="#v-estamos-solos" data-video="estamos-solos">Are we alone? <small>Video · 1:57</small></a><a class="vlink" href="#v-fin-universo" data-video="fin-universo">How will the universe end? <small>Video · 2:11</small></a></div>
+        </div>
+        <div class="stack">
+          <figure class="anim anim--espectro" data-anim="espectro">
+  <div class="anim__stage">
+    <svg viewBox="0 0 560 436" role="img" aria-label="Diagram: the white light of a star passes through a prism and spreads into a rainbow, the visible spectrum, from 380 to 700 nanometres, violet to red. Across that band, dark lines appear at fixed positions for each element: hydrogen, helium, sodium and calcium. Each element always leaves the same lines, like a barcode; by comparing them you can tell what the star is made of.">
+      <defs><linearGradient id="esp-g" gradientUnits="userSpaceOnUse" x1="34" y1="0" x2="534" y2="0">
+        <stop offset="0" stop-color="#1c0838"/><stop offset=".09" stop-color="#6a22d8"/><stop offset=".19" stop-color="#4a46ff"/><stop offset=".28" stop-color="#1f8bff"/><stop offset=".344" stop-color="#1fd8e6"/><stop offset=".406" stop-color="#28e060"/><stop offset=".5" stop-color="#a5e02a"/><stop offset=".625" stop-color="#f6e620"/><stop offset=".72" stop-color="#ff9a1a"/><stop offset=".83" stop-color="#ff2a1a"/><stop offset=".94" stop-color="#a80f0f"/><stop offset="1" stop-color="#3a0606"/></linearGradient></defs>
+      <polygon points="254.5,62 34,190 534,190" fill="url(#esp-g)" opacity=".38"/>
+      <path d="M50 50H212.5" stroke="#fff" stroke-width="2"/>
+      <path d="M212.5 50L254.5 62" stroke="#fff" stroke-width="1.5" opacity=".6"/>
+      <polygon points="230,20 188,92 272,92" fill="var(--panel)" stroke="var(--line2)" stroke-width="1.5"/>
+      <g stroke="#FFF1CF" stroke-width="1.5" opacity=".7"><path d="M40 33v-6M40 67v6M23 50h-6M57 50h6M28 38l-4-4M52 62l4 4M28 62l-4 4M52 38l4-4" transform="translate(0 0)"/></g>
+      <circle cx="40" cy="50" r="8" fill="#FFF6E0"/>
+      <text class="t h" x="40" y="88" text-anchor="middle">Star</text>
+      <text class="t h" x="252" y="36">Prism</text>
+      <rect x="34" y="190" width="500" height="108" fill="url(#esp-g)"/>
+      <path d="M65.25 183v7M221.5 183v7M377.75 183v7M534 183v7" stroke="var(--soft)" stroke-width="1.5"/>
+      <g class="t h" text-anchor="middle"><text x="65.25" y="177">400</text><text x="221.5" y="177">500</text><text x="377.75" y="177">600</text><text x="534" y="177">700</text></g>
+      <text class="t h" x="6" y="177">nm</text>
+      <g id="esp-ls"></g>
+      <g id="esp-zm" opacity="0"><path d="M361 298L388 306" stroke="var(--soft)" stroke-width="1"/><rect x="388" y="306" width="144" height="46" fill="#f6e620"/><path d="M436 306v46M484 306v46" stroke="#04080F" stroke-width="3"/><g class="t h" text-anchor="middle"><text x="436" y="372">589.0</text><text x="484" y="372">589.6</text></g></g>
+      <g id="esp-th" opacity="0"><path d="M0 182V306" stroke="var(--gold)" stroke-width="2"/><circle cy="184" r="4" fill="var(--gold)"/></g>
+      <g id="esp-lt"><text class="lt" fill="var(--gold)">H</text><text class="lt" fill="var(--gold)">He</text><text class="lt" fill="var(--gold)">Na</text><text class="lt" fill="var(--gold)">Ca</text></g>
+      <text class="nm" x="34" y="414" data-s="0" display="none">Hydrogen</text>
+      <text class="nm" x="34" y="414" data-s="1" display="none">Helium</text>
+      <text class="nm" x="34" y="414" data-s="2" display="none">Sodium</text>
+      <text class="nm" x="34" y="414" data-s="3" display="none">Calcium</text>
+      <text class="nm" x="34" y="414" data-s="4">All at once</text>
+      <text class="rd" id="esp-rd" x="534" y="414" text-anchor="end" opacity="0"><tspan>656.3</tspan> nm</text>
+    </svg>
+  </div>
+  <div class="anim__bar">
+    <button type="button" class="anim__btn" aria-pressed="false">Hydrogen</button>
+    <button type="button" class="anim__btn" aria-pressed="false">Helium</button>
+    <button type="button" class="anim__btn" aria-pressed="false">Sodium</button>
+    <button type="button" class="anim__btn" aria-pressed="false">Calcium</button>
+    <button type="button" class="anim__btn" aria-pressed="false">All</button>
+    <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pause</span><span data-when="paused">Play</span></button>
+  </div>
+  <figcaption>Each element always absorbs the same colours. The lines are at their laboratory wavelengths, in nanometres (the calcium lines are those of ionised calcium); their thickness here is illustrative, and only some of each element’s lines are shown. In a real star they do not all appear with the same strength: it depends on its temperature. The inset enlarges the sodium doublet.</figcaption>
+</figure>
+        </div>
       </div>
       <div class="grid">
         <a class="card" href="/#preguntas?q=spectrum">
@@ -404,38 +650,9 @@ footer nav a{color:var(--soft)}
           <p>Pick a mass, from Earth to a quasar, and work out how big its horizon is and how much time slows down beside it.</p>
           <span class="go">What happens near a black hole?</span>
         </a>
-              </div>
-      <div class="vids" style="margin-top:44px">
-        <div class="vid" id="v-estrellas">
-          <video controls playsinline preload="none" poster="/acerca/video/estrellas.jpg" width="540" height="960" aria-label="Video: How do we know what a star is made of? (1:43, narrated in Spanish)">
-            <source src="/acerca/video/estrellas.mp4" type="video/mp4">
-          </video>
-          <h3>How do we know what a star is made of?</h3>
-          <p>The spectrum of light, its dark lines and how helium was discovered in the Sun. <span class="muted">1:43</span></p>
-        </div>
-        <div class="vid" id="v-vida-estrella">
-          <video controls playsinline preload="none" poster="/acerca/video/vida-estrella.jpg" width="540" height="960" aria-label="Video: How does a star live and die? (2:15, narrated in Spanish)">
-            <source src="/acerca/video/vida-estrella.mp4" type="video/mp4">
-          </video>
-          <h3>How does a star live and die?</h3>
-          <p>From a cloud of gas to a white dwarf, a supernova or a black hole: it all depends on mass. <span class="muted">2:15</span></p>
-        </div>
-        <div class="vid" id="v-estamos-solos">
-          <video controls playsinline preload="none" poster="/acerca/video/estamos-solos.jpg" width="540" height="960" aria-label="Video: Are we alone? (1:57, narrated in Spanish)">
-            <source src="/acerca/video/estamos-solos.mp4" type="video/mp4">
-          </video>
-          <h3>Are we alone?</h3>
-          <p>The Drake equation, with numbers you can change yourself. <span class="muted">1:57</span></p>
-        </div>
-        <div class="vid" id="v-fin-universo">
-          <video controls playsinline preload="none" poster="/acerca/video/fin-universo.jpg" width="540" height="960" aria-label="Video: How will the universe end? (2:11, narrated in Spanish)">
-            <source src="/acerca/video/fin-universo.mp4" type="video/mp4">
-          </video>
-          <h3>How will the universe end?</h3>
-          <p>Expansion, dark energy and the possible endings. <span class="muted">2:11</span></p>
-        </div>
       </div>
-      <nav class="chips" aria-label="The ten Questions tours">
+      <p class="chips-h">More tours to follow the thread in Questions:</p>
+      <nav class="chips" aria-label="More Questions tours">
         <a class="chip" href="/#preguntas?q=scale">How big is the universe?</a>
         <a class="chip" href="/#preguntas?q=time">Can you travel in time?</a>
         <a class="chip" href="/#preguntas?q=gw">What are gravitational waves?</a>
@@ -448,10 +665,10 @@ footer nav a{color:var(--soft)}
   </section>
 
   <!-- 4 · Cómo sabe Teseo que es cierto -->
-  <section id="fuentes" aria-label="How Teseo knows it is true, and its data sources">
+  <section id="fuentes" class="chap" aria-label="How Teseo knows it is true, and its data sources">
     <div class="wrap sec">
       <div class="head">
-        <p class="kicker">4 · How Teseo knows it is true</p>
+        <p class="kicker kn">4 · How Teseo knows it is true</p>
         <h2>How Teseo knows what it says is true</h2>
         <p class="soft">Everything Teseo shows comes from public data by space agencies, observatories and volunteer communities. Here they are, so you can check them, use them or join in.</p>
       </div>
@@ -534,9 +751,9 @@ footer nav a{color:var(--soft)}
   </section>
 
   <!-- 5 · El hilo lo tejemos juntos -->
-  <section id="talleres" class="alt">
+  <section id="talleres" class="alt chap">
     <div class="wrap sec">
-      <p class="kicker">5 · We weave the thread together</p>
+      <p class="kicker kn">5 · We weave the thread together</p>
       <div class="split">
         <div style="display:flex;flex-direction:column;gap:18px">
           <h2>Made in Cayambe, at latitude zero</h2>
@@ -586,8 +803,70 @@ footer nav a{color:var(--soft)}
     </div>
   </section>
 
+  <!-- Videoteca -->
+  <section id="videoteca">
+    <div class="wrap sec">
+      <div class="head">
+        <p class="kicker">The same thread, on video</p>
+        <h2>Video library: eight videos, one per topic</h2>
+        <p class="soft">They follow the path of this page: your sky, the journeys and the big questions. Each one explains a single idea from start to finish, filmed in the app itself.</p>
+      </div>
+      <ul class="vt">
+        <li class="vt__i" id="v-en-un-minuto"><a class="vt__a" href="/acerca/video/en-un-minuto.mp4" data-video="en-un-minuto" data-poster="/acerca/video/en-un-minuto.jpg">
+          <span class="vt__img"><video preload="none" playsinline muted tabindex="-1" aria-hidden="true" poster="/acerca/video/en-un-minuto.jpg" width="540" height="960"><source src="/acerca/video/en-un-minuto.mp4" type="video/mp4"></video><b>0:44</b></span>
+          <span class="vt__c">Overview</span>
+          <h3>Teseo in one minute</h3>
+          <p>The sky map, your horizon, trips across the Solar System and the big questions, filmed in the app itself.</p>
+        </a></li>
+        <li class="vt__i" id="v-horizonte"><a class="vt__a" href="/acerca/video/horizonte.mp4" data-video="horizonte" data-poster="/acerca/video/horizonte.jpg">
+          <span class="vt__img"><video preload="none" playsinline muted tabindex="-1" aria-hidden="true" poster="/acerca/video/horizonte.jpg" width="540" height="960"><source src="/acerca/video/horizonte.mp4" type="video/mp4"></video><b>1:19</b></span>
+          <span class="vt__c">1 · Your sky</span>
+          <h3>The sky begins at your mountains</h3>
+          <p>Your real horizon, with the terrain, the curvature of the Earth, the clouds and the monuments.</p>
+        </a></li>
+        <li class="vt__i" id="v-marte"><a class="vt__a" href="/acerca/video/marte.mp4" data-video="marte" data-poster="/acerca/video/marte.jpg">
+          <span class="vt__img"><video preload="none" playsinline muted tabindex="-1" aria-hidden="true" poster="/acerca/video/marte.jpg" width="540" height="960"><source src="/acerca/video/marte.mp4" type="video/mp4"></video><b>2:08</b></span>
+          <span class="vt__c">2 · Journeys</span>
+          <h3>Why can’t we go to Mars on any day?</h3>
+          <p>The Hohmann transfer, the 44° angle and the window that comes back every 26 months.</p>
+        </a></li>
+        <li class="vt__i" id="v-jupiter"><a class="vt__a" href="/acerca/video/jupiter.mp4" data-video="jupiter" data-poster="/acerca/video/jupiter.jpg">
+          <span class="vt__img"><video preload="none" playsinline muted tabindex="-1" aria-hidden="true" poster="/acerca/video/jupiter.jpg" width="540" height="960"><source src="/acerca/video/jupiter.mp4" type="video/mp4"></video><b>2:12</b></span>
+          <span class="vt__c">2 · Journeys</span>
+          <h3>The moons of Jupiter</h3>
+          <p>Four tiny points of light that changed astronomy, and how to see them tonight.</p>
+        </a></li>
+        <li class="vt__i" id="v-estrellas"><a class="vt__a" href="/acerca/video/estrellas.mp4" data-video="estrellas" data-poster="/acerca/video/estrellas.jpg">
+          <span class="vt__img"><video preload="none" playsinline muted tabindex="-1" aria-hidden="true" poster="/acerca/video/estrellas.jpg" width="540" height="960"><source src="/acerca/video/estrellas.mp4" type="video/mp4"></video><b>1:43</b></span>
+          <span class="vt__c">3 · Questions</span>
+          <h3>How do we know what a star is made of?</h3>
+          <p>The spectrum of light, its dark lines and how helium was discovered in the Sun.</p>
+        </a></li>
+        <li class="vt__i" id="v-vida-estrella"><a class="vt__a" href="/acerca/video/vida-estrella.mp4" data-video="vida-estrella" data-poster="/acerca/video/vida-estrella.jpg">
+          <span class="vt__img"><video preload="none" playsinline muted tabindex="-1" aria-hidden="true" poster="/acerca/video/vida-estrella.jpg" width="540" height="960"><source src="/acerca/video/vida-estrella.mp4" type="video/mp4"></video><b>2:14</b></span>
+          <span class="vt__c">3 · Questions</span>
+          <h3>How does a star live and die?</h3>
+          <p>From a cloud of gas to a white dwarf, a supernova or a black hole: it all depends on mass.</p>
+        </a></li>
+        <li class="vt__i" id="v-estamos-solos"><a class="vt__a" href="/acerca/video/estamos-solos.mp4" data-video="estamos-solos" data-poster="/acerca/video/estamos-solos.jpg">
+          <span class="vt__img"><video preload="none" playsinline muted tabindex="-1" aria-hidden="true" poster="/acerca/video/estamos-solos.jpg" width="540" height="960"><source src="/acerca/video/estamos-solos.mp4" type="video/mp4"></video><b>1:57</b></span>
+          <span class="vt__c">3 · Questions</span>
+          <h3>Are we alone?</h3>
+          <p>The Drake equation, with numbers you can change yourself.</p>
+        </a></li>
+        <li class="vt__i" id="v-fin-universo"><a class="vt__a" href="/acerca/video/fin-universo.mp4" data-video="fin-universo" data-poster="/acerca/video/fin-universo.jpg">
+          <span class="vt__img"><video preload="none" playsinline muted tabindex="-1" aria-hidden="true" poster="/acerca/video/fin-universo.jpg" width="540" height="960"><source src="/acerca/video/fin-universo.mp4" type="video/mp4"></video><b>2:11</b></span>
+          <span class="vt__c">3 · Questions</span>
+          <h3>How will the universe end?</h3>
+          <p>Expansion, dark energy and the possible endings.</p>
+        </a></li>
+      </ul>
+      <p class="fine vt-note">The videos are narrated in Spanish, with synthetic voices.</p>
+    </div>
+  </section>
+
   <!-- Apoya -->
-  <section id="apoya">
+  <section id="apoya" class="alt">
     <div class="wrap sec">
       <div class="head">
         <h2>Support Teseo</h2>
@@ -658,6 +937,26 @@ footer nav a{color:var(--soft)}
   </div>
 </dialog>
 
+<dialog id="dlg-video" class="dlg dlg--video" aria-labelledby="dlg-video-t">
+  <div class="dlg__box">
+    <div class="dlg__head">
+      <h2 id="dlg-video-t"></h2>
+      <button type="button" class="dlg__x" data-close aria-label="Close">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <div class="dlg__media"><video controls playsinline preload="none" width="540" height="960"></video></div>
+    <div class="dlg__side">
+      <p id="dlg-video-d"></p>
+      <div class="dlg__nav">
+        <button type="button" class="btn btn--ghost btn--sm" data-step="-1">Previous</button>
+        <span id="dlg-video-n" aria-live="polite"></span>
+        <button type="button" class="btn btn--ghost btn--sm" data-step="1">Next</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
 <footer>
   <div class="wrap">
     <div class="who">
@@ -712,6 +1011,237 @@ footer nav a{color:var(--soft)}
   document.addEventListener("play", function (e) {
     document.querySelectorAll("video, audio").forEach(function (m) { if (m !== e.target) m.pause(); });
   }, true);
+})();
+</script>
+<script>
+// Videoteca: los videos no se cargan con la página; cada uno se abre en un reproductor encima de ella.
+(function () {
+  var dlg = document.getElementById("dlg-video");
+  if (!dlg || typeof dlg.showModal !== "function") return; // sin <dialog>, los enlaces abren el archivo o bajan a la videoteca
+  var cards = Array.prototype.slice.call(document.querySelectorAll(".vt__a[data-video]"));
+  var video = dlg.querySelector("video"), title = document.getElementById("dlg-video-t"), desc = document.getElementById("dlg-video-d"), count = document.getElementById("dlg-video-n");
+  var at = -1, opener = null;
+  function show(i, play) {
+    at = (i + cards.length) % cards.length;
+    var c = cards[at];
+    title.textContent = c.querySelector("h3").textContent;
+    desc.textContent = c.querySelector("p").textContent;
+    count.textContent = (at + 1) + " / " + cards.length;
+    video.pause();
+    video.setAttribute("poster", c.getAttribute("data-poster"));
+    video.setAttribute("aria-label", title.textContent);
+    video.src = c.getAttribute("href");
+    if (play) { var p = video.play(); if (p && p.catch) p.catch(function () { /* el navegador pide un toque: quedan los controles */ }); }
+  }
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest ? e.target.closest("[data-video]") : null;
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    var slug = a.getAttribute("data-video"), i = -1;
+    cards.forEach(function (c, n) { if (c.getAttribute("data-video") === slug) i = n; });
+    if (i < 0) return;
+    e.preventDefault();
+    opener = a;
+    dlg.showModal();
+    show(i, true);
+  });
+  dlg.querySelectorAll("[data-step]").forEach(function (b) {
+    b.addEventListener("click", function () { show(at + Number(b.getAttribute("data-step")), true); });
+  });
+  video.addEventListener("ended", function () { var n = dlg.querySelector('[data-step="1"]'); if (n) n.focus(); });
+  dlg.addEventListener("close", function () {
+    video.removeAttribute("src"); video.load(); // deja de descargar
+    if (opener && opener.focus) opener.focus();
+  });
+})();
+// El hilo de la página: avanza con la lectura y enciende cada capítulo al llegar a él.
+// Las posiciones se miden una vez (y al cambiar el tamaño); al desplazarse solo se compara con scrollY.
+(function () {
+  var root = document.documentElement, top = document.querySelector(".top"), main = document.querySelector("main");
+  var thread = document.querySelector(".thread"), fill = thread ? thread.firstElementChild : null;
+  var knots = Array.prototype.slice.call(document.querySelectorAll(".chap .kn")).map(function (k) { return { chap: k.closest(".chap"), el: k, y: 0, on: null }; });
+  var y0 = 0, len = 0, max = 0, vh = 0, ticking = false, lastPag = "", lastHilo = "";
+  function measure() {
+    var sy = window.scrollY || root.scrollTop || 0;
+    vh = window.innerHeight; max = root.scrollHeight - vh;
+    if (top) root.style.setProperty("--top-h", (getComputedStyle(top).position === "sticky" ? top.offsetHeight : 0) + "px");
+    knots.forEach(function (k) { k.y = k.el.getBoundingClientRect().top + sy; });
+    if (thread && knots.length && thread.offsetParent) {
+      var m = main.getBoundingClientRect().top + sy;
+      y0 = knots[0].y + 14; len = Math.max(0, knots[knots.length - 1].y - knots[0].y);
+      thread.style.top = (y0 - m) + "px"; thread.style.height = len + "px";
+    } else { len = 0; }
+    paint();
+  }
+  function paint() {
+    ticking = false;
+    var sy = window.scrollY || root.scrollTop || 0, line = sy + vh * 0.6;
+    var pag = max > 0 ? Math.min(1, Math.max(0, sy / max)).toFixed(3) : "0";
+    if (top && pag !== lastPag) { lastPag = pag; top.style.setProperty("--pag", pag); }
+    if (fill) { var h = len ? Math.min(1, Math.max(0, (line - y0) / len)).toFixed(3) : "0"; if (h !== lastHilo) { lastHilo = h; fill.style.transform = "scaleY(" + h + ")"; } }
+    knots.forEach(function (k) { var on = k.y < line; if (on !== k.on && k.chap) { k.on = on; k.chap.classList.toggle("is-reached", on); } });
+  }
+  function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(paint); } }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", measure);
+  window.addEventListener("load", measure);
+  if ("ResizeObserver" in window && main) new ResizeObserver(measure).observe(main);
+  measure();
+})();
+// Animaciones: motor común. Solo se mueven mientras se ven, se pueden pausar y respetan «reducir movimiento».
+window.TeseoAnim=(function(){
+  var reduce=window.matchMedia("(prefers-reduced-motion: reduce)");
+  function register(fig,api){
+    var btn=fig.querySelector("[data-anim-toggle]"),run=false,visible=false,paused=reduce.matches,t=0,last=0,raf=0;
+    function loop(now){if(!run)return;var dt=Math.min(.05,(now-last)/1000);last=now;t+=dt;api.frame(t,dt);raf=requestAnimationFrame(loop);}
+    function sync(){var should=visible&&!paused&&!document.hidden;
+      if(should&&!run){run=true;last=performance.now();raf=requestAnimationFrame(loop);}
+      else if(!should&&run){run=false;cancelAnimationFrame(raf);}
+      fig.classList.toggle("is-paused",paused);}
+    if(btn)btn.addEventListener("click",function(){paused=!paused;sync();});
+    document.addEventListener("visibilitychange",sync);
+    if("IntersectionObserver" in window){new IntersectionObserver(function(es){visible=es[es.length-1].isIntersecting;sync();},{threshold:.15}).observe(fig);}else{visible=true;}
+    if(reduce.addEventListener)reduce.addEventListener("change",function(e){if(e.matches){paused=true;sync();}});
+    api.still();sync();
+    return {redraw:function(){if(!run){if(t>0)api.frame(t,0);else api.still();}}};
+  }
+  return {register:register,reduce:reduce};
+})();
+(function(){
+  var fig=document.querySelector('.anim[data-anim="horizonte"]');if(!fig||!window.TeseoAnim)return;
+  var Q=function(s){return fig.querySelector(s)},real=true,env=[],X0=200,Y0=345,X1=268,Y1=100,R=11,YF=300,UE=.78,T=13;
+  function px(u){return X0+(X1-X0)*u}function py(u){return Y0+(Y1-Y0)*u}
+  function cl(v){return v<0?0:v>1?1:v}function rp(u,a,w){return cl((u-a)/w)}
+  function sample(p){var L=p.getTotalLength(),s,q,k;for(s=0;s<=L;s+=.5){q=p.getPointAtLength(s);k=Math.round(q.x);if(k>=0&&k<=560&&(env[k]===undefined||q.y<env[k]))env[k]=q.y;}}
+  sample(Q('#hz-far'));sample(Q('.hz-real path:last-child'));
+  for(var i=0;i<=560;i++)if(env[i]===undefined)env[i]=i?env[i-1]:300;
+  var uf=(Y0-YF-R)/(Y0-Y1),ur=.56,mx=212,my=200,u,d,x,yv,best;
+  for(u=0;u<=1;u+=.001){best=-1e9;for(d=-R;d<=R;d+=1){x=px(u)+d;yv=py(u)-Math.sqrt(R*R-d*d);var e=env[Math.round(x)]-yv;if(e>best){best=e;mx=x;}}
+    if(best>0){ur=u;my=env[Math.round(mx)];break;}}
+  var xf=px(uf),fx=82+454*uf/UE,rx=82+454*ur/UE;
+  function set(el,o){for(var k in o)el.setAttribute(k,o[k]);}
+  set(Q('.hz-mf circle'),{cx:xf});set(Q('.hz-seg'),{x1:xf,y1:YF,x2:mx,y2:my});
+  set(Q('.hz-pt'),{cx:mx,cy:my});set(Q('.hz-ld'),{x1:228,y1:150,x2:mx,y2:my});
+  set(Q('.hz-kf'),{cx:fx});set(Q('.hz-kft'),{x:fx});set(Q('.hz-kr'),{cx:rx});set(Q('.hz-krt'),{x:rx});
+  var sun=Q('.hz-sun'),th=Q('.hz-th'),ring=Q('.hz-ring'),prog=Q('.hz-prog'),ov=Q('.hz-ov'),st=Q('.hz-st'),mf=Q('.hz-mf'),mr=Q('.hz-mr'),seg=Q('.hz-seg');
+  function draw(u,fa){
+    var x=px(u),y=py(u),r=real?ur:uf,k=cl((u-.12)/(UE-.12))*fa;
+    set(sun,{cx:x,cy:y,opacity:fa});set(th,{x2:x,y2:y,opacity:fa*.95});
+    set(prog,{x2:82+454*Math.min(1,u/UE),opacity:fa});
+    set(ring,{cx:x,cy:y,opacity:.75*fa*rp(u,uf,.02)*(1-rp(u,ur,.03))});
+    mf.setAttribute('opacity',fa*rp(u,uf,.03));
+    mr.setAttribute('opacity',fa*rp(u,ur,.03));seg.setAttribute('opacity',fa*rp(u,ur,.05));
+    ov.setAttribute('opacity',k);st.setAttribute('opacity',1-.5*k);
+  }
+  function still(){draw(real?ur+.04:.3,1);}
+  var ctl=TeseoAnim.register(fig,{
+    frame:function(t){var tt=t%T,u=tt<.8?0:Math.min(UE,(tt-.8)/7.6*UE),fa=tt<.8?tt/.8:tt>11.8?Math.max(0,(12.6-tt)/.8):1;draw(u,fa);},
+    still:still});
+  var bs=fig.querySelectorAll('[data-hz]');
+  Array.prototype.forEach.call(bs,function(b){b.addEventListener('click',function(){
+    real=b.getAttribute('data-hz')==='real';fig.classList.toggle('is-flat',!real);
+    Array.prototype.forEach.call(bs,function(o){o.setAttribute('aria-pressed',String(o===b));});ctl.redraw();});});
+})();
+(function(){
+  var fig=document.querySelector('.anim[data-anim="marte"]');if(!fig||!window.TeseoAnim)return;
+  var $=function(s){return fig.querySelector(s)},PI=Math.PI,R=PI/180,CX=280,CY=222,K=180/1.524,
+  TE=365.25,TM=686.98,SYN=1/(1/TE-1/TM),LEAD=44.3,TR=259,EC=.524/2.524,A=1.262,
+  TT=7,TA=2.2,TF=.9,TW=9,TH=1.4,RW=(SYN-TR)/TW,N=100,
+  eE=$('#mTe'),eM=$('#mTm'),lE=$('#mE'),lM=$('#mM'),arc=$('#mA'),g=$('#mG'),th=$('#mP'),gh=$('#mH'),sh=$('#mS'),
+  tE=$('#mTeT'),tM=$('#mTmT'),tS=$('#mST'),dd=$('#mD'),btn=$('[data-salir]'),
+  labs={},rot=0,mode='hold',D=0,tau=0,phi0=0,mt=0,ok=true,S=false,man=false,cum=[0],cache={},i;
+  [].forEach.call(fig.querySelectorAll('[data-l]'),function(e){labs[e.getAttribute('data-l')]=e});
+  function kep(M){var E=M,k;for(k=0;k<6;k++)E-=(E-EC*Math.sin(E)-M)/(1-EC*Math.cos(E));return E}
+  function nu(M){var E=kep(M);return [2*Math.atan2(Math.sqrt(1+EC)*Math.sin(E/2),Math.sqrt(1-EC)*Math.cos(E/2)),A*(1-EC*Math.cos(E))]}
+  var pts=[],p0,d='';
+  for(i=0;i<=N;i++){p0=nu(PI*i/N);pts.push([CX+K*p0[1]*Math.cos(p0[0]),CY-K*p0[1]*Math.sin(p0[0])]);
+    d+=(i?'L':'M')+pts[i][0].toFixed(1)+' '+pts[i][1].toFixed(1);
+    if(i)cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));}
+  th.setAttribute('d',d);var TOT=cum[N];th.setAttribute('pathLength',TOT);
+  function aE(x){return rot+2*PI*x/TE}
+  function turn(){rot=(rot+2*PI*SYN/TE)%(2*PI)}
+  function aM(x){return aE(x)+LEAD*R-2*PI*x/SYN}
+  function at(set,k,v){if(cache[k]!==v){cache[k]=v;set(v)}}
+  function disp(el,k,on){at(function(v){el.setAttribute('display',v?'inline':'none')},k,on)}
+  function tr(el,x,y){el.setAttribute('transform','translate('+x.toFixed(1)+' '+y.toFixed(1)+')')}
+  function off(el,th2,r,x,y){el.setAttribute('x',(x+r*Math.cos(th2)).toFixed(1));el.setAttribute('y',(y-r*Math.sin(th2)+5).toFixed(1))}
+  function draw(){
+    var ae=aE(D),am=aM(D),ex=CX+K*Math.cos(ae),ey=CY-K*Math.sin(ae),mx=CX+180*Math.cos(am),my=CY-180*Math.sin(am),
+    trip=mode==='travel'||mode==='arrive'||mode==='fade',f=mode==='fade'?1-mt/TF:1,L,r=40,u,w;
+    tr(eE,ex,ey);tr(eM,mx,my);var oe=14+24*Math.abs(Math.cos(ae)),om=14+24*Math.abs(Math.cos(am));tE.setAttribute('x',(oe*Math.cos(ae)).toFixed(1));tE.setAttribute('y',(-oe*Math.sin(ae)+5).toFixed(1));
+    tM.setAttribute('x',(om*Math.cos(am)).toFixed(1));tM.setAttribute('y',(-om*Math.sin(am)+5).toFixed(1));
+    lE.setAttribute('x2',ex.toFixed(1));lE.setAttribute('y2',ey.toFixed(1));lM.setAttribute('x2',mx.toFixed(1));lM.setAttribute('y2',my.toFixed(1));
+    L=((am-ae)%(2*PI)+2*PI)%(2*PI);
+    arc.setAttribute('d','M'+(CX+r*Math.cos(ae)).toFixed(1)+' '+(CY-r*Math.sin(ae)).toFixed(1)+'A'+r+' '+r+' 0 '+(L>PI?1:0)+' 0 '+(CX+r*Math.cos(ae+L)).toFixed(1)+' '+(CY-r*Math.sin(ae+L)).toFixed(1));
+    disp(arc,'arc',S||mode==='wait'||mode==='hold');
+    at(function(v){arc.setAttribute('stroke-dasharray',v)},'ad',(mode==='hold'||S)?'none':'5 4');
+    dd.textContent=Math.floor(D);
+    disp(g,'g',trip||S);disp(gh,'gh',(trip&&mode!=='fade')||S||(mode==='fade'));
+    g.setAttribute('transform','rotate('+(-phi0/R).toFixed(2)+' '+CX+' '+CY+')');
+    g.setAttribute('opacity',f.toFixed(2));gh.setAttribute('opacity',f.toFixed(2));
+    tr(gh,CX+1.524*K*Math.cos(phi0+PI),CY-1.524*K*Math.sin(phi0+PI));
+    u=nu(PI*tau/TR);w=phi0+u[0];tr(sh,CX+K*u[1]*Math.cos(w),CY-K*u[1]*Math.sin(w));
+    disp(sh,'sh',(mode==='travel'||mode==='arrive')||S);disp(tS,'st',!S&&mode==='travel'&&tau>.14*TR&&tau<.86*TR);
+    var os=-(14+24*Math.abs(Math.cos(w)));tS.setAttribute('x',(os*Math.cos(w)).toFixed(1));tS.setAttribute('y',(-os*Math.sin(w)+5).toFixed(1));
+    var q=PI*tau/TR*N/PI,j=Math.min(N-1,Math.floor(q)),len=S?TOT:cum[j]+(cum[j+1]-cum[j])*(q-j);
+    th.setAttribute('stroke-dasharray',len.toFixed(1)+' '+(TOT+5));
+    var on={w:mode==='wait',h:mode==='hold'||S,t:mode==='travel'&&!S,a:(mode==='arrive'&&ok)||S,f:mode==='arrive'&&!ok};
+    for(var k in labs){disp(labs[k],'l'+k,on[k]);if(S&&k==='h')labs[k].setAttribute('y',438);else if(S&&k==='a')labs[k].setAttribute('y',464);else labs[k].setAttribute('y',462)}
+    var can=mode==='wait'&&!S;at(function(v){btn.setAttribute('aria-disabled',v)},'bd',String(!can));
+    at(function(v){btn.setAttribute('aria-pressed',v)},'bp',String(trip&&man));
+  }
+  function launch(m){man=!!m;phi0=aE(D);tau=0;mode='travel'}
+  function step(dt){
+    if(mode==='wait'){D+=RW*dt;if(D>=SYN){turn();D=0;mode='hold';mt=0}}
+    else if(mode==='hold'){mt+=dt;if(mt>=TH)launch()}
+    else if(mode==='travel'){var q=Math.min(TR/TT*dt,TR-tau);tau+=q;D+=q;if(D>=SYN){D-=SYN;turn()}
+      if(tau>=TR){tau=TR;mode='arrive';mt=0;var x=phi0+PI-aM(D);ok=Math.abs(((x%(2*PI))+3*PI)%(2*PI)-PI)<3*R}}
+    else if(mode==='arrive'){mt+=dt;if(mt>=TA){mode='fade';mt=0}}
+    else{mt+=dt;if(mt>=TF){mode='wait';tau=0}}
+  }
+  function reset(){S=false;rot=0;mode='hold';D=0;mt=0;tau=0;phi0=0;ok=true}
+  var ctl=TeseoAnim.register(fig,{
+    frame:function(t,dt){if(S)reset();step(dt);draw()},
+    still:function(){S=true;rot=0;mode='travel';D=0;tau=0;phi0=0;draw()}});
+  btn.addEventListener('click',function(){if(mode==='wait'&&!S){launch(true);draw();ctl.redraw()}});
+})();
+(function(){
+  var fig=document.querySelector('.anim[data-anim="espectro"]');if(!fig||!window.TeseoAnim)return;
+  var NS="http://www.w3.org/2000/svg",$=function(s){return fig.querySelector(s)};
+  var E=[[656.3,486.1,434.0,410.2],[667.8,587.6,501.6,471.3,447.1],[589.6,589.0],[396.8,393.4]];
+  var SH=["M-3.5 0a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0","M-3-3h6v6h-6z","M0-4.5l4.5 4.5-4.5 4.5-4.5-4.5z","M0-4l4.5 7.5h-9z"];
+  var X=function(l){return 34+(l-380)*500/320},cl=function(v){return v<0?0:v>1?1:v};
+  var g=$("#esp-ls"),th=$("#esp-th"),zm=$("#esp-zm"),rd=$("#esp-rd"),tsp=rd.querySelector("tspan"),lt=$("#esp-lt").children,nm=fig.querySelectorAll(".nm"),btn=fig.querySelectorAll(".anim__btn:not(.anim__toggle)");
+  function mk(n,a,p){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e}
+  var L=[];
+  E.forEach(function(ls,e){var y=318+16*e;ls.forEach(function(l,i){var x=X(l),w=e==2?.75:3;
+    L.push({e:e,x:x,l:l,r:mk("rect",{x:x-w/2,y:190,width:w,height:108,fill:"#04080F",opacity:0},g),
+      s:mk("path",{d:"M"+x+" 298V"+y,stroke:"#F2C46D","stroke-width":1,opacity:0},g),
+      m:mk("path",{d:SH[e],transform:"translate("+x+" "+y+")",fill:"#F2C46D",opacity:0},g)});});
+    var r=L[L.length-ls.length];lt[e].setAttribute("x",r.x-8);lt[e].setAttribute("y",y+4.5);lt[e].setAttribute("opacity",0);});
+  var s=0,u=0,p=-1,sel=-1,mode=-1,shown=-1,txt="";
+  function draw(s,u,p){
+    var xT=u<.35?1e4:u>2.75?-1e4:534-(u-.35)/2.4*500,cur=null,ga=[0,0,0,0];
+    th.setAttribute("opacity",u>=.35&&u<=2.8?1:0);th.setAttribute("transform","translate("+Math.max(34,Math.min(534,xT))+" 0)");
+    if(mode!=(s==4)){mode=s==4;var c=mode?"#C9CEE0":"#F2C46D";L.forEach(function(o){o.s.setAttribute("stroke",c);o.m.setAttribute("fill",c)});for(var i=0;i<4;i++)lt[i].setAttribute("fill",c);}
+    L.forEach(function(o){var a=0;
+      if(s==4||s==o.e){a=cl((o.x-xT)/4+.5);if(o.x>=xT)cur=o;}
+      if(p>=0&&u<.3&&(p==4||p==o.e))a=Math.max(a,1-u/.3);
+      o.r.setAttribute("opacity",a*.92);o.s.setAttribute("opacity",a);o.m.setAttribute("opacity",a);ga[o.e]=Math.max(ga[o.e],a);});
+    for(var i=0;i<4;i++)lt[i].setAttribute("opacity",ga[i]);zm.setAttribute("opacity",s==2?ga[2]:0);
+    if(shown!=s){shown=s;for(i=0;i<5;i++)nm[i].setAttribute("display",i==s?"inline":"none");}
+    var on=s<4&&cur&&cur.e==s&&u<=3.4;rd.setAttribute("opacity",on?1:0);
+    if(on){var t=cur.l.toFixed(1);if(t!=txt){txt=t;tsp.textContent=t;}}
+  }
+  var ctl=TeseoAnim.register(fig,{
+    frame:function(t,dt){
+      if(sel<0){u+=dt;if(u>=4){p=s;s=(s+1)%5;u-=4;}}else{s=sel;u=Math.min(u+dt,3.3);}
+      draw(s,u,p);},
+    still:function(){draw(sel>=0?sel:4,3.3,-1);}});
+  btn.forEach(function(b,i){b.addEventListener("click",function(){
+    sel=sel===i?-1:i;
+    if(sel>=0){s=i;p=-1;u=fig.classList.contains("is-paused")?3.3:0;}
+    btn.forEach(function(x,j){x.setAttribute("aria-pressed",String(j===sel));});
+    ctl.redraw();});});
 })();
 </script>
 <script>
