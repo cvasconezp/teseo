@@ -251,8 +251,8 @@ export function describeEvent(ev, lang, f) {
         ? (mo.up ? (es ? `La Luna (${f.pct(mo.illum)} iluminada) es fina y casi no estorba.` : `The Moon (${f.pct(mo.illum)} lit) is thin and barely gets in the way.`) : (es ? "A esa hora la Luna está bajo el horizonte: no estorba." : "At that time the Moon is below the horizon: no interference."))
         : mo.level === "some" ? (es ? `La Luna (${f.pct(mo.illum)} iluminada) está en el cielo y aclara algo el fondo.` : `The Moon (${f.pct(mo.illum)} lit) is up and brightens the background a little.`)
         : (es ? `La Luna (${f.pct(mo.illum)} iluminada) estorba: aclara el cielo y apaga los meteoros débiles.` : `The Moon (${f.pct(mo.illum)} lit) gets in the way: it brightens the sky and hides faint meteors.`);
-      // meteoros por hora desde este lugar (relación de la IMO, ver meteors.js): enteros; por debajo de 1, «menos de uno»
-      const ph = (x) => { const n = Math.round(x); return x < 1 - 1e-9 ? (es ? "menos de uno por hora" : "fewer than one per hour") : n === 1 ? (es ? "1 por hora" : "1 per hour") : (es ? `unos ${f.n(n, 0)} por hora` : `about ${f.n(n, 0)} per hour`); };
+      // meteoros por hora desde este lugar (relación de la IMO, ver meteors.js): enteros, de 5 en 5 desde 20 y de 10 en 10 desde 100; por debajo de 1, «menos de uno»
+      const ph = (x) => { const n = x >= 100 ? Math.round(x / 10) * 10 : x >= 20 ? Math.round(x / 5) * 5 : Math.round(x); return x < 1 - 1e-9 ? (es ? "menos de uno por hora" : "fewer than one per hour") : n === 1 ? (es ? "1 por hora" : "1 per hour") : (es ? `unos ${f.n(n, 0)} por hora` : `about ${f.n(n, 0)} per hour`); };
       const rt = d.rates;
       const rateTxt = rt
         ? (es ? `Con el radiante a ${f.n(d.maxAlt, 0)}°, verías ${ph(rt.dark)} bajo un cielo oscuro y ${ph(rt.city)} desde una ciudad (son estimaciones).` : `With the radiant at ${f.n(d.maxAlt, 0)}°, you would see ${ph(rt.dark)} under a dark sky and ${ph(rt.city)} from a city (these are estimates).`)
