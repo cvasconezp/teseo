@@ -255,13 +255,14 @@ export function describeEvent(ev, lang, f) {
       const ph = (x) => { const n = x >= 100 ? Math.round(x / 10) * 10 : x >= 20 ? Math.round(x / 5) * 5 : Math.round(x); return x < 1 - 1e-9 ? (es ? "menos de uno por hora" : "fewer than one per hour") : n === 1 ? (es ? "1 por hora" : "1 per hour") : (es ? `unos ${f.n(n, 0)} por hora` : `about ${f.n(n, 0)} per hour`); };
       const rt = d.rates;
       const rateTxt = rt
-        ? (es ? `Con el radiante a ${f.n(d.maxAlt, 0)}°, verías ${ph(rt.dark)} bajo un cielo oscuro y ${ph(rt.city)} desde una ciudad (son estimaciones).` : `With the radiant at ${f.n(d.maxAlt, 0)}°, you would see ${ph(rt.dark)} under a dark sky and ${ph(rt.city)} from a city (these are estimates).`)
+        ? (es ? `Desde tu lugar, hacia las ${f.time(d.best.t)} y con el radiante a ${f.n(d.maxAlt, 0)}°, verías ${ph(rt.dark)} bajo un cielo oscuro y ${ph(rt.city)} desde una ciudad (son estimaciones).` : `From your place, around ${f.time(d.best.t)} and with the radiant at ${f.n(d.maxAlt, 0)}°, you would see ${ph(rt.dark)} under a dark sky and ${ph(rt.city)} from a city (these are estimates).`)
         : d.risesInNight && d.maxAlt < MIN_RATE_ALT && Number.isFinite(o.r)
           ? (es ? `Con el radiante a menos de ${MIN_RATE_ALT}° la IMO no da una fórmula fiable, así que no estimamos cuántos verías: serán muy pocos.` : `With the radiant below ${MIN_RATE_ALT}° the IMO gives no reliable formula, so we do not estimate how many you would see: very few.`)
           : "";
+      const bestTxt = rt || !d.risesInNight ? "" : (es ? `El radiante llega a ${f.n(d.maxAlt, 0)}° a las ${f.time(d.best.t)}.` : `The radiant reaches ${f.n(d.maxAlt, 0)}° at ${f.time(d.best.t)}.`);
       out.what = es
-        ? `${peakIn} según el catálogo de la IMO: hasta ~${o.zhr} meteoros por hora (THZ, la tasa teórica con cielo ideal; verás menos). Sin instrumentos: tumbado, mirando a todo el cielo desde un lugar oscuro, tras 20 min de adaptación. ${d.risesInNight ? `El radiante llega a ${f.n(d.maxAlt, 0)}° a las ${f.time(d.best.t)}.` : ""} ${rateTxt} ${moonTxt}`
-        : `${peakIn} per the IMO catalog: up to ~${o.zhr} meteors per hour (ZHR, the theoretical rate under ideal skies; you will see fewer). No instruments: lie back, look at the whole sky from a dark site after 20 min of adaptation. ${d.risesInNight ? `The radiant reaches ${f.n(d.maxAlt, 0)}° at ${f.time(d.best.t)}.` : ""} ${rateTxt} ${moonTxt}`;
+        ? `${bestTxt} ${rateTxt} ${peakIn} según el catálogo de la IMO: hasta ~${o.zhr} meteoros por hora (THZ, la tasa teórica con cielo ideal; verás menos). Sin instrumentos: tumbado, mirando a todo el cielo desde un lugar oscuro, tras 20 min de adaptación. ${moonTxt}`
+        : `${bestTxt} ${rateTxt} ${peakIn} per the IMO catalog: up to ~${o.zhr} meteors per hour (ZHR, the theoretical rate under ideal skies; you will see fewer). No instruments: lie back, look at the whole sky from a dark site after 20 min of adaptation. ${moonTxt}`;
       out.what = out.what.replace(/\s+/g, " ").trim();
       if (!d.risesInNight) vis(false, es ? "El radiante no sube sobre el horizonte durante la noche desde tu lugar." : "The radiant does not rise above the horizon during the night from your place.");
       else if (d.maxAlt < 15) vis(true, es ? `El radiante sube solo a ${f.n(d.maxAlt, 0)}°: verás pocos meteoros.` : `The radiant only reaches ${f.n(d.maxAlt, 0)}°: you will see few meteors.`);

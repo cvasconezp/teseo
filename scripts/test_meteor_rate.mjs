@@ -103,8 +103,8 @@ ok(!/por hora bajo un cielo oscuro|desde una ciudad|Cómo se calcula/.test(tNR.w
 console.log("Textos (ES y EN)");
 const synth = (zhr, r, alt) => ({ type: "meteor", sub: "shower", t: 1, durationMin: 120, visible: true, data: { shower: { name: "Gemínidas", name_en: "Geminids", zhr, r }, risesInNight: true, maxAlt: alt, best: { t: Date.UTC(2026, 11, 15, 2, 10), alt }, moon: null, rates: visibleRate(zhr, r, alt, 6.5) == null ? null : { dark: visibleRate(zhr, r, alt, 6.5), city: visibleRate(zhr, r, alt, 4.5) } } });
 const es60 = describeEvent(synth(150, 2.6, 60), "es", fmt), en60 = describeEvent(synth(150, 2.6, 60), "en", fmt);
-ok(/Con el radiante a 60°, verías unos 130 por hora bajo un cielo oscuro y unos 19 por hora desde una ciudad \(son estimaciones\)\./.test(es60.what), `ES: «${es60.what.match(/Con el radiante[^.]*\.[^.]*\./)}»`);
-ok(/With the radiant at 60°, you would see about 130 per hour under a dark sky and about 19 per hour from a city \(these are estimates\)\./.test(en60.what), `EN: «${en60.what.match(/With the radiant[^.]*\.[^.]*\./)}»`);
+ok(/con el radiante a 60°, verías unos 130 por hora bajo un cielo oscuro y unos 19 por hora desde una ciudad \(son estimaciones\)\./.test(es60.what), `ES: «${es60.what.match(/Desde tu lugar[^.]*\./)}»`);
+ok(/with the radiant at 60°, you would see about 130 per hour under a dark sky and about 19 per hour from a city \(these are estimates\)\./.test(en60.what), `EN: «${en60.what.match(/From your place[^.]*\./)}»`);
 ok(/hasta ~150 meteoros por hora \(THZ, la tasa teórica con cielo ideal; verás menos\)/.test(es60.what) && /up to ~150 meteors per hour \(ZHR, the theoretical rate under ideal skies; you will see fewer\)/.test(en60.what), "se conserva la cifra teórica (THZ/ZHR) como referencia");
 ok(/Cómo se calcula: THZ × sen\(altura del radiante\) ÷ r\^\(6,5 − magnitud límite\), fórmula estándar de la IMO \(r: Calendario 2027, tabla 5\)/.test(es60.note) && /How it is calculated: ZHR × sin\(radiant altitude\) ÷ r\^\(6\.5 − limiting magnitude\), the standard IMO formula \(r: 2027 Calendar, table 5\)/.test(en60.note), "línea de sustento visible (ES y EN)");
 ok(/^Hora: cuando el radiante está más alto esa noche/.test(es60.note) && /^Time: when the radiant is highest that night/.test(en60.note), "la nota dice que la hora es la del radiante más alto (y que el máximo real varía ±1 día)");
@@ -132,7 +132,7 @@ const toMs = (z) => Date.UTC(+z.slice(0, 4), +z.slice(4, 6) - 1, +z.slice(6, 8),
 ok(dtstart && Math.abs(toMs(dtstart[1]) - eM.best.t) < 1000 && dtstart[1].startsWith("20261215T"), `DTSTART = mejor hora (${dtstart && dtstart[1]}), en la fecha real: 15-dic`);
 ok(dtend && toMs(dtend[1]) - toMs(dtstart[1]) === eM.window.durationMin * MIN, "DTEND = inicio + duración de la ventana");
 const madTime = new Intl.DateTimeFormat("es-EC", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Madrid" }).format(new Date(toMs(dtstart[1])));
-ok(vG.includes(`a las ${madTime}.`) && madTime.slice(0, 2) === "03", `la descripción da la hora en la zona del lugar (${madTime} de Madrid = 02:xx UTC + 1 h)`);
+ok(vG.includes(`hacia las ${madTime} y con el radiante`) && madTime.slice(0, 2) === "03", `la descripción da la hora en la zona del lugar (${madTime} de Madrid = 02:xx UTC + 1 h)`);
 ok(/unos \d+ por hora bajo un cielo oscuro/.test(vG) && /Cómo se calcula/.test(vG) && /TRIGGER:-PT30M/.test(vG), "el .ics trae las dos cifras, el sustento y aviso 30 min antes");
 const icsQ = buildFeed({ lat: -60, lon: -60, lang: "es", tz: "America/Argentina/Ushuaia", now, showers, days: 120 });
 const vQ = veventOf(icsQ, "Lluvia de meteoros: Cuadrántidas");
