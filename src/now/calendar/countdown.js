@@ -30,6 +30,8 @@ export function countdownText(ev, now, lang = "es") {
     return { state: "later", text: es ? `En ${n} días` : `In ${n} days` };
   }
   const dt = ev.t - now;
+  // una lluvia de meteoros es una ventana de la noche: mientras dura, «Ahora» (no «ya ocurrió»)
+  if (ev.type === "meteor" && dt < 0 && now < ev.t + (ev.durationMin || 0) * MIN) return { state: "now", text: es ? "Ahora" : "Now" };
   if (dt < -MIN) {
     const n = dayDiff(now, ev.t);   // pasada la medianoche, lo de ayer no es «hoy»
     if (n === 0) return { state: "past", text: es ? "Hoy · ya ocurrió" : "Today · already happened" };

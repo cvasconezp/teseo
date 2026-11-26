@@ -128,9 +128,11 @@ export function nextHighlight({ now = Date.now(), lat = QUITO.lat, lon = QUITO.l
     ev.push({ id: `season-${sub}-${ymd(s.t)}`, type: "season", sub, t: s.t, durationMin: 30, visible: null, data: { k: s.k, kind: s.kind, noonAlt: sunNoonAlt(lat, decl) } });
   }
   ev.push(...milestoneEvents(now, to));
-  // lo que aún no empezó (un evento de todo el día cuenta hasta su medianoche local)
+  // lo que aún no empezó (un evento de todo el día cuenta hasta su medianoche local) y la lluvia de meteoros en curso
+  // (su ventana de la noche no se suelta hasta que acaba)
   const startOf = (e) => (e.allDay ? localMidnightOf(e.t) : e.t);
-  return sortEvents(ev.filter(e => isHighlight(e) && startOf(e) > now)).sort((a, b) => startOf(a) - startOf(b))[0] || null;
+  const live = (e) => e.type === "meteor" && !e.allDay && e.t + (e.durationMin || 0) * 60000 > now;
+  return sortEvents(ev.filter(e => isHighlight(e) && (startOf(e) > now || live(e)))).sort((a, b) => startOf(a) - startOf(b))[0] || null;
 }
 
 /** Medianoche local del día de un evento «de todo el día» (su fecha va en UTC, como la del catálogo). */

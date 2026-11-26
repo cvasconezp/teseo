@@ -85,6 +85,7 @@ export function buildFeed({ lat, lon, lang = "es", tz = "America/Guayaquil", typ
     out.push({
       uid: `${ev.id}@teseo.yachaydeep.com`, start: ev.t, allDay: !!ev.allDay, durationMin: ev.durationMin,
       title: info.title, description: desc, url: sky || link || FEED_ORIGIN, categories: T.types[ev.type] || ev.type,
+      alarmHours: ev.type === "meteor" && !ev.allDay ? 6 : undefined,   // lluvias de madrugada: aviso la tarde anterior
       alarm: ev.type !== "moon" && ev.type !== "planet",     // avisos solo para lo que no se repite cada semana
     });
   }

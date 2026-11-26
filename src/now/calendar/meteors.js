@@ -12,8 +12,8 @@ const sunDirAt = (d) => stateAt(+d).Sol.v;
 // (cielo oscuro). 4,5 es el techo de la clase 8 de Bortle (4,1–4,5, «cielo de ciudad»; ver
 // src/sky/lightPollution.js). No son una medición del cielo de la persona.
 export const MALE_DARK = 6.5, MALE_CITY = 4.5;
-/** Duración del evento a la mejor hora (min), como la de un eclipse solar en el calendario; se recorta si la noche acaba antes. */
-export const WINDOW_MIN = 120, WINDOW_MIN_FLOOR = 30;
+/** Duración del evento a la mejor hora (min), como la de un eclipse solar en el calendario; nunca sale de la noche. */
+export const WINDOW_MIN = 120;
 
 /** Altura mínima del radiante para estimar: la fórmula de la IMO «se puede aplicar con radiantes a hR ≥ 10°». */
 export const MIN_RATE_ALT = 10;
@@ -52,12 +52,14 @@ export function showerEvent(o, year, lat, lon) {
     const alt = altAzOf(mo.v, lat, lon, best.t).alt;
     moon = { illum, alt, up: alt > 0, level: alt > 0 && illum >= 0.6 ? "strong" : alt > 0 && illum >= 0.3 ? "some" : "none" };
   }
-  // Ventana del evento: empieza a la mejor hora (puede caer en la madrugada del día siguiente al del catálogo)
-  // y dura hasta 2 h sin pasar del final de la noche. Sin mejor hora (el radiante no sube): null → todo el día.
+  // Ventana del evento: SIEMPRE dentro de la noche y con la mejor hora dentro. Si mejor + 2 h cabe, [mejor, mejor + 2 h]; si no
+  // (el radiante sigue subiendo al amanecer), termina con la noche y empieza 2 h antes (o al inicio de la noche si es más corta).
+  // La mejor hora puede caer en la madrugada del día siguiente al del catálogo. Sin mejor hora (el radiante no sube): null → todo el día.
   let window = null;
   if (risesInNight) {
-    const left = Math.round((night.end.getTime() - best.t) / MIN);
-    window = { start: best.t, durationMin: Math.max(WINDOW_MIN_FLOOR, Math.min(WINDOW_MIN, left)) };
+    const end = night.end.getTime(), fits = best.t + WINDOW_MIN * MIN <= end;
+    const startMs = fits ? best.t : Math.max(night.start.getTime(), end - WINDOW_MIN * MIN);
+    window = { start: startMs, durationMin: fits ? WINDOW_MIN : Math.floor((end - startMs) / MIN) };
   }
   // meteoros por hora desde este lugar a la mejor hora: bajo un cielo oscuro y desde una ciudad (null si no hay r)
   const rates = risesInNight && Number.isFinite(o.r)

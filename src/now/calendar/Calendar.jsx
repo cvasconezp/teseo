@@ -287,6 +287,7 @@ function EventItem({ ev, lang, fmt, t, api, push, now }) {
     downloadIcs({
       uid: `${ev.id}@teseo.yachaydeep.com`, start: ev.t, allDay: !!ev.allDay, durationMin: ev.durationMin,
       title: info.title, description: info.icsDesc, url: info.links[0] && info.links[0].href,
+      alarmHours: ev.type === "meteor" && !ev.allDay ? 6 : undefined,
     });
   };
   const extra = info.region || info.desc;
@@ -356,8 +357,22 @@ function NextUp({ ev, lang, fmt, t, onPassed }) {
   const info = useMemo(() => describeEvent(ev, lang, fmt), [ev, lang, fmt]);
   const target = startOfEvent(ev);
   const parts = countdownParts(target, now);
-  useEffect(() => { if (!parts) onPassed(); }, [!parts]);   // eslint-disable-line react-hooks/exhaustive-deps
-  if (!parts) return null;
+  const inWindow = !parts && ev.type === "meteor" && !ev.allDay && now < ev.t + (ev.durationMin || 0) * 60000;   // la lluvia, en plena ventana
+  useEffect(() => { if (!parts && !inWindow) onPassed(); }, [!parts, inWindow]);   // eslint-disable-line react-hooks/exhaustive-deps
+  if (!parts && !inWindow) return null;
+  if (inWindow) {
+    return (
+      <div className="cal-next-up" role="group" aria-label={t.nextUp}>
+        <span className="cal-next-up__icon" aria-hidden="true">{ICONS[ev.type] ? ICONS[ev.type]() : null}</span>
+        <div className="cal-next-up__body">
+          <p className="cal-next-up__k">{t.nextUp}</p>
+          <p className="cal-next-up__t">{info.title}</p>
+          <p className="cal-next-up__when"><time dateTime={isoOf(ev)}>{whenText(ev, lang)}</time></p>
+        </div>
+        <p className="cal-next-up__cd"><span><b>{countdownText(ev, now, lang).text}</b></span></p>
+      </div>
+    );
+  }
   const U = t.cdUnits;
   const spoken = `${parts.d} ${parts.d === 1 ? U.d[0] : U.d[1]}, ${parts.h} ${U.h}, ${parts.m} ${U.m}`;
   return (
