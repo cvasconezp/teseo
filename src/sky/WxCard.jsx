@@ -22,7 +22,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Icon from "./icons.jsx";
 import { WX } from "./i18n-wx.js";
 import { cloudsAt, hourlySeries, bestWindow, coverClass } from "./weather.js";
-import { tempAt, dayAt, disagreement, skyVote } from "./models.js";
+import { tempAt, dayAt, skyVote } from "./models.js";
 import { satWeight, mergeClouds, fuseSat } from "./satClouds.js";
 import { wxIcon, voteIcon, dayIcon, WX_NAMES, WX_MAYBE, compass8, fmtWind, hourAt } from "./nowWeather.js";
 import "./weather.css";
@@ -124,7 +124,7 @@ export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = fals
   const temp = mT && mT.n >= 3 ? mT.med : v.temp;
   const dayMm = mDay && mDay.mm && mDay.mm.n >= 3 ? mDay.mm.med : day ? day.mm : null;
   const mmTxt = (x) => (x == null ? "—" : x < 0.05 ? "0 mm" : x < 10 ? `${dec(Math.round(x * 10) / 10)} mm` : `${Math.round(x)} mm`);
-  const dis = disagreement(mT, mDay && mDay.mm, vote);
+  // (el aviso de «Poca certeza» se quitó: la barra de acuerdo ya enseña cuánto coinciden los modelos)
   // la barra de acuerdo: qué dan los modelos, solo lo que alguno da (sin ceros) y solo si alguno da algo que cae
   const VOTE_ORDER = ["rain", "storm", "sleet", "snow", "dry"];
   const voteParts = vote && VOTE_ORDER.some((q) => q !== "dry" && vote.counts[q] > 0) ? VOTE_ORDER.filter((q) => vote.counts[q] > 0).map((q) => ({ q, c: vote.counts[q] })) : null;
@@ -188,10 +188,6 @@ export function WxCard({ lang = "es", now, fc, mod = null, sat, rainDrawn = fals
             <span key={p.q}><Icon name={p.q === "dry" ? "wx_cloud" : `wx_${p.q}`} size={13} className={`is-${p.q}`} />{voteName(p.q)} {p.c}</span>
           ))}</div>
         </div>
-      )}
-      {dis && (
-        <p className="sk-wxc-unsure" role="note"><Icon name="warn" size={14} />
-          {tw.unsure(dis.t ? dis.t.map((x) => Math.round(x)) : null, dis.mm ? dis.mm.map((x) => Math.round(x)) : null, dis.n, isToday, dis.sky, dis.skyN)}</p>
       )}
 
       <div className="sk-wxc-row"><small><Icon name="wx_cloud" size={14} />{tw.cover}</small><b>{total != null ? pct(total) : "—"}</b></div>

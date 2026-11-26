@@ -63,8 +63,6 @@
 .sk-stage .sk-wxc-big { display: inline-flex; align-items: center; gap: 7px; font-size: 28px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .sk-stage .sk-wxc-hero-r { align-items: flex-end; text-align: right; }
 .sk-stage .sk-wxc-hero-r b { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.sk-stage .sk-wxc-unsure { display: flex; align-items: flex-start; gap: 6px; margin: 10px 0 0; padding: 7px 9px; border-radius: 10px; background: rgba(240, 180, 60, 0.14); border: 1px solid rgba(240, 180, 60, 0.4); color: #f6d58e; font-size: 12px; line-height: 1.35; }
-.sk-stage .sk-wxc-unsure svg { flex: none; margin-top: 1px; }
 /* barra de acuerdo: qué dan los 7 modelos a esta hora (solo lo que alguno da) */
 .sk-stage .sk-wxc-vote { margin: 10px 0 0; }
 .sk-stage .sk-wxc-vote-bar { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; }

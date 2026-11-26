@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.102.1 — Sin el aviso de «Poca certeza»
+
+- La tarjeta del tiempo ya no muestra el aviso de «Poca certeza»: la barra de acuerdo enseña cuánto coinciden los 7 modelos. La temperatura y la lluvia siguen siendo la mediana de los modelos.
+
 ## 1.102.0 — El cielo por votación de los 7 modelos
 
 - **El icono del tiempo, por mayoría:** antes salía de un solo pronóstico (la combinación «mejor» de Open-Meteo). Ahora cada uno de los 7 modelos (ECMWF, GFS, ICON, Météo-France, UKMO, JMA y GEM) vota a esa hora por lluvia, aguanieve, nieve, tormenta o seco, con su código pasado por su propia temperatura. Si más de la mitad dan algo que cae, ese es el icono (en empate, lo más severo); si 2 o más dan tormenta sin ser mayoría, va como «posible tormenta»; si solo 2 o 3 dan algo, el icono de las nubes con «posible …». Vale para la barra del tiempo y la tarjeta.
