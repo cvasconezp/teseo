@@ -56,7 +56,10 @@ export function placeMonuments(list, { lat, lon, ground, air = 0 }, bases, relie
     // mar: la maqueta entera (`absBase`) y lo que se apoya en un nivel suyo conocido (`absLevel`))
     const abs = relief && relief.exact && relief.abs0 != null ? (m.absBase != null && m.kind === "llaqta" ? m.absBase : m.absLevel != null ? m.absLevel : null) : null;
     // (una pieza que es solo su maqueta —el Templo Fortificado de Chankillo— va siempre a su cota, también vista de lejos)
-    const dz0 = abs != null ? abs - relief.abs0 - EYE_M : m.modelOnly && m.absBase != null ? m.absBase - (ground + EYE_M) : relief && m.seat ? (m.seat === "ground" ? groundHeight(o.e, o.n, NO_ITEMS, relief) : reliefAt(relief, o.e, o.n))
+    // (`seatModel`: piezas que se apoyan en el suelo de la maqueta LiDAR del sitio —las piedras, una fachada—: a la cota
+    // que la maqueta tiene bajo su centro; fuera de ella o sin ella, como cualquier otra pieza)
+    const onModel = relief && relief.exact && m.seatModel ? relief.exact(o.e, o.n) : null;
+    const dz0 = onModel != null ? onModel : abs != null ? abs - relief.abs0 - EYE_M : m.modelOnly && m.absBase != null ? m.absBase - (ground + EYE_M) : relief && m.seat ? (m.seat === "ground" ? groundHeight(o.e, o.n, NO_ITEMS, relief) : reliefAt(relief, o.e, o.n))
       // (lo que corona una cresta —`crest`— se apoya en el suelo tal como se dibuja, mientras quede dentro de él: ni flota ni se hunde)
       // (…y nunca por debajo de su cota medida: si el suelo dibujado queda algo más bajo, lo salva su zócalo —`foot`—)
       : relief && m.crest && !isAloof({ m, o, aloof }) && o.d < relief.reach ? Math.max(groundHeight(o.e, o.n, NO_ITEMS, relief), b - (ground + EYE_M)) : b - (ground + EYE_M);
@@ -66,7 +69,7 @@ export function placeMonuments(list, { lat, lon, ground, air = 0 }, bases, relie
     // —aloof, fuera del suelo propio— siguen la ladera respecto a su centro, que queda en su base medida, y donde la
     // rejilla del relieve no llega, llanos)
     const al = isAloof({ m, o, aloof }), wallG = m.kind === "walls" ? (relief && al ? ((g0) => (e, n) => groundHeight(o.e + e, o.n + n, NO_ITEMS, relief) - g0)(groundHeight(o.e, o.n, NO_ITEMS, relief)) : () => 0) : null;
-    const gnd = m.kind === "walls" ? wallG : relief && m.kind === "llaqta" ? (e, n) => groundHeight(o.e + e, o.n + n, NO_ITEMS, relief) - dz0 : null;
+    const gnd = m.kind === "walls" ? wallG : relief && (m.kind === "llaqta" || m.kind === "stones" || m.kind === "portal" || (m.kind === "stonehenge" && m.seatModel)) ? (e, n) => groundHeight(o.e + e, o.n + n, NO_ITEMS, relief) - dz0 : null;
     out.push({ m, o, aloof, dz: dz0 + (abs != null ? 0 : (m.lift || 0)) - (m.drop || 0), faces: buildFaces(m, { d: o.d, ground: gnd }) });
   }
   // Subido a una plataforma (`standOn`): si el lugar cae dentro de la plataforma de una pirámide, los ojos van a 1,7 m
@@ -147,7 +150,7 @@ const R_E = 6371008.8, K_REFR = 0.13;
 // · curva de película (ACES): los claros al sol no se queman y las sombras conservan color
 const GLSL_UNIFORMS = `
 uniform float uK; uniform float uMacro; uniform float uBlend; uniform float uScaleB; uniform vec3 uHaze; uniform float uHazeK; uniform float uExposure;
-uniform sampler2D uNear; uniform float uNearOn; uniform vec2 uNearL; uniform float uNearGain; uniform float uGround; varying vec3 vTsPos;
+uniform sampler2D uNear; uniform float uNearOn; uniform vec2 uNearL; uniform float uNearGain; uniform float uGround; uniform vec3 uOwn; varying vec3 vTsPos;
 vec3 teseoAces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 `;
 const GLSL_MAP = `
@@ -182,7 +185,10 @@ const GLSL_MAP = `
     vec3 tsAlb = (vec3(tsG) + (tsC0 - tsG) * 1.1) * 0.6 * min(1.0, 0.62 / max(0.05, tsG));
     vec3 tsSat = pow(tsAlb, vec3(2.2));
     float tsDet = clamp(tsC.g / tsAvg, 0.55, 1.5);
-    diffuseColor.rgb = tsSat * tsDet * uNearGain;
+    // (el suelo LiDAR de un sitio —uOwn: su centro [este, norte] y su radio, en m—: dentro, su propia hierba, con su luz y
+    // sus sombras, para que fosos y bancos se lean; hacia el borde de la maqueta pasa poco a poco al color del relieve)
+    float tsOwn = uOwn.z > 0.0 ? 1.0 - smoothstep(0.6 * uOwn.z, 0.97 * uOwn.z, length(tsEN - uOwn.xy)) : 0.0;
+    diffuseColor.rgb = mix(tsSat * tsDet * uNearGain, diffuseColor.rgb, tsOwn);
   }
 #endif
 `;
@@ -197,7 +203,7 @@ const GLSL_OUT = `
 
 // Además del suelo propio, el terreno de una maqueta de sitio (el del templo de Chankillo) toma el color del relieve
 // cercano. Las piezas de hierba o tierra no: con el color del relieve, los montículos de Cochasquí desaparecían
-const EARTH_MATS = new Set(["chksand"]);
+const EARTH_MATS = new Set(["chksand", "turf"]);   // terreno de una maqueta: toma el color del relieve de alrededor
 const texCache = new Map();
 const GROUND_NEAR_M = 450;    // con el relieve 3D alrededor, hasta dónde llega como mucho el piso propio del sitio
 
@@ -251,7 +257,8 @@ export function markAloof(items) {
   for (const it of items || []) if (it.m.aloof && it.m.crest) it.aloof = near > 300;
   return items;
 }
-export function drapes(m) { return !m.solid && !m.seat && m.height != null && m.height <= 2.5; }
+// (una maqueta de terreno ya trae su relieve: no se vuelve a tender sobre el suelo)
+export function drapes(m) { return !m.solid && !m.seat && !m.model && m.height != null && m.height <= 2.5; }
 
 // Las piezas que coronan una cresta (`crest`), en fila: ordenadas a lo largo de su eje mayor (se calcula una vez por lista).
 const CREST = new WeakMap();
@@ -289,6 +296,9 @@ export function groundHeight(e, n, items, grid = null) {
     // (tampoco las que coronan una cresta estrecha —`crest`, las torres de Chankillo—: allanar 80 m a su alrededor
     // levantaba una meseta en la ladera que, vista desde abajo, las tapaba)
     if (grid && (it.m.seat || it.m.crest || drapes(it.m))) continue;
+    // (la maqueta LiDAR de un sitio tiene su cota de archivo —decenas de metros bajo el suelo—, no la de su terreno: no
+    // tira del suelo de alrededor; dentro de ella manda `grid.exact`)
+    if (it.m.lidar) continue;
     // (con relieve, todo su asiento queda llano: las casas no se hunden en la cuesta)
     const d = Math.hypot(e - it.o.e, n - it.o.n), r = Math.max(d - (grid ? 1 : 0.7) * footprintRadius(it.m), 1.5);
     // con relieve, cada monumento solo levanta el suelo a su alrededor (hasta 80 m de su borde, sobre todo en los primeros 25)
@@ -365,7 +375,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
     return T;
   }
 
-  function material(mat, { ground = false } = {}) {
+  function material(mat, { ground = false, own: ownC = null } = {}) {
     if (mat === "door") return new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 1, metalness: 0, side: THREE.DoubleSide, transparent: true, depthWrite: true, fog: false });
     const T = tex(mat), cfg = T.cfg || MON_MATS.dirt;
     const m = new THREE.MeshStandardMaterial({ map: T.map, normalMap: T.normalMap, aoMap: T.armMap, roughnessMap: T.armMap, roughness: 1, metalness: 0,
@@ -377,7 +387,8 @@ export function createMonumentLayer({ onReady = null } = {}) {
     m.color.setRGB(cfg.tint[0], cfg.tint[1], cfg.tint[2]);
     m.normalScale.set(cfg.normal, cfg.normal);
     m.aoMapIntensity = 1;
-    const own = { uMacro: { value: cfg.macro }, uBlend: { value: cfg.blend }, uScaleB: { value: ground ? 0.173 : 0.41 }, uGround: { value: (ground || EARTH_MATS.has(mat)) && !cfg.ownColor ? 1 : 0 } };
+    const own = { uMacro: { value: cfg.macro }, uBlend: { value: cfg.blend }, uScaleB: { value: ground ? 0.173 : 0.41 }, uGround: { value: (ground || EARTH_MATS.has(mat)) && !cfg.ownColor ? 1 : 0 },
+      uOwn: { value: new THREE.Vector3(ownC ? ownC[0] : 0, ownC ? ownC[1] : 0, ownC ? ownC[2] : 0) } };
     if (cfg.matte) { m.roughnessMap = null; m.roughness = 0.97; }
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, shared, own);
@@ -389,7 +400,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
         .replace("#include <map_fragment>", GLSL_MAP)
         .replace("#include <tonemapping_fragment>", GLSL_OUT + "\n#include <tonemapping_fragment>");
     };
-    m.customProgramCacheKey = () => "teseo-monument-v3";
+    m.customProgramCacheKey = () => "teseo-monument-v4";
     return m;
   }
 
@@ -422,7 +433,9 @@ export function createMonumentLayer({ onReady = null } = {}) {
       byMat.get(mat).push({ f, it });
     }
     for (const [mat, list2] of byMat) {
-      const material_ = material(mat), tile = mat === "door" ? 1 : (MON_MATS[mat] || MON_MATS.dirt).tile, n = list2.length;
+      // (el terreno de la maqueta LiDAR del sitio lleva su propio color hasta cerca de su borde: material())
+      const lid = items.find((it) => it.m.lidar && it.m.modelMats[1] === mat && it.faces.length);
+      const material_ = material(mat, lid ? { own: [lid.o.e, lid.o.n, lid.m.foot] } : {}), tile = mat === "door" ? 1 : (MON_MATS[mat] || MON_MATS.dirt).tile, n = list2.length;
       const pos = new Float32Array(n * 9), nor = new Float32Array(n * 9), uv = new Float32Array(n * 6), col = new Float32Array(n * 9);
       // luz suave en las piedras y el túmulo: la normal de cada vértice es la media de las caras que lo comparten
       const acc = new Map(), keyOf = (it, p) => `${it.m.id}|${Math.round(p[0] * 200)}|${Math.round(p[1] * 200)}|${Math.round(p[2] * 200)}`;
@@ -439,7 +452,8 @@ export function createMonumentLayer({ onReady = null } = {}) {
           const q = toLocal(f.v[j], it.o, it.dz);
           if (gridOk && drapes(it.m) && !isAloof(it)) q[1] += groundHeight(q[0], -q[2], items, grid) - it.dz;
           pos.set([q[0] * k, q[1] * k, q[2] * k], i * 9 + j * 3);
-          if (!isAloof(it)) sbox.expandByPoint(sv.set(q[0] * k, q[1] * k, q[2] * k));
+          // (ni el terreno LiDAR, de cientos de metros: las sombras se encuadran sobre las piezas —las piedras—, con su detalle)
+          if (!isAloof(it) && !it.m.lidar) sbox.expandByPoint(sv.set(q[0] * k, q[1] * k, q[2] * k));
           let vn = nn;
           if (f.smooth) { const s = acc.get(keyOf(it, f.v[j])), L = Math.hypot(s[0], s[1], s[2]) || 1; vn = [s[0] / L, s[1] / L, s[2] / L]; }
           nor.set([vn[0], vn[2], -vn[1]], i * 9 + j * 3);       // (E, N, U) → (x, y, z) = (E, U, −N)

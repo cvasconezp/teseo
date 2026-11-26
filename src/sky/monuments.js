@@ -20,6 +20,10 @@
 
 import { INTI_SCAN } from "./intiScan.js";
 import { machuModel, eachModelFace, modelGround, MODEL_BASE_M, intiScan, siteModel, CHANKILLO_BASE_M } from "./machuModel.js";
+import { LIDAR_SITES } from "./lidarSites.js";
+import { LIDAR_PLAN } from "./lidarPlan.js";
+import { LIDAR_INFO } from "./lidarInfo.js";
+import { LIDAR_STONES } from "./lidarStones.js";
 import { MP_BUILDINGS, MP_TERRACES, MP_WALLS, MP_STEPS } from "./machuData.js";
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
@@ -217,6 +221,34 @@ const machu = [
 ];
 
 /**
+ * El SUELO de un sitio medido con LiDAR (lidarSites.js), como pieza: una maqueta que es solo terreno (`modelOnly`), a
+ * su cota (`absBase`). Dentro de ella el suelo es el suyo, exacto; las demás piezas del sitio se asientan en él con
+ * `absLevel`. `mats`: [muros, terreno] (no hay muros: los dos, el material del suelo).
+ */
+// (`far`: solo desde su sitio y sus alrededores —el radio de la maqueta y 350 m—: desde un sitio vecino a 1 o 2 km no
+// entra en la escena, ni estira su suelo, ni su escala, ni sus sombras)
+function lidarGround(site, { id, name, sub, label = false, mat = "turf", color = GRASS, height = 3, ...rest }) {
+  const L = LIDAR_SITES[site], P = LIDAR_PLAN[site] || {}, far = L.clip + 350;
+  return { id, site, name, ...(sub ? { sub } : {}), label, lat: L.lat, lon: L.lon, kind: "llaqta", height, foot: L.clip, far, walkIn: true, solid: false, relief: true,
+    model: site, modelOnly: true, modelMats: [mat, mat], absBase: L.base, lidar: true, ...(P.label ? { labelEN: P.label } : {}), ...(P.airR != null ? { airR: P.airR } : {}), ...(P.airH ? { airH: P.airH } : {}),
+    color, mat, ground: mat, ...rest };
+}
+/** [lat, lon] de un punto a (e, n) metros del origen de la maqueta LiDAR de un sitio. */
+export function lidarAt(site, e, n) { const L = LIDAR_SITES[site]; return [+(L.lat + n / mPerLat).toFixed(6), +(L.lon + e / mPerLon(L.lat)).toFixed(6)]; }
+// Los sitios NUEVOS con suelo LiDAR (los que no existían: `own` en lidarPlan.js): el terreno medido es la pieza, con su
+// rótulo y su ficha (lidarInfo.js). Lo que el láser no ve —piedras en pie— va aparte (LIDAR_STONES).
+// (rótulo: el nombre de la pieza; donde ese nombre describe solo el terreno —«Foso y túmulos»—, el del sitio)
+const LIDAR_BY_PLACE = new Set(["brodgar", "stenness", "knowth", "dowth", "avebury"]);
+const lidarNew = Object.keys(LIDAR_PLAN).filter((k) => !LIDAR_PLAN[k].own && LIDAR_SITES[k] && LIDAR_INFO[k]).map((k) =>
+  lidarGround(k, { id: k, name: LIDAR_BY_PLACE.has(k) ? LIDAR_INFO[k].place : LIDAR_INFO[k].piece, sub: LIDAR_INFO[k].sub, label: true }));
+// (las piedras en pie de esos sitios: una pieza por sitio, cada piedra asentada en el suelo LiDAR)
+const STONE_NAME = { brodgar: { es: "Piedras del anillo", en: "Ring stones" }, stenness: { es: "Piedras en pie", en: "Standing stones" }, avebury: { es: "Piedras en pie", en: "Standing stones" } };
+const lidarStones = Object.keys(LIDAR_STONES).filter((k) => LIDAR_SITES[k]).map((k) => ({
+  id: `${k}-piedras`, site: k, name: STONE_NAME[k], label: false, lat: LIDAR_SITES[k].lat, lon: LIDAR_SITES[k].lon, kind: "stones", stones: LIDAR_STONES[k],
+  height: Math.max(...LIDAR_STONES[k].map((q) => q[2])), foot: Math.max(...LIDAR_STONES[k].map((q) => Math.hypot(q[0], q[1]))) + 2, far: LIDAR_SITES[k].clip + 350, walkIn: true, solid: false, seatModel: true,
+  color: SARSEN, mat: "sarsen", ground: "turf" }));
+
+/**
  * Monumentos. `kind`: stepped (cuerpos escalonados), pyramid (caras lisas), stonehenge, mound (túmulo), tower
  * (torre maciza), enclosure (cilindro), sundial (plataforma y poste), arcwall (muro en arco), disc (plataforma
  * redonda baja), terraced (cerro de terrazas, planta rectangular), kalasasaya, gate, stela, intihuatana.
@@ -244,9 +276,14 @@ export const MONUMENTS = [
   { id: "micerino", site: "giza", name: { es: "Pirámide de Micerino", en: "Pyramid of Menkaure" }, lat: 29.97250, lon: 31.12806,
     kind: "pyramid", base: 103.4, top: 4, height: 61, rot: 0, color: LIMESTONE, mat: "blocks", ground: "sand", solid: true },
   { id: "stonehenge", site: "stonehenge", name: { es: "Stonehenge", en: "Stonehenge" }, lat: 51.178844, lon: -1.826189,
-    kind: "stonehenge", axis: 49.9, height: 6.7, color: SARSEN, mat: "sarsen", ground: "grass", solid: false },
-  { id: "newgrange", site: "newgrange", name: { es: "Newgrange", en: "Newgrange" }, lat: 53.69509, lon: -6.47531,
-    kind: "mound", radius: 42.5, wall: 3, height: 13.5, entrance: 135, color: GRASS, wallColor: QUARTZ, mat: "grass", wallMat: "quartz", ground: "grass", solid: true },
+    kind: "stonehenge", axis: 49.9, height: 6.7, color: SARSEN, mat: "sarsen", ground: "turf", solid: false, seatModel: true },
+  // (el foso, el banco, la Avenida y los túmulos de alrededor: el relieve LiDAR de la Environment Agency —lidarSites.js—)
+  lidarGround("stonehenge", { id: "stonehenge-suelo", name: { es: "Foso y banco", en: "Ditch and bank" }, label: false }),
+  // (posición: el centro del túmulo medido en el relieve LiDAR —53,694706° N, 6,475598° O—; antes estaba 45 m al norte,
+  // leído en el modelo global de 30 m. El bulto del túmulo se quita de la maqueta LiDAR: lo dibuja esta pieza, con su fachada)
+  { id: "newgrange", site: "newgrange", name: { es: "Newgrange", en: "Newgrange" }, lat: 53.694706, lon: -6.475598,
+    kind: "mound", radius: 42.5, wall: 3, height: 13.5, entrance: 135, color: GRASS, wallColor: QUARTZ, mat: "grass", wallMat: "quartz", ground: "turf", solid: true, seatModel: true, aloof: true },   // (`aloof`: visto desde Knowth o Dowth, a 1–2 km, no estira su suelo)
+  lidarGround("newgrange", { id: "newgrange-suelo", name: { es: "La loma", en: "The ridge" }, label: false }),
   // Ingapirca: la plataforma del Templo del Sol o «Castillo» mide 37,10 × 12,35 m (Fresco y Ziółkowski, Revista
   // Española de Antropología Americana 14, 1984); sus muros de sillería, de hasta unos 4 m. Las puertas de los
   // extremos se han descrito orientadas a la salida y la puesta del Sol: eje este–oeste aproximado
@@ -254,8 +291,11 @@ export const MONUMENTS = [
     lat: -2.548588, lon: -78.87188, kind: "stadium", length: 37.1, width: 12.35, height: 3.6, axis: 90, foot: 19, color: INGA, mat: "sarsen", topMat: "grass", ground: "grass", solid: true },
   // Maeshowe: túmulo de hierba de unos 35 m de diámetro y 7,3 m de alto; el pasillo de entrada (unos 11 m) se abre
   // al suroeste, hacia la puesta del Sol del solsticio de invierno (Wikipedia; Historic Environment Scotland)
-  { id: "maeshowe", site: "maeshowe", name: { es: "Maeshowe", en: "Maeshowe" }, lat: 58.9966, lon: -3.1882,
-    kind: "mound", radius: 17.5, wall: 0, skirt: 0.5, height: 7.3, entrance: 230, roofBox: false, color: GRASS, mat: "grass", ground: "grass", solid: true },
+  // (el túmulo, su foso y su banco son ahora el relieve LiDAR de Historic Environment Scotland; del modelo propio queda
+  // la boca del pasillo, al pie del túmulo por el suroeste)
+  lidarGround("maeshowe", { id: "maeshowe", name: { es: "Maeshowe", en: "Maeshowe" }, sub: { es: "túmulo medido con LiDAR", en: "mound measured by LiDAR" }, label: true }),
+  { id: "maeshowe-entrada", site: "maeshowe", name: { es: "Entrada", en: "Entrance" }, label: false, lat: lidarAt("maeshowe", -13.5, -11.3)[0], lon: lidarAt("maeshowe", -13.5, -11.3)[1],
+    kind: "portal", entrance: 230, w: 1.0, height: 1.4, foot: 2, far: LIDAR_SITES.maeshowe.clip + 350, walkIn: true, color: SARSEN, mat: "sarsen", ground: "turf", solid: false, seatModel: true },
   // Coliseo: elipse de 188 × 156 m y 48 m de alto, con la arena de unos 87 × 55 m; el eje largo va de
   // oessuroeste a estenoreste. Desde el centro de la arena (forma simplificada)
   { id: "coliseo", site: "coliseo", name: { es: "Coliseo", en: "Colosseum" }, sub: { es: "188 × 156 m · forma simplificada", en: "188 × 156 m · simplified shape" }, lat: 41.890278, lon: 12.492222,
@@ -288,6 +328,8 @@ export const MONUMENTS = [
   ...machu,
   ...chankillo,
   ...chankilloRest,
+  ...lidarNew,
+  ...lidarStones,
   // Quitsato: plataforma de 54 m de diámetro con mosaico de piedra y poste de 10 m de alto y 1,3 m de diámetro,
   // sobre la línea ecuatorial. Las líneas del mosaico (ejes, solsticios y diagonales) están simplificadas.
   { id: "quitsato", site: "quitsato", name: { es: "Reloj solar Quitsato", en: "Quitsato sundial" }, lat: 0.0, lon: -78.175,
@@ -1322,7 +1364,23 @@ export function buildFaces(m, opt = {}) {
     { const [x, y] = q(0.25, 0.1); rock(out, x, y, 0.66, 0.5, 1.9, 1.45, m.rot, col, m.mat, 62, { ns: 24, nz: 5, pw: 10, taper: 0.04, sink: 0, bump: 0.3, edge: 0.2 }); }
     { const [x, y] = q(0.35, 0.2); rock(out, x, y, 1.12, m.height - 1.12, 0.46, 0.34, m.rot, col, m.mat, 63, { ns: 16, nz: 5, pw: 12, taper: 0.08, sink: 0, bump: 0.2, edge: 0.15 }); }
   } else if (m.kind === "stonehenge") {
-    stonehenge(out, m);
+    stonehenge(out, m, opt.ground || null);
+  } else if (m.kind === "stones") {
+    // piedras en pie sueltas (un anillo, una fila): cada una [este, norte, alto, ancho, grueso, giro] en m desde el
+    // centro de la pieza, asentada en el suelo de su propio sitio (`ground`: el del LiDAR, si lo hay)
+    const g = opt.ground || (() => 0);
+    m.stones.forEach(([e, n, h, w, t, rot = 0], k) => rock(out, e, n, g(e, n), h, w, t, rot, col, m.mat, 900 + k * 7, { ns: 16, nz: Math.max(3, Math.min(8, Math.round(h / 0.6))), taper: 0.18, sink: 0.4 }));
+  } else if (m.kind === "portal") {
+    // la boca de un pasillo de túmulo: dos jambas, un dintel y el vano oscuro, mirando hacia `entrance` (acimut)
+    const g = opt.ground || (() => 0), z = g(0, 0), az = m.entrance, w = m.w || 1.0, h = m.height || 1.4;
+    const tx = Math.cos(az * RAD), ty = -Math.sin(az * RAD), ox = Math.sin(az * RAD), oy = Math.cos(az * RAD);
+    // (en la falda del túmulo: cada jamba baja hasta su propio suelo; el dintel y el vano, a nivel)
+    const jl = [-tx * (w / 2 + 0.3), -ty * (w / 2 + 0.3)], jr = [tx * (w / 2 + 0.3), ty * (w / 2 + 0.3)], zl = Math.min(z, g(jl[0], jl[1])), zr = Math.min(z, g(jr[0], jr[1]));
+    rock(out, jl[0], jl[1], zl, h + z - zl, 0.6, 0.6, az, col, m.mat, 31, { ns: 12, nz: 4, sink: 0.5 });
+    rock(out, jr[0], jr[1], zr, h + z - zr, 0.6, 0.6, az, col, m.mat, 37, { ns: 12, nz: 4, sink: 0.5 });
+    rock(out, 0, 0, z + h - 0.05, 0.4, w + 1.5, 0.7, az, col, m.mat, 41, { ns: 12, nz: 3, sink: 0, taper: 0.05 });
+    const P = (t, u) => [ox * 0.2 + tx * t, oy * 0.2 + ty * t, z + u];
+    quad(out, P(-w / 2, -0.5), P(w / 2, -0.5), P(w / 2, h), P(-w / 2, h), [0.05, 0.05, 0.05], "door");
   }
   return out;
 }
@@ -1333,7 +1391,9 @@ export function buildFaces(m, opt = {}) {
 // y 57-58; del gran trilito queda la 56; del último, la 60) y la Piedra del Talón a 77 m, cerca del eje.
 export const SH_STANDING = [1, 2, 3, 4, 5, 6, 7, 10, 11, 16, 21, 22, 23, 27, 28, 29, 30];
 export const SH_LINTELS = [[29, 30], [30, 1], [1, 2], [2, 3], [4, 5], [5, 6], [6, 7], [21, 22]];
-function stonehenge(out, m) {
+// (`ground`: el suelo del sitio —el LiDAR, si lo hay— respecto al centro: el círculo va sobre su llano, pero la Piedra
+// del Talón, a 77 m y casi 2 m más abajo, se asienta en su propio suelo)
+function stonehenge(out, m, ground = null) {
   const R = 15.6, ax = m.axis, col = m.color, mat = m.mat;
   const azOf = (k) => ax + 6 + (k - 1) * 12;               // la 1 y la 30 flanquean la entrada
   const at = (az, r) => [r * Math.sin(az * RAD), r * Math.cos(az * RAD)];
@@ -1354,7 +1414,7 @@ function stonehenge(out, m) {
     if (lin) rock(out, e, n, h - 0.05, 0.9, 4.9, 1.1, az, col, mat, 400 + az);
   }
   const [he, hn] = at(51.3, 77);
-  rock(out, he, hn, 0, 4.7, 2.4, 2.1, 51.3, col, mat, 77, { taper: 0.3 });
+  rock(out, he, hn, ground ? ground(he, hn) : 0, 4.7, 2.4, 2.1, 51.3, col, mat, 77, { taper: 0.3 });
   // piedras caídas (posición aproximada): tres del círculo, tumbadas hacia fuera, y los restos del gran trilito
   // (la piedra 55, partida, y su dintel) en el centro
   for (const k of [8, 12, 14, 25]) { const [fe, fn] = at(azOf(k), R + 2.6); rock(out, fe, fn, 0, 0.95, 1.9, 4.0, azOf(k), col, mat, 500 + k, { taper: 0.05, sink: 0.25, nz: 4 }); }
@@ -1365,6 +1425,8 @@ function stonehenge(out, m) {
 /** Lo más alto del monumento (para el nombre): [e, n, u]. */
 export function apexOf(m) {
   if (m.labelAt) return m.labelAt;                         // (una maqueta: su punto más alto, en sus propias coordenadas)
+  // (el suelo LiDAR de un sitio: el rótulo se apoya en el suelo de la maqueta en ese punto —la cima del túmulo—, `up` m por encima)
+  if (m.lidar) { const [e, n, up] = m.labelEN || [0, 0, 3], L = LIDAR_SITES[m.site], mdl = siteModel(m.model), g = mdl ? modelGround(e, n, mdl) : null; return [e, n, (g != null ? g : L.z0) - L.base + up]; }
   if (m.kind === "stonehenge") return [0, 0, m.height];
   if (m.kind === "arcwall") { const a = ((m.az0 + m.az1) / 2) * RAD; return [m.radius * Math.sin(a), m.radius * Math.cos(a), m.height]; }
   if (m.kind === "kalasasaya") return [m.w / 2, -m.d / 4, m.pillar];

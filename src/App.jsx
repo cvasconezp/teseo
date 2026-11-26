@@ -275,6 +275,7 @@ const T = {
         ["IAU · IERS", "Astronomical constants, the 88 official constellations, Earth orientation"],
         ["Clouds and weather", "Open-Meteo.com forecast (CC BY 4.0) · satellite images: NASA GIBS (GOES GeoColor by NOAA/CIRA, VIIRS) and EUMETSAT (Meteosat)"],
         ["Terrain (real horizon)", "AWS Terrain Tiles (Mapzen): NASA SRTM, USGS GMTED2010, NOAA ETOPO1 and others"],
+        ["LiDAR relief of archaeological sites", "Environment Agency (England) and Historic Environment Scotland: contains public sector information licensed under the Open Government Licence v3.0 · Geological Survey Ireland and the Discovery Programme (CC BY 4.0) · U.S. Geological Survey, 3DEP (public domain) · standing stones: © OpenStreetMap contributors (ODbL)"],
       ]},
       { g: "Catalogues, tracking and community", items: [
         ["Stars and distances", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],
@@ -490,6 +491,7 @@ const T = {
         ["UAI · IERS", "Constantes astronómicas, las 88 constelaciones oficiales, orientación de la Tierra"],
         ["Nubes y clima", "Pronóstico de Open-Meteo.com (CC BY 4.0) · imágenes de satélite: NASA GIBS (GeoColor de los GOES, de NOAA/CIRA; VIIRS) y EUMETSAT (Meteosat)"],
         ["Relieve (horizonte real)", "AWS Terrain Tiles (Mapzen): SRTM de la NASA, GMTED2010 del USGS, ETOPO1 de NOAA y otros"],
+        ["Relieve LiDAR de sitios arqueológicos", "Environment Agency (Inglaterra) e Historic Environment Scotland: contiene información del sector público con licencia Open Government Licence v3.0 · Geological Survey Ireland y Discovery Programme (CC BY 4.0) · U.S. Geological Survey, 3DEP (dominio público) · piedras en pie: © colaboradores de OpenStreetMap (ODbL)"],
       ]},
       { g: "Catálogos, seguimiento y comunidad", items: [
         ["Estrellas y distancias", "HYG Database v4.1 (Hipparcos) · CC BY-SA"],

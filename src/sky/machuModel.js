@@ -2,6 +2,7 @@
 // OpenStreetMap por scripts/build_machu_maqueta.py (ver allí los cambios: encaje, cota, corrimiento del sector oeste).
 // El archivo (public/data/machu-maqueta.bin, ~0,3 MB) solo se descarga al estar en Machu Picchu.
 // Coordenadas: [este, norte] en m desde el nodo del Intihuatana (MP0) y altura sobre el nivel del mar.
+import { LIDAR_SITES } from "./lidarSites.js";
 export const MODEL_CREDIT = "Ministerio de Cultura Perú · «Machupicchu» (Sketchfab) · CC BY 4.0";
 export const MODEL_BASE_M = 2400;                 // las alturas del archivo van referidas a esta cota
 export const MODEL_MATS = ["wall", "grass", "riser", "floor", "roof", "wood", "channel"];   // clase → nombre
@@ -83,7 +84,9 @@ export function loadIntiScan(base = "") {
 export const CHANKILLO_CREDIT = "Ministerio de Cultura del Perú, Dirección de Catastro y Saneamiento Físico Legal · «Sitio arqueológico Chankillo» (Sketchfab, 2015) · CC BY 4.0";
 export const CHANKILLO_BASE_M = 200;
 // (`tone`: el byte de cada cara es clase + 4 · tono de la fotografía, 0–63)
-const SITE_FILES = { chankillo: { file: "chankillo-templo.bin", base: CHANKILLO_BASE_M, tone: true } };
+// (y los suelos medidos con LiDAR —lidarSites.js—: todo terreno, con tono calculado del relieve)
+const SITE_FILES = { chankillo: { file: "chankillo-templo.bin", base: CHANKILLO_BASE_M, tone: true },
+  ...Object.fromEntries(Object.entries(LIDAR_SITES).map(([k, v]) => [k, { file: v.file, base: v.base, tone: true }])) };
 /** Lee una maqueta con tono por cara: separa el tono (m.tone, 0–63) y deja en el archivo solo la clase. */
 export function parseTonedModel(buf, base) {
   const b = buf.slice(0), dv = new DataView(b), nv = dv.getUint32(0, true), nt = dv.getUint32(4, true), c = new Uint8Array(b, 8 + nv * 6 + nt * 6, nt), tone = new Uint8Array(nt);

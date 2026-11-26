@@ -1,0 +1,115 @@
+{
+  "stonehenge": {
+    "lat": 51.178844,
+    "lon": -1.826189,
+    "clip": 230,
+    "core": 140,
+    "tol": 0.03,
+    "tol_out": 0.1,
+    "flatten": [
+      [
+        0,
+        0,
+        17,
+        5
+      ]
+    ]
+  },
+  "maeshowe": {
+    "clip": 110,
+    "core": 75,
+    "tol": 0.03,
+    "tol_out": 0.1
+  },
+  "brodgar": {
+    "clip": 190,
+    "core": 100,
+    "tol": 0.03,
+    "tol_out": 0.1
+  },
+  "stenness": {
+    "clip": 90,
+    "core": 55,
+    "tol": 0.03,
+    "tol_out": 0.08
+  },
+  "newgrange": {
+    "clip": 180,
+    "core": 90,
+    "tol": 0.04,
+    "tol_out": 0.12,
+    "remove": [
+      [
+        -6.4,
+        0.7,
+        47
+      ]
+    ],
+    "probes": {
+      "tumulo": [
+        -6.4,
+        0.7
+      ]
+    },
+    "flatten": [
+      [
+        -6.4,
+        0.7,
+        45,
+        10
+      ]
+    ]
+  },
+  "knowth": {
+    "clip": 170,
+    "core": 115,
+    "tol": 0.04,
+    "tol_out": 0.12
+  },
+  "dowth": {
+    "lat": 53.703795,
+    "lon": -6.45058,
+    "clip": 130,
+    "core": 65,
+    "tol": 0.04,
+    "tol_out": 0.12
+  },
+  "avebury": {
+    "clip": 300,
+    "core": 255,
+    "tol": 0.05,
+    "tol_out": 0.15
+  },
+  "silbury": {
+    "clip": 175,
+    "core": 110,
+    "tol": 0.04,
+    "tol_out": 0.12
+  },
+  "cahokia": {
+    "clip": 260,
+    "core": 190,
+    "tol": 0.05,
+    "tol_out": 0.15
+  },
+  "newark": {
+    "clip": 500,
+    "core": 470,
+    "tol": 0.06,
+    "tol_out": 0.2
+  },
+  "greatcircle": {
+    "clip": 250,
+    "core": 215,
+    "tol": 0.05,
+    "tol_out": 0.15
+  },
+  "serpentmound": {
+    "lat": 39.025933,
+    "lon": -83.430936,
+    "clip": 170,
+    "core": 125,
+    "tol": 0.05,
+    "tol_out": 0.2
+  }
+}

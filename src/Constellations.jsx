@@ -75,6 +75,7 @@ import { useKeepAwake } from "./sky/keepAwake.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit, fetchLandColors } from "./sky/horizon.js";
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf, footprintRadius } from "./sky/monuments.js";
 import { stopsAt, stopOf } from "./sky/stops.js";
+import { LIDAR_PLAN } from "./sky/lidarPlan.js";
 import { loadSiteModel, loadIntiScan, siteModel, modelGround } from "./sky/machuModel.js";
 import { terrainClouds } from "./sky/terrainClouds.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints, groundSilhouette, groundHeight, RELIEF_R, RELIEF_NA } from "./sky/monumentLayer.js";
@@ -1763,6 +1764,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       camera.quaternion.copy(lookQuat(lk.yaw, lk.pitch, lk.qF));
       applyFov();
       if (E2E) window.__teseoSky = {
+        // (pruebas) las mallas de los monumentos y del suelo del sitio: tamaño, caja y si traen algún valor no finito
+        monMeshes: () => r.monuments.group.children.filter((m) => m.geometry).map((m) => { m.geometry.computeBoundingBox(); const b = m.geometry.boundingBox, P = m.geometry.attributes.position.array; let nan = 0; for (let i = 0; i < P.length; i++) if (!Number.isFinite(P[i])) nan++; return { n: P.length / 3, min: b.min.toArray().map((v) => +v.toFixed(1)), max: b.max.toArray().map((v) => +v.toFixed(1)), nan, order: m.renderOrder, ground: !!(m.material.userData && m.material.userData.ground), indexed: !!m.geometry.index }; }),
         vis: (name, on) => { const o = name === "near" ? r.near3d.group : name === "bands" ? r.terrain.group : name === "clouds" ? r.clouds : name === "mon" ? r.monuments.group : null; if (o) { (o.group || o).visible = !!on; r.wake(); } },
         near3dGeo: () => { const m = r.near3d.group.children[0]; if (!m) return null; const P = m.geometry.attributes.position.array, H = m.geometry.attributes.aHD.array, out = []; for (const k of [399 * 160 + 40, 400 * 160 + 80, 400 * 160 + 120, 400 * 160 + 159, 159]) out.push([P[k * 3], P[k * 3 + 1], P[k * 3 + 2], H[k * 2], H[k * 2 + 1]].map((x) => Math.round(x * 10) / 10)); return out; },
         near3d: (k, v) => { const m = r.near3d.group.children[0]; if (!m) return null; const u = m.material.uniforms, o = {}; if (k) { u[k].value = v; r.wake(); } for (const k in u) if (typeof u[k].value === "number") o[k] = u[k].value; return o; },
@@ -2941,7 +2944,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const goStop = useCallback((s0, from, nameAs = null) => {
     track("sky_stop", { stop: s0.id, from });
     // (desde la ficha de una estructura, el lugar lleva el nombre de esa estructura: el mismo título en todas partes)
-    pickPlace({ name: nameAs || s0.name[lang] || s0.name.es, lat: s0.lat, lon: s0.lon, elev: s0.elev, exact: true });
+    pickPlace({ name: nameAs || s0.name[lang] || s0.name.es, lat: s0.lat, lon: s0.lon, elev: s0.elev, exact: true, fromStop: true });
     if (s0.look != null) setTimeout(() => { const r = sceneRef.current; if (r && r.lookAt) { const v = altAzToLocal(s0.lookAlt != null ? s0.lookAlt : 2, s0.look); r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), Math.max(r.look.spanT, 70), true); if (r.wake) r.wake(); } }, 500);
   }, [lang]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setMonSheet(null); }, [lat, lon]);
@@ -3971,6 +3974,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     setLat(p.lat); setLon(p.lon); setElev(p.elev ?? null); setElevPreset(src); setPlaceFine(fine); setPlaceSummit(top); setPlaceDefault(false);
     savePlace({ kind: p.name, lat: p.lat, lon: p.lon, elev: p.elev ?? null, ...(fine ? { fine: true } : {}), ...(src === "terrain" ? { elevSrc: "terrain" } : {}), ...(top ? { summit: true } : {}) });
     tourAdopt(p.lat, p.lon);
+    // (si el lugar elegido es un punto de visita con dirección propia —la vista general de un sitio, frente a su túmulo—,
+    // la vista se orienta hacia lo que se viene a ver, igual que al saltar a él desde los botones)
+    // (solo en los sitios con suelo LiDAR, cuyo lugar es un punto de vista frente al monumento; y no al saltar desde un botón: goStop ya orienta)
+    { const st = !p0.fromStop && stopsAt(p.lat, p.lon), q = st && LIDAR_PLAN[st.site] && st.stops.find((x) => !x.air && x.look != null && offsetOf(p.lat, p.lon, x.lat, x.lon).d < 3);
+      if (q) setTimeout(() => { const r = sceneRef.current; if (seq === placeSeq.current && r && r.lookAt) { const v = altAzToLocal(q.lookAlt != null ? q.lookAlt : 2, q.look); r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), Math.max(r.look.spanT, 70), true); if (r.wake) r.wake(); } }, 600); }
     track("sky_location", { kind: "manual" });   // los atajos de ciudad cuentan como "manual"
     setPlaceKind(p.name); setLocalMode(true); setGeo("idle"); setSel(null);
     if (!isWideRef.current) setPanel(null);

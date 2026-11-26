@@ -50,6 +50,8 @@ export const MON_MATS = {
   // Cochasquí: el suelo de alrededor, el mismo kikuyo que cubre las pirámides (todo el parque lo es), algo más oscuro y
   // menos amarillo que sus laderas para que resalten; no toma el color del relieve (la imagen de satélite lo da pardo)
   kikuyo: { src: "grass", tile: 2.2, tint: [0.5, 0.63, 0.45], normal: 1.0, macro: 0.85, blend: 1, matte: true, ownColor: true },
+  // el suelo medido con LiDAR (lidarSites.js): hierba; el color lo pone la imagen de satélite del relieve de alrededor
+  turf: { src: "grass", tile: 2.2, tint: [0.8, 0.92, 0.7], normal: 1.0, macro: 0.8, blend: 1, matte: true },
   // suelos de cada lugar
   desert: { src: "sand", tile: 4.5, tint: [1.02, 0.84, 0.7], normal: 1.0, macro: 0.6, blend: 1, matte: true },       // Atacama: grava rojiza
   puna: { src: "sand", tile: 4.5, tint: [0.9, 0.86, 0.64], normal: 1.0, macro: 0.7, blend: 1, matte: true },         // altiplano: paja seca
