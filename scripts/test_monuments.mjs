@@ -296,10 +296,27 @@ ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) s
   const T = by("chankillo-templo"), O = by("chankillo-obs"), E = by("chankillo-este");
   const mouth = offsetOf(-9.561185, -78.229591, O.lat, O.lon);
   ok(T && T.model === "chankillo" && T.modelOnly && T.absBase === CHANKILLO_BASE_M && offsetOf(by("chankillo-7").lat, by("chankillo-7").lon, T.lat, T.lon).d > 950, "el Templo Fortificado está a 1 km al noroeste de las torres, con su maqueta");
-  ok(O.kind === "walls" && O.segs.length === 8 && mouth.d < 60 && buildFaces(O).length === O.segs.length * 10 && E.segs.length === 23 && O.height <= 2.5 && E.height <= 2.5, "edificio de observación y recintos del este: muros bajos trazados; el punto oeste queda junto al edificio");
+  ok(O.kind === "walls" && O.segs.length === 8 && mouth.d < 60 && buildFaces(O).length === O.segs.length * 10 && E.segs.length === 23 && MONUMENTS.filter((m) => m.kind === "walls").every((m) => m.height <= 1), "edificio de observación y recintos del este: muros trazados de 1 m como máximo (ruinas: no se reconstruye su alzado); el punto oeste queda junto al edificio");
   const st = stopsAt(-9.561185, -78.229591).stops;
   ok(st.map((q) => q.id).join(",") === "vista,chankillo-7,este,recintos,templo" && st[0].name.es === "Punto de observación oeste" && st[0].at[0] === "chankillo-obs" && modelGround(...(() => { const o = offsetOf(T.lat, T.lon, st[4].lat, st[4].lon); return [o.e, o.n]; })(), mdl) != null, "Chankillo: cinco puntos de visita; el del templo cae sobre el suelo de su maqueta");
   ok(["chankillo-templo", "chankillo-obs", "chankillo-este"].every((id) => MON_INFO[id] && MON_INFO[id].sources.length >= 3) && /Ministerio de Cultura/.test(shapeCredit("chankillo-templo", "chankillo").text) && /CC BY 4\.0/.test(shapeCredit("chankillo-templo", "chankillo").text) && /trazaron a mano/.test(shapeCredit("chankillo-obs", "chankillo").text) && /Ghezzi y Ruggles \(2007\)/.test(shapeCredit("chankillo-7", "chankillo").text), "Chankillo: fichas con fuentes y crédito de la forma de cada pieza");
+  // las torres no flotan: la fila sube 16 m de la 1 a la 13 y el suelo dibujado llega al pie de cada una, desde cualquier punto
+  {
+    const { placeMonuments, groundHeight, reliefPoints, markAloof } = await import("../src/sky/monumentLayer.js");
+    const tw = MONUMENTS.filter((m) => m.kind === "tower" && m.site === "chankillo"), t1 = tw[0], t13 = tw[12];
+    // cresta sintética: sube de 198 a 214 m a lo largo de la fila y cae 0,35 m por metro a los lados
+    const ridge = (la, lo) => { const a = offsetOf(t1.lat, t1.lon, t13.lat, t13.lon), p = offsetOf(t1.lat, t1.lon, la, lo), L = a.d, t = (p.e * a.e + p.n * a.n) / (L * L), d = Math.abs(p.e * a.n - p.n * a.e) / L; return 198 + 16 * Math.min(1, Math.max(0, t)) - 0.35 * d; };
+    let worst = 0, mixed = false;
+    for (const q of stopsAt(-9.561185, -78.229591).stops.slice(0, 4)) {
+      const near = monumentsNear(q.lat, q.lon), ground = ridge(q.lat, q.lon), bases = Object.fromEntries(near.map((m) => [m.id, ridge(m.lat, m.lon)]));
+      const pre = markAloof(near.map((m) => ({ m, o: offsetOf(q.lat, q.lon, m.lat, m.lon) }))), reach = groundReach(pre), spec = tw[0].reliefGrid;
+      const al = pre.filter((it) => it.m.kind === "tower").map((it) => isAloof(it)); if (al.some((x) => x !== al[0])) mixed = true;
+      const relief = { reach, h: reliefPoints(q.lat, q.lon, reach, spec).map(([la, lo]) => ridge(la, lo) - ground - 1.7), ...spec };
+      const items = placeMonuments(near, { lat: q.lat, lon: q.lon, ground }, bases, relief);
+      for (const it of items) if (it.m.kind === "tower") for (const [de, dn] of [[0, 0], [3, 0], [-3, 0], [0, 5], [0, -5]]) worst = Math.max(worst, Math.abs(groundHeight(it.o.e + de, it.o.n + dn, items, relief) - it.dz));
+    }
+    ok(worst < 1.2 && !mixed, `Chankillo: desde sus cuatro primeros puntos, el suelo llega al pie de las trece torres (como mucho ${worst.toFixed(2)} m de diferencia) y la fila va toda junta`);
+  }
   // las piezas lejanas de un sitio extenso no estiran el suelo propio
   const items = MONUMENTS.filter((m) => m.site === "chankillo").map((m) => ({ m, o: offsetOf(-9.561185, -78.229591, m.lat, m.lon) }));
   ok(isAloof(items.find((it) => it.m.id === "chankillo-templo")) && !isAloof(items.find((it) => it.m.id === "chankillo-7")) && groundReach(items) < 520, "Chankillo: desde el punto oeste el templo no cuenta para el alcance del suelo (menos de 520 m)");

@@ -355,8 +355,8 @@ const BY_ID = {
   },
 };
 const CH_MAP = {
-  es: "Forma: modelo propio de Teseo. Los muros se trazaron a mano sobre el mapa del centro monumental de Iván Ghezzi (Ghezzi y Ruggles 2006, Boletín de Arqueología PUCP 10): posición con un margen de unos metros, trazado simplificado y alto estimado. No es un levantamiento.",
-  en: "Shape: Teseo’s own model. The walls were traced by hand on Iván Ghezzi’s map of the monumental centre (Ghezzi and Ruggles 2006, Boletín de Arqueología PUCP 10): position within a few metres, simplified plan and estimated height. It is not a survey.",
+  es: "Forma: modelo propio de Teseo. Los muros se trazaron a mano sobre el mapa del centro monumental de Iván Ghezzi (Ghezzi y Ruggles 2006, Boletín de Arqueología PUCP 10): posición con un margen de unos metros, trazado simplificado. Solo se marca su planta, con muros de 1 m como máximo: son ruinas, y de su alzado de hace 2.200 años no hay plano. No es un levantamiento ni una reconstrucción.",
+  en: "Shape: Teseo’s own model. The walls were traced by hand on Iván Ghezzi’s map of the monumental centre (Ghezzi and Ruggles 2006, Boletín de Arqueología PUCP 10): position within a few metres, simplified plan. Only the ground plan is marked, with walls no higher than 1 m: they are ruins, and no drawing of their elevation 2,200 years ago exists. It is neither a survey nor a reconstruction.",
   url: "https://revistas.pucp.edu.pe/index.php/boletindearqueologia/article/download/1654/1598",
 };
 for (const id of ["chankillo-obs", "chankillo-plaza-o", "chankillo-este", "chankillo-este-n"]) BY_ID[id] = CH_MAP;

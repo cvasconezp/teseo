@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.89.1 — Chankillo: las torres ya no flotan y los muros bajan a 1 m
+
+- **Las Trece Torres, apoyadas en su cresta:** flotaban varios metros sobre el suelo. La fila sube 16 m de la torre 1 a la 13, y el filo de la cresta se marcaba torre a torre: las bajas hundían el suelo bajo las altas. Ahora el filo sigue la línea que une las torres, cada tramo a su altura, y el suelo sube hasta el pie de cada una. La fila se trata además como un solo grupo: desde los recintos del este, las dos últimas quedaban fuera del suelo del sitio.
+- **Muros de 1 m como máximo:** el edificio de observación, la plaza oeste y los recintos del este solo marcan su planta. Son ruinas, y de su alzado de hace 2.200 años no hay plano: no se reconstruye. La ficha y los créditos lo dicen.
+- En el punto «Trece Torres» la mirada sale más alta, hacia las torres.
+
 ## 1.89.0 — Chankillo completo y nubes sin saltos
 
 - **Templo Fortificado de Chankillo:** el cerro con sus murallas, los dos edificios circulares y el rectangular, a partir del modelo fotogramétrico «Sitio arqueológico Chankillo» del Ministerio de Cultura del Perú (Dirección de Catastro y Saneamiento Físico Legal, 2015; CC BY 4.0). Teseo lo simplifica (de 246.000 a 104.000 triángulos, 1 MB que solo se descarga en Chankillo), lo nivela contra el modelo de elevación (venía inclinado unos 7°) y lo sitúa con el mapa de Ghezzi y Ruggles. Se puede estar dentro, sobre su propio suelo.

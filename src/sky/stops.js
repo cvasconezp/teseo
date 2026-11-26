@@ -15,7 +15,7 @@ const AUTO = {
   // este: a unos 200 m de las torres; desde él los ocasos de junio y de diciembre caen en los extremos de la fila
   // (Ghezzi y Ruggles 2007). Posición aproximada: la que cumple esas dos direcciones (197 m al este del eje).
   // El Templo Fortificado: dentro, en lo más alto del edificio circular del sur, sobre el suelo de su maqueta.
-  chankillo: ["chankillo", [{ id: "chankillo-7", dist: 45 }],
+  chankillo: ["chankillo", [{ id: "chankillo-7", dist: 45, lookAlt: 13 }],
     [{ id: "este", name: { es: "Punto de observación este", en: "Eastern observing point" }, lat: -9.561131, lon: -78.225674, look: 270, lookAlt: 4, at: [] },
       { id: "recintos", name: { es: "Recintos del este", en: "Eastern buildings" }, lat: -9.562556, lon: -78.225559, look: 230, lookAlt: 0, at: ["chankillo-este"] },
       { id: "templo", name: { es: "Templo Fortificado", en: "Fortified Temple" }, lat: -9.556881, lon: -78.236106, look: 27, lookAlt: -6, at: ["chankillo-templo"] }],
@@ -73,7 +73,7 @@ export function allStops() {
     const stops = [{ id: "vista", name: { es: "Vista general", en: "Overview" }, lat: view.lat, lon: view.lon, elev: view.elev ?? null, at: [], ...(vo || {}) }];
     for (const it of ids) {
       const id = it.id || it, m = all.find((q) => q.id === id), f = m && frontStop(m, view.lat, view.lon, all, it.az != null ? it.az : null, it.dist != null ? it.dist : null);
-      if (f) stops.push({ id, name: m.name, lat: +f.lat.toFixed(6), lon: +f.lon.toFixed(6), elev: null, look: Math.round(f.look), lookAlt: Math.round(f.lookAlt), at: [id] });
+      if (f) stops.push({ id, name: m.name, lat: +f.lat.toFixed(6), lon: +f.lon.toFixed(6), elev: null, look: Math.round(f.look), lookAlt: it.lookAlt != null ? it.lookAlt : Math.round(f.lookAlt), at: [id] });
     }
     for (const x of extra || []) stops.push({ elev: null, ...x });
     if (stops.length > 1) out[site] = stops;

@@ -69,7 +69,8 @@ const chankillo = CH_TOWERS.map(([e, n, rot, h], i) => ({
 }));
 // Chankillo, el resto del centro monumental. Posiciones leídas en el mapa de Iván Ghezzi (Ghezzi y Ruggles 2006,
 // Boletín de Arqueología PUCP 10: UTM 17S WGS84, 1,85 m por píxel en la copia usada): margen de unos metros. Los muros
-// son trazos [e1, n1, e2, n2] en m desde el centro de cada pieza; su alto es estimado (hoy son ruinas bajas).
+// son trazos [e1, n1, e2, n2] en m desde el centro de cada pieza; su alto es estimado y nunca pasa de 1 m (hoy son ruinas bajas, y de
+// su alzado de hace 2.200 años no hay plano: no se reconstruye).
 //  · Templo Fortificado: la maqueta fotogramétrica del Ministerio de Cultura del Perú (machuModel.js: chankillo).
 //  · Edificio de observación (oeste), de unos 34 × 51 m, con el corredor de 40 m por fuera de su muro sureste: su
 //    boca, a 3 m del lugar «Chankillo» de Teseo, es el punto de observación oeste.
@@ -79,14 +80,14 @@ const chankilloRest = [
   { id: "chankillo-templo", site: "chankillo", name: { es: "Templo Fortificado", en: "Fortified Temple" }, sub: { es: "tres murallas · modelo del Ministerio de Cultura", en: "three walls · Ministry of Culture model" },
     lat: -9.556834, lon: -78.236026, kind: "llaqta", height: 8, foot: 235, far: 3200, walkIn: true, solid: false, relief: true, aloof: true,
     model: "chankillo", modelOnly: true, modelMats: ["sand", "sand"], absBase: CHANKILLO_BASE_M, labelAt: [-3, -2, 112], color: TAN, mat: "tower", ground: "sand" },
-  { ...CH_WALL, id: "chankillo-obs", name: { es: "Edificio de observación", en: "Observation building" }, sub: { es: "con su corredor de 40 m · alto estimado", en: "with its 40 m corridor · height estimated" },
-    lat: -9.560891, lon: -78.229756, foot: 47, height: 2.2, segs: [[5.1,19.2,34.1,0.6],[34.1,0.6,8.8,-44.1],[8.8,-44.1,-23.9,-22.5],[-23.9,-22.5,5.1,19.2],[36.3,-0.6,16.6,-35.4],[-32.9,13.6,-25.2,26.9],[-32.9,13.6,-12.8,-0.3],[-6.6,42.9,9.4,33.0]] },
+  { ...CH_WALL, id: "chankillo-obs", name: { es: "Edificio de observación", en: "Observation building" }, sub: { es: "con su corredor de 40 m · ruinas bajas", en: "with its 40 m corridor · low ruins" },
+    lat: -9.560891, lon: -78.229756, foot: 47, height: 1, segs: [[5.1,19.2,34.1,0.6],[34.1,0.6,8.8,-44.1],[8.8,-44.1,-23.9,-22.5],[-23.9,-22.5,5.1,19.2],[36.3,-0.6,16.6,-35.4],[-32.9,13.6,-25.2,26.9],[-32.9,13.6,-12.8,-0.3],[-6.6,42.9,9.4,33.0]] },
   { ...CH_WALL, id: "chankillo-plaza-o", name: { es: "Plaza oeste", en: "Western plaza" }, label: false,
-    lat: -9.560969, lon: -78.228699, foot: 143, height: 1.2, segs: [[40.9,135.2,73.3,115.8],[73.3,115.8,3.9,3.1],[3.9,3.1,-37.8,29.4],[8.5,-1.5,26.1,-9.8],[26.1,-9.8,-33.2,-104.9],[-121.8,-60.8,-98.0,-74.7],[-90.9,-80.8,-76.4,-89.5],[-70.2,-92.6,-52.3,-102.4],[31.6,21.0,43.4,38.6],[43.4,38.6,49.5,35.5],[49.5,35.5,37.8,17.0],[37.8,17.0,31.6,21.0]] },
-  { ...CH_WALL, id: "chankillo-este", name: { es: "Recintos del este", en: "Eastern buildings" }, sub: { es: "trazado simplificado · alto estimado", en: "simplified plan · height estimated" },
-    lat: -9.563008, lon: -78.226105, foot: 102, height: 1.6, segs: [[-54.0,54.5,92.3,-14.0],[-31.8,95.3,10.8,73.1],[-48.5,76.8,21.9,43.4],[-31.8,95.3,-54.0,54.5],[12.6,74.9,-46.6,-49.2],[34.9,63.8,-5.9,-17.7],[53.4,65.7,40.4,41.6],[68.2,47.1,53.4,17.5],[81.2,39.7,64.5,6.4],[16.3,47.1,75.6,19.4],[92.3,-15.8,68.2,-60.3],[-22.5,-17.7,70.0,-58.4],[36.7,8.3,18.2,-28.8],[-72.5,19.4,-13.3,-8.4],[-70.7,19.4,-89.2,-21.4],[-83.7,-4.7,-35.5,-26.9],[-89.2,-21.4,-54.0,-38.0],[-54.0,10.1,-70.7,-28.8],[-35.5,2.7,-54.0,-38.0],[-33.7,-36.2,51.5,-73.2],[-5.9,-49.2,-20.7,-75.1],[20.0,-58.4,7.1,-86.2],[51.5,-58.4,36.7,-89.9]] },
+    lat: -9.560969, lon: -78.228699, foot: 143, height: 0.7, segs: [[40.9,135.2,73.3,115.8],[73.3,115.8,3.9,3.1],[3.9,3.1,-37.8,29.4],[8.5,-1.5,26.1,-9.8],[26.1,-9.8,-33.2,-104.9],[-121.8,-60.8,-98.0,-74.7],[-90.9,-80.8,-76.4,-89.5],[-70.2,-92.6,-52.3,-102.4],[31.6,21.0,43.4,38.6],[43.4,38.6,49.5,35.5],[49.5,35.5,37.8,17.0],[37.8,17.0,31.6,21.0]] },
+  { ...CH_WALL, id: "chankillo-este", name: { es: "Recintos del este", en: "Eastern buildings" }, sub: { es: "trazado simplificado · ruinas bajas", en: "simplified plan · low ruins" },
+    lat: -9.563008, lon: -78.226105, foot: 102, height: 0.9, segs: [[-54.0,54.5,92.3,-14.0],[-31.8,95.3,10.8,73.1],[-48.5,76.8,21.9,43.4],[-31.8,95.3,-54.0,54.5],[12.6,74.9,-46.6,-49.2],[34.9,63.8,-5.9,-17.7],[53.4,65.7,40.4,41.6],[68.2,47.1,53.4,17.5],[81.2,39.7,64.5,6.4],[16.3,47.1,75.6,19.4],[92.3,-15.8,68.2,-60.3],[-22.5,-17.7,70.0,-58.4],[36.7,8.3,18.2,-28.8],[-72.5,19.4,-13.3,-8.4],[-70.7,19.4,-89.2,-21.4],[-83.7,-4.7,-35.5,-26.9],[-89.2,-21.4,-54.0,-38.0],[-54.0,10.1,-70.7,-28.8],[-35.5,2.7,-54.0,-38.0],[-33.7,-36.2,51.5,-73.2],[-5.9,-49.2,-20.7,-75.1],[20.0,-58.4,7.1,-86.2],[51.5,-58.4,36.7,-89.9]] },
   { ...CH_WALL, id: "chankillo-este-n", name: { es: "Recinto noreste", en: "North-eastern building" }, label: false,
-    lat: -9.560312, lon: -78.225257, foot: 42, height: 1.6, segs: [[-21.8,32.8,40.1,1.3],[40.1,1.3,20.8,-32.0],[20.8,-32.0,-39.2,-2.4],[-39.2,-2.4,-21.8,32.8],[9.0,16.9,-8.8,-16.4]] },
+    lat: -9.560312, lon: -78.225257, foot: 42, height: 0.9, segs: [[-21.8,32.8,40.1,1.3],[40.1,1.3,20.8,-32.0],[20.8,-32.0,-39.2,-2.4],[-39.2,-2.4,-21.8,32.8],[9.0,16.9,-8.8,-16.4]] },
 ];
 // Paranal: los cuatro telescopios de 8,2 m del VLT. Separación entre ellos: estaciones U1–U4 del VLTI (ESO,
 // «VLTI Station Position Technical Data»), en metros [este, norte] desde el centro de la red; ese centro se

@@ -43,10 +43,10 @@ export { onPlatform };
 const NO_ITEMS = [];
 export function placeMonuments(list, { lat, lon, ground }, bases, relief = null) {
   const out = [];
-  for (const m of list || []) {
+  const pre = markAloof((list || []).map((m) => ({ m, o: offsetOf(lat, lon, m.lat, m.lon) })));
+  for (const { m, o, aloof } of pre) {
     const b = bases && bases[m.id];
     if (!Number.isFinite(b) || !Number.isFinite(ground)) continue;
-    const o = offsetOf(lat, lon, m.lat, m.lon);
     // (con la maqueta del sitio, los rótulos cuya posición cae fuera de ella o en su borde recortado no se ponen)
     if (m.modelHide && relief && relief.exact) continue;
     // `seat`: en una ladera con muchas piezas (Cochasquí), cada una se asienta sobre el MISMO relieve con el que se
@@ -59,10 +59,10 @@ export function placeMonuments(list, { lat, lon, ground }, bases, relief = null)
     const dz0 = abs != null ? abs - relief.abs0 - EYE_M : m.modelOnly && m.absBase != null ? m.absBase - (ground + EYE_M) : relief && m.seat ? (m.seat === "ground" ? groundHeight(o.e, o.n, NO_ITEMS, relief) : reliefAt(relief, o.e, o.n))
       // (lo que corona una cresta —`crest`— se apoya en el suelo tal como se dibuja, mientras quede dentro de él: ni flota ni se hunde)
       // (…y nunca por debajo de su cota medida: si el suelo dibujado queda algo más bajo, lo salva su zócalo —`foot`—)
-      : relief && m.crest && !isAloof({ m, o }) && o.d < relief.reach ? Math.max(groundHeight(o.e, o.n, NO_ITEMS, relief), b - (ground + EYE_M)) : b - (ground + EYE_M);
+      : relief && m.crest && !isAloof({ m, o, aloof }) && o.d < relief.reach ? Math.max(groundHeight(o.e, o.n, NO_ITEMS, relief), b - (ground + EYE_M)) : b - (ground + EYE_M);
     // una pieza extensa (la llaqta de Machu Picchu) sigue el relieve punto a punto: recibe el suelo respecto a su origen
     const gnd = relief && m.kind === "llaqta" ? (e, n) => groundHeight(o.e + e, o.n + n, NO_ITEMS, relief) - dz0 : null;
-    out.push({ m, o, dz: dz0 + (abs != null ? 0 : (m.lift || 0)) - (m.drop || 0), faces: buildFaces(m, { d: o.d, ground: gnd }) });
+    out.push({ m, o, aloof, dz: dz0 + (abs != null ? 0 : (m.lift || 0)) - (m.drop || 0), faces: buildFaces(m, { d: o.d, ground: gnd }) });
   }
   // Subido a una plataforma (`standOn`): si el lugar cae dentro de la plataforma de una pirámide, los ojos van a 1,7 m
   // sobre ella, así que todo lo demás (y el suelo) baja lo que haga falta.
@@ -167,6 +167,7 @@ const GROUND_NEAR_M = 450;    // con el relieve 3D alrededor, hasta dónde llega
 /** Hasta dónde llega el suelo continuo (m): algo más lejos que el monumento más lejano. */
 export function groundReach(items) {
   let reach = 260;
+  markAloof(items);
   // (`aloof`: en un sitio muy extenso —Chankillo, 1,5 km de punta a punta— las piezas lejanas no estiran el suelo
   // propio ni su rejilla de relieve: se quedan a la altura de su base, sobre el relieve general)
   for (const it of items || []) { if (isAloof(it)) continue; reach = Math.max(reach, it.o.d + footprintRadius(it.m) + 220); }
@@ -204,8 +205,33 @@ export function reliefAt(grid, e, n) {
  */
 /** Piezas bajas y abiertas (muros de pirca, discos de piedra): con relieve, siguen el suelo vértice a vértice. */
 /** ¿Pieza lejana de un sitio extenso (`aloof`), a más de 300 m de su borde? No cuenta para el alcance del suelo. */
-export const isAloof = (it) => !!it.m.aloof && it.o.d - footprintRadius(it.m) > 300;
+// (las piezas en fila sobre una cresta —`crest`, las Trece Torres— van todas juntas: o todas lejanas o ninguna. Con la
+// fila a caballo de los 300 m, las de más allá quedaban fuera del suelo del sitio, en el aire sobre el relieve general)
+export const isAloof = (it) => (it.aloof != null ? it.aloof : !!it.m.aloof && it.o.d - footprintRadius(it.m) > 300);
+export function markAloof(items) {
+  let near = Infinity;
+  for (const it of items || []) if (it.m.aloof && it.m.crest) near = Math.min(near, it.o.d - footprintRadius(it.m));
+  for (const it of items || []) if (it.m.aloof && it.m.crest) it.aloof = near > 300;
+  return items;
+}
 export function drapes(m) { return !m.solid && !m.seat && m.height != null && m.height <= 2.5; }
+
+// Las piezas que coronan una cresta (`crest`), en fila: ordenadas a lo largo de su eje mayor (se calcula una vez por lista).
+const CREST = new WeakMap();
+function crestLine(items) {
+  if (!items || !items.length) return NO_ITEMS;
+  let c = CREST.get(items);
+  if (!c) {
+    c = items.filter((it) => it.m.crest && !isAloof(it));
+    if (c.length > 2) {
+      let ax = 0, ay = 0, best = -1;
+      for (const a of c) for (const b of c) { const d = Math.hypot(b.o.e - a.o.e, b.o.n - a.o.n); if (d > best) { best = d; ax = b.o.e - a.o.e; ay = b.o.n - a.o.n; } }
+      c.sort((p, q) => (p.o.e * ax + p.o.n * ay) - (q.o.e * ax + q.o.n * ay));
+    }
+    CREST.set(items, c);
+  }
+  return c;
+}
 
 export function groundHeight(e, n, items, grid = null) {
   let sw, sh;
@@ -235,12 +261,33 @@ export function groundHeight(e, n, items, grid = null) {
   // (sin subir hacia el relieve global: una rampa ahí tapaba los andenes del borde; más allá el piso se desvanece)
   if (near) return near.h - 0.3 - up;
   let h = sh / sw;
-  // (lo que corona una cresta —`crest`— marca su filo: a su alrededor el suelo cae al menos un 30 %. El modelo de
+  // (lo que corona una cresta —`crest`— marca su filo: a los lados el suelo cae al menos un 30 %. El modelo de
   // relieve, de 30 m de malla, dibuja la cresta ancha y llana, y su hombro tapaba las torres vistas desde abajo)
-  if (grid) for (const it of items) {
-    if (!it.m.crest || isAloof(it)) continue;
-    const d = Math.hypot(e - it.o.e, n - it.o.n);
-    if (d < 60) h = Math.min(h, it.dz + up + 0.4 - 0.3 * Math.max(0, d - 7));
+  // (la caída se mide desde la LÍNEA de la cresta —la que une las piezas en fila, cada tramo a la altura de sus dos
+  // extremos—, no desde cada pieza: la fila de Chankillo sube 16 m de la torre 1 a la 13, y medida torre a torre las
+  // bajas hundían el suelo bajo las altas, que quedaban en el aire. Y se apaga poco a poco entre 35 y 60 m: sin escalón)
+  if (grid) {
+    const cr = crestLine(items);
+    if (cr.length) {
+      let bd = Infinity, bz = 0;
+      if (cr.length === 1) { bd = Math.hypot(e - cr[0].o.e, n - cr[0].o.n); bz = cr[0].dz; }
+      else for (let i = 0; i + 1 < cr.length; i++) {
+        const a = cr[i], b = cr[i + 1], ux = b.o.e - a.o.e, uy = b.o.n - a.o.n, l2 = ux * ux + uy * uy || 1;
+        const t = Math.min(1, Math.max(0, ((e - a.o.e) * ux + (n - a.o.n) * uy) / l2)), d = Math.hypot(e - a.o.e - ux * t, n - a.o.n - uy * t);
+        if (d < bd) { bd = d; bz = a.dz + (b.dz - a.dz) * t; }
+      }
+      // (…y bajo la fila el suelo SUBE hasta el pie de las piezas: la rejilla del relieve, con un punto cada 25-60 m,
+      // y el llano de los pies dejan el filo de la cresta varios metros por debajo de su cota medida, y las torres
+      // quedaban en el aire. Pleno hasta 7 m de la línea y se apaga a los 25; junto al observador no, que manda su suelo)
+      if (bd < 25) {
+        const T = bz + up - 0.15, w = Math.min(1, (25 - bd) / 18) * Math.min(1, Math.max(0, (Math.hypot(e, n) - 6) / 14));
+        if (h < T) h += (T - h) * w * w * (3 - 2 * w);
+      }
+      if (bd < 60) {
+        const cap = bz + up + 0.4 - 0.3 * Math.max(0, bd - 7), w = Math.min(1, (60 - bd) / 25);
+        if (h > cap) h -= (h - cap) * w * w * (3 - 2 * w);
+      }
+    }
   }
   return h - up;
 }
