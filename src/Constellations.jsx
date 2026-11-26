@@ -1343,7 +1343,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const terrain = createTerrainLayer();
     horizon.add(terrain.group);
     // el relieve cercano en 3D con la imagen de satélite (src/sky/terrain3d.js), delante de las franjas
-    const near3d = createNearTerrainLayer({ onReady: () => { const r = sceneRef.current; if (r) { r.terrain.setCovered(near3d.coverKm); r.monuments.setSkirt(!(near3d.coverKm > 0)); r._dirty = true; } } });
+    const near3d = createNearTerrainLayer({ onReady: () => { const r = sceneRef.current; if (r) { r.terrain.setCovered(near3d.coverKm); r.monuments.setSkirt(!(near3d.coverKm > 0)); r.monuments.setNear(near3d.colorMap); r._dirty = true; } } });
     horizon.add(near3d.group);
     // monumentos (src/sky/monumentLayer.js): en 3D en el mismo marco, delante de las montañas
     const monuments = createMonumentLayer({ onReady: () => { const r = sceneRef.current; if (r) r._dirty = true; } });
@@ -3156,6 +3156,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.near3d.setEnabled(!!hzData);
     const wait = nearPending || ref.near3d.loading;
     ref.terrain.setCovered(wait ? 1e9 : ref.near3d.coverKm); ref.monuments.setSkirt(!(ref.near3d.coverKm > 0) && !wait);
+    ref.monuments.setNear(wait ? null : ref.near3d.colorMap);
     ref._dirty = true;
   }, [hzData, nearData, hzKey, ready, summitLift, nearPending, monItems.length, monItems.up, monBase.ground]);
 

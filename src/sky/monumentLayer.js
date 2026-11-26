@@ -142,6 +142,7 @@ const R_E = 6371008.8, K_REFR = 0.13;
 // · curva de película (ACES): los claros al sol no se queman y las sombras conservan color
 const GLSL_UNIFORMS = `
 uniform float uK; uniform float uMacro; uniform float uBlend; uniform float uScaleB; uniform vec3 uHaze; uniform float uHazeK; uniform float uExposure;
+uniform sampler2D uNear; uniform float uNearOn; uniform vec2 uNearL; uniform float uNearGain; uniform float uGround; varying vec3 vTsPos;
 vec3 teseoAces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 `;
 const GLSL_MAP = `
@@ -158,6 +159,27 @@ const GLSL_MAP = `
   float tsMac2 = texture2D(map, mat2(0.6, -0.8, 0.8, 0.6) * vMapUv * 0.0093, 6.0).g / tsAvg;
   tsC.rgb *= mix(1.0, clamp(0.25 + 0.4 * tsMac + 0.35 * tsMac2, 0.6, 1.4), uMacro);
   diffuseColor *= tsC;
+  // EL SUELO DEL SITIO, CON EL COLOR DEL RELIEVE: toma el de la imagen de satélite del relieve cercano en ese mismo
+  // punto (la misma proyección: acimut → u; distancia, en escala logarítmica, → v) y de la foto solo conserva el
+  // detalle (su luz relativa). Así empalma con las montañas de alrededor en vez de ser un parche de otro color
+  if (uNearOn * uGround > 0.5) {
+    vec2 tsEN = vec2(vTsPos.x, -vTsPos.z) / uK;
+    float tsR = length(tsEN);
+    // (el mismo desenfoque cerca que el relieve: un píxel del satélite ocupa muchas columnas de la imagen polar y
+    // saldrían rayas que salen del centro)
+    // (la fila de arriba de la imagen es la cercana —comprobado contra la imagen del servidor—: v = 1 cerca)
+    vec2 tsNuv = vec2(fract(atan(tsEN.x, tsEN.y) / 6.2831853 + 1.0), 1.0 - clamp(log(max(tsR, uNearL.x) / uNearL.x) / uNearL.y, 0.0, 1.0));
+    float tsLod = clamp(log2(2600.0 / max(tsR, 30.0)), 0.0, 6.5);
+    vec3 tsC0 = texture2D(uNear, tsNuv, tsLod).rgb;
+    // (la misma conversión que hace el relieve: el mosaico es más claro y menos saturado que el suelo visto de lado.
+    // Sin su cambio de los restos de nubes por el color del monte: aquí confundía con nubes la arena clara del desierto)
+    float tsG = (tsC0.r + tsC0.g + tsC0.b) / 3.0;
+    // (algo menos saturado que en el relieve: la luz y la curva de película de las piezas ya lo saturan)
+    vec3 tsAlb = (vec3(tsG) + (tsC0 - tsG) * 0.85) * 0.6 * min(1.0, 0.62 / max(0.05, tsG));
+    vec3 tsSat = pow(tsAlb, vec3(2.2));
+    float tsDet = clamp(tsC.g / tsAvg, 0.55, 1.5);
+    diffuseColor.rgb = tsSat * tsDet * uNearGain;
+  }
 #endif
 `;
 const GLSL_OUT = `
@@ -169,6 +191,9 @@ const GLSL_OUT = `
   }
 `;
 
+// Además del suelo propio, el terreno de una maqueta de sitio (el del templo de Chankillo) toma el color del relieve
+// cercano. Las piezas de hierba o tierra no: con el color del relieve, los montículos de Cochasquí desaparecían
+const EARTH_MATS = new Set(["chksand"]);
 const texCache = new Map();
 const GROUND_NEAR_M = 450;    // con el relieve 3D alrededor, hasta dónde llega como mucho el piso propio del sitio
 
@@ -304,7 +329,8 @@ export function createMonumentLayer({ onReady = null } = {}) {
   const group = new THREE.Group();
   let meshes = [], items = [], enabledFlag = true, k = 1, pending = 0;
   // uniformes comunes a todos los materiales (los propios de cada uno, en su copia)
-  const shared = { uK: { value: 1 }, uHaze: { value: new THREE.Color(0.5, 0.6, 0.75) }, uHazeK: { value: 1 / 14000 }, uExposure: { value: 0.9 } };
+  const shared = { uK: { value: 1 }, uHaze: { value: new THREE.Color(0.5, 0.6, 0.75) }, uHazeK: { value: 1 / 14000 }, uExposure: { value: 0.9 },
+    uNear: { value: null }, uNearOn: { value: 0 }, uNearL: { value: new THREE.Vector2(60, 1) }, uNearGain: { value: 1.3 } };
   // luces solo para los monumentos (las demás capas usan materiales sin luz)
   const sun = new THREE.DirectionalLight(0xffffff, 0);
   sun.castShadow = true;
@@ -342,16 +368,19 @@ export function createMonumentLayer({ onReady = null } = {}) {
     m.color.setRGB(cfg.tint[0], cfg.tint[1], cfg.tint[2]);
     m.normalScale.set(cfg.normal, cfg.normal);
     m.aoMapIntensity = 1;
-    const own = { uMacro: { value: cfg.macro }, uBlend: { value: cfg.blend }, uScaleB: { value: ground ? 0.173 : 0.41 } };
+    const own = { uMacro: { value: cfg.macro }, uBlend: { value: cfg.blend }, uScaleB: { value: ground ? 0.173 : 0.41 }, uGround: { value: ground || EARTH_MATS.has(mat) ? 1 : 0 } };
     if (cfg.matte) { m.roughnessMap = null; m.roughness = 0.97; }
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, shared, own);
+      sh.vertexShader = sh.vertexShader
+        .replace("#include <common>", "#include <common>\nvarying vec3 vTsPos;")
+        .replace("#include <project_vertex>", "#include <project_vertex>\n  vTsPos = transformed;");   // (en coordenadas propias: el grupo del horizonte puede girar)
       sh.fragmentShader = sh.fragmentShader
         .replace("#include <common>", "#include <common>\n" + GLSL_UNIFORMS)
         .replace("#include <map_fragment>", GLSL_MAP)
         .replace("#include <tonemapping_fragment>", GLSL_OUT + "\n#include <tonemapping_fragment>");
     };
-    m.customProgramCacheKey = () => "teseo-monument-v2";
+    m.customProgramCacheKey = () => "teseo-monument-v3";
     return m;
   }
 
@@ -537,6 +566,13 @@ export function createMonumentLayer({ onReady = null } = {}) {
     set(list, st, grid = null) { last = { list, st, grid }; build(list, grid); paint(st); show(); },
     get grid() { return last ? last.grid : null; },
     /** Con el relieve 3D alrededor (terrain3d.js) el suelo del sitio no se alarga en un faldón llano. */
+    /** El color del relieve cercano para el suelo propio (de near3d.colorMap; null para volver al de la foto). */
+    setNear(cm) {
+      const tex = cm && cm.tex ? cm.tex : null;
+      if (shared.uNear.value === tex && shared.uNearOn.value === (tex ? 1 : 0)) return;
+      shared.uNear.value = tex; shared.uNearOn.value = tex ? 1 : 0;
+      if (tex) shared.uNearL.value.set(cm.dMin, Math.log(cm.dMax / cm.dMin));
+    },
     setSkirt(b) { if (skirt === !!b) return; skirt = !!b; if (last) { build(last.list, last.grid); paint(last.st); show(); } },
     paint,
     setEnabled(b) { enabledFlag = !!b; show(); },

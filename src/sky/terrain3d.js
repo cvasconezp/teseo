@@ -276,6 +276,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
   group.name = "terrain3d";
   group.visible = false;
   let mesh = null, key = null, enabled = true, seq = 0, h0 = 0, coverKm = 0, loading = false;
+  let span = null;                                              // { dMin, dMax } de la malla puesta (para quien quiera su color)
   const uniforms = {
     map: { value: null }, uSun: { value: new THREE.Vector3(0, 1, 0) }, uHorizon: { value: new THREE.Vector3(0.1, 0.11, 0.17) },
     uNightNear: { value: new THREE.Vector3(0.05, 0.056, 0.085) }, uNightFar: { value: new THREE.Vector3(0.17, 0.185, 0.27) },
@@ -285,7 +286,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
   };
   const clear = () => {
     if (mesh) { mesh.geometry.dispose(); if (uniforms.map.value) uniforms.map.value.dispose(); mesh.material.dispose(); group.remove(mesh); }
-    mesh = null; key = null; uniforms.map.value = null; group.visible = false;
+    mesh = null; key = null; uniforms.map.value = null; span = null; group.visible = false;
   };
   return {
     group,
@@ -295,6 +296,9 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
     get loading() { return loading; },
     /** km que cubre la malla cuando está puesta y visible (0 si no). */
     get coverKm() { return mesh && group.visible ? coverKm : 0; },
+    /** La imagen de satélite de la malla puesta y su proyección (acimut → u; distancia, en escala logarítmica entre
+     * dMin y dMax → v), para que el suelo propio de un sitio tome el mismo color. null sin malla. */
+    get colorMap() { return mesh && span ? { tex: uniforms.map.value, ...span } : null; },
     /** near: { data, texUrl } de fetchNearTerrain (o null para quitarlo); k: clave del lugar. */
     set(near, k0, { lift = 0, ground = null } = {}) {
       const my = ++seq, k = `${k0}|${lift}|${Number.isFinite(ground) ? ground.toFixed(1) : "-"}`;
@@ -316,6 +320,7 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
         g.setAttribute("aHD", new THREE.BufferAttribute(G.hd, 2));
         g.setIndex(new THREE.BufferAttribute(G.idx, 1));
         uniforms.map.value = tex; h0 = G.h0; uniforms.uH0.value = h0; coverKm = near.data.dMax / 1000;
+        span = { dMin: near.data.dMin, dMax: near.data.dMax };
         // transparente para entrar en la misma pasada que las franjas (el orden lo da renderOrder), pero con
         // profundidad propia: lo cercano tapa lo de atrás
         const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms, transparent: true, depthTest: true, depthWrite: true, side: THREE.DoubleSide, fog: false });

@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.96.0 — El suelo de los sitios en 3D, del color del relieve que lo rodea
+
+- **Sin parche de otro color:** el suelo propio de cada sitio (y el terreno de la maqueta del Templo Fortificado de Chankillo) toma ahora el color de la misma imagen de satélite (Sentinel-2) que pinta las montañas de alrededor, punto por punto, con la misma conversión que usa el relieve; de la foto de arena, tierra o hierba solo conserva el detalle menudo. Mientras la imagen no ha cargado, o si falla, se ve el color de siempre.
+- Las pirámides y montículos cubiertos de hierba (Cochasquí) conservan su verde: con el color del relieve se confundían con el suelo.
+
 ## 1.95.0 — Rótulos junto a su estructura y Machu Picchu por sectores desde el aire
 
 - **Los rótulos de las estructuras ya no se ven lejos de ellas:** el nombre se apoyaba en lo más alto que se veía en su dirección, y eso incluía otras piezas que estaban delante. Desde el punto de Keops, el de Micerino subía hasta el borde de Keops; desde el aire, el de la Pirámide del Sol quedaba casi en el horizonte. Ahora cada nombre se apoya solo en su propia pieza y queda como mucho 3° sobre su cima. Afectaba a Guiza, Teotihuacan, Cochasquí, Machu Picchu, Tiwanaku y Paranal.
