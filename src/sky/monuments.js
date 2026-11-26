@@ -76,11 +76,11 @@ const chankillo = CH_TOWERS.map(([e, n, rot, h], i) => ({
 //    boca, a 3 m del lugar «Chankillo» de Teseo, es el punto de observación oeste.
 //  · Muros de la plaza oeste, y los recintos del este (trazado simplificado: 23 de sus muros principales).
 // (`far` 700: de más lejos —desde el templo o desde el aire— un muro de 1 m es un trazo suelto en el aire, sin el suelo de su sitio)
-const CH_WALL = { site: "chankillo", kind: "walls", thick: 1.1, ring: 3, far: 700, relief: true, aloof: true, walkIn: true, color: TAN, mat: "tower", ground: "sand", solid: false };
+const CH_WALL = { site: "chankillo", kind: "walls", thick: 1.1, ring: 3, far: 700, relief: true, aloof: true, walkIn: true, color: TAN, mat: "chkstone", ground: "sand", solid: false };
 const chankilloRest = [
   { id: "chankillo-templo", site: "chankillo", name: { es: "Templo Fortificado", en: "Fortified Temple" }, sub: { es: "tres murallas · modelo del Ministerio de Cultura", en: "three walls · Ministry of Culture model" },
     lat: -9.556834, lon: -78.236026, kind: "llaqta", height: 8, foot: 235, far: 3200, walkIn: true, solid: false, relief: true, aloof: true,
-    model: "chankillo", modelOnly: true, modelMats: ["tower", "sand"], absBase: CHANKILLO_BASE_M, labelAt: [-3, -2, 112], color: TAN, mat: "tower", ground: "sand" },
+    model: "chankillo", modelOnly: true, modelMats: ["chkstone", "chksand"], farGround: 400, absBase: CHANKILLO_BASE_M, labelAt: [-3, -2, 112], color: TAN, mat: "tower", ground: "sand" },
   { ...CH_WALL, id: "chankillo-obs", name: { es: "Edificio de observación", en: "Observation building" }, sub: { es: "con su corredor de 40 m · ruinas bajas", en: "with its 40 m corridor · low ruins" },
     lat: -9.560891, lon: -78.229756, foot: 47, height: 1, segs: [[5.1,19.2,34.1,0.6],[34.1,0.6,8.8,-44.1],[8.8,-44.1,-23.9,-22.5],[-23.9,-22.5,5.1,19.2],[36.3,-0.6,16.6,-35.4],[-32.9,13.6,-25.2,26.9],[-32.9,13.6,-12.8,-0.3],[-6.6,42.9,9.4,33.0]] },
   { ...CH_WALL, id: "chankillo-plaza-o", name: { es: "Plaza oeste", en: "Western plaza" }, label: false,
@@ -524,13 +524,16 @@ export function llaqtaPlan(skip = [], clear = []) {
 // La llaqta con la maqueta del Ministerio de Cultura (machuModel.js): terreno, andenes, muros y techos de una sola
 // pieza, a su altura sobre el nivel del mar (las alturas de las caras van referidas a MODEL_BASE_M). La piedra: fina
 // en los conjuntos de `fine` (Templo del Sol, Casa del Inca, Plaza Sagrada), rústica en el resto y en los andenes.
-function llaqtaModel(out, m) {
+function llaqtaModel(out, m, d = 0) {
   const col = m.color, fine = m.fine || [], skipW = m.modelSkip || [];
   // (otra maqueta —el Templo Fortificado de Chankillo—: sus propios materiales por clase, sin sillares finos)
   // (el tono de cada cara es el de la fotografía del modelo: piedra y sombra más oscuras, arena más clara)
   if (m.modelMats) { const mdl = siteModel(m.model); eachModelFace((a, b, c, cls, t) => {
     // (clase 0: los muros, de caras planas —hiladas horizontales, como los de los recintos—; el resto, terreno liso)
     if (cls === 0) out.push({ v: [a, b, c], c: col, mat: m.modelMats[0] || m.mat });
+    // (de lejos —`farGround`, en m—, solo los muros: el cerro es el relieve de alrededor, con su color, y la maqueta no
+    // queda como una losa clara sobre él)
+    else if (m.farGround && d > m.farGround) return;
     else out.push({ v: [a, b, c], c: col, mat: m.modelMats[cls] || m.mat, smooth: true, uv: [a, b, c].map((q) => [q[0] + q[2] * 0.35, q[1] + q[2] * 0.6]), ...(mdl.tone ? { tone: 0.62 + (mdl.tone[t] / 63) * 0.62 } : {}) });
   }, mdl); return; }
   const MAT = [null, "heath", "incarustic", "earth", "thatch", "thatch", "inca"];
@@ -546,8 +549,8 @@ function llaqtaModel(out, m) {
   });
 }
 
-function llaqta(out, m, ground) {
-  if (m.model && siteModel(m.model)) { llaqtaModel(out, m); return; }
+function llaqta(out, m, ground, d = 0) {
+  if (m.model && siteModel(m.model)) { llaqtaModel(out, m, d); return; }
   if (m.modelOnly) return;                                   // (sin su maqueta no hay nada que dibujar)
   const g = ground || (() => 0), col = m.color, plan = llaqtaPlan(m.skip, m.clear), K = LLAQTA;
   const grad = (p) => [(g(p[0] + 3, p[1]) - g(p[0] - 3, p[1])) / 6, (g(p[0], p[1] + 3) - g(p[0], p[1] - 3)) / 6];
@@ -974,7 +977,7 @@ export function buildFaces(m, opt = {}) {
   } else if (m.kind === "mark") {
     // solo un rótulo sobre un lugar (el edificio lo dibuja otra pieza): sin caras
   } else if (m.kind === "llaqta") {
-    llaqta(out, m, opt.ground || null);
+    llaqta(out, m, opt.ground || null, opt.d);
   } else if (m.kind === "inca") {
     // edificio inca de sillares: muros con algo de talud, un lado abierto (wayrana) o puerta, hastiales si los
     // tiene y ventanas trapezoidales (rectángulos oscuros)

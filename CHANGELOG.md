@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.93.0 — Chankillo: muros de piedra gris y el templo asentado en su cerro
+
+- **Muros de piedra gris** (piedra de campo con mortero) en el Templo Fortificado y en los recintos del oeste y del este: se distinguen del suelo de arena. Las torres siguen claras, como en las fotos.
+- **El templo ya no parece volar:** la maqueta se recorta a 25 m por fuera de la muralla exterior y en esa franja su suelo baja poco a poco hasta el relieve de alrededor y toma su tono; el faldón vertical que asomaba como un acantilado ya no se ve.
+- **De lejos (más de 400 m), solo los muros:** el cerro es el mismo relieve del entorno, con su color, en lugar de una losa clara de arena. Desde dentro y desde el aire se sigue viendo el suelo de la maqueta, algo más oscuro que antes.
+
 ## 1.92.0 — Templo Fortificado: trazado limpio
 
 - **Formas limpias en lugar del contorno pixelado** de la maqueta: las tres murallas son curvas cerradas suaves; cada edificio circular tiene dos anillos concéntricos, círculos ajustados a lo que se ve (de unos 21 y 10 m de radio); el edificio rectangular es un cuadrado de unos 35 m partido en cuatro cuartos por una cruz, ajustado al relieve. Los muros sueltos (parapetos de las puertas) quedan rectos o en curvas suavizadas.

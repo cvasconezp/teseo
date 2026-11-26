@@ -20,7 +20,8 @@ rectangular. Viene sin posición, sin orientación y algo inclinado. Cambios hec
     Los huecos de menos de 3,5 m quedan: pueden ser puertas.
   · SUELO LIMPIO: los montículos de escombro (derrumbes de menos de 6 m de ancho) se rebajan hasta el suelo de
     alrededor, salvo bajo los muros; las terrazas y la ladera quedan como están.
-  · FALDÓN de 8 m bajo el borde, para que no se vea por debajo donde el relieve de fuera queda más bajo.
+  · RECORTE a 25 m por fuera de la muralla exterior; en los últimos 20 m el suelo baja hasta el relieve de alrededor.
+  · FALDÓN de 4 m bajo el borde, para que no se vea por debajo donde el relieve de fuera queda más bajo.
 Uso: python3 scripts/build_chankillo_templo.py modelo.glb   (necesita numpy, scipy y fast_simplification)
 """
 import json, math, struct, sys, os
@@ -376,6 +377,20 @@ def main(path):
         steep = np.abs(nn[:, 2]) / LL < 0.45; cls[steep & inside] = 0; print("taludes de plataforma como mampostería: %d caras" % int((steep & inside).sum()))
     # (el suelo limpio, de un tono más parejo: sin las manchas oscuras de los derrumbes)
     fd = drop[Fs].max(1) > 0.3; tone[fd] = np.round(40 + (tone[fd].astype(float) - 40) * 0.35).astype(np.uint8)
+    # RECORTE Y EMPALME con el relieve de alrededor: se queda el templo y 25 m por fuera de su muralla exterior; en
+    # esos últimos 20 m su suelo baja poco a poco hasta el modelo de elevación (el mismo del relieve que lo rodea),
+    # medio metro por debajo, y su tono se oscurece hacia el de la ladera. Así el borde no queda en el aire ni como un
+    # escalón (antes la maqueta seguía la ladera con su propio relieve y su faldón asomaba como un acantilado)
+    if rfo is not None:
+        cv = Vs[:, :2] - c0m; thv = (np.degrees(np.arctan2(cv[:, 0], cv[:, 1])) + 360) % 360
+        dout = np.hypot(*cv.T) - np.interp(thv, np.arange(361), np.r_[rfo, rfo[0]])
+        keepF = dout[Fs].max(1) < 25
+        sb = np.clip((dout - 5) / 20, 0, 1); sb = sb * sb * (3 - 2 * sb)
+        Vs = Vs.copy(); Vs[:, 2] = Vs[:, 2] * (1 - sb) + (dem(Vs[:, 0], Vs[:, 1]) - 0.6) * sb
+        tf = sb[Fs].mean(1); tone = np.round(tone * (1 - tf) + 14 * tf).astype(np.uint8)
+        Fs, tone, cls = Fs[keepF], tone[keepF], cls[keepF]
+        used = np.unique(Fs); remap = -np.ones(len(Vs), np.int64); remap[used] = np.arange(len(used)); Vs = Vs[used]; Fs = remap[Fs]
+        print("recorte: %d caras de terreno; borde empalmado con el relieve" % len(Fs))
     # faldón bajo el borde
     ed = {}
     for t, (i, j, l) in enumerate(Fs):
@@ -383,7 +398,7 @@ def main(path):
     bnd = [v[0] for v in ed.values() if len(v) == 1]; low = {}; Vl = list(Vs); Fl = list(Fs); cl = list(cls)
     for p, q in bnd:
         for i in (p, q):
-            if i not in low: low[i] = len(Vl); Vl.append(Vs[i] - np.array([0, 0, 8.0]))
+            if i not in low: low[i] = len(Vl); Vl.append(Vs[i] - np.array([0, 0, 4.0]))
         Fl.append([p, low[p], low[q]]); Fl.append([p, low[q], q]); cl += [1, 1]
     tone = np.concatenate([tone, np.full(len(Fl) - len(tone), 32, np.uint8)])
     Vs = np.array(Vl); Fs = np.array(Fl); cls = np.array(cl, np.uint8)
