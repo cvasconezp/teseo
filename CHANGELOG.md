@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.103.0 — Tres sitios más con su suelo medido con LiDAR: Maiden Castle, Housesteads y Poverty Point
+
+- **Maiden Castle (Inglaterra):** una fortaleza de la Edad del Hierro que llegó a encerrar entre 18,5 y 20 ha, con sus tres terraplenes y dos fosos tal como los mide el láser de la Environment Agency. Medido por Teseo: la muralla interior queda unos 6 m sobre su foso en el sur y unos 12 m en el norte.
+- **Fuerte romano de Housesteads, en el Muro de Adriano (Inglaterra):** el fuerte sobre su risco, con el Muro siguiendo la cresta. Solo se ve lo que el láser registra del terreno: los muros de piedra que hoy se visitan no se dibujan, y la ficha lo dice.
+- **Poverty Point (Luisiana, EE. UU.):** las seis crestas de tierra en forma de C y el gran Montículo A, levantados por cazadores-recolectores hace más de 3.000 años (datos del USGS). Medido por Teseo: el Montículo A sube unos 21 m; las crestas, hoy de 0,5 a 1,2 m. La ficha explica que las alineaciones solares que se propusieron en 1983 fueron rechazadas ese mismo año.
+- Cada uno con vista general, puntos de visita, tomas aéreas, ficha con fuentes (Historic England, English Heritage, UNESCO, el estado de Luisiana y artículos científicos) y su crédito.
+- **Se estudiaron y no entraron:** Skara Brae (la aldea está al borde de la playa y la maqueta la aplanaría) y Mesa Verde (el láser aéreo no ve las casas bajo los aleros de roca).
+
 ## 1.102.1 — Sin el aviso de «Poca certeza»
 
 - La tarjeta del tiempo ya no muestra el aviso de «Poca certeza»: la barra de acuerdo enseña cuánto coinciden los 7 modelos. La temperatura y la lluvia siguen siendo la mediana de los modelos.

@@ -111,5 +111,31 @@
     "core": 125,
     "tol": 0.05,
     "tol_out": 0.2
+  },
+  "maidencastle": {
+    "lat": 50.6947,
+    "lon": -2.47015,
+    "clip": 560,
+    "core": 430,
+    "tol": 0.12,
+    "tol_out": 0.3
+  },
+  "housesteads": {
+    "lat": 55.0131,
+    "lon": -2.3304,
+    "clip": 300,
+    "core": 170,
+    "tol": 0.06,
+    "tol_out": 0.2,
+    "tone_gain": 48
+  },
+  "povertypoint": {
+    "lat": 32.6353,
+    "lon": -91.408,
+    "clip": 580,
+    "core": 460,
+    "tol": 0.06,
+    "tol_out": 0.2,
+    "tone_gain": 55
   }
 }

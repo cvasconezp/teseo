@@ -33,5 +33,11 @@ export const LIDAR_SITES = {
     src: "U.S. Geological Survey, 3D Elevation Program (3DEP), modelo del terreno de 1 m · dominio público", url: "https://www.usgs.gov/3d-elevation-program" },
   serpentmound: { file: "serpentmound-lidar.bin", base: 190, clip: 170, z0: 226.6, zmax: 238.38, lat: 39.025933, lon: -83.430936, res: 1,
     src: "U.S. Geological Survey, 3D Elevation Program (3DEP), modelo del terreno de 1 m · dominio público", url: "https://www.usgs.gov/3d-elevation-program" },
+  maidencastle: { file: "maidencastle-lidar.bin", base: 50, clip: 560, z0: 127.84, zmax: 137.5, lat: 50.6947, lon: -2.47015, res: 1,
+    src: "Environment Agency (Inglaterra), LIDAR Composite DTM de 1 m, 2022 · Open Government Licence v3.0 · © Environment Agency copyright and/or database right 2022", url: "https://environment.data.gov.uk/dataset/13787b9a-26a4-4775-8523-806d13af58fc" },
+  housesteads: { file: "housesteads-lidar.bin", base: 200, clip: 300, z0: 264.8, zmax: 284.56, lat: 55.0131, lon: -2.3304, res: 1,
+    src: "Environment Agency (Inglaterra), LIDAR Composite DTM de 1 m, 2022 · Open Government Licence v3.0 · © Environment Agency copyright and/or database right 2022", url: "https://environment.data.gov.uk/dataset/13787b9a-26a4-4775-8523-806d13af58fc" },
+  povertypoint: { file: "povertypoint-lidar.bin", base: 0, clip: 580, z0: 30.85, zmax: 50.92, lat: 32.6353, lon: -91.408, res: 1,
+    src: "U.S. Geological Survey, 3D Elevation Program (3DEP), modelo del terreno de 1 m · dominio público", url: "https://www.usgs.gov/3d-elevation-program" },
 };
 export const lidarFile = (name) => LIDAR_SITES[name] || null;

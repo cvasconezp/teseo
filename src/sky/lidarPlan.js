@@ -40,4 +40,17 @@ export const LIDAR_PLAN = {
   greatcircle: { label: [0, 0, 5], view: [139, 56], look: 248, lookAlt: 1, airR: 180, airH: 220, stops: [
     { id: "muro", es: "Sobre el muro", en: "On the wall", at: [0, -181], look: 90, lookAlt: -6 },
     { id: "aire-entrada", es: "Desde el aire · entrada", en: "From the air · gateway", at: [215, 85], look: 248, lookAlt: -22, air: 60 }] },
+  maidencastle: { label: [30, 60, 6], view: [0, -300], look: 0, lookAlt: 8, airR: 200, airH: 220, stops: [
+    { id: "muralla", es: "Sobre la muralla interior", en: "On the inner rampart", at: [0, -140], look: 180, lookAlt: -8 },
+    { id: "interior", es: "En el interior", en: "Inside the fort", at: [30, 60], look: 90, lookAlt: 0 },
+    { id: "aire-este", es: "Desde el aire · entrada este", en: "From the air · east entrance", at: [530, -130], look: 290, lookAlt: -25, air: 90 },
+    { id: "aire-sur", es: "Desde el aire · murallas del sur", en: "From the air · southern ramparts", at: [0, -430], look: 0, lookAlt: -28, air: 150 }] },
+  housesteads: { label: [0, 10, 4], view: [0, -170], look: 0, lookAlt: 8, airR: 130, airH: 160, stops: [
+    { id: "fuerte", es: "Dentro del fuerte", en: "Inside the fort", at: [0, 0], look: 0, lookAlt: 0 },
+    { id: "muro", es: "Sobre el risco del Muro", en: "On the Wall crag", at: [-41, 76], look: 270, lookAlt: -3 },
+    { id: "aire-fuerte", es: "Desde el aire · fuerte", en: "From the air · fort", at: [130, -120], look: 315, lookAlt: -28, air: 70 }] },
+  povertypoint: { label: [-302, -3, 4], view: [-150, 5], look: 270, lookAlt: 6, airR: 220, airH: 220, stops: [
+    { id: "cima", es: "En la cima del Montículo A", en: "On top of Mound A", at: [-302, -3], look: 90, lookAlt: -8 },
+    { id: "crestas", es: "Entre las crestas", en: "Among the ridges", at: [0, 7], look: 270, lookAlt: 2 },
+    { id: "aire-crestas", es: "Desde el aire · crestas", en: "From the air · ridges", at: [200, -300], look: 325, lookAlt: -35, air: 220 }] },
 };

@@ -34,4 +34,5 @@ ninguna piedra para completar un anillo. El LiDAR se queda corto en piedras estr
 Se sacan del `dtm.tif` de cada sitio: la cota de la cima menos el mínimo de un perfil radial hacia cada punto cardinal
 (Silbury Hill: 37–39 m sobre el foso y 28 m sobre el terreno del sur; Monks Mound: 30–34 m sobre la llanura), el radio
 de la cresta en el perfil medio (Gran Círculo de Newark: 181 m) y la altura de los muros sobre el terreno de fuera
-(Octágono: 1,6–2,3 m; banco de Avebury sobre el fondo del foso: 8–12 m).
+(Octágono: 1,6–2,3 m; banco de Avebury sobre el fondo del foso: 8–12 m). En Maiden Castle, Housesteads y Poverty Point las cifras salen de perfiles sobre la maqueta ya simplificada
+(cresta de muralla menos fondo de foso; cima del Montículo A menos el terreno de alrededor; cresta menos surco).
