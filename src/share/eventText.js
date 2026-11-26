@@ -213,8 +213,9 @@ export function eventCardText(spec, lang = "es", place = null, now = Date.now())
     case "meteor": {
       const o = d.shower;
       out.title = info.title; out.type = T.type.meteor;
-      add(T.gWhen, f.dateUtc(ev.t), T.gWhenCatalog);
-      push(untilCell(ev.t, now, lang, f, { days: true }));
+      // la fecha del catálogo (d.date); ev.t puede ser la mejor hora de esa noche, ya en el día siguiente
+      add(T.gWhen, f.dateUtc(d.date), T.gWhenCatalog);
+      push(untilCell(d.date, now, lang, f, { days: true }));
       if (o.zhr) add(T.gZhr, T.gZhrV(o.zhr), T.gZhrSub);
       const bestT = d.best ? d.best.t : null;
       if (pl.lat != null) {
