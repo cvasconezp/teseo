@@ -67,16 +67,43 @@ ok(gM && !gM.allDay && gM.t === eM.best.t && gM.durationMin === eM.window.durati
 ok(skyM.indexOf(gM) >= 0 && sortEvents(skyM).every((e, i, a) => i === 0 || a[i - 1].t <= e.t), "el orden de la lista usa la hora del evento");
 const cd = countdownText(gM, gM.t - 3 * HOUR, "es");
 ok(cd.state === "soon" && cd.text === "En 3 h 0 min", `cuenta regresiva a la hora real: «${cd.text}»`);
-ok(countdownText(gM, gM.t + 30 * MIN, "es").state === "past", "pasada la hora, «ya ocurrió»");
-ok(JSON.stringify(leadOptions(gM)) === '["30","120"]' && reminderTimes(gM, "30", gM.t - 5 * HOUR).eventAt === gM.t, "recordatorios: 30 min / 2 h antes de la hora real (no la víspera)");
+ok(countdownText(gM, gM.t + 1 * MIN + 1, "es").state === "now" && countdownText(gM, gM.t + 90 * MIN, "es").text === "Ahora" && countdownText(gM, gM.t + 90 * MIN, "en").text === "Now", "durante la ventana: «Ahora», no «ya ocurrió»");
+ok(countdownText(gM, gM.t + gM.durationMin * MIN + 1, "es").state === "past", "pasado el final de la ventana: «ya ocurrió»");
+ok(countdownText({ type: "moon", t: gM.t, durationMin: 30 }, gM.t + 10 * MIN, "es").state === "past", "los demás tipos no cambian (la Luna sigue siendo «pasada» tras su minuto)");
+ok(JSON.stringify(leadOptions(gM)) === '["360"]' && reminderTimes(gM, "360", gM.t - 20 * HOUR).leadMin === 360 && reminderTimes(gM, "360", gM.t - 20 * HOUR).notifyAt === gM.t - 6 * HOUR && reminderTimes(gM, "30", gM.t - 20 * HOUR) === null, "recordatorios de la lluvia: solo 6 h antes del inicio (la tarde anterior), no 30 min ni 2 h");
+ok(reminderTimes(gM, "eve", gM.t - 20 * HOUR).leadMin === 360 && JSON.stringify(leadOptions({ t: 1, type: "planet" })) === '["30","120"]' && JSON.stringify(leadOptions({ allDay: true, type: "meteor" })) === '["eve"]', "un aviso guardado con «víspera» sigue valiendo; los demás tipos no cambian");
 const grp = groupByMonth(sortEvents(skyM));
 ok(grp.some(g => g.items.includes(gM)), "agrupado por mes sin romperse");
 // el evento sigue en la lista si ya pasó la fecha del catálogo pero aún no su mejor hora (00:30 UTC del 15-dic)
 const late = buildSkyEvents({ from: Date.UTC(2026, 11, 15, 0, 30), days: 3, ...MAD, showers }).find(e => e.id === "meteor-Geminids-2026");
 ok(late && late.t === eM.best.t, "a las 00:30 UTC del 15-dic (pasada la fecha del catálogo, antes de la mejor hora) el evento sigue en la lista");
-ok(!buildSkyEvents({ from: eM.best.t + 3 * HOUR, days: 3, ...MAD, showers }).some(e => e.id === "meteor-Geminids-2026"), "después de su ventana ya no está");
+ok(!buildSkyEvents({ from: gM.t + gM.durationMin * MIN + 1, days: 3, ...MAD, showers }).some(e => e.id === "meteor-Geminids-2026"), "después de su ventana ya no está");
+const mid = nextHighlight({ now: gM.t + 30 * MIN, ...MAD, showers });
+ok(mid && mid.id === "meteor-Geminids-2026", "«Lo próximo» no suelta la lluvia mientras dura la ventana");
+const post = nextHighlight({ now: gM.t + gM.durationMin * MIN + 1, ...MAD, showers });
+ok(post && post.id !== "meteor-Geminids-2026", "…y la suelta al acabar");
 const hl = nextHighlight({ now: Date.UTC(2026, 10, 26, 12), ...MAD, showers });
 ok(hl && hl.id === "meteor-Geminids-2026" && !hl.allDay && hl.t === eM.best.t, "«Lo próximo»: las Gemínidas, a su mejor hora");
+
+console.log("Radiante que sigue subiendo al acabar la noche (Leónidas, Eta Acuáridas…): la ventana no sale de la noche");
+const leo = by("Leonids");
+const QTO = { lat: -0.22, lon: -78.51 };
+for (const [nom, pl, esperaMejorAlFinal] of [["Quito", QTO, true], ["Madrid", MAD, true]]) {
+  const e = showerEvent(leo, 2026, pl.lat, pl.lon), w = e.window, fin = +e.night.end, ini = +e.night.start;
+  ok(w && w.start >= ini && w.start + w.durationMin * MIN <= fin && w.durationMin >= 30 && w.durationMin <= 120, `Leónidas en ${nom}: ventana ${new Date(w.start).toISOString().slice(11, 16)}–${new Date(w.start + w.durationMin * MIN).toISOString().slice(11, 16)} UTC dentro de la noche (hasta ${new Date(fin).toISOString().slice(11, 16)}), ${w.durationMin} min`);
+  ok(e.best.t >= w.start && e.best.t <= w.start + w.durationMin * MIN, `Leónidas en ${nom}: la mejor hora real (${new Date(e.best.t).toISOString().slice(11, 16)} UTC) queda dentro de la ventana`);
+}
+const eLQ = showerEvent(leo, 2026, QTO.lat, QTO.lon);
+ok(eLQ.best.t > +eLQ.night.end - 30 * MIN && eLQ.window.start < eLQ.best.t && eLQ.window.start + eLQ.window.durationMin * MIN <= +eLQ.night.end, "Leónidas en Quito: la mejor hora es casi el final de la noche → la ventana empieza antes y termina con la noche");
+// varias lluvias y lugares: la ventana nunca sale de la noche ni dura menos de 30 min (noches normales)
+let bad = 0, n = 0;
+for (const o of showers) for (const pl of [QTO, MAD, { lat: -33.45, lon: -70.67 }, { lat: 19.43, lon: -99.13 }, { lat: -16.5, lon: -68.15 }, { lat: 40.7, lon: -74 }]) {
+  const e = showerEvent(o, 2026, pl.lat, pl.lon); if (!e.window) continue; n++;
+  if (e.window.start < +e.night.start || e.window.start + e.window.durationMin * MIN > +e.night.end || e.window.durationMin < 30 || e.window.durationMin > 120 || e.best.t < e.window.start || e.best.t > e.window.start + e.window.durationMin * MIN) bad++;
+}
+ok(n > 40 && bad === 0, `12 lluvias × 6 ciudades (${n} con ventana): ninguna sale de la noche, todas incluyen la mejor hora y duran 30–120 min`);
+const lEv = buildSkyEvents({ from: Date.UTC(2026, 10, 1), days: 30, ...QTO, showers }).find(e => e.id === "meteor-Leonids-2026");
+ok(lEv && lEv.t === eLQ.window.start && lEv.durationMin === eLQ.window.durationMin && describeEvent(lEv, "es", fmt).what.includes(`hacia las ${fmt.time(eLQ.best.t)}`), "el texto dice la mejor hora real y ev.t es el inicio de la ventana");
 
 console.log("Hemisferio sur (Santiago de Chile) y ecuador (Quito)");
 const eS = showerEvent(gem, 2026, -33.45, -70.67), eQ = showerEvent(gem, 2026, -0.22, -78.51);
@@ -103,21 +130,23 @@ ok(!/por hora bajo un cielo oscuro|desde una ciudad|Cómo se calcula/.test(tNR.w
 console.log("Textos (ES y EN)");
 const synth = (zhr, r, alt) => ({ type: "meteor", sub: "shower", t: 1, durationMin: 120, visible: true, data: { shower: { name: "Gemínidas", name_en: "Geminids", zhr, r }, risesInNight: true, maxAlt: alt, best: { t: Date.UTC(2026, 11, 15, 2, 10), alt }, moon: null, rates: visibleRate(zhr, r, alt, 6.5) == null ? null : { dark: visibleRate(zhr, r, alt, 6.5), city: visibleRate(zhr, r, alt, 4.5) } } });
 const es60 = describeEvent(synth(150, 2.6, 60), "es", fmt), en60 = describeEvent(synth(150, 2.6, 60), "en", fmt);
-ok(/con el radiante a 60°, verías unos 130 por hora bajo un cielo oscuro y unos 19 por hora desde una ciudad \(son estimaciones\)\./.test(es60.what), `ES: «${es60.what.match(/Desde tu lugar[^.]*\./)}»`);
-ok(/with the radiant at 60°, you would see about 130 per hour under a dark sky and about 19 per hour from a city \(these are estimates\)\./.test(en60.what), `EN: «${en60.what.match(/From your place[^.]*\./)}»`);
-ok(/hasta ~150 meteoros por hora \(THZ, la tasa teórica con cielo ideal; verás menos\)/.test(es60.what) && /up to ~150 meteors per hour \(ZHR, the theoretical rate under ideal skies; you will see fewer\)/.test(en60.what), "se conserva la cifra teórica (THZ/ZHR) como referencia");
-ok(/Cómo se calcula: THZ × sen\(altura del radiante\) ÷ r\^\(6,5 − magnitud límite\), fórmula estándar de la IMO \(r: Calendario 2027, tabla 5\)/.test(es60.note) && /How it is calculated: ZHR × sin\(radiant altitude\) ÷ r\^\(6\.5 − limiting magnitude\), the standard IMO formula \(r: 2027 Calendar, table 5\)/.test(en60.note), "línea de sustento visible (ES y EN)");
-ok(/^Hora: cuando el radiante está más alto esa noche/.test(es60.note) && /^Time: when the radiant is highest that night/.test(en60.note), "la nota dice que la hora es la del radiante más alto (y que el máximo real varía ±1 día)");
+ok(/Si el máximo cae esa noche, desde tu lugar verías hasta unos 130 por hora bajo un cielo oscuro y sin Luna, y unos 19 por hora desde una ciudad \(son estimaciones\), hacia las 02:10, cuando el radiante está más alto\./.test(es60.what), `ES: «${es60.what.match(/Si el máximo[^]*?alto\./)}»`);
+ok(/If the peak falls that night, from your place you would see up to about 130 per hour under a dark, moonless sky, and about 19 per hour from a city \(these are estimates\), around 02:10, when the radiant is highest\./.test(en60.what), `EN: «${en60.what.match(/If the peak[^]*?highest\./)}»`);
+ok(/hasta ~150 meteoros por hora \(THZ: la tasa teórica, con el radiante en el cenit y cielo ideal\)/.test(es60.what) && /up to ~150 meteors per hour \(ZHR: the theoretical rate, with the radiant at the zenith and ideal skies\)/.test(en60.what) && !/verás menos|you will see fewer/.test(es60.what + en60.what), "con cifra del lugar, la del THZ queda como referencia teórica y no dice «verás menos»");
+const esHi = describeEvent(synth(150, 2.6, 83), "es", fmt);
+ok(/hasta unos 150 por hora/.test(esHi.what) && !/verás menos/.test(esHi.what) && !/radiante a 83°/.test(esHi.what.replace(/hasta ~150[^)]*\)/, "")) && /83°/.test(esHi.vis.text), "radiante a 83°: sin contradicción («hasta unos 150» y THZ 150) y la altura va solo en la línea de visibilidad");
+ok(es60.note.endsWith("Cómo se calcula: con la fórmula de la IMO, a partir de la altura del radiante y del índice de cada lluvia (Calendario 2027). Cielo oscuro = magnitud límite 6,5; ciudad = 4,5; sin nubes.") && en60.note.endsWith("How it is calculated: with the IMO formula, from the radiant's altitude and each shower's index (2027 Calendar). Dark sky = limiting magnitude 6.5; city = 4.5; no clouds.") && !/r\^/.test(es60.note + en60.note), "línea de sustento corta y sin notación (ES y EN); la fórmula completa va en CREDITS.md");
+ok(/^Hora: una ventana de esa noche que incluye cuando el radiante está más alto/.test(es60.note) && /^Time: a window of that night that includes when the radiant is highest/.test(en60.note) && /±1 día/.test(es60.note) && /±1 day/.test(en60.note), "la nota dice que es una ventana que incluye el radiante más alto (y que el máximo real varía ±1 día)");
 const esLow = describeEvent(synth(10, 2.8, 20), "es", fmt), enLow = describeEvent(synth(10, 2.8, 20), "en", fmt);
-ok(/verías unos 3 por hora bajo un cielo oscuro y menos de uno por hora desde una ciudad/.test(esLow.what) && /you would see about 3 per hour under a dark sky and fewer than one per hour from a city/.test(enLow.what), "por debajo de 1: «menos de uno por hora» / «fewer than one per hour»");
+ok(/verías hasta unos 3 por hora bajo un cielo oscuro y sin Luna, y menos de uno por hora desde una ciudad/.test(esLow.what) && /you would see up to about 3 per hour under a dark, moonless sky, and fewer than one per hour from a city/.test(enLow.what), "por debajo de 1: «menos de uno por hora» / «fewer than one per hour»");
 const e1 = describeEvent(synth(5, 2.0, 30), "es", fmt);   // 5 × 0,5 = 2,5 → unos 3; ciudad 2,5 ÷ 4 = 0,6
 ok(/menos de uno por hora/.test(e1.what), "0,6 se dice «menos de uno», no «1»");
 const eOne = describeEvent(synth(8, 2.0, 30), "es", fmt);   // 8 × 0,5 = 4 → 4; ciudad 4 ÷ 4 = 1 → «1 por hora»
-ok(/desde una ciudad|1 por hora/.test(eOne.what) && /y 1 por hora desde una ciudad/.test(eOne.what), "exactamente 1: «1 por hora»");
+ok(/y 1 por hora desde una ciudad/.test(eOne.what) && /hasta unos 4 por hora/.test(eOne.what), "exactamente 1: «1 por hora»");
 const lowTxt = describeEvent({ ...synth(10, 2.8, 5), data: { ...synth(10, 2.8, 5).data, rates: null } }, "es", fmt);
 ok(/menos de 10° la IMO no da una fórmula fiable, así que no estimamos/.test(lowTxt.what) && /verás pocos meteoros/.test(lowTxt.vis.text), "radiante a menos de 10°: se explica por qué no hay cifra y se conserva el aviso de pocos meteoros");
 const realG = describeEvent(gM, "es", fmt);
-ok(/Luna|luna/.test(realG.what) && /unos \d+ por hora bajo un cielo oscuro/.test(realG.what), "evento real: conserva el aviso de la Luna y añade las dos cifras");
+ok(/Luna|luna/.test(realG.what) && /hasta unos \d+ por hora bajo un cielo oscuro/.test(realG.what), "evento real: conserva el aviso de la Luna y añade las dos cifras");
 ok(/Luna|Moon/.test(describeEvent(gM, "en", fmt).what), "EN: aviso de la Luna conservado");
 ok(es60.icsDesc.includes("Cómo se calcula") && en60.icsDesc.includes("How it is calculated"), "el .ics de un solo evento (Añadir a mi calendario) lleva también la línea de sustento");
 
@@ -132,22 +161,28 @@ const toMs = (z) => Date.UTC(+z.slice(0, 4), +z.slice(4, 6) - 1, +z.slice(6, 8),
 ok(dtstart && Math.abs(toMs(dtstart[1]) - eM.best.t) < 1000 && dtstart[1].startsWith("20261215T"), `DTSTART = mejor hora (${dtstart && dtstart[1]}), en la fecha real: 15-dic`);
 ok(dtend && toMs(dtend[1]) - toMs(dtstart[1]) === eM.window.durationMin * MIN, "DTEND = inicio + duración de la ventana");
 const madTime = new Intl.DateTimeFormat("es-EC", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Madrid" }).format(new Date(toMs(dtstart[1])));
-ok(vG.includes(`hacia las ${madTime} y con el radiante`) && madTime.slice(0, 2) === "03", `la descripción da la hora en la zona del lugar (${madTime} de Madrid = 02:xx UTC + 1 h)`);
-ok(/unos \d+ por hora bajo un cielo oscuro/.test(vG) && /Cómo se calcula/.test(vG) && /TRIGGER:-PT30M/.test(vG), "el .ics trae las dos cifras, el sustento y aviso 30 min antes");
+ok(vG.includes(`hacia las ${madTime}\\, cuando el radiante`) && madTime.slice(0, 2) === "03", `la descripción da la hora en la zona del lugar (${madTime} de Madrid = 02:xx UTC + 1 h)`);
+ok(/hasta unos \d+ por hora bajo un cielo oscuro/.test(vG) && /Cómo se calcula/.test(vG) && /TRIGGER:-PT6H/.test(vG) && !/TRIGGER:-PT30M/.test(vG.split("BEGIN:VALARM")[1] || ""), "el .ics trae las dos cifras, el sustento y el aviso 6 h antes del inicio (la tarde anterior), no 30 min");
+const otros = ics.replace(/\r\n /g, "").split("BEGIN:VEVENT").filter(b => /CATEGORIES:(Eclipses|Estaciones|Hitos)/.test(b) && /BEGIN:VALARM/.test(b));
+ok(otros.length > 0 && otros.every(b => !/TRIGGER:-PT\d+H/.test(b.split("BEGIN:VALARM")[1]) || /-PT6H/.test(b)) && otros.some(b => /TRIGGER:-PT30M/.test(b)), "el aviso de 6 h es solo de los meteoros: eclipses, estaciones e hitos con hora siguen a 30 min");
+ok(/TRIGGER:-PT6H/.test(buildIcs({ uid: "x", start: 1e12, title: "T", alarmHours: 6 })) && /TRIGGER:-PT30M/.test(buildIcs({ uid: "x", start: 1e12, title: "T" })), "buildIcs: alarmHours opcional por evento; sin él, 30 min");
 const icsQ = buildFeed({ lat: -60, lon: -60, lang: "es", tz: "America/Argentina/Ushuaia", now, showers, days: 120 });
 const vQ = veventOf(icsQ, "Lluvia de meteoros: Cuadrántidas");
 ok(vQ && /DTSTART;VALUE=DATE:20270103/.test(vQ) && /TRIGGER:-PT6H/.test(vQ), "sin mejor hora (60° S): el .ics conserva el evento de todo el día (3-ene-2027)");
 const icsEn = buildFeed({ lat: -33.45, lon: -70.67, lang: "en", tz: "America/Santiago", now, showers, days: 120 });
 const vSG = veventOf(icsEn, "Meteor shower: Geminids");
-ok(vSG && /about \d+ per hour under a dark sky/.test(vSG) && /DTSTART:20261215T06/.test(vSG), "Santiago (EN): las dos cifras y mejor hora ≈ 06:3x UTC del 15-dic");
+ok(vSG && /up to about \d+ per hour under a dark/.test(vSG) && /DTSTART:20261215T06/.test(vSG), "Santiago (EN): las dos cifras y mejor hora ≈ 06:3x UTC del 15-dic");
 const one = buildIcs({ uid: "x@teseo", start: gM.t, durationMin: gM.durationMin, title: "Gemínidas", description: es60.icsDesc });
 ok(/DTSTART:20261215T0\d{5}Z/.test(one) && !/VALUE=DATE/.test(one), "«Añadir a mi calendario» (evento suelto) también va con hora");
 
 console.log("Postal para compartir");
 const { eventCardText } = await import("../src/share/eventText.js");
-const card = eventCardText({ kind: "meteor", ev: gM }, "es", { lat: MAD.lat, lon: MAD.lon, kind: "preset", name: "Madrid" }, Date.UTC(2026, 10, 26, 15));
+const gQ = buildSkyEvents({ from: Date.UTC(2026, 10, 26, 15), days: 60, ...QTO, showers }).find(e => e.id === "meteor-Geminids-2026");
+const card = eventCardText({ kind: "meteor", ev: gQ }, "es", { lat: QTO.lat, lon: QTO.lon, kind: "preset", name: "Quito" }, Date.UTC(2026, 10, 26, 15));
 const when = card.grid.find(g => g.label === "Cuándo");
-ok(when && /14/.test(when.value) && /catálogo/.test(when.sub || ""), `la postal sigue dando la fecha del catálogo (${when && when.value}), no la del día siguiente`);
+ok(when && /15 dic/.test(when.value) && /02:0\d/.test(when.value) && !/14 dic/.test(when.value), `la postal da la fecha y hora reales de la ventana en la zona de Quito (${when && when.value}), como la lista`);
+const until = card.grid.find(g => /Faltan|Falta|Hace|Fue/i.test(g.label));
+ok(until && !/hace/i.test(until.label + until.value) && /19 días/.test(until.value), `«cuánto falta» cuenta hacia ev.t (${until && until.label}: ${until && until.value}), no «hace 1 día»`);
 
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

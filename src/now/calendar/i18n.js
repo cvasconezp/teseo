@@ -39,8 +39,8 @@ export const TC = {
     seeSky: "Ver en el cielo", seeSkyFor: (t) => `Ver en el cielo: ${t}`, seeSkyNote: "Abre el Cielo con el astro elegido, tal como está ahora.",
     whatLabel: "Qué ver", approxDate: "Fecha aproximada",
     allDayNote: "Fecha del catálogo; el máximo real puede variar ±1 día.",
-    meteorWindowNote: "Hora: cuando el radiante está más alto esa noche, según la fecha del catálogo; el máximo real puede variar ±1 día.",
-    meteorRateSrc: "Cómo se calcula: THZ × sen(altura del radiante) ÷ r^(6,5 − magnitud límite), fórmula estándar de la IMO (r: Calendario 2027, tabla 5). Cielo oscuro = magnitud límite 6,5; ciudad = 4,5 (valores de referencia, no medidos en tu cielo); sin nubes.",
+    meteorWindowNote: "Hora: una ventana de esa noche que incluye cuando el radiante está más alto, según la fecha del catálogo; el máximo real puede variar ±1 día.",
+    meteorRateSrc: "Cómo se calcula: con la fórmula de la IMO, a partir de la altura del radiante y del índice de cada lluvia (Calendario 2027). Cielo oscuro = magnitud límite 6,5; ciudad = 4,5; sin nubes.",
     localTime: "Fechas y horas en la zona horaria de tu dispositivo.",
     utc: "UTC", opensNew: "se abre en una pestaña nueva",
     sources: "Fuentes",
@@ -58,7 +58,7 @@ export const TC = {
       explain: "Teseo te enviará una notificación antes del evento, aunque la app esté cerrada. Al activarlo, tu navegador te pedirá permiso para mostrar notificaciones.",
       privacy: "Qué se guarda: en el servidor de Teseo, solo la dirección técnica de avisos de este navegador y este recordatorio (evento, hora y título). Nada de ubicación, nombre, correo ni IP. Se borra en cuanto llega el aviso o si lo quitas.",
       when: "¿Cuándo te aviso?",
-      lead: { "30": "30 min antes", "120": "2 h antes", eve: "La víspera a las 18:00" },
+      lead: { "30": "30 min antes", "120": "2 h antes", "360": "6 h antes (la tarde anterior)", eve: "La víspera a las 18:00" },
       eveOnly: "Te avisaremos la víspera a las 18:00 (hora de tu dispositivo).",
       activate: "Activar aviso", cancel: "Cancelar", working: "Un momento…", close: "Cerrar",
       on: (w) => `Aviso activado: ${w}.`,
@@ -118,8 +118,8 @@ export const TC = {
     seeSky: "See in the sky", seeSkyFor: (t) => `See in the sky: ${t}`, seeSkyNote: "Opens the Sky tab on the chosen object, as it is right now.",
     whatLabel: "What to look for", approxDate: "Approximate date",
     allDayNote: "Catalog date; the real peak can vary by ±1 day.",
-    meteorWindowNote: "Time: when the radiant is highest that night, based on the catalog date; the real peak can vary by ±1 day.",
-    meteorRateSrc: "How it is calculated: ZHR × sin(radiant altitude) ÷ r^(6.5 − limiting magnitude), the standard IMO formula (r: 2027 Calendar, table 5). Dark sky = limiting magnitude 6.5; city = 4.5 (reference values, not measured at your sky); no clouds.",
+    meteorWindowNote: "Time: a window of that night that includes when the radiant is highest, based on the catalog date; the real peak can vary by ±1 day.",
+    meteorRateSrc: "How it is calculated: with the IMO formula, from the radiant's altitude and each shower's index (2027 Calendar). Dark sky = limiting magnitude 6.5; city = 4.5; no clouds.",
     localTime: "Dates and times in your device's time zone.",
     utc: "UTC", opensNew: "opens in a new tab",
     sources: "Sources",
@@ -137,7 +137,7 @@ export const TC = {
       explain: "Teseo will send you a notification before the event, even when the app is closed. When you turn it on, your browser will ask for permission to show notifications.",
       privacy: "What is stored: on Teseo's server, only this browser's technical push address and this reminder (event, time and title). No location, name, email or IP. It is deleted as soon as the reminder is delivered, or when you remove it.",
       when: "When should we remind you?",
-      lead: { "30": "30 min before", "120": "2 h before", eve: "The evening before, at 18:00" },
+      lead: { "30": "30 min before", "120": "2 h before", "360": "6 h before (the evening before)", eve: "The evening before, at 18:00" },
       eveOnly: "We will remind you the evening before, at 18:00 (your device's time).",
       activate: "Turn on reminder", cancel: "Cancel", working: "One moment…", close: "Close",
       on: (w) => `Reminder on: ${w}.`,
@@ -252,17 +252,18 @@ export function describeEvent(ev, lang, f) {
         : mo.level === "some" ? (es ? `La Luna (${f.pct(mo.illum)} iluminada) está en el cielo y aclara algo el fondo.` : `The Moon (${f.pct(mo.illum)} lit) is up and brightens the background a little.`)
         : (es ? `La Luna (${f.pct(mo.illum)} iluminada) estorba: aclara el cielo y apaga los meteoros débiles.` : `The Moon (${f.pct(mo.illum)} lit) gets in the way: it brightens the sky and hides faint meteors.`);
       // meteoros por hora desde este lugar (relación de la IMO, ver meteors.js): enteros, de 5 en 5 desde 20 y de 10 en 10 desde 100; por debajo de 1, «menos de uno»
-      const ph = (x) => { const n = x >= 100 ? Math.round(x / 10) * 10 : x >= 20 ? Math.round(x / 5) * 5 : Math.round(x); return x < 1 - 1e-9 ? (es ? "menos de uno por hora" : "fewer than one per hour") : n === 1 ? (es ? "1 por hora" : "1 per hour") : (es ? `unos ${f.n(n, 0)} por hora` : `about ${f.n(n, 0)} per hour`); };
+      // `upTo`: la cifra más alta va con «hasta» (es un tope: depende de que el máximo caiga esa noche)
+      const ph = (x, upTo) => { const n = x >= 100 ? Math.round(x / 10) * 10 : x >= 20 ? Math.round(x / 5) * 5 : Math.round(x); return x < 1 - 1e-9 ? (es ? "menos de uno por hora" : "fewer than one per hour") : n === 1 ? (es ? `${upTo ? "hasta " : ""}1 por hora` : `${upTo ? "up to " : ""}1 per hour`) : (es ? `${upTo ? "hasta " : ""}unos ${f.n(n, 0)} por hora` : `${upTo ? "up to " : ""}about ${f.n(n, 0)} per hour`); };
       const rt = d.rates;
       const rateTxt = rt
-        ? (es ? `Desde tu lugar, hacia las ${f.time(d.best.t)} y con el radiante a ${f.n(d.maxAlt, 0)}°, verías ${ph(rt.dark)} bajo un cielo oscuro y ${ph(rt.city)} desde una ciudad (son estimaciones).` : `From your place, around ${f.time(d.best.t)} and with the radiant at ${f.n(d.maxAlt, 0)}°, you would see ${ph(rt.dark)} under a dark sky and ${ph(rt.city)} from a city (these are estimates).`)
+        ? (es ? `Si el máximo cae esa noche, desde tu lugar verías ${ph(rt.dark, true)} bajo un cielo oscuro y sin Luna, y ${ph(rt.city)} desde una ciudad (son estimaciones), hacia las ${f.time(d.best.t)}, cuando el radiante está más alto.` : `If the peak falls that night, from your place you would see ${ph(rt.dark, true)} under a dark, moonless sky, and ${ph(rt.city)} from a city (these are estimates), around ${f.time(d.best.t)}, when the radiant is highest.`)
         : d.risesInNight && d.maxAlt < MIN_RATE_ALT && Number.isFinite(o.r)
           ? (es ? `Con el radiante a menos de ${MIN_RATE_ALT}° la IMO no da una fórmula fiable, así que no estimamos cuántos verías: serán muy pocos.` : `With the radiant below ${MIN_RATE_ALT}° the IMO gives no reliable formula, so we do not estimate how many you would see: very few.`)
           : "";
       const bestTxt = rt || !d.risesInNight ? "" : (es ? `El radiante llega a ${f.n(d.maxAlt, 0)}° a las ${f.time(d.best.t)}.` : `The radiant reaches ${f.n(d.maxAlt, 0)}° at ${f.time(d.best.t)}.`);
       out.what = es
-        ? `${bestTxt} ${rateTxt} ${peakIn} según el catálogo de la IMO: hasta ~${o.zhr} meteoros por hora (THZ, la tasa teórica con cielo ideal; verás menos). Sin instrumentos: tumbado, mirando a todo el cielo desde un lugar oscuro, tras 20 min de adaptación. ${moonTxt}`
-        : `${bestTxt} ${rateTxt} ${peakIn} per the IMO catalog: up to ~${o.zhr} meteors per hour (ZHR, the theoretical rate under ideal skies; you will see fewer). No instruments: lie back, look at the whole sky from a dark site after 20 min of adaptation. ${moonTxt}`;
+        ? `${bestTxt} ${rateTxt} ${peakIn} según el catálogo de la IMO: hasta ~${o.zhr} meteoros por hora (${rt ? "THZ: la tasa teórica, con el radiante en el cenit y cielo ideal" : "THZ, la tasa teórica con cielo ideal; verás menos"}). Sin instrumentos: tumbado, mirando a todo el cielo desde un lugar oscuro, tras 20 min de adaptación. ${moonTxt}`
+        : `${bestTxt} ${rateTxt} ${peakIn} per the IMO catalog: up to ~${o.zhr} meteors per hour (${rt ? "ZHR: the theoretical rate, with the radiant at the zenith and ideal skies" : "ZHR, the theoretical rate under ideal skies; you will see fewer"}). No instruments: lie back, look at the whole sky from a dark site after 20 min of adaptation. ${moonTxt}`;
       out.what = out.what.replace(/\s+/g, " ").trim();
       if (!d.risesInNight) vis(false, es ? "El radiante no sube sobre el horizonte durante la noche desde tu lugar." : "The radiant does not rise above the horizon during the night from your place.");
       else if (d.maxAlt < 15) vis(true, es ? `El radiante sube solo a ${f.n(d.maxAlt, 0)}°: verás pocos meteoros.` : `The radiant only reaches ${f.n(d.maxAlt, 0)}°: you will see few meteors.`);

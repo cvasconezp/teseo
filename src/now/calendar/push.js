@@ -15,7 +15,7 @@
 export const STORE_KEY = "teseo_push_v1";
 export const PUSH_EVENT = "teseo:push-change";
 /** Antelaciones: 30 min y 2 h para eventos con hora; la víspera a las 18:00 para los de día completo. */
-export const LEADS = { "30": 30, "120": 120, eve: 6 * 60 };
+export const LEADS = { "30": 30, "120": 120, "360": 6 * 60, eve: 6 * 60 };
 const MIN = 60000;
 
 // ─── Detección (pura) ────────────────────────────────────────────────────────
@@ -55,7 +55,8 @@ export function detectPush(env = {}) {
 // ─── Hora del aviso (pura) ───────────────────────────────────────────────────
 
 /** Antelaciones que se ofrecen para un evento. */
-export const leadOptions = (ev) => (ev && ev.allDay ? ["eve"] : ["30", "120"]);
+// Las lluvias de meteoros con hora empiezan de madrugada: solo se ofrece el aviso de 6 h antes (la tarde anterior).
+export const leadOptions = (ev) => (ev && ev.allDay ? ["eve"] : ev && ev.type === "meteor" ? ["360"] : ["30", "120"]);
 
 /**
  * Cuándo empieza el evento y cuándo llega el aviso.
@@ -73,7 +74,8 @@ export function reminderTimes(ev, lead, now = Date.now()) {
     eventAt = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0).getTime();
     leadMin = LEADS.eve;
   } else {
-    if (!(lead in LEADS) || lead === "eve") return null;
+    const meteor = ev.type === "meteor";
+    if (!(lead in LEADS) || (lead === "eve" && !meteor) || (meteor && lead !== "eve" && lead !== "360")) return null;   // un aviso guardado con «víspera» sigue valiendo para la lluvia
     eventAt = ev.t;
     leadMin = LEADS[lead];
   }

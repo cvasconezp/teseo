@@ -213,9 +213,10 @@ export function eventCardText(spec, lang = "es", place = null, now = Date.now())
     case "meteor": {
       const o = d.shower;
       out.title = info.title; out.type = T.type.meteor;
-      // la fecha del catálogo (d.date); ev.t puede ser la mejor hora de esa noche, ya en el día siguiente
-      add(T.gWhen, f.dateUtc(d.date), T.gWhenCatalog);
-      push(untilCell(d.date, now, lang, f, { days: true }));
+      // con ventana, la fecha y hora reales (igual que la lista: puede ser la madrugada del día siguiente al del catálogo);
+      // sin ella (el radiante no sube), la fecha del catálogo, de todo el día
+      if (ev.allDay) { add(T.gWhen, f.dateUtc(d.date), T.gWhenCatalog); push(untilCell(d.date, now, lang, f, { days: true })); }
+      else { whenCell(ev.t, `${pl.zone}${pl.tz ? ` (${utcOffsetLabel(ev.t, pl.tz)})` : ""} · ${T.gWhenCatalog}`); push(untilCell(ev.t, now, lang, f)); }
       if (o.zhr) add(T.gZhr, T.gZhrV(o.zhr), T.gZhrSub);
       const bestT = d.best ? d.best.t : null;
       if (pl.lat != null) {

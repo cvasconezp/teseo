@@ -48,8 +48,10 @@ export function veventLines(ev, now = Date.now()) {
   if (ev.alarm !== false) {
     // Aviso del propio calendario del teléfono: 30 min antes; en eventos de día completo, la víspera a
     // las 18:00 (6 h antes de la medianoche de inicio). Así «Añadir a mi calendario» trae notificación.
+    // `alarmHours` (opcional, por evento): aviso tantas horas antes del inicio; lo usan las lluvias de meteoros, que
+    // empiezan de madrugada: el aviso llega la tarde anterior, no a las 02:00.
     lines.push("BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEscape(ev.title)}`,
-      `TRIGGER:${ev.allDay ? "-PT6H" : "-PT30M"}`, "END:VALARM");
+      `TRIGGER:${ev.allDay ? "-PT6H" : Number.isFinite(ev.alarmHours) && ev.alarmHours > 0 ? `-PT${Math.round(ev.alarmHours)}H` : "-PT30M"}`, "END:VALARM");
   }
   lines.push("END:VEVENT");
   return lines;
