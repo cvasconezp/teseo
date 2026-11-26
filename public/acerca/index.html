@@ -392,6 +392,8 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
 .nota p{margin:0 0 6px;font-size:13px;line-height:1.5;color:var(--muted)}
 .vt--strip{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 56px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 56px),transparent);padding-right:56px}
 .anim--marte .anim__bar{right:auto;left:10px}
+.vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.apoya__pp .fine+.fine{margin-top:4px}
 /* animaciones: cada figura */
 .anim--horizonte .hz-t{font-size:15px;fill:var(--soft)}
 .anim--horizonte .hz-g{fill:var(--gold)}
@@ -502,10 +504,10 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
           <button class="btn btn--gold" type="button" id="paypal-load" aria-controls="paypal-box">Donar con PayPal</button>
           <button class="btn btn--ghost" type="button" data-open="dlg-qr" aria-haspopup="dialog">Con código QR, en Ecuador</button>
           <a class="btn btn--ghost btn--give" href="https://github.com/sponsors/cvasconezp" target="_blank" rel="noopener noreferrer">Patrocinar en GitHub</a>
-          <a class="btn btn--text" href="https://wa.me/593987489892?text=Hola%2C%20quiero%20contarles%20algo%20sobre%20Teseo%20%28un%20problema%20o%20una%20idea%29%3A%0A%0A" data-report target="_blank" rel="noopener noreferrer">Reportar un problema</a>
         </div>
         <div class="apoya__pp">
           <div id="paypal-box" aria-live="polite"></div>
+          <p class="fine">PayPal: una sola vez, desde cualquier país, con tu cuenta o con tarjeta. GitHub: un aporte mensual desde USD 5, sin comisión.</p>
           <p class="fine">El botón de PayPal se carga solo cuando lo pulsas. ¿No funciona? <a href="https://www.paypal.com/ncp/payment/ZLGL2E3JZUHG2" target="_blank" rel="noopener noreferrer">Abrir PayPal en otra pestaña</a>.</p>
         </div>
       </div>
@@ -532,7 +534,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
         <div class="stack">
           <figure class="anim anim--horizonte" data-anim="horizonte">
   <div class="anim__stage">
-    <svg viewBox="0 0 560 420" role="img" aria-label="Vista hacia el este al amanecer. El Sol sube casi en línea recta y deja un hilo dorado. Con un horizonte plano, el Sol ya salió al cruzar la línea recta punteada, pero tu cordillera todavía lo oculta. Recién asoma al superar la cresta: más tarde y en otro punto. Una barra de tiempo marca la diferencia entre los dos momentos. Dos botones permiten ver solo el horizonte plano.">
+    <svg viewBox="0 0 560 420" role="img" aria-label="Vista hacia el este al amanecer. El Sol sube casi en línea recta y deja un hilo dorado. Con un horizonte plano, el Sol ya salió al cruzar la línea recta punteada, pero tu cordillera todavía lo oculta. Recién asoma al superar la cresta: más tarde y en otro punto.">
       <defs>
         <linearGradient id="hz-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050a17"/><stop offset="1" stop-color="#12203f"/></linearGradient>
         <linearGradient id="hz-dawn" x1="0" y1="0" x2="0" y2="1"><stop offset=".3" stop-color="#4a5f9c" stop-opacity="0"/><stop offset=".72" stop-color="#4a5f9c" stop-opacity=".75"/></linearGradient>
@@ -583,7 +585,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   <div class="anim__bar" role="group" aria-label="Tipo de horizonte">
     <button type="button" class="anim__btn" data-hz="flat" aria-pressed="false">Horizonte plano</button>
     <button type="button" class="anim__btn" data-hz="real" aria-pressed="true">Tu horizonte</button>
-    <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pausar</span><span data-when="paused">Reproducir</span></button>
+    <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pausar</span><span data-when="paused">Reproducir</span><span class="vh"> la animación: tu horizonte real</span></button>
   </div>
   <figcaption><details class="nota"><summary>Qué es dato y qué es simplificación</summary><p>Ilustración: la silueta es un ejemplo. En Teseo el horizonte se calcula con el relieve real de tu lugar y la curvatura de la Tierra.</p></details></figcaption>
 </figure>
@@ -632,7 +634,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   </div>
   <div class="anim__bar">
     <button type="button" class="anim__btn" data-salir aria-pressed="false" aria-disabled="true">Salir hoy</button>
-    <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pausar</span><span data-when="paused">Reproducir</span></button>
+    <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pausar</span><span data-when="paused">Reproducir</span><span class="vh"> la animación: viaje a Marte</span></button>
   </div>
   <figcaption><details class="nota"><summary>Qué es dato y qué es simplificación</summary><p>Órbitas a escala (1 UA y 1,524 UA), con los periodos reales de 365,25 y 686,98 días. Modelo simplificado: órbitas circulares y en un mismo plano. Con las órbitas reales la ventana cambia un poco cada vez; Teseo la calcula con las posiciones de NASA JPL Horizons. Durante la espera el tiempo corre más rápido que durante el viaje.</p></details></figcaption>
 </figure>
@@ -692,7 +694,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
     <button type="button" class="anim__btn" aria-pressed="false">Sodio</button>
     <button type="button" class="anim__btn" aria-pressed="false">Calcio</button>
     <button type="button" class="anim__btn" aria-pressed="false">Todos</button>
-    <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pausar</span><span data-when="paused">Reproducir</span></button>
+    <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pausar</span><span data-when="paused">Reproducir</span><span class="vh"> la animación: espectro de una estrella</span></button>
   </div>
   <figcaption><details class="nota"><summary>Qué es dato y qué es simplificación</summary><p>Cada elemento absorbe siempre los mismos colores. Las rayas están en su longitud de onda de laboratorio, en nanómetros (las del calcio son del calcio ionizado); su grosor aquí es ilustrativo y de cada elemento se muestran solo algunas. En una estrella real no aparecen todas con la misma fuerza: depende de su temperatura. El recuadro amplía el doblete del sodio.</p></details></figcaption>
 </figure>
@@ -859,7 +861,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
         <p class="kicker">El mismo hilo, en video</p>
         <h2>Videoteca: ocho videos, uno por tema</h2>
       </div>
-      <ul class="vt vt--strip" tabindex="0" aria-label="Videos de Teseo">
+      <ul class="vt vt--strip" aria-label="Videos de Teseo">
         <li class="vt__i" id="v-en-un-minuto"><a class="vt__a" href="/acerca/video/en-un-minuto.mp4" data-video="en-un-minuto" data-poster="/acerca/video/en-un-minuto.jpg">
           <span class="vt__img"><video preload="none" playsinline muted tabindex="-1" aria-hidden="true" poster="/acerca/video/en-un-minuto.jpg" width="540" height="960"><source src="/acerca/video/en-un-minuto.mp4" type="video/mp4"></video><b>0:44</b></span>
           <span class="vt__c">Presentación</span>
@@ -1104,6 +1106,16 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   window.addEventListener("load", measure);
   if ("ResizeObserver" in window && main) new ResizeObserver(measure).observe(main);
   measure();
+})();
+// Un enlace a algo que está dentro de un <details> cerrado (p. ej. #dato-3) lo abre antes de ir a él.
+(function () {
+  function abrir() {
+    var id = decodeURIComponent((location.hash || "").slice(1)), el = id ? document.getElementById(id) : null, d = el && el.closest ? el.closest("details") : null, hubo = false;
+    while (d) { if (!d.open) { d.open = true; hubo = true; } d = d.parentElement ? d.parentElement.closest("details") : null; }
+    if (hubo && el.scrollIntoView) el.scrollIntoView();
+  }
+  window.addEventListener("hashchange", abrir);
+  abrir();
 })();
 // Animaciones: motor común. Solo se mueven mientras se ven, se pueden pausar y respetan «reducir movimiento».
 window.TeseoAnim=(function(){
