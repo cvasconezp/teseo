@@ -32,6 +32,10 @@ ok(/data-anim-toggle>/.test(es) && !/data-anim-toggle aria-pressed/.test(es) && 
 ok(/function turn\(\)\{rot=\(rot\+2\*PI\*SYN\/TE\)%\(2\*PI\)\}/.test(es) && !/D=\(D\+q\)%SYN/.test(es), "viaje a Marte: al repetirse la ventana los planetas no saltan (se acumula el giro)");
 ok(!/root\.style\.setProperty\("--(pag|hilo)"/.test(es), "el hilo de avance no reescribe propiedades en <html> al desplazarse");
 ok(!/[áéíóúñ¿¡]/i.test(en.replace(/Killa Ñan|Cochasquí|Júpiter|Leer en español|Esta página también está en español\.|Versión en español|Carlos Vásconez-Paredes|aria-label="[^"]*"/g, "").replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "").replace(/<head>[\s\S]*?<\/head>/, "").replace(/<!--[\s\S]*?-->/g, "")), "la versión inglesa no deja texto visible en español");
+// Versión sintética (1.100.0): apoyo arriba, botones en vez de tarjetas, videoteca en una fila.
+ok(es.indexOf('<section id="apoya"') > 0 && es.indexOf('<section id="apoya"') < es.indexOf('<section id="tu-cielo"') && /id="paypal-load"/.test(es) && /data-open="dlg-qr"/.test(es) && /<dialog id="dlg-qr"/.test(es) && /qr-donar\.png/.test(es), "«Apoya» va antes del primer capítulo, con PayPal, el código QR (en su diálogo) y GitHub a la vista");
+ok((es.match(/<a class="act" href="\/#(ruta|ahora|preguntas\?q=(spectrum|mass|bh))"/g) || []).length === 5 && !/<a class="card"/.test(es), "Ruta, Ahora y los tres laboratorios son botones con icono, no tarjetas con captura");
+ok(/<ul class="vt vt--strip"/.test(es) && /<details class="src-more more">/.test(es) && (es.match(/<details class="nota">/g) || []).length === 3, "videoteca en una fila; «De dónde sale cada cosa» y las notas de las figuras, plegadas pero presentes");
 let sync = true;
 try { execFileSync("python3", ["scripts/build_about_en.py", "--check"], { stdio: "pipe" }); } catch { sync = false; }
 ok(sync, "/about generado a partir de /acerca y al día (scripts/build_about_en.py)");

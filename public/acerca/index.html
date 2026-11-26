@@ -338,6 +338,60 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
 @media (min-width:761px) and (max-width:1010px){.brand small{display:none}.links{gap:2px 10px}}
 @media (min-width:761px) and (max-width:810px){.links{font-size:13px;gap:2px 8px}.top .btn{padding:0 11px}.btn--give svg{display:none}}
 @media (min-width:2200px){.wrap{max-width:1680px}body{font-size:21px}.thread{left:calc(50% - 859px)}.lead{max-width:760px}.head{max-width:960px}.card p,.pillars p{font-size:19px}.vt__a h3{font-size:20px}.vt__a p,.vlink{font-size:17px}h3{font-size:24px}}
+/* ===== versión sintética (1.100): botones en vez de tarjetas, videoteca en una fila, apoyo arriba, figuras sin marco ===== */
+.sec--tight{padding-top:48px;padding-bottom:48px}
+.acts{display:flex;flex-wrap:wrap;gap:10px}
+.act{display:inline-flex;align-items:center;gap:12px;min-height:60px;padding:10px 18px 10px 12px;border-radius:16px;border:1px solid var(--line2);background:rgba(255,255,255,.03);color:var(--text);text-decoration:none}
+.act svg{flex:none;width:38px;height:38px;padding:8px;border-radius:12px;background:rgba(242,196,109,.12);color:var(--gold)}
+.act b{display:block;font-size:16px;font-weight:600;line-height:1.25}
+.act small{display:block;font-size:14px;line-height:1.3;color:var(--muted)}
+.act:hover{border-color:rgba(242,196,109,.6);background:rgba(242,196,109,.06)}
+.act:hover small{color:var(--soft)}
+@media (max-width:520px){.acts{flex-direction:column}.act{width:100%}}
+/* apoyo: una franja con las acciones a la vista */
+.apoya{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:18px 48px;align-items:center}
+.apoya__txt{display:flex;flex-direction:column;gap:10px}
+.apoya__acts{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.apoya__pp{grid-column:1 / -1}
+.apoya__pp .fine{margin-top:6px}
+#paypal-box:not(:empty){max-width:520px}
+@media (max-width:860px){.apoya{grid-template-columns:minmax(0,1fr)}}
+#dlg-qr .qr{margin:4px auto}
+/* videoteca: una sola fila que se desliza */
+.vt--strip{display:flex;grid-template-columns:none;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;padding:4px 2px 12px;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.vt--strip .vt__i{flex:0 0 clamp(132px,15vw,168px);scroll-snap-align:start}
+.vt--strip .vt__img video{aspect-ratio:1/1}
+.vt--strip .vt__a p{display:none}
+.vt--strip .vt__a h3{font-size:15px;line-height:1.3}
+.vt--strip .vt__c{font-size:15px}
+.vt--strip .vt__img::after{width:36px;height:36px;right:8px;bottom:8px}
+.vt--strip:focus-visible{outline:2px solid var(--violet);outline-offset:4px}
+#videoteca .head{margin-bottom:20px}
+#videoteca h2{font-size:clamp(26px,3vw,34px)}
+.vt-note{margin-top:10px}
+/* «De dónde sale cada cosa», plegado */
+.more{margin-top:28px}
+.more>.soft{margin:14px 0}
+.more+.src-more{margin-top:12px}
+/* figuras sin marco: la ilustración respira sobre el fondo, como en el sitio de Killa Ñan */
+.anim,.alt .anim{position:relative;border:0;border-radius:0;background:transparent;overflow:visible}
+.anim__stage>svg{border-radius:22px}
+.anim__bar{position:absolute;top:10px;right:10px;padding:0;border:0;z-index:1}
+.anim__bar>:not(.anim__toggle){display:none}
+.anim__toggle{min-height:44px;padding:0 14px;border-color:transparent;background:rgba(4,8,15,.55);color:var(--muted);font-size:13px}
+.anim figcaption{padding:10px 2px 0;font-size:13px;color:var(--muted);max-width:64ch}
+.anim--horizonte .hz-k,.anim--horizonte .hz-kf,.anim--horizonte .hz-kr,.anim--horizonte .hz-prog,.anim--horizonte line[y1="376"]{display:none}
+.anim--horizonte .hz-sun{filter:drop-shadow(0 0 9px rgba(242,196,109,.75))}
+.anim--marte .m-d{display:none}
+.anim--marte circle[fill="#E8CF96"]{filter:drop-shadow(0 0 14px rgba(242,196,109,.8))}
+.anim--marte .m-th{stroke-width:3}
+.anim figcaption{padding:6px 2px 0}
+.nota summary{display:inline-flex;align-items:center;min-height:44px;cursor:pointer;color:var(--muted);font-size:13px;text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:4px;list-style:none}
+.nota summary::-webkit-details-marker{display:none}
+.nota summary:hover{color:var(--text)}
+.nota p{margin:0 0 6px;font-size:13px;line-height:1.5;color:var(--muted)}
+.vt--strip{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 56px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 56px),transparent);padding-right:56px}
+.anim--marte .anim__bar{right:auto;left:10px}
 /* animaciones: cada figura */
 .anim--horizonte .hz-t{font-size:15px;fill:var(--soft)}
 .anim--horizonte .hz-g{fill:var(--gold)}
@@ -436,8 +490,30 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
     </div>
   </section>
 
+  <!-- Apoya: arriba, a un paso -->
+  <section id="apoya" class="alt">
+    <div class="wrap sec sec--tight">
+      <div class="apoya">
+        <div class="apoya__txt">
+          <h2>Apoya a Teseo</h2>
+          <p class="soft">Teseo es y seguirá siendo gratis, sin publicidad y sin pedirte datos. Las donaciones pagan los servidores, el dominio y el tiempo para seguir mejorándolo.</p>
+        </div>
+        <div class="apoya__acts">
+          <button class="btn btn--gold" type="button" id="paypal-load" aria-controls="paypal-box">Donar con PayPal</button>
+          <button class="btn btn--ghost" type="button" data-open="dlg-qr" aria-haspopup="dialog">Con código QR, en Ecuador</button>
+          <a class="btn btn--ghost btn--give" href="https://github.com/sponsors/cvasconezp" target="_blank" rel="noopener noreferrer">Patrocinar en GitHub</a>
+          <a class="btn btn--text" href="https://wa.me/593987489892?text=Hola%2C%20quiero%20contarles%20algo%20sobre%20Teseo%20%28un%20problema%20o%20una%20idea%29%3A%0A%0A" data-report target="_blank" rel="noopener noreferrer">Reportar un problema</a>
+        </div>
+        <div class="apoya__pp">
+          <div id="paypal-box" aria-live="polite"></div>
+          <p class="fine">El botón de PayPal se carga solo cuando lo pulsas. ¿No funciona? <a href="https://www.paypal.com/ncp/payment/ZLGL2E3JZUHG2" target="_blank" rel="noopener noreferrer">Abrir PayPal en otra pestaña</a>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- 1 · Tu cielo -->
-  <section id="tu-cielo" class="alt chap">
+  <section id="tu-cielo" class="chap">
     <div class="wrap sec">
       <p class="kicker kn">1 · El hilo empieza en tus pies</p>
       <div class="split">
@@ -509,7 +585,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
     <button type="button" class="anim__btn" data-hz="real" aria-pressed="true">Tu horizonte</button>
     <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pausar</span><span data-when="paused">Reproducir</span></button>
   </div>
-  <figcaption>Ilustración: la silueta es un ejemplo. En Teseo el horizonte se calcula con el relieve real de tu lugar y la curvatura de la Tierra.</figcaption>
+  <figcaption><details class="nota"><summary>Qué es dato y qué es simplificación</summary><p>Ilustración: la silueta es un ejemplo. En Teseo el horizonte se calcula con el relieve real de tu lugar y la curvatura de la Tierra.</p></details></figcaption>
 </figure>
           <div class="vlinks"><a class="vlink" href="#v-horizonte" data-video="horizonte">El cielo empieza en tus montañas <small>Video · 1:19</small></a></div>
         </div>
@@ -518,7 +594,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   </section>
 
   <!-- 2 · Viajes por el Sistema Solar -->
-  <section id="viajes" class="chap">
+  <section id="viajes" class="alt chap">
     <div class="wrap sec">
       <div class="head">
         <p class="kicker kn">2 · Sigue el hilo por el Sistema Solar</p>
@@ -529,6 +605,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
         <div class="stack">
           <h3>¿Por qué no vamos a Marte cualquier día?</h3>
           <p class="soft">La nave no va en línea recta: recorre media elipse alrededor del Sol, y Marte tiene que estar en el punto de llegada justo cuando ella llega. Esa coincidencia se repite cada 26 meses.</p>
+          <div class="acts"><a class="act" href="/#ruta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="5" cy="18" r="2"/><path d="M7.2 17.6C13 17 10.5 7 16.8 6.4"/><path d="M19 3.6l.8 1.6 1.6.8-1.6.8-.8 1.6-.8-1.6-1.6-.8 1.6-.8z" fill="currentColor" stroke="none"/></svg><span><b>Ruta</b><small>Planear un viaje</small></span></a><a class="act" href="/#ahora"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg><span><b>Ahora</b><small>Ver el calendario del cielo</small></span></a></div>
           <div class="vlinks"><a class="vlink" href="#v-marte" data-video="marte">¿Por qué no vamos a Marte cualquier día? <small>Video · 2:08</small></a><a class="vlink" href="#v-jupiter" data-video="jupiter">Las lunas de Júpiter <small>Video · 2:12</small></a></div>
         </div>
         <div class="stack">
@@ -557,29 +634,15 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
     <button type="button" class="anim__btn" data-salir aria-pressed="false" aria-disabled="true">Salir hoy</button>
     <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pausar</span><span data-when="paused">Reproducir</span></button>
   </div>
-  <figcaption>Órbitas a escala (1 UA y 1,524 UA), con los periodos reales de 365,25 y 686,98 días. Modelo simplificado: órbitas circulares y en un mismo plano. Con las órbitas reales la ventana cambia un poco cada vez; Teseo la calcula con las posiciones de NASA JPL Horizons. Durante la espera el tiempo corre más rápido que durante el viaje.</figcaption>
+  <figcaption><details class="nota"><summary>Qué es dato y qué es simplificación</summary><p>Órbitas a escala (1 UA y 1,524 UA), con los periodos reales de 365,25 y 686,98 días. Modelo simplificado: órbitas circulares y en un mismo plano. Con las órbitas reales la ventana cambia un poco cada vez; Teseo la calcula con las posiciones de NASA JPL Horizons. Durante la espera el tiempo corre más rápido que durante el viaje.</p></details></figcaption>
 </figure>
         </div>
-      </div>
-      <div class="grid">
-        <a class="card" href="/#ruta">
-          <img src="/acerca/img/ruta.webp" width="1280" height="800" loading="lazy" alt="La pestaña Ruta: el viaje de la Tierra a Marte por una transferencia de Hohmann, con la duración de unos ocho meses y medio y las fechas de salida y llegada.">
-          <h3>Ruta</h3>
-          <p>Viajes por el sistema solar con física orbital real: cuánto tardarías en llegar a Marte y cuál es la próxima ventana para salir.</p>
-          <span class="go">Planear un viaje</span>
-        </a>
-        <a class="card" href="/#ahora">
-          <img src="/acerca/img/calendario.webp" width="1280" height="640" loading="lazy" alt="El Calendario del cielo con la cuenta regresiva «Lo próximo» hacia las Gemínidas y eventos como la Voyager 1 a un día-luz y Mercurio en máxima elongación.">
-          <h3>Ahora</h3>
-          <p>Lo que pasa hoy en el espacio y el calendario del cielo de tu ciudad, con cuentas regresivas. Se puede suscribir en Google Calendar, iPhone u Outlook.</p>
-          <span class="go">Ver el calendario</span>
-        </a>
       </div>
     </div>
   </section>
 
   <!-- 3 · Las grandes preguntas -->
-  <section id="ciencia" class="alt chap">
+  <section id="ciencia" class="chap">
     <div class="wrap sec">
       <div class="head">
         <p class="kicker kn">3 · Hasta las grandes preguntas</p>
@@ -590,6 +653,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
         <div class="stack">
           <h3>¿Cómo sabemos de qué está hecha una estrella?</h3>
           <p class="soft">Nadie ha traído un trozo de una estrella. Pero su luz, pasada por un prisma, llega con rayas oscuras: cada elemento deja siempre las mismas, como un código de barras.</p>
+          <div class="acts"><a class="act" href="/#preguntas?q=spectrum"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 4.5l6 11H3z"/><path d="M1.5 12.5h4M13 9.5l8-2M14 12l7.5.5M14.6 14.5L21 17.5"/></svg><span><b>El espectro de la luz</b><small>¿De qué están hechas las estrellas?</small></span></a><a class="act" href="/#preguntas?q=mass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="5.5" r="2"/><path d="M8.2 9.5h7.6l2.4 10.5H5.8z"/></svg><span><b>Masa, peso y estrellas</b><small>¿Qué pasa si cambio la masa?</small></span></a><a class="act" href="/#preguntas?q=bh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="9.5" ry="3.6" transform="rotate(-18 12 12)"/></svg><span><b>Agujeros negros</b><small>¿Qué pasa cerca de un agujero negro?</small></span></a></div>
           <div class="vlinks"><a class="vlink" href="#v-estrellas" data-video="estrellas">¿Cómo sabemos de qué está hecha una estrella? <small>Video · 1:43</small></a><a class="vlink" href="#v-vida-estrella" data-video="vida-estrella">¿Cómo vive y muere una estrella? <small>Video · 2:14</small></a><a class="vlink" href="#v-estamos-solos" data-video="estamos-solos">¿Estamos solos? <small>Video · 1:57</small></a><a class="vlink" href="#v-fin-universo" data-video="fin-universo">¿Cómo terminará el universo? <small>Video · 2:11</small></a></div>
         </div>
         <div class="stack">
@@ -630,29 +694,9 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
     <button type="button" class="anim__btn" aria-pressed="false">Todos</button>
     <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pausar</span><span data-when="paused">Reproducir</span></button>
   </div>
-  <figcaption>Cada elemento absorbe siempre los mismos colores. Las rayas están en su longitud de onda de laboratorio, en nanómetros (las del calcio son del calcio ionizado); su grosor aquí es ilustrativo y de cada elemento se muestran solo algunas. En una estrella real no aparecen todas con la misma fuerza: depende de su temperatura. El recuadro amplía el doblete del sodio.</figcaption>
+  <figcaption><details class="nota"><summary>Qué es dato y qué es simplificación</summary><p>Cada elemento absorbe siempre los mismos colores. Las rayas están en su longitud de onda de laboratorio, en nanómetros (las del calcio son del calcio ionizado); su grosor aquí es ilustrativo y de cada elemento se muestran solo algunas. En una estrella real no aparecen todas con la misma fuerza: depende de su temperatura. El recuadro amplía el doblete del sodio.</p></details></figcaption>
 </figure>
         </div>
-      </div>
-      <div class="grid">
-        <a class="card" href="/#preguntas?q=spectrum">
-          <img src="/acerca/img/espectro.webp" width="1280" height="800" loading="lazy" alt="Laboratorio del espectro de la luz con un prisma y el arcoíris de longitudes de onda.">
-          <h3>El espectro de la luz</h3>
-          <p>Compón la atmósfera de un planeta o una estrella, mira aparecer sus líneas y adivina de qué está hecho un astro solo por su luz.</p>
-          <span class="go">¿De qué están hechas las estrellas?</span>
-        </a>
-        <a class="card" href="/#preguntas?q=mass">
-          <img src="/acerca/img/masa.webp" width="1280" height="800" loading="lazy" alt="El recorrido «¿Qué pasa si cambio la masa?» con una tabla de lo que pesaría una persona de 60 kg en Mercurio, Venus, la Tierra y la Luna.">
-          <h3>Masa, peso y estrellas</h3>
-          <p>Pon tu masa en Marte, en el Sol o en una estrella de neutrones. Luego sube la masa de un asteroide hasta una estrella y mira en qué se convierte.</p>
-          <span class="go">¿Qué pasa si cambio la masa?</span>
-        </a>
-        <a class="card" href="/#preguntas?q=bh">
-          <img src="/acerca/img/agujeros.webp" width="1280" height="800" loading="lazy" alt="Calculadora de agujeros negros: con la masa de Sagitario A*, el radio del horizonte es de 12,7 millones de kilómetros.">
-          <h3>Agujeros negros</h3>
-          <p>Elige una masa, de la Tierra a un cuásar, y calcula cuánto mide su horizonte y cuánto se frena el tiempo a su lado.</p>
-          <span class="go">¿Qué pasa cerca de un agujero negro?</span>
-        </a>
       </div>
       <p class="chips-h">Más recorridos para seguir el hilo en Preguntas:</p>
       <nav class="chips" aria-label="Más recorridos de Preguntas">
@@ -668,7 +712,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   </section>
 
   <!-- 4 · Cómo sabe Teseo que es cierto -->
-  <section id="fuentes" class="chap" aria-label="Cómo sabe Teseo que es cierto y sus fuentes de datos">
+  <section id="fuentes" class="alt chap" aria-label="Cómo sabe Teseo que es cierto y sus fuentes de datos">
     <div class="wrap sec">
       <div class="head">
         <p class="kicker kn">4 · Cómo sabe Teseo que es cierto</p>
@@ -681,7 +725,8 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
         <div><h3>Tu lugar es tuyo</h3><p>Sin cuenta ni registro: tu ubicación solo sirve para calcular tu cielo.</p></div>
         <div><h3>Código publicado</h3><p>Cualquiera puede revisarlo, usarlo y mejorarlo sin fines comerciales (licencia PolyForm Noncommercial 1.0.0).</p></div>
       </div>
-      <h3 class="sub-h">De dónde sale cada cosa</h3>
+      <details class="src-more more">
+        <summary>De dónde sale cada cosa</summary>
       <p class="soft">Toca un número de la imagen para ver de dónde sale lo que muestra.</p>
       <div class="hot">
         <figure class="hot__fig">
@@ -704,6 +749,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
           <li id="dato-7"><b>Las capas</b><span>Cada una dice su fuente; las nubes, Meteosat, GOES o Himawari.</span></li>
         </ol>
       </div>
+      </details>
       <details class="src-more">
         <summary>Ver las 32 fuentes</summary>
         <div class="src">
@@ -754,7 +800,7 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   </section>
 
   <!-- 5 · El hilo lo tejemos juntos -->
-  <section id="talleres" class="alt chap">
+  <section id="talleres" class="chap">
     <div class="wrap sec">
       <p class="kicker kn">5 · El hilo lo tejemos juntos</p>
       <div class="split">
@@ -807,14 +853,13 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   </section>
 
   <!-- Videoteca -->
-  <section id="videoteca">
-    <div class="wrap sec">
+  <section id="videoteca" class="alt">
+    <div class="wrap sec sec--tight">
       <div class="head">
         <p class="kicker">El mismo hilo, en video</p>
         <h2>Videoteca: ocho videos, uno por tema</h2>
-        <p class="soft">Siguen el recorrido de esta página: tu cielo, los viajes y las grandes preguntas. Cada uno explica una sola idea, de principio a fin, filmada en la propia app.</p>
       </div>
-      <ul class="vt">
+      <ul class="vt vt--strip" tabindex="0" aria-label="Videos de Teseo">
         <li class="vt__i" id="v-en-un-minuto"><a class="vt__a" href="/acerca/video/en-un-minuto.mp4" data-video="en-un-minuto" data-poster="/acerca/video/en-un-minuto.jpg">
           <span class="vt__img"><video preload="none" playsinline muted tabindex="-1" aria-hidden="true" poster="/acerca/video/en-un-minuto.jpg" width="540" height="960"><source src="/acerca/video/en-un-minuto.mp4" type="video/mp4"></video><b>0:44</b></span>
           <span class="vt__c">Presentación</span>
@@ -868,51 +913,6 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
     </div>
   </section>
 
-  <!-- Apoya -->
-  <section id="apoya" class="alt">
-    <div class="wrap sec">
-      <div class="head">
-        <h2>Apoya a Teseo</h2>
-        <p class="soft">Teseo es y seguirá siendo gratis, sin publicidad y sin pedirte datos. Las donaciones pagan los servidores, el dominio y el tiempo para seguir mejorándolo.</p>
-      </div>
-      <div class="give">
-        <div class="give-col">
-        <article class="is-main">
-          <p class="tag">Una vez, desde cualquier país</p>
-          <h3>Donar con PayPal</h3>
-          <p class="grow">Con tu cuenta de PayPal o con tarjeta. Tú eliges el monto.</p>
-          <button class="btn btn--gold btn--sm" type="button" id="paypal-load" aria-controls="paypal-box">Donar con PayPal</button>
-          <div id="paypal-box" aria-live="polite"></div>
-          <p class="fine">El botón de PayPal se carga solo cuando lo pulsas. ¿No funciona? <a href="https://www.paypal.com/ncp/payment/ZLGL2E3JZUHG2" target="_blank" rel="noopener noreferrer">Abrir PayPal en otra pestaña</a>.</p>
-        </article>
-        <article>
-          <p class="tag">Mensual</p>
-          <h3>GitHub Sponsors</h3>
-          <p class="grow">Un aporte mensual desde tu cuenta de GitHub, desde USD 5, para sostener el proyecto en el tiempo. GitHub no cobra comisión.</p>
-          <a class="btn btn--ghost btn--sm btn--give" href="https://github.com/sponsors/cvasconezp" target="_blank" rel="noopener noreferrer">Patrocinar en GitHub</a>
-        </article>
-        </div>
-        <div class="give-col">
-        <article class="ec">
-          <p class="tag">En Ecuador</p>
-          <h3>Con código QR o transferencia</h3>
-          <p class="grow">Escanea el código con DeUna o con la app de Banco Pichincha, escribe el monto y listo. ¿Prefieres una transferencia desde otro banco? Te pasamos los datos por WhatsApp.</p>
-          <figure class="qr"><img src="/acerca/img/qr-donar.png" width="240" height="240" loading="lazy" alt="Código QR para donar a Teseo desde Ecuador."><figcaption><a href="/acerca/img/qr-donar.png" download="teseo-qr-donar.png">Guardar el código</a></figcaption></figure>
-          <a class="btn btn--ghost btn--sm btn--give" href="https://wa.me/593987489892?text=Hola%2C%20quiero%20apoyar%20a%20Teseo%20con%20una%20transferencia.%20%C2%BFMe%20pasas%20los%20datos%20de%20la%20cuenta%3F" target="_blank" rel="noopener noreferrer">Pedir los datos por WhatsApp</a>
-          <p class="fine">La cuenta está a nombre de Carlos Vásconez-Paredes, creador de Teseo.</p>
-        </article>
-        <article>
-          <p class="tag">Sin dinero</p>
-          <h3>Comparte y colabora</h3>
-          <p class="grow">Comparte una postal o una foto 360°, o cuéntanos un error o una idea. Todo suma.</p>
-          <a class="btn btn--ghost btn--sm" href="https://wa.me/593987489892?text=Hola%2C%20quiero%20contarles%20algo%20sobre%20Teseo%20%28un%20problema%20o%20una%20idea%29%3A%0A%0A" data-report target="_blank" rel="noopener noreferrer">Reportar un problema</a>
-          <p class="fine">También por <a href="mailto:teseo@yachaydeep.com?subject=Teseo%3A%20un%20problema%20o%20una%20idea" data-report>correo</a>. ¿Programas? <a href="https://github.com/cvasconezp/teseo" target="_blank" rel="noopener noreferrer">Mira el código</a>.</p>
-        </article>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- Cierre -->
   <section>
     <div class="wrap end">
@@ -937,6 +937,21 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
     <p><b>Android:</b> abre teseo.yachaydeep.com en Chrome → menú ⋮ → «Instalar app».</p>
     <p><b>iPhone:</b> en Safari, Compartir → «Añadir a pantalla de inicio».</p>
     <a class="btn btn--gold btn--sm" href="/">Abrir Teseo</a>
+  </div>
+</dialog>
+
+<dialog id="dlg-qr" class="dlg" aria-labelledby="dlg-qr-t">
+  <div class="dlg__box">
+    <div class="dlg__head">
+      <h2 id="dlg-qr-t">Con código QR o transferencia</h2>
+      <button type="button" class="dlg__x" data-close aria-label="Cerrar">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <p>Escanea el código con DeUna o con la app de Banco Pichincha, escribe el monto y listo. ¿Prefieres una transferencia desde otro banco? Te pasamos los datos por WhatsApp.</p>
+    <figure class="qr"><img src="/acerca/img/qr-donar.png" width="240" height="240" loading="lazy" alt="Código QR para donar a Teseo desde Ecuador."><figcaption><a href="/acerca/img/qr-donar.png" download="teseo-qr-donar.png">Guardar el código</a></figcaption></figure>
+    <a class="btn btn--ghost btn--sm btn--give" href="https://wa.me/593987489892?text=Hola%2C%20quiero%20apoyar%20a%20Teseo%20con%20una%20transferencia.%20%C2%BFMe%20pasas%20los%20datos%20de%20la%20cuenta%3F" target="_blank" rel="noopener noreferrer">Pedir los datos por WhatsApp</a>
+    <p class="fine">La cuenta está a nombre de Carlos Vásconez-Paredes, creador de Teseo.</p>
   </div>
 </dialog>
 
