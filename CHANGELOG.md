@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.98.0 — Las nubes tapan las montañas por su altura; Chankillo y Cochasquí
+
+- **Las montañas, tapadas solo donde están dentro de la nube:** antes, con un manto de nubes medias, se borraban todas las montañas por igual (la mirada «entraba» en la capa antes del filo, fuera cual fuera su altura). Ahora el relieve se tapa por altura: lo que queda bajo la base de las nubes se ve, solo con la bruma del aire, y lo que la supera se va cubriendo de forma gradual (desde 400 m bajo la base calculada hasta 100 m sobre ella). Con imagen de satélite reciente (GOES-19 y los demás), la nube cuenta donde el satélite la ve, sobre esa ladera; sin ella, la cobertura del pronóstico, en manchas. Las bases: las nubes bajas, la calculada por temperatura y punto de rocío; las medias, desde 2 km sobre el suelo. En Cayambe, el 26 de noviembre a las 9h28, el Mojanda, el Fuya Fuya y el Cotacachi se ven y la cumbre del Cayambe queda en la nube, como a la vista.
+- **La visibilidad del modelo ya no borra el paisaje en un día despejado:** el pronóstico daba 1,4 km de visibilidad con el código «casi despejado»; ahora esa cifra solo cuenta con niebla, precipitación, o cielo cubierto con menos de 1 km.
+- **Chankillo, muros bajos:** los recintos (del este, noreste, edificio de observación, plaza oeste) se dibujaban girados 90°: losas perpendiculares a cada muro que asomaban del suelo como piedras sueltas. Ahora cada muro sigue su trazo y, en ladera, sube y baja con el suelo, sin escalones.
+- **Sin cambio de color al cargar:** el suelo de los sitios en 3D salía primero con el color de la foto y después con el del relieve; ahora el sitio aparece cuando el color del relieve ya está (como mucho 8 s).
+- **Cochasquí, todo kikuyo:** el suelo de alrededor de las pirámides es el mismo kikuyo que las cubre, un poco más oscuro, para que ellas resalten por su verde y su sombra (antes tomaba el pardo de la imagen de satélite).
+
 ## 1.97.1 — Machu Picchu sin bloque flotante; la Pirámide G, vista desde fuera
 
 - **Machu Picchu, junto al Intihuatana:** al sureste de la piedra se veía un bloque gris con arcos que parecía flotar sobre el césped. Eran los muros de un recinto del escaneo láser de 2009: la maqueta del sitio (planta de OpenStreetMap, alzado reconstruido) deja la cima como un llano y tapaba el piso del recinto y las terrazas de alrededor, más bajos, así que solo asomaban los muros. Ahora del escaneo se dibuja lo que concuerda con la maqueta (la roca tallada, el piso de la cima y sus bordes); lo demás queda fuera, y el borde de abajo del escaneo, donde el láser no llegó, baja hasta el suelo en vez de quedar deshilachado.

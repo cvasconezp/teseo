@@ -446,7 +446,7 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
   over.frustumCulled = false;
   over.visible = false;
   mesh.add(over);
-  let enabled = false, any = false, last = null, lift = 0;
+  let enabled = false, any = false, last = null, lift = 0, overTerr = true, lastAbove = false;
   const setC = (u, c) => u.value.setRGB(Math.min(1, c[0]), Math.min(1, c[1]), Math.min(1, c[2]));
 
   return {
@@ -481,7 +481,8 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
         setC(uniforms.uRainCol, L.rain);
       }
       below.visible = anyBelow;
-      over.visible = anyAbove && uniforms.uTerrOn.value > 0.5;
+      lastAbove = anyAbove;
+      over.visible = anyAbove && overTerr && uniforms.uTerrOn.value > 0.5;
       mesh.visible = enabled && any;
     },
     /**
@@ -514,7 +515,9 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
      */
     setMap(sat, w = 0, off = null) {
       if (!sat || !(w > 0)) { uniforms.uMapOn.value = 0; return null; }
-      if (!mapSat || sat.key !== mapSat.key || sat.t !== mapSat.t) {
+      // (por el objeto, no por su clave: la clave no lleva el lugar, y al cambiar de sitio dentro del mismo barrido
+      // quedaba la malla del anterior)
+      if (sat !== mapSat) {
         const data = thresholdTexture(sat);
         if (mapTex) mapTex.dispose();
         mapTex = new THREE.DataTexture(data, sat.n, sat.n, THREE.RGBAFormat, THREE.UnsignedByteType);
@@ -534,6 +537,9 @@ export function createCloudsLayer({ radius = 3800, segments = 40 } = {}) {
       mesh.updateMatrix(); mesh.updateMatrixWorld(true);
     },
     setEnabled(b) { enabled = !!b; mesh.visible = enabled && any; },
+    /** La pasada de las capas de encima sobre las montañas (por la distancia del filo de cada banda). Con el relieve
+     * cercano puesto, que tapa por la altura de cada punto (terrainClouds.js), se apaga: si no, taparía dos veces. */
+    setOverTerrain(b) { overTerr = !!b; over.visible = lastAbove && overTerr && uniforms.uTerrOn.value > 0.5; },
     get visible() { return mesh.visible; },
     get clouds() { return last; },
     dispose() { geo.dispose(); material.dispose(); matBelow.dispose(); terrTex.dispose(); if (mapTex) mapTex.dispose(); if (mesh.parent) mesh.parent.remove(mesh); },

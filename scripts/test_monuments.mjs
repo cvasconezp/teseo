@@ -352,5 +352,13 @@ ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) s
   const fc = parseForecast({ hourly }), off = (s) => layerParams(cloudsAt(fc, s), s)[0].off[0];
   ok(t0 % (6 * H) === 0 && Math.abs(off(t0 + 12 * H) - off(t0 + 12 * H - 60) - 1.22) < 0.05 && Math.abs(off(t0 + 12 * H + 60) - off(t0 + 12 * H) - 1.22) < 0.05 && off(t0 + 12 * H) > 800, "las nubes avanzan con el viento sin saltos al cruzar las 6 h (1,2 km por minuto con viento de 73 km/h)");
 }
+{ // los muros bajos (kind "walls") van a lo largo de su trazo y, con el suelo del sitio, en tramos sobre él
+  const m = MONUMENTS.find((x) => x.id === "chankillo-este-n"), seg = m.segs[0], [e1, n1, e2, n2] = seg, L = Math.hypot(e2 - e1, n2 - n1);
+  const along = (F) => { const ux = (e2 - e1) / L, uy = (n2 - n1) / L; let a = 1e9, b = -1e9, w = 0; for (const f of F) for (const v of f.v) { const t = (v[0] - e1) * ux + (v[1] - n1) * uy, q = Math.abs(-(v[0] - e1) * uy + (v[1] - n1) * ux); a = Math.min(a, t); b = Math.max(b, t); w = Math.max(w, q); } return { a, b, w }; };
+  const E = along(buildFaces({ ...m, segs: [seg] })), T = along(buildFaces({ ...m, segs: [seg] }, { ground: (e, n) => 0.05 * e }));
+  const zs = buildFaces({ ...m, segs: [seg] }, { ground: (e, n) => 0.05 * e }).flatMap((f) => f.v.map((v) => v[2]));
+  ok(E.b - E.a > L && E.w < m.thick && T.b - T.a > L && T.w < m.thick && Math.max(...zs) - Math.min(...zs) > 2,
+    "Chankillo: los muros bajos siguen su trazo (no atravesados) y, en ladera, cada tramo sobre su suelo");
+}
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

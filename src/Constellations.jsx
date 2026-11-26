@@ -56,7 +56,7 @@ import { skyBodies, altAzJ2000 } from "./sky/frames.js";
 import { skyState, visibility, starsHidden, countVisibleNow, moonMagV, phaseAngleFromIllum, altAzToDir } from "./sky/atmosphere.js";
 import { createAtmosphereLayer } from "./sky/atmosphereLayer.js";
 import { AtmosphereControls, DayWarning } from "./sky/AtmosphereControls.jsx";
-import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift } from "./sky/cloudsLayer.js";
+import { createCloudsLayer, makeOccluder, OCC_HIDE, cloudLift, layerParams } from "./sky/cloudsLayer.js";
 import { createAuroraLayer } from "./sky/auroraLayer.js";
 import { dipole, decodeOvation, bandsFromGrid, bandsFromKp, lookAt, darkness, kpAt, hemiOf, geoToMag, probGrid, probModel, mlt as magLocalTime } from "./sky/aurora.js";
 import { AuroraControl } from "./sky/AuroraControl.jsx";
@@ -76,7 +76,8 @@ import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakNam
 import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf, footprintRadius } from "./sky/monuments.js";
 import { stopsAt, stopOf } from "./sky/stops.js";
 import { loadSiteModel, loadIntiScan, siteModel, modelGround } from "./sky/machuModel.js";
-import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints, groundSilhouette, RELIEF_R, RELIEF_NA } from "./sky/monumentLayer.js";
+import { terrainClouds } from "./sky/terrainClouds.js";
+import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints, groundSilhouette, groundHeight, RELIEF_R, RELIEF_NA } from "./sky/monumentLayer.js";
 const NEAR_RELIEF_R = [0.03, 0.06, 0.1, 0.15, 0.22, 0.3, 0.4, 0.52, 0.68, 0.9];
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
 import { loadSunImage, sdoSlot, SDO_DISC, SUN_POLE } from "./sky/sunImage.js";
@@ -1343,7 +1344,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const terrain = createTerrainLayer();
     horizon.add(terrain.group);
     // el relieve cercano en 3D con la imagen de satélite (src/sky/terrain3d.js), delante de las franjas
-    const near3d = createNearTerrainLayer({ onReady: () => { const r = sceneRef.current; if (r) { r.terrain.setCovered(near3d.coverKm); r.monuments.setSkirt(!(near3d.coverKm > 0)); r.monuments.setNear(near3d.colorMap); r._dirty = true; } } });
+    const near3d = createNearTerrainLayer({ onReady: () => { const r = sceneRef.current; if (r) { r.terrain.setCovered(near3d.coverKm); r.monuments.setSkirt(!(near3d.coverKm > 0)); if (r.clouds) r.clouds.setOverTerrain(!(near3d.coverKm > 0)); r.monuments.setNear(near3d.colorMap); r.monuments.setHold(false); r._dirty = true; } } });
     horizon.add(near3d.group);
     // monumentos (src/sky/monumentLayer.js): en 3D en el mismo marco, delante de las montañas
     const monuments = createMonumentLayer({ onReady: () => { const r = sceneRef.current; if (r) r._dirty = true; } });
@@ -1804,7 +1805,7 @@ export default function Constellations({ lang = "es", onMenu = null }) {
         // mirar a una altura/azimut del lugar (pruebas y capturas; solo en «Mi cielo»)
         lookAltAz: (alt, az, span) => { const v = altAzToLocal(alt, az); r.lookAt(new THREE.Vector3(v[0], v[1], v[2]), span, true); r.wake(); },
         // monumentos (pruebas): cuántos hay, si hay relieve cercano y el rango de alturas de cada malla
-        monItems: () => r.monuments.items.map((it) => ({ id: it.m.id, d: +it.o.d.toFixed(1), dz: +it.dz.toFixed(2) })).slice(0, 40), up: () => r.monuments.items.up || 0,
+        monItems: () => r.monuments.items.map((it) => { let lo = Infinity, hi = -Infinity; for (const f of it.faces || []) for (const v of f.v) { lo = Math.min(lo, v[2]); hi = Math.max(hi, v[2]); } return { id: it.m.id, d: +it.o.d.toFixed(1), dz: +it.dz.toFixed(2), nf: (it.faces || []).length, z: [+(lo + it.dz).toFixed(1), +(hi + it.dz).toFixed(1)] }; }).slice(0, 40), up: () => r.monuments.items.up || 0, faceVsGround: (id) => { const it = r.monuments.items.find((x) => x.m.id === id); if (!it) return null; const all = r.monuments.items, g = r.monuments.grid, gg = g && g.reach === groundReach(all) ? g : null; let above = 0, n = 0, mx = -1e9, mn = 1e9; for (const f of it.faces) for (const v of f.v) { const d = it.dz + v[2] - groundHeight(it.o.e + v[0], it.o.n + v[1], all, gg); n++; if (d > 0.05) above++; mx = Math.max(mx, d); mn = Math.min(mn, d); } return { n, above, mx: +mx.toFixed(2), mn: +mn.toFixed(2), o: [+it.o.e.toFixed(1), +it.o.n.toFixed(1)], mat: it.faces[0] && it.faces[0].mat }; }, gh: (e, n) => { const it = r.monuments.items, g = r.monuments.grid; return { reach: g && g.reach, rItems: groundReach(it), fine: !!(g && g.fromNear), h: +groundHeight(e, n, it, g && g.reach === groundReach(it) ? g : null).toFixed(2) }; },
         mon: () => ({ grid: r.monuments.grid ? { reach: r.monuments.grid.reach, h: r.monuments.grid.h.slice(0, 24).map((v) => +v.toFixed(1)) } : null, n: r.monuments.items.length, loading: r.monuments.loading, vis: r.monuments.group.visible, meshes: r.monuments.group.children.filter((c) => c.isMesh).map((c) => { c.geometry.computeBoundingBox(); const b = c.geometry.boundingBox; return [c.renderOrder, c.geometry.attributes.position.count, +b.min.y.toFixed(1), +b.max.y.toFixed(1), Number.isFinite(b.min.y)]; }) }),
         // mirar a una dirección ecuatorial (la de un cuerpo de bodies()), con el campo `span`
         lookEq: (nx, ny, nz, span) => { r.lookAt(new THREE.Vector3(nx, ny, nz).normalize().applyQuaternion(r.localQuat), span, true); r.wake(); },
@@ -3158,9 +3159,12 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     ref.near3d.setEnabled(!!hzData);
     const wait = nearPending || ref.near3d.loading;
     ref.terrain.setCovered(wait ? 1e9 : ref.near3d.coverKm); ref.monuments.setSkirt(!(ref.near3d.coverKm > 0) && !wait);
+    if (ref.clouds) ref.clouds.setOverTerrain(!(ref.near3d.coverKm > 0));
     ref.monuments.setNear(wait ? null : ref.near3d.colorMap);
+    // (el sitio no se enseña con el color de la foto mientras llega el del relieve: aparecía uno y luego el otro)
+    ref.monuments.setHold(!!wait && satOn);
     ref._dirty = true;
-  }, [hzData, nearData, hzKey, ready, summitLift, nearPending, monItems.length, monItems.up, monBase.ground]);
+  }, [hzData, nearData, hzKey, ready, summitLift, nearPending, monItems.length, monItems.up, monBase.ground, satOn]);
 
   // columnas de ceniza (ilustrativas): la simulación pedida desde la ficha de un volcán y, suaves, las de los que el
   // Smithsonian da en erupción este año y se ven en el horizonte; el viento, del pronóstico (capa media)
@@ -3214,7 +3218,19 @@ export default function Constellations({ lang = "es", onMenu = null }) {
       ref.clouds.update(show ? cf.clouds : null, atmSky, d.getTime() / 1000);
     } catch { ref.clouds.update(null, null, 0); }   // nunca debe romper la vista
     ref.clouds.setEnabled(show);
-  }, [cloudsOn, atmState, atmSky, cfNow, wxData, satData, whenStr, ready, cloudLiftKm, hzData]);   // eslint-disable-line react-hooks/exhaustive-deps
+    // el relieve cercano tapa lo que supera la base de las nubes, donde el satélite (o el pronóstico) las pone; con él
+    // puesto, la pasada de las nubes sobre las montañas (por la distancia del filo) sobra
+    try {
+      const cf = cfNow, refM = wxData && Number.isFinite(wxData.elevation) ? wxData.elevation : hzData && Number.isFinite(hzData.ground_m) ? hzData.ground_m : null;
+      // (qué capas dibuja cloudsLayer por encima de los ojos: las de debajo —el mar de nubes desde una cumbre— son suyas)
+      const lp = show ? layerParams(cf.clouds, new Date(whenStr).getTime() / 1000, cloudLiftKm) : null;
+      const tc = show && ref.near3d ? terrainClouds({ clouds: cf.clouds, sat: cf.sat, w: cf.w, off: cf.off, refM, onL: lp ? lp[0].h > 0 : null, onM: lp ? lp[1].h > 0 : null }) : null;
+      const U = ref.clouds.uniforms, sh = U.uShade.value, li = U.uLit.value;
+      ref.near3d.setClouds(tc, [sh.r * 0.6 + li.r * 0.4, sh.g * 0.6 + li.g * 0.4, sh.b * 0.6 + li.b * 0.4]);
+      ref.clouds.setOverTerrain(!(ref.near3d.coverKm > 0));
+    } catch { try { ref.near3d.setClouds(null); ref.clouds.setOverTerrain(true); } catch { /* no-op */ } }
+    ref._dirty = true;
+  }, [cloudsOn, atmState, atmSky, cfNow, wxData, satData, whenStr, ready, cloudLiftKm, hzData, nearData, nearPending]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── auroras: datos de NOAA (OVATION y Kp) para el lugar, el óvalo de la hora del cielo y la capa ──
   useEffect(() => { try { localStorage.setItem(AURORA_KEY, auroraOn ? "1" : "0"); } catch { /* no-op */ } }, [auroraOn]);

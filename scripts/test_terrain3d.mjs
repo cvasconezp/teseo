@@ -1,5 +1,5 @@
 // Pruebas: el relieve cercano en 3D (src/sky/terrain3d.js): decodificación, malla y petición.
-import { decodeNear, nearGeometry, ringDist, fetchNearTerrain, UNITS_PER_M, NEAR_OFFSET } from "../src/sky/terrain3d.js";
+import { decodeNear, nearGeometry, ringDist, fetchNearTerrain, UNITS_PER_M, NEAR_OFFSET, nearHeightAt } from "../src/sky/terrain3d.js";
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log("  FALLA:", m); } };
@@ -52,6 +52,14 @@ ok(Math.abs(M(Gb.pos, 1)[1] + 1.7) < 0.01 && Math.abs(M(Gb.pos, 0)[1] + 1.7) < 0
 const peak = { ...nr, heights: nr.heights.map((h, k) => h - 30 * (k % nR)) };
 const Gp = nearGeometry(peak);
 ok(M(Gp.pos, 4)[1] < -85, "desde una cumbre la ladera baja de verdad (sin plataforma que tape el paisaje)");
+// la altura del relieve tal como se dibuja (para asentar lo que va encima): en cada vértice, la de la malla
+{ const at = nearHeightAt(peak); let worst = 0;
+  const RR2 = nR + 1;
+  for (const [i, j] of [[0, 3], [5, 7], [nAz - 1, nR - 1], [Math.floor(nAz / 3), 10]]) {
+    const k = i * RR2 + j + 1, az = (i * 2 * Math.PI) / nAz, dj = ringDist(peak, j);
+    worst = Math.max(worst, Math.abs(at(dj * Math.sin(az), dj * Math.cos(az)) - Gp.hd[k * 2]));
+  }
+  ok(worst < 0.01 && Number.isFinite(at(5, 5)), "nearHeightAt da la altura de la malla dibujada en sus vértices"); }
 // en una cumbre se mira desde 5 m más arriba: el suelo bajo los pies queda a 6,7 m
 const Gl = nearGeometry(nr, UNITS_PER_M, 5);
 ok(Math.abs(M(Gl.pos, 0)[1] + 6.7) < 0.01 && Math.abs(M(Gl.pos, 1)[1] + 6.7) < 0.02 && Math.abs(Gl.h0 - (2800 + 1.7 + 5)) < 1e-6, "con 5 m de más, el suelo queda 6,7 m bajo los ojos");

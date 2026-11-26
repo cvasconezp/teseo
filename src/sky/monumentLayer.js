@@ -61,7 +61,12 @@ export function placeMonuments(list, { lat, lon, ground, air = 0 }, bases, relie
       // (…y nunca por debajo de su cota medida: si el suelo dibujado queda algo más bajo, lo salva su zócalo —`foot`—)
       : relief && m.crest && !isAloof({ m, o, aloof }) && o.d < relief.reach ? Math.max(groundHeight(o.e, o.n, NO_ITEMS, relief), b - (ground + EYE_M)) : b - (ground + EYE_M);
     // una pieza extensa (la llaqta de Machu Picchu) sigue el relieve punto a punto: recibe el suelo respecto a su origen
-    const gnd = relief && m.kind === "llaqta" ? (e, n) => groundHeight(o.e + e, o.n + n, NO_ITEMS, relief) - dz0 : null;
+    // (los muros bajos de un trazado extenso —los recintos de Chankillo, de hasta 200 m— se arman en tramos de ~2 m:
+    // cerca, build() los tiende sobre el suelo dibujado punto a punto (drapes), así que aquí van llanos; los apartados
+    // —aloof, fuera del suelo propio— siguen la ladera respecto a su centro, que queda en su base medida, y donde la
+    // rejilla del relieve no llega, llanos)
+    const al = isAloof({ m, o, aloof }), wallG = m.kind === "walls" ? (relief && al ? ((g0) => (e, n) => groundHeight(o.e + e, o.n + n, NO_ITEMS, relief) - g0)(groundHeight(o.e, o.n, NO_ITEMS, relief)) : () => 0) : null;
+    const gnd = m.kind === "walls" ? wallG : relief && m.kind === "llaqta" ? (e, n) => groundHeight(o.e + e, o.n + n, NO_ITEMS, relief) - dz0 : null;
     out.push({ m, o, aloof, dz: dz0 + (abs != null ? 0 : (m.lift || 0)) - (m.drop || 0), faces: buildFaces(m, { d: o.d, ground: gnd }) });
   }
   // Subido a una plataforma (`standOn`): si el lugar cae dentro de la plataforma de una pirámide, los ojos van a 1,7 m
@@ -343,7 +348,12 @@ export function createMonumentLayer({ onReady = null } = {}) {
   group.add(sun, sunTarget, hemi);
   let box = new THREE.Box3();
 
-  const show = () => { group.visible = enabledFlag && meshes.length > 0 && pending === 0; };
+  // (`hold`: mientras llega el color del relieve cercano, para que el suelo del sitio no salga primero con el de la foto
+  // y luego cambie; como mucho 8 s)
+  let hold = false, holdT = null;
+  // (un suelo con color propio —el kikuyo de Cochasquí— no espera al del relieve)
+  let groundOwn = false;
+  const show = () => { group.visible = enabledFlag && meshes.length > 0 && pending === 0 && (!hold || groundOwn); };
   function tex(kind) {
     if (!texCache.has(kind)) {
       const T = makeMonumentTexture(kind, THREE, () => { T.left--; if (T.left === 0) for (const cb of T.waiters.splice(0)) cb(); });
@@ -367,7 +377,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
     m.color.setRGB(cfg.tint[0], cfg.tint[1], cfg.tint[2]);
     m.normalScale.set(cfg.normal, cfg.normal);
     m.aoMapIntensity = 1;
-    const own = { uMacro: { value: cfg.macro }, uBlend: { value: cfg.blend }, uScaleB: { value: ground ? 0.173 : 0.41 }, uGround: { value: ground || EARTH_MATS.has(mat) ? 1 : 0 } };
+    const own = { uMacro: { value: cfg.macro }, uBlend: { value: cfg.blend }, uScaleB: { value: ground ? 0.173 : 0.41 }, uGround: { value: (ground || EARTH_MATS.has(mat)) && !cfg.ownColor ? 1 : 0 } };
     if (cfg.matte) { m.roughnessMap = null; m.roughness = 0.97; }
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, shared, own);
@@ -455,6 +465,7 @@ export function createMonumentLayer({ onReady = null } = {}) {
     // alrededor (terrain3d.js) cubre solo el entorno del sitio y se funde con el relieve en el borde
     {
       const near = items.reduce((a, b) => (a.o.d <= b.o.d ? a : b)), gmat = groundPatch(near.m).mat, tile = (MON_MATS[gmat] || MON_MATS.dirt).tile;
+      groundOwn = !!(MON_MATS[gmat] || {}).ownColor;
       // con relieve (crestas, laderas) la malla es más fina, para que el suelo llegue al pie de cada monumento
       const fine = !!(grid && grid.reach === reach), NR = fine ? 168 : 64, NS = fine ? 288 : 144, r0 = 0.6;
       // El suelo sigue más allá del último monumento como un faldón llano (8 anillos, hasta 12 veces el
@@ -565,6 +576,13 @@ export function createMonumentLayer({ onReady = null } = {}) {
     set(list, st, grid = null) { last = { list, st, grid }; build(list, grid); paint(st); show(); },
     get grid() { return last ? last.grid : null; },
     get k() { return k; },
+    setHold(b) {
+      if (b && hold) return;                                 // (ya retenido: el tope de 8 s cuenta desde la primera vez)
+      if (holdT) { clearTimeout(holdT); holdT = null; }
+      hold = !!b;
+      if (hold) holdT = setTimeout(() => { hold = false; holdT = null; show(); if (onReady) onReady(); }, 8000);
+      show();
+    },
     /** Con el relieve 3D alrededor (terrain3d.js) el suelo del sitio no se alarga en un faldón llano. */
     /** El color del relieve cercano para el suelo propio (de near3d.colorMap; null para volver al de la foto). */
     setNear(cm) {

@@ -91,6 +91,30 @@ export function smoothNear(heights, nAz, nR, d, dAz) {
   }
   return out;
 }
+/**
+ * La altura (m sobre el mar) del relieve cercano TAL COMO SE DIBUJA (suavizado y con los bultos de cerca allanados,
+ * como en nearGeometry) en el punto (e, n) m desde quien mira: para asentar lo que va sobre él (los muros bajos de un
+ * sitio extenso) sin que quede en el aire ni enterrado. Mismos `groundAt` y `lift` que nearGeometry.
+ */
+export function nearHeightAt(nr, groundAt = null, lift = 0) {
+  const { nAz, nR, heights } = nr, ground = Number.isFinite(groundAt) ? groundAt : nr.ground;
+  const d = new Float64Array(nR), w = new Float64Array(nR);
+  for (let j = 0; j < nR; j++) {
+    d[j] = ringDist(nr, j);
+    const x = Math.min(1, Math.max(0, (d[j] - FLAT_IN) / (FLAT_OUT - FLAT_IN)));
+    w[j] = x * x * (3 - 2 * x);
+  }
+  const dAz = (2 * Math.PI) / nAz, hs = smoothNear(heights, nAz, nR, d, dAz), L = Math.log(nr.dMax / nr.dMin);
+  const H = (i, j) => { const h = hs[(((i % nAz) + nAz) % nAz) * nR + j]; if (h <= ground) return h; const k = lift > 0 ? w[j] + (1 - w[j]) * sstep(12, 35, h - ground) : w[j]; return ground + (h - ground) * k; };
+  return (e, n) => {
+    const r = Math.hypot(e, n), x = (((Math.atan2(e, n) / dAz) % nAz) + nAz) % nAz, i0 = Math.floor(x), ti = x - i0;
+    const at = (j) => H(i0, j) * (1 - ti) + H(i0 + 1, j) * ti;
+    if (r <= nr.dMin) return ground + (at(0) - ground) * (r / nr.dMin);
+    const y = Math.min(nR - 1, ((nR - 1) * Math.log(r / nr.dMin)) / L), j0 = Math.floor(y), j1 = Math.min(nR - 1, j0 + 1), tj = y - j0;
+    return at(j0) * (1 - tj) + at(j1) * tj;
+  };
+}
+
 export function nearGeometry(nr, scale = UNITS_PER_M, lift = 0, groundAt = null) {
   // (`groundAt`: el suelo bajo los pies con que se colocan los monumentos, si lo hay: malla y monumentos a la misma altura)
   const { nAz, nR, heights } = nr, ground = Number.isFinite(groundAt) ? groundAt : nr.ground, eye = nr.eye + (lift > 0 ? lift : 0);
@@ -179,10 +203,36 @@ precision highp float;
 uniform sampler2D map;
 uniform vec3 uSun, uHorizon, uNightNear, uNightFar, uSnow;
 uniform float uDay, uSunAlt, uHzSun, uH0, uSnowH, uOpaque, uGlow, uFadeLo, uFadeHi, uUnits, uOvc, uFogB, uTexK;
+// nubes que tocan el relieve (terrainClouds.js): bases (m), coberturas del pronóstico, satélite (R baja, G media)
+uniform float uCld, uOnL, uOnM, uBaseL, uBaseM, uCovL, uCovM, uSatW, uSatHalf; uniform vec2 uSatOffL, uSatOffM; uniform sampler2D uSatMap;
+uniform vec3 uCloudCol;
 varying vec2 vUv; varying vec3 vN; varying vec3 vDir; varying float vH; varying float vD; varying vec3 vP;
 float th(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float tn(vec2 x) { vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(th(i), th(i + vec2(1, 0)), f.x), mix(th(i + vec2(0, 1)), th(i + vec2(1, 1)), f.x), f.y); }
+// cobertura de una capa en el punto p (km este, norte): la del satélite (canal «sel») donde la hay; si no, la del pronóstico
+float covAt(vec2 p, vec2 off, float fc, vec4 sel) {
+  if (uSatW <= 0.0) return fc;
+  vec2 uv = (p - off + uSatHalf) / (2.0 * uSatHalf);
+  float e = min(min(uv.x, uv.y), min(1.0 - uv.x, 1.0 - uv.y));
+  if (e <= 0.0) return fc;
+  vec4 m = texture2D(uSatMap, uv);
+  // (junto a una celda sin dato el filtro mezcla su 0: se divide por la validez)
+  return mix(fc, dot(m, sel) / max(m.a, 1.0 / 255.0), smoothstep(0.0, 0.08, e) * m.a * uSatW);
+}
+// cuánto tapa una capa este punto del relieve (como inCloud de terrainClouds.js, con manchas de nube)
+float layerIn(float on, float base, float fc, vec2 off, vec4 sel, vec2 en, float op, float seed) {
+  if (on < 0.5) return 0.0;                               // capa bajo los ojos: el mar de nubes lo dibuja cloudsLayer
+  // (la transición empieza 400 m bajo la base, pero nunca por debajo de 100 m sobre los ojos: el suelo a tu altura no
+  // se tiñe de gris aunque la base calculada esté muy baja)
+  float lo = max(base - 400.0, uH0 + 100.0);
+  float hf = smoothstep(lo, max(lo + 100.0, base + 100.0), vH);
+  if (hf <= 0.0) return 0.0;
+  float f = clamp((lo - uH0) / max(1.0, vH - uH0), 0.0, 1.0);   // donde la mirada entra en la capa
+  float c = max(covAt(en, off, fc, sel), covAt(en * f, off, fc, sel));
+  float nz = tn(en / 2.6 + seed) * 0.65 + tn(en / 0.8 + seed * 1.7) * 0.35;
+  return op * hf * smoothstep(-0.08, 0.08, c * 1.16 - 0.08 - nz);
+}
 void main() {
   float alt = degrees(asin(clamp(normalize(vDir).y, -1.0, 1.0)));
   float a = mix(smoothstep(uFadeLo, uFadeHi, alt), 1.0, uOpaque);
@@ -265,7 +315,19 @@ void main() {
   // de noche, siluetas (algo más claras lejos), con un resto del relieve
   float f = sqrt(clamp(vD / 300000.0, 0.0, 1.0));
   vec3 ncol = mix(uNightNear, uNightFar, pow(f, 0.8) * 0.95) * (0.82 + 0.5 * g + 0.5 * sn);
-  gl_FragColor = vec4(mix(ncol, dcol, uDay), a);
+  vec3 col = mix(ncol, dcol, uDay);
+  // dentro de las nubes: lo que supera su base se tapa con el gris de la nube (de noche, el del cielo); lo de abajo se ve
+  if (uCld > 0.5) {
+    vec2 en = vec2(vP.x, -vP.z) / max(1e-6, length(vP.xz)) * vD / 1000.0;
+    float kl = layerIn(uOnL, uBaseL, uCovL, uSatOffL, vec4(1.0, 0.0, 0.0, 0.0), en, 0.93, 3.1);
+    float km = layerIn(uOnM, uBaseM, uCovM, uSatOffM, vec4(0.0, 1.0, 0.0, 0.0), en, 0.85, 7.7);
+    float k = 1.0 - (1.0 - kl) * (1.0 - km);
+    // (la nube lejana, con la misma bruma que el relieve)
+    vec3 cc = mix(uCloudCol, uHorizon, 0.86 * (1.0 - exp(-vD / 95000.0)));
+    cc = mix(cc, uHorizon, min(0.95, 1.0 - exp(-vD * uFogB)));
+    col = mix(col, mix(uNightFar * 1.15, cc, uDay), k);
+  }
+  gl_FragColor = vec4(col, a);
 }`;
 
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -283,7 +345,10 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
     uSnow: { value: new THREE.Vector3(0.9, 0.92, 0.95) }, uDay: { value: 0 }, uSunAlt: { value: -90 }, uHzSun: { value: 0 },
     uH0: { value: 0 }, uSnowH: { value: 4900 }, uOpaque: { value: 0 }, uGlow: { value: 0 }, uFadeLo: { value: -9 }, uFadeHi: { value: -2.5 },
     uUnits: { value: UNITS_PER_M }, uOvc: { value: 0 }, uFogB: { value: 0 }, uTexK: { value: 1 },
+    uCld: { value: 0 }, uOnL: { value: 1 }, uOnM: { value: 1 }, uBaseL: { value: 1e5 }, uBaseM: { value: 1e5 }, uCovL: { value: 0 }, uCovM: { value: 0 }, uSatW: { value: 0 }, uSatHalf: { value: 151.5 },
+    uSatOffL: { value: new THREE.Vector2() }, uSatOffM: { value: new THREE.Vector2() }, uSatMap: { value: null }, uCloudCol: { value: new THREE.Vector3(0.7, 0.72, 0.75) },
   };
+  let satTex = null, satSrc = null;
   const clear = () => {
     if (mesh) { mesh.geometry.dispose(); if (uniforms.map.value) uniforms.map.value.dispose(); mesh.material.dispose(); group.remove(mesh); }
     mesh = null; key = null; uniforms.map.value = null; span = null; group.visible = false;
@@ -391,6 +456,28 @@ export function createNearTerrainLayer({ onReady = null } = {}) {
       uniforms.uFadeHi.value = top; uniforms.uFadeLo.value = top - 2.6;
     },
     setEnabled(b) { enabled = !!b; group.visible = enabled && !!mesh; },
-    dispose() { seq++; clear(); if (group.parent) group.parent.remove(group); },
+    /**
+     * Las nubes que tocan el relieve: p = terrainClouds(...) (terrainClouds.js) o null para ninguna. `color`: el gris de
+     * la nube de día ([r, g, b]). Lo que supera la base de una capa se tapa donde hay nube.
+     */
+    setClouds(p, color = null) {
+      if (!p) { uniforms.uCld.value = 0; return; }
+      uniforms.uCld.value = 1;
+      uniforms.uOnL.value = p.onL === false ? 0 : 1; uniforms.uOnM.value = p.onM === false ? 0 : 1;
+      uniforms.uBaseL.value = p.baseL; uniforms.uBaseM.value = p.baseM; uniforms.uCovL.value = p.covL; uniforms.uCovM.value = p.covM;
+      uniforms.uSatOffL.value.set(p.offL[0], p.offL[1]); uniforms.uSatOffM.value.set(p.offM[0], p.offM[1]);
+      if (color) uniforms.uCloudCol.value.set(color[0], color[1], color[2]);
+      if (p.sat && p.w > 0) {
+        if (!satTex || satSrc !== p.sat) {             // (por el objeto: la clave no lleva el lugar)
+          if (satTex) satTex.dispose();
+          satTex = new THREE.DataTexture(p.sat.tex, p.sat.n, p.sat.n, THREE.RGBAFormat, THREE.UnsignedByteType);
+          satTex.minFilter = THREE.LinearFilter; satTex.magFilter = THREE.LinearFilter;
+          satTex.wrapS = satTex.wrapT = THREE.ClampToEdgeWrapping; satTex.generateMipmaps = false; satTex.needsUpdate = true;
+          satSrc = p.sat; uniforms.uSatMap.value = satTex;
+        }
+        uniforms.uSatW.value = p.w; uniforms.uSatHalf.value = p.sat.half;
+      } else uniforms.uSatW.value = 0;
+    },
+    dispose() { seq++; clear(); if (satTex) { satTex.dispose(); satTex = null; satSrc = null; } if (group.parent) group.parent.remove(group); },
   };
 }

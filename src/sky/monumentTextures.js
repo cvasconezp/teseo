@@ -47,6 +47,9 @@ export const MON_MATS = {
   incarustic: { src: "basalt", tile: 2.8, tint: [2.7, 2.68, 2.6], normal: 1.4, macro: 0.5, blend: 0.5 },
   thatch: { src: "sand", tile: 2.4, tint: [0.72, 0.6, 0.4], normal: 1.2, macro: 0.6, blend: 0.6, matte: true },      // techos de paja (ichu)
   heath: { src: "grass", tile: 2.2, tint: [0.78, 0.9, 0.66], normal: 1.0, macro: 0.85, blend: 1, matte: true },         // Cochasquí: hierba más oscura sobre las pirámides
+  // Cochasquí: el suelo de alrededor, el mismo kikuyo que cubre las pirámides (todo el parque lo es), algo más oscuro y
+  // menos amarillo que sus laderas para que resalten; no toma el color del relieve (la imagen de satélite lo da pardo)
+  kikuyo: { src: "grass", tile: 2.2, tint: [0.5, 0.63, 0.45], normal: 1.0, macro: 0.85, blend: 1, matte: true, ownColor: true },
   // suelos de cada lugar
   desert: { src: "sand", tile: 4.5, tint: [1.02, 0.84, 0.7], normal: 1.0, macro: 0.6, blend: 1, matte: true },       // Atacama: grava rojiza
   puna: { src: "sand", tile: 4.5, tint: [0.9, 0.86, 0.64], normal: 1.0, macro: 0.7, blend: 1, matte: true },         // altiplano: paja seca

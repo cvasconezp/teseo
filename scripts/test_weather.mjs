@@ -299,5 +299,43 @@ ok(layerHeight("low", 0) === 1.5 && layerHeight("low", 2.2) < 0 && layerHeight("
   ok(occ1([0, 1, 0]) >= occ0([0, 1, 0]) && occ1([0, 1, 0]) > 0.9, "con lluvia, el cenit queda tapado también para los nombres");
 }
 
+// las nubes en el relieve: por altura y, con satélite reciente, donde él las ve (terrainClouds.js)
+{
+  const tc = await import("../src/sky/terrainClouds.js"), rl = await import("../src/sky/rainLook.js");
+  const refM = 2829, b = tc.cloudBasesM(0.775, refM);
+  ok(b.low === refM + 775 && b.mid === refM + 2000 && tc.cloudBasesM(1.6, refM).mid === refM + 2600 && tc.cloudBasesM(null, 0).low === 1500,
+    "bases: la baja calculada; la media a 2 km del suelo o 1 km sobre la baja");
+  ok(tc.heightIn(b.mid - 401, b.mid) === 0 && tc.heightIn(b.mid + 101, b.mid) === 1 && tc.heightIn(b.mid - 150, b.mid) > 0.3,
+    "transición: desde 400 m bajo la base hasta 100 m sobre ella");
+  // Cayambe a las 9h20 del 26-11-2026 (GOES-19): manto medio sobre el valle, el Mojanda y el Cayambe; bajas solo al suroeste
+  const n = 5, L = new Uint8Array(n * n), M = new Uint8Array(n * n).fill(100);
+  const sat = { t: 1, n, res: 3, half: 7.5, key: "k", layers: { low: L, mid: M, high: new Uint8Array(n * n) } };
+  const p = tc.terrainClouds({ clouds: { low: 0.2, mid: 0.14, baseKm: 0.775 }, sat, w: 1, refM });
+  const obs = 2850 + 1.7;
+  ok(p && p.sat && p.w === 1 && tc.satCoverAt(p.sat, 1, 0, 0) === 1 && tc.satCoverAt(p.sat, 0, 0, 0) === 0 && tc.satCoverAt(p.sat, 1, 99, 0) === null,
+    "la malla del satélite se lee por capa y celda (fuera, nada)");
+  ok(tc.inCloud(p, 4263, 3, 4, obs) < 0.05, "el Mojanda (4.263 m) queda bajo la base de las medias: se ve");
+  ok(tc.inCloud(p, 5790, 2, 1, obs) > 0.8, "la cumbre del Cayambe (5.790 m), dentro del manto que ve el satélite: tapada");
+  const clear = { ...sat, key: "c", layers: { low: L, mid: new Uint8Array(n * n), high: new Uint8Array(n * n) } };
+  ok(tc.inCloud(tc.terrainClouds({ clouds: { low: 0.2, mid: 0.14, baseKm: 0.775 }, sat: clear, w: 1, refM }), 5790, 2, 1, obs) < 0.05,
+    "si el satélite ve despejada la cumbre, se ve aunque el pronóstico dé nubes");
+  ok(tc.inCloud(tc.terrainClouds({ clouds: { low: 0, mid: 1, baseKm: 0.775 }, refM }), 5790, 2, 1, obs) > 0.8,
+    "sin satélite, manda la cobertura del pronóstico");
+  ok(tc.inCloud(p, 5790, 2, 1, 6000) === 0, "desde encima de la base no tapa (el mar de nubes es de cloudsLayer)");
+  ok(tc.inCloud({ ...p, onM: false }, 5790, 2, 1, obs) === 0 && tc.inCloud({ ...p, onM: true }, 5790, 2, 1, 5000) > 0.5,
+    "la capa cuenta según cloudsLayer la dibuje encima o debajo de los ojos");
+  const wet = tc.terrainClouds({ clouds: { low: 1, mid: 0, baseKm: 0.2 }, refM });
+  ok(tc.inCloud(wet, refM + 90, 0.3, 0, refM) === 0 && tc.inCloud(wet, refM + 400, 2, 0, refM) > 0.5,
+    "con la base muy baja, el suelo a tu altura no se tiñe; la ladera que sube, sí");
+  ok(tc.terrainClouds({ clouds: { low: 0, mid: 0 }, refM }) === null && tc.terrainClouds({ clouds: { low: 1 }, refM: null }) === null, "sin nubes o sin suelo del pronóstico, nada");
+  // la visibilidad del modelo solo cuenta con niebla o precipitación en el código
+  const fc = { low: 0.2, mid: 0.14, high: 0, code: 1, mm: 0, precip: 0.26, visKm: 1.38 };
+  ok(rl.rainLook(fc).beta === 0 && rl.rainLook({ ...fc, code: 45 }).beta > 2 && rl.rainLook({ ...fc, code: null }).beta > 2 && rl.rainLook({ ...fc, code: 3, visKm: 0.6 }).beta > 5,
+    "con «casi despejado» no se cree una visibilidad de 1,4 km; con niebla, sí");
+  const src = readFileSync(new URL("../src/sky/terrain3d.js", import.meta.url), "utf8"), cl = readFileSync(new URL("../src/sky/cloudsLayer.js", import.meta.url), "utf8");
+  ok(/max\(base - 400\.0, uH0 \+ 100\.0\)/.test(src) && /setClouds\(/.test(src) && /setOverTerrain\(/.test(cl),
+    "el sombreador repite la transición; la pasada por distancia se apaga con el relieve cercano");
+}
+
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

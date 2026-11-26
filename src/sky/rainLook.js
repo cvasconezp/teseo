@@ -106,7 +106,13 @@ export function rainLook(fc, sat = null, w = 0) {
   const shower = SHOWER.has(fc.code);
   // la lluvia también quita visibilidad aunque el modelo no la dé (fuerte: ~2 km; débil: ~10 km)
   // la visibilidad baja que el modelo da junto con lluvia es la de cuando llueve: cuenta según su probabilidad
-  let vb = visBeta(fc.visKm);
+  // (la visibilidad del modelo es un diagnóstico de su humedad: con un código sin niebla ni precipitación —despejado,
+  // nubes— no se cree. En Cayambe, a las 9h00, el código 1 «casi despejado» venía con 1,4 km de visibilidad, y las
+  // montañas a 15 km quedaban borradas mientras a la vista se veían enteras)
+  // (salvo «cubierto» con menos de 1 km: hay modelos que nunca dan el código de niebla y es su única señal de nube a ras
+  // del suelo)
+  const visOk = fc.code == null || FOG.has(fc.code) || !!RAIN_BY_CODE[fc.code] || (fc.code === 3 && fc.visKm < 1);
+  let vb = visOk ? visBeta(fc.visKm) : 0;
   if (vb > 0 && RAIN_BY_CODE[fc.code] && Number.isFinite(fc.precip)) vb = expectedBeta(vb, pRain);
   let beta = Math.max(vb, 2 * Math.pow(rain, 2.2));
   if (FOG.has(fc.code) && !Number.isFinite(fc.visKm)) beta = Math.max(beta, K / 0.5);

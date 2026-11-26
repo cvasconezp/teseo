@@ -128,7 +128,7 @@ const COCHASQUI = CQ.map(([id, L, e, n, w, d, h, ramp]) => ({
   // etiqueta corta (en el teléfono se montaba sobre otras): la nota propia, o si tiene rampa; y si el alto es estimado
   sub: { es: [CQ_NOTE[L] ? CQ_NOTE[L][0] : ramp ? "con rampa" : "sin rampa", CQ_MEASURED.has(L) ? "" : "alto estimado"].filter(Boolean).join(" · "),
     en: [CQ_NOTE[L] ? CQ_NOTE[L][1] : ramp ? "with ramp" : "no ramp", CQ_MEASURED.has(L) ? "" : "height estimated"].filter(Boolean).join(" · ") },
-  ...cqAt(e, n), kind: "tola", w, d, height: h, ramp, rot: CQ_ROT[L] || 27.6, ...(L === "G" ? { rampW: 1.7 } : {}), foot: Math.hypot(w, d) * 0.78, far: 6000, relief: true, seat: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
+  ...cqAt(e, n), kind: "tola", w, d, height: h, ramp, rot: CQ_ROT[L] || 27.6, ...(L === "G" ? { rampW: 1.7 } : {}), foot: Math.hypot(w, d) * 0.78, far: 6000, relief: true, seat: true, color: GRASS, mat: "heath", ground: "kikuyo", solid: true,
   // el suelo de las pequeñas se mide en su centro (un punto); el de las cuatro grandes, en un anillo a su alrededor
   ...(w >= 60 ? {} : { ring: 3 }),
   ...(L === "K" ? { rampsN: 2 } : {}),
@@ -143,7 +143,7 @@ const CQM = [["cqm-a", -352, -422, 20, 5, "a"], ["cqm-c", -312, -404, 12, 3, "c"
 const COCHASQUI_MOUNDS = CQM.map(([id, e, n, radius, h, L]) => ({
   id, site: "cochasqui", name: { es: L ? `Montículo funerario ${L}` : "Montículo funerario", en: L ? `Burial mound ${L}` : "Burial mound" }, label: L === "a",
   sub: { es: L === "a" ? "40 m de diámetro" : "alto estimado", en: L === "a" ? "40 m across" : "height estimated" },
-  ...cqAt(e, n), kind: "mound", radius, wall: 0, skirt: 8, seg: 28, rings: 5, height: h, ring: 3, far: 2500, relief: true, seat: true, color: GRASS, mat: "heath", ground: "grass", solid: true,
+  ...cqAt(e, n), kind: "mound", radius, wall: 0, skirt: 8, seg: 28, rings: 5, height: h, ring: 3, far: 2500, relief: true, seat: true, color: GRASS, mat: "heath", ground: "kikuyo", solid: true,
 }));
 // Machu Picchu, desde la cima del Intihuatana: la llaqta entera sobre el relieve.
 // PLANTA: © colaboradores de OpenStreetMap (ODbL), en machuData.js (scripts/build_machu_data.py): 101 recintos, 171 muros
@@ -1230,10 +1230,31 @@ export function buildFaces(m, opt = {}) {
     const c = s3 / 2 - 7;
     for (const [x, y] of [[c, c], [c, -c], [-c, c], [-c, -c]]) tower(x, y, m.corner, 6);
   } else if (m.kind === "walls") {
-    // muros bajos en planta (ruinas): un prisma por trazo
+    // muros bajos en planta (ruinas): un prisma por trazo. Con el suelo del sitio (opt.ground), en tramos de ~2 m, cada
+    // uno sobre el suelo que tiene debajo: en una ladera, un trazo de 100 m en un solo prisma quedaba enterrado de un
+    // lado y en el aire del otro (en Chankillo, del Recinto noreste solo asomaban dos bloques sueltos)
+    const g = opt.ground;
     for (const [e1, n1, e2, n2] of m.segs) {
       const L = Math.hypot(e2 - e1, n2 - n1); if (L < 0.5) continue;
-      block(out, (e1 + e2) / 2, (n1 + n2) / 2, -0.6, m.height + 0.6, L + m.thick, m.thick, 90 - Math.atan2(n2 - n1, e2 - e1) / RAD, col, m.mat);
+      // (giro del prisma: el largo —su eje x— a lo largo del trazo. rotP gira en sentido horario, así que es menos el ángulo
+      // del trazo desde el este; con el rumbo —90° menos ese ángulo— quedaba atravesado: losas de 70 m perpendiculares a
+      // cada muro, que asomaban del suelo como bloques sueltos)
+      const az = -Math.atan2(n2 - n1, e2 - e1) / RAD;
+      if (!g) { block(out, (e1 + e2) / 2, (n1 + n2) / 2, -0.6, m.height + 0.6, L + m.thick, m.thick, az, col, m.mat); continue; }
+      // (el trazo se alarga medio grueso por cada punta, como el prisma entero, para cerrar las esquinas; cada ~2 m toma
+      // la altura del suelo y entre puntos el muro sube o baja en rampa, sin escalones)
+      const ux = (e2 - e1) / L, uy = (n2 - n1) / L, h2 = m.thick / 2, a0 = [e1 - ux * h2, n1 - uy * h2], LL = L + m.thick;
+      const k = Math.max(1, Math.ceil(LL / 2)), px = -uy * h2, py = ux * h2, P = [];
+      for (let i = 0; i <= k; i++) { const t = (i / k) * LL, e = a0[0] + ux * t, n = a0[1] + uy * t, z = g(e, n); P.push([e, n, Number.isFinite(z) ? z : 0]); }
+      const V = (q, sd, top) => [q[0] + px * sd, q[1] + py * sd, q[2] + (top ? m.height : -0.6)];
+      for (let i = 0; i < k; i++) {
+        const A = P[i], B = P[i + 1];
+        // (caras hacia fuera: las sombras usan la cara de atrás)
+        quad(out, V(B, 1, false), V(A, 1, false), V(A, 1, true), V(B, 1, true), col, m.mat);
+        quad(out, V(A, -1, false), V(B, -1, false), V(B, -1, true), V(A, -1, true), col, m.mat);
+        quad(out, V(A, -1, true), V(B, -1, true), V(B, 1, true), V(A, 1, true), col, m.mat);
+      }
+      for (const [q, sd] of [[P[0], -1], [P[k], 1]]) quad(out, V(q, -sd, false), V(q, sd, false), V(q, sd, true), V(q, -sd, true), col, m.mat);
     }
   } else if (m.kind === "arcwall") {
     arcWall(out, m);
