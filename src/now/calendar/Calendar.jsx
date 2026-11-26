@@ -13,9 +13,10 @@ import { NOW_SHARE_KINDS } from "../../share/eventText.js";
 import { feedUrl, subscribeLinks } from "./feed.js";
 import { TC, describeEvent } from "./i18n.js";
 import { downloadIcs } from "./ics.js";
+import { TS } from "../../special/i18n.js";
 import {
-  VIEW_KEY, VIEWS, PHASE_SHAPE, dayKeyOf, dayKeyOfMs, monthOfKey, partsOf, addDays, addMonths, monthGrid, weekOf, groupByDay,
-  eventsOfWeek, defaultSelected, nextDayWithEvents, monthRange, clampMonth, dayMarks, moonOfDay, moonLitPath, todayMarkerIndex,
+  VIEW_KEY, VIEWS, PHASE_SHAPE, dayKeyOf, dayKeyOfMs, monthOfKey, partsOf, addDays, addMonths, monthGrid, groupByDay,
+  eventsOfDay, monthEvents, isPastDay, shiftDay, defaultSelected, nextDayWithEvents, monthRange, clampMonth, dayMarks, moonOfDay, moonLitPath, todayMarkerIndex,
 } from "./views.js";
 import { loadIssPasses } from "./issLoader.js";
 import { ShareButton } from "../share/NowShare.jsx";
@@ -511,21 +512,121 @@ function ViewSwitch({ view, onChange, t }) {
   );
 }
 
-// ─── El mes: cuadrícula mensual + el hilo de la semana elegida ────────────────
+// ─── El mes: cuadrícula mensual, «El hilo de <mes>» compacto y la ventana de cada día ───
 const dayDate = (key) => { const [y, m, d] = partsOf(key); return new Date(y, m - 1, d, 12); };
-function MonthView({ byDay, month, range, setMonth, sel, setSel, todayKey, filter, more, lang, fmt, t, api, push, now }) {
+const cap1 = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
+/** Ventana (<dialog> modal) con la Luna y los eventos de un día; «Día anterior / siguiente» para recorrerlos. */
+function DayDialog({ dayKey, onClose, onNav, onJump, range, byDay, todayKey, lang, fmt, t, api, push, now, longDate, shortDate }) {
+  const D = t.views.day, ref = useRef(null), titleRef = useRef(null), bodyRef = useRef(null);
+  const closing = useRef(false);
+  const close = (restore = true) => { if (closing.current) return; closing.current = true; onClose(restore); };
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (!d.open) { try { d.showModal(); } catch { d.setAttribute("open", ""); } }
+    if (titleRef.current) titleRef.current.focus();
+    return () => { if (d.open) d.close(); };
+  }, []);
+  useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [dayKey]);
+  const events = useMemo(() => eventsOfDay(byDay, dayKey), [byDay, dayKey]);
+  const moon = useMemo(() => moonOfDay(dayKey), [dayKey]);
+  const past = isPastDay(dayKey, todayKey);
+  const next = useMemo(() => nextDayWithEvents(byDay, dayKey), [byDay, dayKey]);
+  const prevKey = shiftDay(dayKey, -1, range), nextKey = shiftDay(dayKey, 1, range);
+  const phaseName = D.phases[moon.phase] || (TS[lang] || TS.es).phases[moon.phase];
+  // cualquier enlace a otra pestaña, o abrir «Compartir», cierra la ventana antes (sin devolver el foco: ya se va)
+  const onClickCapture = (e) => {
+    const el = e.target && e.target.closest ? e.target.closest("a[href^='#'], .now-share-btn") : null;
+    if (el) setTimeout(() => close(false), 0);
+  };
+  return (
+    <dialog ref={ref} className="cal-dlg" aria-labelledby="cal-dlg-title" onClose={() => close()} onCancel={() => { /* Escape: el evento close cierra */ }}
+      onClick={(e) => { if (e.target === ref.current) close(); }}>
+      <div className="cal-dlg__box" onClickCapture={onClickCapture}>
+        <header className="cal-dlg__head">
+          <h4 id="cal-dlg-title" ref={titleRef} tabIndex={-1} className="cal-dlg__title" aria-live="polite">{cap1(longDate(dayKey))}</h4>
+          <button type="button" className="cal-dlg__x" onClick={() => close()} aria-label={D.close}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        </header>
+        <div ref={bodyRef} className="cal-dlg__body">
+          <p className="cal-dlg__moon"><MoonGlyph illum={moon.illum} waxing={moon.waxing} size={28} /><span><span className="now-sr">{D.moonLabel}: </span>{D.moon(phaseName, Math.round(moon.illum * 100))}</span></p>
+          {events.length > 0 && <ThreadList key={dayKey} events={events} marker={dayKey === todayKey} now={now} lang={lang} fmt={fmt} t={t} api={api} push={push} />}
+          {events.length === 0 && (
+            <div className="cal-week__empty">
+              <p>{past ? D.past : D.none}</p>
+              {!past && (next
+                ? <button type="button" className="btn btn--ghost cal-btn" onClick={() => onJump(next)}>{D.goNext(shortDate(next))}</button>
+                : <p className="cal-week__hint">{D.noMore}</p>)}
+              {past && next && <button type="button" className="btn btn--ghost cal-btn" onClick={() => onJump(next)}>{D.goNext(shortDate(next))}</button>}
+            </div>
+          )}
+        </div>
+        <footer className="cal-dlg__foot">
+          <button type="button" className="btn btn--ghost cal-btn" onClick={() => prevKey && onNav(prevKey)} disabled={!prevKey}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="m14.5 5.5-6.5 6.5 6.5 6.5" /></svg>{D.prev}
+          </button>
+          <button type="button" className="btn btn--primary cal-btn" onClick={() => close()}>{D.close}</button>
+          <button type="button" className="btn btn--ghost cal-btn" onClick={() => nextKey && onNav(nextKey)} disabled={!nextKey}>
+            {D.next}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="m9.5 5.5 6.5 6.5-6.5 6.5" /></svg>
+          </button>
+        </footer>
+      </div>
+    </dialog>
+  );
+}
+
+/** «El hilo de <mes>» en formato compacto: una fila por evento (nudo, fecha y hora, título); cada fila abre la ventana de su día. */
+function MonthThread({ events, now, lang, fmt, t, onOpen, shortDate }) {
+  const V = t.views, mi = todayMarkerIndex(events, now);
+  const rows = events.map(ev => ({ ev, info: describeEvent(ev, lang, fmt) }));
+  const todayLi = <li key="today" className="cal-today"><span className="cal-today__dot" aria-hidden="true" /><span className="cal-today__t">{V.today}</span></li>;
+  const items = [];
+  rows.forEach(({ ev, info }, i) => {
+    if (i === mi && events.some(e => dayKeyOf(e) === dayKeyOfMs(now))) items.push(todayLi);
+    const key = dayKeyOf(ev), cd = countdownText(ev, now, lang);
+    const when = `${shortDate(key)}${ev.allDay ? "" : ` · ${fmt.time(ev.t)}`}`;
+    items.push(
+      <li key={ev.id} className={`cal-ev cal-ev--row cal-ev--${ev.type}${i < mi ? " is-done" : ""}${cd.state === "past" ? " is-past" : ""}`}>
+        <Knot ev={ev} />
+        <div className="cal-ev__body">
+          <button type="button" className="cal-row" data-open={key} onClick={(e) => onOpen(key, e.currentTarget)} aria-label={V.openDay(info.title, `${when}`)}>
+            <span className="cal-row__when">{when}</span>
+            <span className="cal-row__title">{info.title}</span>
+          </button>
+        </div>
+      </li>
+    );
+  });
+  if (mi === events.length && events.some(e => dayKeyOf(e) === dayKeyOfMs(now))) items.push(todayLi);
+  return <div className="cal-thread cal-thread--compact"><div className="cal-month"><ol className="cal-list">{items}</ol></div></div>;
+}
+
+function MonthView({ events, byDay, month, range, setMonth, sel, setSel, todayKey, filter, lang, fmt, t, api, push, now }) {
   const V = t.views, gridRef = useRef(null), gid = useId();
+  const [openDay, setOpenDay] = useState(null);
+  const openerRef = useRef({ el: null, key: null });
   const weeks = useMemo(() => monthGrid(month), [month]);
   const moons = useMemo(() => { const o = {}; weeks.flat().forEach(c => { if (c) o[c.key] = moonOfDay(c.key); }); return o; }, [weeks]);
   const L = loc(lang);
   const longDate = (key) => dayDate(key).toLocaleDateString(L, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const shortDate = (key) => dayDate(key).toLocaleDateString(L, { day: "numeric", month: "short" });
+  const shortDate = (key) => dayDate(key).toLocaleDateString(L, { weekday: "short", day: "numeric", month: "short" });
   const types = useMemo(() => { const s = new Set(); weeks.flat().forEach(c => { if (c) (byDay.get(c.key) || []).forEach(e => s.add(e.type)); }); return TYPES.filter(k => s.has(k)); }, [weeks, byDay]);
-  const week = useMemo(() => eventsOfWeek(byDay, sel), [byDay, sel]);
-  const wk = weekOf(sel);
-  const hasToday = wk.includes(todayKey);
-  const next = useMemo(() => nextDayWithEvents(byDay, wk[6]), [byDay, sel]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const jump = (k) => { setMonth(monthOfKey(k)); setSel(k); };
+  const mEvents = useMemo(() => monthEvents(events, month), [events, month]);
+  const goDay = (k) => { setMonth(monthOfKey(k)); setSel(k); setOpenDay(k); };
+  const open = (key, el) => { openerRef.current = { el, key }; setSel(key); setOpenDay(key); };
+  const closeDay = (restore) => {
+    const last = openDay;
+    setOpenDay(null);
+    if (!restore) return;
+    setTimeout(() => {
+      const o = openerRef.current;
+      const el = o.el && o.el.isConnected && o.key === last ? o.el : gridRef.current && gridRef.current.querySelector(`[data-day="${last}"]`);
+      if (el) el.focus();
+    }, 0);
+  };
+  const navDay = (k) => { setMonth(monthOfKey(k)); setSel(k); setOpenDay(k); };
   const onKey = (e, key) => {
     const delta = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
     if (!delta) return;
@@ -553,9 +654,9 @@ function MonthView({ byDay, month, range, setMonth, sel, setSel, todayKey, filte
             const isToday = c.key === todayKey;
             return (
               <button key={c.key} type="button" data-day={c.key} className={`cal-day${isToday ? " is-today" : ""}${list.length ? " has-ev" : ""}`}
-                aria-pressed={sel === c.key} aria-current={isToday ? "date" : undefined}
+                aria-pressed={sel === c.key} aria-current={isToday ? "date" : undefined} aria-haspopup="dialog"
                 aria-label={V.dayLabel(longDate(c.key), list.length, isToday)}
-                onClick={() => setSel(c.key)} onKeyDown={(e) => onKey(e, c.key)}>
+                onClick={(e) => open(c.key, e.currentTarget)} onKeyDown={(e) => onKey(e, c.key)}>
                 <span className="cal-day__n" aria-hidden="true">{c.day}</span>
                 <MoonGlyph illum={m.illum} waxing={m.waxing} size={16} className="cal-day__moon" />
                 <span className="cal-day__marks" aria-hidden="true">{marks.types.map(k => <Mark key={k} type={k} />)}{marks.more > 0 && <span className="cal-day__plus">+</span>}</span>
@@ -570,18 +671,15 @@ function MonthView({ byDay, month, range, setMonth, sel, setSel, todayKey, filte
         )}
       </div>
       <div className="cal-mv__week">
-        <h4 className="now-sub cal-week__h">{V.weekOf(shortDate(wk[0]), shortDate(wk[6]))}</h4>
-        {week.length > 0
-          ? <ThreadList events={week} marker={hasToday} now={now} lang={lang} fmt={fmt} t={t} api={api} push={push} />
-          : (
-            <div className="cal-week__empty">
-              <p>{filter === "all" ? V.emptyWeek : V.emptyWeekFilter}</p>
-              {next
-                ? <button type="button" className="btn btn--ghost cal-btn" onClick={() => jump(next)}>{V.goNext(shortDate(next))}</button>
-                : !more && <p className="cal-week__hint">{V.noMore}</p>}
-            </div>
-          )}
+        <h4 className="now-sub cal-week__h">{V.threadOf(monthLabel(month, lang))}</h4>
+        {mEvents.length > 0
+          ? <MonthThread events={mEvents} now={now} lang={lang} fmt={fmt} t={t} onOpen={open} shortDate={shortDate} />
+          : <div className="cal-week__empty"><p>{filter === "all" ? V.emptyMonthAll : V.emptyMonth}</p></div>}
       </div>
+      {openDay && (
+        <DayDialog dayKey={openDay} onClose={closeDay} onNav={navDay} onJump={goDay} range={range} byDay={byDay} todayKey={todayKey}
+          lang={lang} fmt={fmt} t={t} api={api} push={push} now={now} longDate={longDate} shortDate={shortDate} />
+      )}
     </div>
   );
 }
@@ -736,8 +834,8 @@ export default function Calendar({ lang = "es", api = "" }) {
       <div id={listId}>
         {ready && view === "thread" && <ThreadList events={visible} byMonth marker now={now} lang={lang} fmt={fmt} t={t} api={api} push={push} />}
         {ready && view === "month" && (
-          <MonthView byDay={byDay} month={month} range={range} setMonth={(m) => setPickMonth(clampMonth(m, range))} sel={sel} setSel={setPickDay}
-            todayKey={todayKey} filter={filter} more={more} lang={lang} fmt={fmt} t={t} api={api} push={push} now={now} />
+          <MonthView events={shown} byDay={byDay} month={month} range={range} setMonth={(m) => setPickMonth(clampMonth(m, range))} sel={sel} setSel={setPickDay}
+            todayKey={todayKey} filter={filter} lang={lang} fmt={fmt} t={t} api={api} push={push} now={now} />
         )}
       </div>
 

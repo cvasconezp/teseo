@@ -384,14 +384,15 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
 .hero-vid .shot{position:relative}
 .hero-vid video{display:block;width:100%;height:auto;aspect-ratio:930/534;object-fit:cover;background:#0b1224}
 .hero-vid__btn{position:absolute;top:10px;right:10px;min-height:44px;padding:0 14px;border-color:transparent;background:rgba(4,8,15,.55);color:var(--soft);font-size:13px}
-.hero-vid:not(.is-paused) [data-when="paused"],.hero-vid.is-paused [data-when="playing"]{display:none}
+.auto-vid:not(.is-paused) [data-when="paused"],.auto-vid.is-paused [data-when="playing"]{display:none}
+.hz-vid{margin:0}
+.hz-vid__box{position:relative;border-radius:20px;overflow:hidden;background:#04080F}
+.hz-vid video{display:block;width:100%;height:auto;aspect-ratio:900/638}
+.hz-vid__tag{position:absolute;left:10px;padding:4px 10px;border-radius:999px;background:rgba(4,8,15,.7);color:#EEF0FA;font-size:13px;font-weight:600}
+.hz-vid__clock{position:absolute;left:10px;bottom:10px;padding:4px 10px;border-radius:999px;background:rgba(4,8,15,.7);color:var(--gold);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.auto-vid__btn{position:absolute;top:10px;right:10px;min-height:44px;padding:0 14px;border-color:transparent;background:rgba(4,8,15,.6);color:var(--soft);font-size:13px}
+.hz-vid figcaption{padding:10px 2px 0;font-size:13px;line-height:1.5;color:var(--muted);max-width:64ch}
 /* animaciones: cada figura */
-.anim--horizonte .hz-t{font-size:15px;fill:var(--soft)}
-.anim--horizonte .hz-g{fill:var(--gold)}
-.anim--horizonte .hz-m{fill:var(--muted)}
-.anim--horizonte .hz-k{font-size:14px;fill:var(--muted)}
-@container (max-width:420px){.anim--horizonte .hz-t{font-size:19px}.anim--horizonte .hz-k{font-size:19px}.anim--horizonte .hz-up{transform:translateY(-5px)}.anim--horizonte .hz-up2{transform:translateY(-10px)}.anim--horizonte .hz-kt{transform:translateY(-20px)}}
-.anim--horizonte.is-flat .hz-real,.anim--horizonte:not(.is-flat) .hz-flat{display:none}
 .anim--marte .m-orb{fill:none;stroke:rgba(255,255,255,.42);stroke-width:1}
 .anim--marte .m-ln{stroke:rgba(255,255,255,.45);stroke-width:1}
 .anim--marte .m-th{fill:none;stroke:var(--gold);stroke-width:2.6;stroke-linejoin:round}
@@ -460,9 +461,9 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
         </div>
         <p class="fine">No account · no ads · in English and Spanish · in the browser or installed as an app</p>
       </div>
-      <figure class="hero__fig hero-vid">
+      <figure class="hero__fig hero-vid auto-vid">
         <div class="shot"><video autoplay muted loop playsinline preload="metadata" poster="/acerca/video/amanecer-catequilla.webp" width="930" height="534" aria-label="Sunrise recorded in Teseo from Catequilla: at night the stars shine over the real outline of the mountains; the sky brightens, the stars fade and the Sun appears at the June solstice mark. The labels are in Spanish."><source src="/acerca/video/amanecer-catequilla.mp4" type="video/mp4"></video>
-          <button type="button" class="anim__btn hero-vid__btn" data-hero-toggle><span data-when="playing">Pause</span><span data-when="paused">Play</span><span class="vh"> the sunrise</span></button></div>
+          <button type="button" class="anim__btn hero-vid__btn auto-vid__btn" data-hero-toggle data-vid-toggle><span data-when="playing">Pause</span><span data-when="paused">Play</span><span class="vh"> the sunrise</span></button></div>
         <figcaption>From Catequilla, at latitude zero, on 21 June 2027 between 05:40 and 06:40: the stars fade and the Sun appears where the solstice mark points, towards Cochasquí. Recorded in Teseo over the real terrain.</figcaption>
       </figure>
     </div>
@@ -502,63 +503,14 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
           <div class="ctas"><a class="btn btn--gold btn--sm" href="/#sky">Open the sky where you are</a></div>
         </div>
         <div class="stack">
-          <figure class="anim anim--horizonte" data-anim="horizonte">
-  <div class="anim__stage">
-    <svg viewBox="0 0 560 420" role="img" aria-label="View towards the east at sunrise. The Sun climbs almost in a straight line, leaving a golden thread. With a flat horizon, the Sun has already risen once it crosses the dotted straight line, but your mountain range still hides it. It only appears when it clears the ridge: later, and at a different point.">
-      <defs>
-        <linearGradient id="hz-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050a17"/><stop offset="1" stop-color="#12203f"/></linearGradient>
-        <linearGradient id="hz-dawn" x1="0" y1="0" x2="0" y2="1"><stop offset=".3" stop-color="#4a5f9c" stop-opacity="0"/><stop offset=".72" stop-color="#4a5f9c" stop-opacity=".75"/></linearGradient>
-        <path id="hz-far" d="M0 238C28 230 52 205 92 203C130 201 150 224 186 223C214 222 224 197 252 196C282 195 300 214 328 206C352 199 392 128 424 104C432 98 446 97 454 104C482 128 512 190 560 214L560 420L0 420Z"/>
-        <clipPath id="hz-clip"><use href="#hz-far"/></clipPath>
-        <path id="hz-tp" d="M0 226C28 218 52 193 92 191C130 189 150 212 186 211"/>
-      </defs>
-      <rect width="560" height="420" fill="url(#hz-sky)"/>
-      <rect class="hz-ov" width="560" height="420" fill="url(#hz-dawn)" opacity="0"/>
-      <g class="hz-st" stroke="#EEF0FA" stroke-linecap="round" fill="none">
-        <path stroke-width="2.8" d="M34 40h.1M148 70h.1M270 38h.1M392 58h.1M470 52h.1M60 140h.1M300 140h.1M520 36h.1"/>
-        <path stroke-width="1.8" d="M72 92h.1M110 30h.1M190 24h.1M226 58h.1M312 86h.1M350 28h.1M424 22h.1M540 96h.1M505 130h.1M90 166h.1"/>
-      </g>
-      <circle class="hz-sun" cx="200" cy="345" r="11" fill="#F2C46D" opacity="0"/>
-      <g class="hz-real">
-        <use href="#hz-far" fill="#1c2b4f"/>
-        <path clip-path="url(#hz-clip)" fill="#DDE4F7" fill-opacity=".72" d="M340 70L520 70L520 172C506 156 490 164 480 148C470 160 460 142 448 154C438 146 428 164 414 150C402 160 392 150 380 162C366 156 352 170 340 166Z"/>
-        <path fill="#0a1122" d="M0 270C34 262 62 240 106 238C148 236 168 262 214 264C252 266 276 250 318 250C362 250 384 236 428 238C474 240 520 224 560 226L560 420L0 420Z"/>
-      </g>
-      <rect class="hz-flat" y="300" width="560" height="120" fill="#0a1122"/>
-      <line x1="0" y1="300" x2="560" y2="300" stroke="#C9CEE0" stroke-opacity=".6" stroke-width="1.4" stroke-dasharray="2 6" stroke-linecap="round"/>
-      <text class="hz-t hz-m" x="548" y="320" text-anchor="end" style="fill:var(--muted)">Flat horizon</text>
-      <text class="hz-t hz-real"><textPath href="#hz-tp" startOffset="16">Your real horizon</textPath></text>
-      <line x1="200" y1="345" x2="268" y2="100" stroke="#C9CEE0" stroke-opacity=".5" stroke-width="1.6" stroke-dasharray="2 6" stroke-linecap="round"/>
-      <line class="hz-seg hz-real" stroke="#F2C46D" stroke-width="3.2" stroke-linecap="round" opacity="0"/>
-      <line class="hz-th" x1="200" y1="345" x2="200" y2="345" stroke="#F2C46D" stroke-width="1.8" stroke-linecap="round" opacity="0"/>
-      <circle class="hz-ring hz-real" r="16" fill="none" stroke="#F2C46D" stroke-width="1.6" stroke-dasharray="3 4" opacity="0"/>
-      <g class="hz-mf" opacity="0">
-        <circle cx="212" cy="300" r="6" fill="#04080F" stroke="#7EE0C3" stroke-width="2.2"/>
-        <text class="hz-t hz-up" font-size="15" text-anchor="end" x="196" y="277">With a flat horizon:</text>
-        <text class="hz-t" font-size="15" text-anchor="end" x="196" y="293">already risen</text>
-      </g>
-      <g class="hz-mr hz-real" opacity="0">
-        <line class="hz-ld" stroke="#F2C46D" stroke-opacity=".7" stroke-width="1.2"/>
-        <circle class="hz-pt" r="5.5" fill="#F2C46D" stroke="#04080F" stroke-width="1.6"/>
-        <text class="hz-t hz-g hz-up2" text-anchor="end" x="226" y="112">With your mountains:</text>
-        <text class="hz-t hz-g hz-up" text-anchor="end" x="226" y="129">it appears here,</text>
-        <text class="hz-t hz-g" text-anchor="end" x="226" y="146">later</text>
-      </g>
-      <text class="hz-k hz-kt" x="16" y="381">Time</text>
-      <line x1="82" y1="376" x2="536" y2="376" stroke="#fff" stroke-opacity=".25" stroke-width="3" stroke-linecap="round"/>
-      <line class="hz-prog" x1="82" y1="376" x2="82" y2="376" stroke="#F2C46D" stroke-width="3" stroke-linecap="round"/>
-      <circle class="hz-kf" cy="376" r="6" fill="#04080F" stroke="#7EE0C3" stroke-width="2.2"/>
-      <text class="hz-k hz-kft" y="402" text-anchor="middle">flat</text>
-      <g class="hz-real"><circle class="hz-kr" cy="376" r="6" fill="#F2C46D" stroke="#04080F" stroke-width="1.6"/><text class="hz-k hz-krt" y="402" text-anchor="middle">real</text></g>
-    </svg>
-  </div>
-  <div class="anim__bar" role="group" aria-label="Horizon type">
-    <button type="button" class="anim__btn" data-hz="flat" aria-pressed="false">Flat horizon</button>
-    <button type="button" class="anim__btn" data-hz="real" aria-pressed="true">Your horizon</button>
-    <button type="button" class="anim__btn anim__toggle" data-anim-toggle><span data-when="playing">Pause</span><span data-when="paused">Play</span><span class="vh"> the animation: your real horizon</span></button>
-  </div>
-  <figcaption><details class="nota"><summary>What is data and what is simplified</summary><p>Illustration: the silhouette is an example. In Teseo the horizon is worked out from the real terrain of your place and the curvature of the Earth.</p></details></figcaption>
-</figure>
+          <figure class="hz-vid auto-vid">
+            <div class="hz-vid__box"><video autoplay muted loop playsinline preload="metadata" poster="/acerca/video/horizonte-plano-real.webp" width="900" height="638" aria-label="Two views of the same sunrise recorded in Teseo from Catequilla, minute by minute. Above, with a flat horizon, the Sun rises earlier. Below, with the real terrain of the mountains, the Sun is still hidden and appears later at the June solstice mark. The labels are in Spanish."><source src="/acerca/video/horizonte-plano-real.mp4" type="video/mp4"></video>
+              <span class="hz-vid__tag" style="top:10px">Flat horizon</span>
+              <span class="hz-vid__tag" style="top:calc(50.5% + 10px)">Your real horizon, in Teseo</span>
+              <span class="hz-vid__clock" aria-hidden="true">05:56</span>
+              <button type="button" class="anim__btn auto-vid__btn" data-vid-toggle><span data-when="playing">Pause</span><span data-when="paused">Play</span><span class="vh"> the horizon comparison</span></button></div>
+            <figcaption>Catequilla, 21 June 2027, from 05:56 to 06:34, recorded in Teseo. Above, the «Mountains» layer is off: a flat horizon, like most planetariums. Below, it is on: the real terrain. Same sky, same minute: with a flat horizon the Sun has already risen; behind the mountains, not yet.</figcaption>
+          </figure>
           <div class="vlinks"><a class="vlink" href="#v-horizonte" data-video="horizonte">The sky begins at your mountains <small>Video · 1:19</small></a></div>
         </div>
       </div>
@@ -1034,9 +986,9 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
 })();
 </script>
 <script>
-// Portada: el amanecer grabado en Teseo. Se puede pausar, se detiene fuera de pantalla y no arranca solo con «reducir movimiento».
-(function () {
-  var fig = document.querySelector(".hero-vid"), v = fig && fig.querySelector("video"), btn = fig && fig.querySelector("[data-hero-toggle]");
+// Videos grabados en Teseo (portada y horizonte): se pueden pausar, se detienen fuera de pantalla y no arrancan solos con «reducir movimiento».
+document.querySelectorAll(".auto-vid").forEach(function (fig) {
+  var v = fig.querySelector("video"), btn = fig.querySelector("[data-vid-toggle]"), clock = fig.querySelector(".hz-vid__clock");
   if (!v || !btn) return;
   var mq = window.matchMedia("(prefers-reduced-motion: reduce)"), user = mq.matches, seen = true;
   function sync() { var want = !user && seen && !document.hidden; if (want && v.paused) { var q = v.play(); if (q && q.catch) q.catch(function () {}); } else if (!want && !v.paused) v.pause(); fig.classList.toggle("is-paused", user); }
@@ -1045,8 +997,10 @@ h1{font-size:clamp(36px,min(6.4vw,12.5vh),70px)}
   if (mq.addEventListener) mq.addEventListener("change", function (e) { if (e.matches) { user = true; sync(); } });
   document.addEventListener("visibilitychange", sync);
   if ("IntersectionObserver" in window) new IntersectionObserver(function (es) { seen = es[es.length - 1].isIntersecting; sync(); }, { threshold: 0.1 }).observe(v);
+  // reloj del video del horizonte: 39 cuadros, uno por minuto desde las 05:56, a 6 por segundo tras 1 s quieto
+  if (clock) v.addEventListener("timeupdate", function () { var k = Math.max(0, Math.min(38, Math.floor((v.currentTime - 1) * 6))), m = 356 + k; clock.textContent = "0" + Math.floor(m / 60) + ":" + ("0" + (m % 60)).slice(-2); });
   sync();
-})();
+});
 // Videoteca: los videos no se cargan con la página; cada uno se abre en un reproductor encima de ella.
 (function () {
   var dlg = document.getElementById("dlg-video");
@@ -1148,41 +1102,6 @@ window.TeseoAnim=(function(){
     return {redraw:function(){if(!run){if(t>0)api.frame(t,0);else api.still();}}};
   }
   return {register:register,reduce:reduce};
-})();
-(function(){
-  var fig=document.querySelector('.anim[data-anim="horizonte"]');if(!fig||!window.TeseoAnim)return;
-  var Q=function(s){return fig.querySelector(s)},real=true,env=[],X0=200,Y0=345,X1=268,Y1=100,R=11,YF=300,UE=.78,T=13;
-  function px(u){return X0+(X1-X0)*u}function py(u){return Y0+(Y1-Y0)*u}
-  function cl(v){return v<0?0:v>1?1:v}function rp(u,a,w){return cl((u-a)/w)}
-  function sample(p){var L=p.getTotalLength(),s,q,k;for(s=0;s<=L;s+=.5){q=p.getPointAtLength(s);k=Math.round(q.x);if(k>=0&&k<=560&&(env[k]===undefined||q.y<env[k]))env[k]=q.y;}}
-  sample(Q('#hz-far'));sample(Q('.hz-real path:last-child'));
-  for(var i=0;i<=560;i++)if(env[i]===undefined)env[i]=i?env[i-1]:300;
-  var uf=(Y0-YF-R)/(Y0-Y1),ur=.56,mx=212,my=200,u,d,x,yv,best;
-  for(u=0;u<=1;u+=.001){best=-1e9;for(d=-R;d<=R;d+=1){x=px(u)+d;yv=py(u)-Math.sqrt(R*R-d*d);var e=env[Math.round(x)]-yv;if(e>best){best=e;mx=x;}}
-    if(best>0){ur=u;my=env[Math.round(mx)];break;}}
-  var xf=px(uf),fx=82+454*uf/UE,rx=82+454*ur/UE;
-  function set(el,o){for(var k in o)el.setAttribute(k,o[k]);}
-  set(Q('.hz-mf circle'),{cx:xf});set(Q('.hz-seg'),{x1:xf,y1:YF,x2:mx,y2:my});
-  set(Q('.hz-pt'),{cx:mx,cy:my});set(Q('.hz-ld'),{x1:228,y1:150,x2:mx,y2:my});
-  set(Q('.hz-kf'),{cx:fx});set(Q('.hz-kft'),{x:fx});set(Q('.hz-kr'),{cx:rx});set(Q('.hz-krt'),{x:rx});
-  var sun=Q('.hz-sun'),th=Q('.hz-th'),ring=Q('.hz-ring'),prog=Q('.hz-prog'),ov=Q('.hz-ov'),st=Q('.hz-st'),mf=Q('.hz-mf'),mr=Q('.hz-mr'),seg=Q('.hz-seg');
-  function draw(u,fa){
-    var x=px(u),y=py(u),r=real?ur:uf,k=cl((u-.12)/(UE-.12))*fa;
-    set(sun,{cx:x,cy:y,opacity:fa});set(th,{x2:x,y2:y,opacity:fa*.95});
-    set(prog,{x2:82+454*Math.min(1,u/UE),opacity:fa});
-    set(ring,{cx:x,cy:y,opacity:.75*fa*rp(u,uf,.02)*(1-rp(u,ur,.03))});
-    mf.setAttribute('opacity',fa*rp(u,uf,.03));
-    mr.setAttribute('opacity',fa*rp(u,ur,.03));seg.setAttribute('opacity',fa*rp(u,ur,.05));
-    ov.setAttribute('opacity',k);st.setAttribute('opacity',1-.5*k);
-  }
-  function still(){draw(real?ur+.04:.3,1);}
-  var ctl=TeseoAnim.register(fig,{
-    frame:function(t){var tt=t%T,u=tt<.8?0:Math.min(UE,(tt-.8)/7.6*UE),fa=tt<.8?tt/.8:tt>11.8?Math.max(0,(12.6-tt)/.8):1;draw(u,fa);},
-    still:still});
-  var bs=fig.querySelectorAll('[data-hz]');
-  Array.prototype.forEach.call(bs,function(b){b.addEventListener('click',function(){
-    real=b.getAttribute('data-hz')==='real';fig.classList.toggle('is-flat',!real);
-    Array.prototype.forEach.call(bs,function(o){o.setAttribute('aria-pressed',String(o===b));});ctl.redraw();});});
 })();
 (function(){
   var fig=document.querySelector('.anim[data-anim="marte"]');if(!fig||!window.TeseoAnim)return;
