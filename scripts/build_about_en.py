@@ -11,16 +11,12 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 src = (ROOT / "public/acerca/index.html").read_text(encoding="utf-8")
 
 PAIRS = [
- ('aria-label="Un amanecer sobre una cordillera con un volcán nevado. Primero es de noche y se ven las estrellas. El cielo aclara, el Sol sube dejando un hilo dorado, asoma tras las montañas y las estrellas dejan de verse."',
-  'aria-label="A sunrise over a mountain range with a snow-capped volcano. At first it is night and the stars are visible. The sky brightens, the Sun climbs leaving a golden thread, appears behind the mountains, and the stars can no longer be seen."'),
- ('>Antes del amanecer: las estrellas de tu cielo</text>',
-  '>Before sunrise: the stars of your sky</text>'),
- ('>Sale el Sol tras tus montañas y las oculta</text>',
-  '>The Sun rises behind your mountains and hides them</text>'),
- ('<figcaption>Ilustración. En Teseo, la hora y el punto en que el Sol asoma se calculan con el relieve real de tu lugar.</figcaption>',
-  '<figcaption>Illustration. In Teseo, the time and the spot where the Sun appears are calculated from the real terrain of your place.</figcaption>'),
- ('<span class="vh"> la animación: amanecer</span>',
-  '<span class="vh"> the animation: sunrise</span>'),
+ ('aria-label="Amanecer grabado en Teseo desde Catequilla: de noche se ven las estrellas sobre la silueta real de las montañas; el cielo aclara, las estrellas se apagan y el Sol asoma por la marca del solsticio de junio."',
+  'aria-label="Sunrise recorded in Teseo from Catequilla: at night the stars shine over the real outline of the mountains; the sky brightens, the stars fade and the Sun appears at the June solstice mark. The labels are in Spanish."'),
+ ('<span class="vh"> el amanecer</span>',
+  '<span class="vh"> the sunrise</span>'),
+ ('<figcaption>Desde Catequilla, en la latitud cero, el 21 de junio de 2027 entre las 05:40 y las 06:40: las estrellas se apagan y el Sol asoma por donde marca el solsticio, hacia Cochasquí. Grabado en Teseo con el relieve real.</figcaption>',
+  '<figcaption>From Catequilla, at latitude zero, on 21 June 2027 between 05:40 and 06:40: the stars fade and the Sun appears where the solstice mark points, towards Cochasquí. Recorded in Teseo over the real terrain.</figcaption>'),
  ('<h2>Apoya a Teseo</h2>\n        <p class="soft">Teseo es y seguirá siendo gratis, sin publicidad y sin pedirte datos. Las donaciones pagan los servidores, el dominio y el tiempo para seguir mejorándolo.</p>',
   '<h2>Support Teseo</h2>\n        <p class="soft">Teseo is and will stay free, with no ads and without asking you for data. Donations pay for the servers, the domain and the time to keep improving it.</p>'),
  ('<p class="tag">Una vez, desde cualquier país</p>\n          <h3>Donar con PayPal</h3>\n          <p class="grow">Con tu cuenta de PayPal o con tarjeta. Tú eliges el monto.</p>',
