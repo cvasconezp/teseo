@@ -247,3 +247,48 @@
   .cal-mv__dow, .cal-mv__grid { gap: 1px; }
   .cal-mv__legend { padding-inline: 16px; }
 }
+
+/* «El hilo de <mes>» compacto: una fila por evento; cada fila es un botón de ≥ 44 px que abre la ventana del día */
+.cal-thread--compact { --knot-y: 22px; }
+.cal-ev--row .cal-ev__body { padding: 0; }
+.cal-ev--row .cal-knot { top: 8px; }
+.cal-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; width: 100%; min-height: 44px; padding: 6px 8px 6px 4px; border: 0; border-radius: 10px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.cal-row:hover { background: var(--panel-strong); }
+.cal-row:focus-visible { outline: 2px solid var(--violet); outline-offset: 0; }
+.cal-row__when { flex: none; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cal-row__title { flex: 1 1 11em; min-width: 0; font-family: var(--serif); font-weight: 600; font-size: 18px; line-height: 1.2; color: #fff; overflow-wrap: anywhere; }
+.cal-ev.is-past .cal-row__title { color: var(--soft); }
+@media (max-width: 420px) { .cal-row__title { font-size: 17px; } }
+
+/* Ventana de un día (<dialog> modal): hoja desde abajo en teléfono; en escritorio, ventana centrada de ~480 px */
+.cal-dlg { position: fixed; inset: 0; margin: auto; padding: 0; border: 1px solid rgba(167, 139, 250, 0.32); border-radius: 20px; background: #0A1022; color: var(--text); width: min(480px, calc(100vw - 24px)); max-width: none; max-height: min(86dvh, 760px); overflow: hidden; }
+.cal-dlg[open] { display: flex; flex-direction: column; }
+.cal-dlg::backdrop { background: rgba(2, 4, 9, 0.82); }
+.cal-dlg__box { display: flex; flex-direction: column; min-height: 0; max-height: inherit; width: 100%; }
+.cal-dlg__head { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 16px 12px 8px 18px; }
+.cal-dlg__title { font-family: var(--serif); font-weight: 600; font-size: 24px; line-height: 1.15; color: #fff; padding-top: 6px; text-wrap: balance; }
+.cal-dlg__title:focus { outline: none; }
+.cal-dlg__title:focus-visible { outline: 2px solid var(--violet); outline-offset: 3px; border-radius: 4px; }
+.cal-dlg__x { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line-strong); background: transparent; color: #fff; cursor: pointer; }
+.cal-dlg__x:hover { background: var(--panel-strong); }
+.cal-dlg__x:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.cal-dlg__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 18px 8px; }
+.cal-dlg__moon { display: flex; align-items: center; gap: 10px; font-size: 14.5px; color: var(--soft); padding-bottom: 6px; }
+.cal-dlg__moon svg { flex: none; }
+.cal-dlg .cal-thread { --g: 40px; }
+.cal-dlg .cal-week__empty { margin-top: 6px; }
+.cal-dlg__foot { flex: none; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: #0A1022; }
+.cal-dlg__foot .cal-btn { padding: 0 12px; white-space: nowrap; }
+.cal-dlg__foot .cal-btn:disabled { opacity: .4; cursor: default; }
+@media (max-width: 640px) {
+  .cal-dlg { margin: 0; inset: auto 0 0 0; width: 100%; max-height: 80dvh; border-radius: 20px 20px 0 0; border-bottom: 0; }
+  .cal-dlg__foot { flex-wrap: nowrap; padding-inline: 10px; }
+  .cal-dlg__foot .cal-btn { flex: 1 1 0; min-width: 0; justify-content: center; padding: 0 6px; font-size: 13px; gap: 4px; }
+  .cal-dlg__foot .btn--primary { flex: 0 0 auto; padding: 0 14px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cal-dlg[open] { animation: cal-dlg-in 180ms ease-out; }
+  .cal-dlg[open]::backdrop { animation: cal-dlg-fade 180ms ease-out; }
+  @keyframes cal-dlg-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  @keyframes cal-dlg-fade { from { opacity: 0; } to { opacity: 1; } }
+}

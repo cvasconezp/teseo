@@ -114,6 +114,40 @@ ok(/^M12 3A9 9 0 0 0 12 21A0 9 0 0 [01] 12 3z$/.test(V.moonLitPath(0.5, false)),
 ok(/A4.5 9 0 0 0 12 3z$/.test(V.moonLitPath(0.25, true)), "creciente (25 %): el terminador va por la derecha (menos de media Luna)");
 ok(/A4.5 9 0 0 1 12 3z$/.test(V.moonLitPath(0.75, true)), "gibosa (75 %): el terminador pasa a la izquierda");
 
+console.log("Ventana de un día");
+const dayEvs = [
+  { id: "t2", type: "planet", t: Date.UTC(2026, 10, 24, 20, 0) },                       // 15:00 locales
+  { id: "t1", type: "moon", t: Date.UTC(2026, 10, 24, 14, 53) },                        // 09:53 locales
+  { id: "t0", type: "meteor", t: Date.UTC(2026, 10, 24), allDay: true },                // todo el día: empieza a las 00:00 locales
+  { id: "tz", type: "eclipse", t: Date.UTC(2026, 10, 25, 2, 30) },                      // 21:30 del 24 en Ecuador
+  { id: "n1", type: "season", t: Date.UTC(2026, 11, 2, 15, 0) },
+];
+const byD = V.groupByDay(dayEvs);
+eq(V.eventsOfDay(byD, "2026-11-24").map(e => e.id), ["t0", "t1", "t2", "tz"], "eventos de un día en orden de hora (todo el día primero; el de las 21:30 locales al final)");
+eq(V.eventsOfDay(byD, "2026-11-25"), [], "día sin eventos: lista vacía");
+eq(V.monthEvents(dayEvs, "2026-11").map(e => e.id), ["t0", "t1", "t2", "tz"], "eventos del mes mostrado, por día y hora");
+eq(V.monthEvents(dayEvs, "2026-12").map(e => e.id), ["n1"], "…y los de otro mes aparte");
+eq(V.monthEvents(dayEvs, "2027-01"), [], "mes sin eventos: vacío");
+const rg = { first: "2026-11", last: "2026-12" };
+eq(V.shiftDay("2026-11-30", 1, rg), "2026-12-01", "día siguiente cruza de mes");
+eq(V.shiftDay("2026-12-01", -1, rg), "2026-11-30", "día anterior cruza de mes");
+eq(V.shiftDay("2026-11-01", -1, rg), null, "antes del primer mes de la agenda: no hay día anterior");
+eq(V.shiftDay("2026-12-31", 1, rg), null, "después del último mes: no hay día siguiente");
+eq(V.nextDayWithEvents(byD, "2026-11-24"), "2026-12-02", "siguiente evento desde un día con eventos: otro día (y de otro mes)");
+eq(V.nextDayWithEvents(byD, "2026-11-10"), "2026-11-24", "siguiente evento desde un día sin eventos");
+// día pasado frente a hoy, en la zona local: a las 23:30 locales del 25 (04:30 UTC del 26) hoy es el 25
+const todayEc = V.dayKeyOfMs(Date.UTC(2026, 10, 26, 4, 30));
+eq(todayEc, "2026-11-25", "a las 23:30 de Ecuador todavía es 25 (en UTC ya sería 26)");
+ok(V.isPastDay("2026-11-24", todayEc) && !V.isPastDay("2026-11-25", todayEc) && !V.isPastDay("2026-11-26", todayEc), "pasado = antes del día local de hoy; hoy y el futuro no");
+process.env.TZ = "Pacific/Auckland";
+const todayNz = V.dayKeyOfMs(Date.UTC(2026, 10, 26, 4, 30));
+eq(todayNz, "2026-11-26", "en Nueva Zelanda el mismo instante ya es 26 (UTC+13)");
+ok(V.isPastDay("2026-11-25", todayNz), "…y allí el 25 ya es pasado");
+process.env.TZ = "America/Guayaquil";
+const ph = V.moonOfDay("2026-11-24"), ph2 = V.moonOfDay("2026-11-17");
+eq([ph.phase, V.moonOfDay("2026-11-09").phase, ph2.phase], ["full", "new", "firstQuarter"], "nombre de la fase del día (llena, nueva, cuarto creciente)");
+ok(V.moonOfDay("2026-11-20").phase === "waxingGibbous" && V.moonOfDay("2026-11-13").phase === "waxingCrescent", "gibosa y creciente intermedias");
+
 console.log("Marcador «Hoy» del hilo");
 const now = Date.UTC(2026, 10, 24, 18, 0);
 const row = [{ id: "p", t: Date.UTC(2026, 10, 24, 14, 53) }, { id: "q", t: Date.UTC(2026, 10, 25, 9, 0) }];

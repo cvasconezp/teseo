@@ -6,7 +6,7 @@
 // Zona horaria: el día de un evento es su día LOCAL en la zona del dispositivo (la que ya usa la app en
 // groupByMonth y en las horas de las tarjetas). Los eventos «de todo el día» llevan su fecha del catálogo en
 // UTC: su día es esa fecha, no la local.
-import { moonState } from "../../special/math.js";
+import { moonState, phaseKey } from "../../special/math.js";
 import { startOfEvent } from "./countdown.js";
 
 export const VIEW_KEY = "teseo_cal_view";
@@ -117,12 +117,12 @@ export function dayMarks(list, typeOrder, max = 3) {
 
 /**
  * Luna de un día: fracción iluminada (0–1) y si crece, al mediodía local de ese día (moonState de src/special/math.js).
- * Para días de fase principal es aproximada (mediodía, no el instante exacto): se usa solo como dibujo.
+ * `phase` es el nombre de la fase en 8 tramos (PHASE_KEYS de math.js). Para días de fase principal es aproximada (mediodía, no el instante exacto): se usa solo como dibujo.
  */
 export function moonOfDay(key) {
   const [y, m, d] = partsOf(key);
   const s = moonState(new Date(y, m - 1, d, 12));
-  return { illum: s.illum, waxing: s.waxing };
+  return { illum: s.illum, waxing: s.waxing, phase: phaseKey(s.elong) };
 }
 
 /** Fases principales de la Luna → { illum, waxing } con que se dibujan los nudos del hilo. */
@@ -151,3 +151,20 @@ export function todayMarkerIndex(events, now) {
   const i = events.findIndex(e => startOfEvent(e) > now);
   return i < 0 ? events.length : i;
 }
+
+// ─── Ventana de un día y «El hilo de <mes>» ───────────────────────────────────
+/** Eventos de un día, en orden de hora (los «de todo el día» van con su medianoche local). */
+export function eventsOfDay(byDay, key) {
+  return (byDay.get(key) || []).slice().sort((a, b) => startOfEvent(a) - startOfEvent(b) || a.id.localeCompare(b.id));
+}
+/** Eventos de un mes ("YYYY-MM"), por día y, dentro del día, por hora. */
+export function monthEvents(events, monthKey) {
+  return events.filter(e => monthOfKey(dayKeyOf(e)) === monthKey)
+    .sort((a, b) => dayKeyOf(a).localeCompare(dayKeyOf(b)) || startOfEvent(a) - startOfEvent(b) || a.id.localeCompare(b.id));
+}
+/** ¿Ya pasó ese día (en el día local de hoy)? La agenda empieza hoy: de los días pasados no hay eventos calculados. */
+export const isPastDay = (key, todayKey) => key < todayKey;
+/** ¿Cae el día dentro de los meses que cubre la agenda? */
+export const dayInRange = (key, range) => { const m = monthOfKey(key); return m >= range.first && m <= range.last; };
+/** El día `n` días antes/después, o null si sale del rango de la agenda. */
+export function shiftDay(key, n, range) { const k = addDays(key, n); return dayInRange(k, range) ? k : null; }
