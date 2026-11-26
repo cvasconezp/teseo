@@ -60,11 +60,19 @@ export function parseForecast(json) {
       return [-s * Math.sin(a), -s * Math.cos(a)];  // velocidad hacia donde va: (este, norte)
     });
   }
+  // camino recorrido por cada capa desde la primera hora (km, este y norte): la suma del viento hora a hora. Con él las
+  // nubes se desplazan de forma continua (antes el desplazamiento volvía a cero cada 6 h y el cielo cambiaba de golpe)
+  const tt = h.time.map(Number), adv = {};
+  for (const l of LAYERS) {
+    const a = [[0, 0]];
+    for (let i = 1; i < n; i++) { const dt = (tt[i] - tt[i - 1]) / 1000, u = wind[l][i - 1], v = wind[l][i]; a.push([a[i - 1][0] + ((u[0] + v[0]) / 2) * dt, a[i - 1][1] + ((u[1] + v[1]) / 2) * dt]); }
+    adv[l] = a;
+  }
   const raw = (k, f = 1) => { const a = h[k]; return Array.from({ length: n }, (_, i) => { const v = num(a && a[i]); return v == null ? null : v * f; }); };
   return {
     code: raw("weather_code"), mm: raw("precipitation"), visKm: raw("visibility", 0.001), tC: raw("temperature_2m"), dewC: raw("dew_point_2m"),
     t: h.time.map(Number), total: frac("cloud_cover"), low: frac("cloud_cover_low"), mid: frac("cloud_cover_mid"),
-    high: frac("cloud_cover_high"), precip: frac("precipitation_probability"), wind,
+    high: frac("cloud_cover_high"), precip: frac("precipitation_probability"), wind, adv,
     lat: num(json.latitude), lon: num(json.longitude), elevation: num(json.elevation),
   };
 }
@@ -106,6 +114,11 @@ export function cloudsAt(fc, when) {
   out.mm = fc.mm ? pick(fc.mm) : null; out.visKm = fc.visKm ? pick(fc.visKm) : null;
   out.baseKm = fc.tC && fc.dewC ? cloudBaseKm(pick(fc.tC), pick(fc.dewC)) : null;
   for (const l of LAYERS) { const a = fc.wind[l][i], b = fc.wind[l][j]; out.wind[l] = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }
+  if (fc.adv) {
+    out.adv = {};
+    // (dentro de la hora, el viento va de a hacia w en línea recta: el tramo recorrido es su media por el tiempo)
+    for (const l of LAYERS) { const a = fc.wind[l][i], w = out.wind[l], dt = (s - t[i]) / 1000, A = fc.adv[l][i]; out.adv[l] = [A[0] + ((a[0] + w[0]) / 2) * dt, A[1] + ((a[1] + w[1]) / 2) * dt]; }
+  }
   if (out.total == null) {   // sin total: el de capas que se solapan al azar
     const p = LAYERS.map((l) => out[l]).filter((v) => v != null);
     out.total = p.length ? 1 - p.reduce((acc, v) => acc * (1 - v), 1) : null;

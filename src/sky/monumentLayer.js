@@ -55,7 +55,11 @@ export function placeMonuments(list, { lat, lon, ground }, bases, relief = null)
     // (con la maqueta del sitio cargada —relief.exact— las piezas con cota propia van a su altura sobre el nivel del
     // mar: la maqueta entera (`absBase`) y lo que se apoya en un nivel suyo conocido (`absLevel`))
     const abs = relief && relief.exact && relief.abs0 != null ? (m.absBase != null && m.kind === "llaqta" ? m.absBase : m.absLevel != null ? m.absLevel : null) : null;
-    const dz0 = abs != null ? abs - relief.abs0 - EYE_M : relief && m.seat ? (m.seat === "ground" ? groundHeight(o.e, o.n, NO_ITEMS, relief) : reliefAt(relief, o.e, o.n)) : b - (ground + EYE_M);
+    // (una pieza que es solo su maqueta —el Templo Fortificado de Chankillo— va siempre a su cota, también vista de lejos)
+    const dz0 = abs != null ? abs - relief.abs0 - EYE_M : m.modelOnly && m.absBase != null ? m.absBase - (ground + EYE_M) : relief && m.seat ? (m.seat === "ground" ? groundHeight(o.e, o.n, NO_ITEMS, relief) : reliefAt(relief, o.e, o.n))
+      // (lo que corona una cresta —`crest`— se apoya en el suelo tal como se dibuja, mientras quede dentro de él: ni flota ni se hunde)
+      // (…y nunca por debajo de su cota medida: si el suelo dibujado queda algo más bajo, lo salva su zócalo —`foot`—)
+      : relief && m.crest && !isAloof({ m, o }) && o.d < relief.reach ? Math.max(groundHeight(o.e, o.n, NO_ITEMS, relief), b - (ground + EYE_M)) : b - (ground + EYE_M);
     // una pieza extensa (la llaqta de Machu Picchu) sigue el relieve punto a punto: recibe el suelo respecto a su origen
     const gnd = relief && m.kind === "llaqta" ? (e, n) => groundHeight(o.e + e, o.n + n, NO_ITEMS, relief) - dz0 : null;
     out.push({ m, o, dz: dz0 + (abs != null ? 0 : (m.lift || 0)) - (m.drop || 0), faces: buildFaces(m, { d: o.d, ground: gnd }) });
@@ -163,7 +167,9 @@ const GROUND_NEAR_M = 450;    // con el relieve 3D alrededor, hasta dónde llega
 /** Hasta dónde llega el suelo continuo (m): algo más lejos que el monumento más lejano. */
 export function groundReach(items) {
   let reach = 260;
-  for (const it of items || []) reach = Math.max(reach, it.o.d + footprintRadius(it.m) + 220);
+  // (`aloof`: en un sitio muy extenso —Chankillo, 1,5 km de punta a punta— las piezas lejanas no estiran el suelo
+  // propio ni su rejilla de relieve: se quedan a la altura de su base, sobre el relieve general)
+  for (const it of items || []) { if (isAloof(it)) continue; reach = Math.max(reach, it.o.d + footprintRadius(it.m) + 220); }
   return reach;
 }
 
@@ -197,6 +203,8 @@ export function reliefAt(grid, e, n) {
  * Con `grid` (relieve cercano), lejos de los monumentos manda el relieve: una cresta cae por detrás.
  */
 /** Piezas bajas y abiertas (muros de pirca, discos de piedra): con relieve, siguen el suelo vértice a vértice. */
+/** ¿Pieza lejana de un sitio extenso (`aloof`), a más de 300 m de su borde? No cuenta para el alcance del suelo. */
+export const isAloof = (it) => !!it.m.aloof && it.o.d - footprintRadius(it.m) > 300;
 export function drapes(m) { return !m.solid && !m.seat && m.height != null && m.height <= 2.5; }
 
 export function groundHeight(e, n, items, grid = null) {
@@ -226,7 +234,15 @@ export function groundHeight(e, n, items, grid = null) {
   }
   // (sin subir hacia el relieve global: una rampa ahí tapaba los andenes del borde; más allá el piso se desvanece)
   if (near) return near.h - 0.3 - up;
-  return sh / sw - up;
+  let h = sh / sw;
+  // (lo que corona una cresta —`crest`— marca su filo: a su alrededor el suelo cae al menos un 30 %. El modelo de
+  // relieve, de 30 m de malla, dibuja la cresta ancha y llana, y su hombro tapaba las torres vistas desde abajo)
+  if (grid) for (const it of items) {
+    if (!it.m.crest || isAloof(it)) continue;
+    const d = Math.hypot(e - it.o.e, n - it.o.n);
+    if (d < 60) h = Math.min(h, it.dz + up + 0.4 - 0.3 * Math.max(0, d - 7));
+  }
+  return h - up;
 }
 
 export function createMonumentLayer({ onReady = null } = {}) {
@@ -302,6 +318,9 @@ export function createMonumentLayer({ onReady = null } = {}) {
     k = Math.min(1, MAX_R / Math.max(far, reach));
     shared.uK.value = k;
     box = new THREE.Box3();
+    // (las sombras se encuadran sobre lo cercano: una pieza lejana de un sitio extenso —`aloof`— estiraría el mapa de
+    // sombras a todo el sitio y lo dejaría sin detalle)
+    const sbox = new THREE.Box3(), sv = new THREE.Vector3();
     // una malla por material
     const byMat = new Map();
     for (const it of items) for (const f of it.faces) {
@@ -325,8 +344,9 @@ export function createMonumentLayer({ onReady = null } = {}) {
         const { n: nn, uv: tuv } = info[i];
         for (let j = 0; j < 3; j++) {
           const q = toLocal(f.v[j], it.o, it.dz);
-          if (gridOk && drapes(it.m)) q[1] += groundHeight(q[0], -q[2], items, grid) - it.dz;
+          if (gridOk && drapes(it.m) && !isAloof(it)) q[1] += groundHeight(q[0], -q[2], items, grid) - it.dz;
           pos.set([q[0] * k, q[1] * k, q[2] * k], i * 9 + j * 3);
+          if (!isAloof(it)) sbox.expandByPoint(sv.set(q[0] * k, q[1] * k, q[2] * k));
           let vn = nn;
           if (f.smooth) { const s = acc.get(keyOf(it, f.v[j])), L = Math.hypot(s[0], s[1], s[2]) || 1; vn = [s[0] / L, s[1] / L, s[2] / L]; }
           nor.set([vn[0], vn[2], -vn[1]], i * 9 + j * 3);       // (E, N, U) → (x, y, z) = (E, U, −N)
@@ -365,7 +385,8 @@ export function createMonumentLayer({ onReady = null } = {}) {
       // queda en nada; un llano de arena de decenas de metros a la altura de los pies taparía todo el valle)
       // (hasta el borde del monumento más lejano y un poco más: ninguno queda fuera del piso, flotando)
       // (lo más lejano de verdad: un muro en arco no tiene «huella», pero sus extremos llegan lejos)
-      const farN = Math.max(farH, items.reduce((a, it) => Math.max(a, it.o.d + footprintRadius(it.m)), 0));
+      const nearIt = items.filter((it) => !isAloof(it)), aloofAny = nearIt.length < items.length;
+      const farN = Math.max(aloofAny ? 0 : farH, nearIt.reduce((a, it) => Math.max(a, it.o.d + footprintRadius(it.m)), 0));
       // (con la rejilla del relieve del sitio, el piso sigue la ladera: llega hasta el último monumento aunque esté a
       // más de 450 m —los montículos de Cochasquí, a 700 m—; si no, quedaban más allá del piso, sobre un relieve más basto)
       const reachG = skirt ? reach : Math.min(reach, fine ? Math.max(GROUND_NEAR_M, farN + 35) : GROUND_NEAR_M, Math.max(40, farN + 35));
@@ -417,8 +438,9 @@ export function createMonumentLayer({ onReady = null } = {}) {
     // (junto a un gnomon —el Intihuatana—, el mapa de sombras se concentra en él: 28 m alrededor, 1,4 cm por punto,
     // para que la sombra del prisma salga nítida; a cambio, lo que queda más lejos no proyecta sombra desde ahí)
     const gn = list.find((it) => it.m.gnomon && it.o.d < 45 && it.faces && it.faces.length);
-    const c = gn ? new THREE.Vector3(gn.o.e * k, gn.dz * k, -gn.o.n * k) : box.getCenter(new THREE.Vector3());
-    const r = gn ? 28 * k : box.getSize(new THREE.Vector3()).length() / 2 + 5 * k;
+    const bx = sbox.isEmpty() ? box : sbox;
+    const c = gn ? new THREE.Vector3(gn.o.e * k, gn.dz * k, -gn.o.n * k) : bx.getCenter(new THREE.Vector3());
+    const r = gn ? 28 * k : bx.getSize(new THREE.Vector3()).length() / 2 + 5 * k;
     sunTarget.position.copy(c);
     Object.assign(sun.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: 0.1, far: r * 4 });
     sun.shadow.camera.updateProjectionMatrix();

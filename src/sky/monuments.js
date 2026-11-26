@@ -19,7 +19,7 @@
 // Marco local: E (este), N (norte), U (arriba), en metros desde el centro de la base del monumento.
 
 import { INTI_SCAN } from "./intiScan.js";
-import { machuModel, eachModelFace, MODEL_BASE_M, intiScan } from "./machuModel.js";
+import { machuModel, eachModelFace, MODEL_BASE_M, intiScan, siteModel, CHANKILLO_BASE_M } from "./machuModel.js";
 import { MP_BUILDINGS, MP_TERRACES, MP_WALLS, MP_STEPS } from "./machuData.js";
 const RAD = Math.PI / 180;
 const R_E = 6371008.8, K_REFR = 0.13;
@@ -57,15 +57,37 @@ const CH0 = [-9.561149, -78.227355];
 const CH_TOWERS = [[-15, 95, 0, 4.5], [-15, 79, 0, 5], [-15, 63, 0, 5.5], [-13, 47, 0, 6], [-12, 31, 0, 5.5], [-12, 15, 0, 5], [-12, -1, 0, 4.5],
   [-12, -17, 0, 4.5], [-12, -33, 0, 5], [-12, -49, 0, 5], [-15, -65, 12, 4.5], [-21, -81, 20, 4], [-27, -97, 22, 3]];
 const mPerLat = 110574, mPerLon = (lat) => 111320 * Math.cos(lat * RAD);
-// (las torres coronan una cresta estrecha de laderas empinadas: el suelo cercano se mide en una rejilla fina —240
-// puntos— para que la cresta salga con su forma y las torres queden sobre ella desde cualquier lado)
-const CH_RELIEF_GRID = { radii: [0.04, 0.08, 0.13, 0.19, 0.26, 0.34, 0.44, 0.56, 0.72, 0.9], na: 24 };
+// (las torres coronan una cresta estrecha, de unos 40 m de ancho y laderas empinadas: el suelo cercano se mide en una
+// rejilla fina —16 anillos × 24 acimuts, un anillo cada ~23 m hasta 300 m— para que la cresta salga con su forma y
+// las torres queden sobre ella desde cualquier lado)
+const CH_RELIEF_GRID = { radii: [0.03, 0.07, 0.12, 0.17, 0.22, 0.27, 0.32, 0.37, 0.42, 0.47, 0.52, 0.57, 0.62, 0.68, 0.78, 0.92], na: 24 };
 const chankillo = CH_TOWERS.map(([e, n, rot, h], i) => ({
   id: `chankillo-${i + 1}`, site: "chankillo", name: { es: "Trece Torres", en: "Thirteen Towers" },
   sub: { es: "13 torres de 2 a 6 m de alto", en: "13 towers, 2 to 6 m tall" }, label: i === 6,
   lat: +(CH0[0] + n / mPerLat).toFixed(6), lon: +(CH0[1] + e / mPerLon(CH0[0])).toFixed(6),
-  kind: "tower", w: 8, d: 12, height: h, rot, foot: 7.2, ring: 3, far: 4000, relief: true, crest: true, reliefGrid: CH_RELIEF_GRID, color: TAN, mat: "tower", ground: "sand", solid: true,
+  kind: "tower", w: 8, d: 12, height: h, rot, foot: 7.2, ring: 3, far: 4000, relief: true, crest: true, aloof: true, reliefGrid: CH_RELIEF_GRID, color: TAN, mat: "tower", ground: "sand", solid: true,
 }));
+// Chankillo, el resto del centro monumental. Posiciones leídas en el mapa de Iván Ghezzi (Ghezzi y Ruggles 2006,
+// Boletín de Arqueología PUCP 10: UTM 17S WGS84, 1,85 m por píxel en la copia usada): margen de unos metros. Los muros
+// son trazos [e1, n1, e2, n2] en m desde el centro de cada pieza; su alto es estimado (hoy son ruinas bajas).
+//  · Templo Fortificado: la maqueta fotogramétrica del Ministerio de Cultura del Perú (machuModel.js: chankillo).
+//  · Edificio de observación (oeste), de unos 34 × 51 m, con el corredor de 40 m por fuera de su muro sureste: su
+//    boca, a 3 m del lugar «Chankillo» de Teseo, es el punto de observación oeste.
+//  · Muros de la plaza oeste, y los recintos del este (trazado simplificado: 23 de sus muros principales).
+const CH_WALL = { site: "chankillo", kind: "walls", thick: 1.1, ring: 3, far: 2600, relief: true, aloof: true, walkIn: true, color: TAN, mat: "tower", ground: "sand", solid: false };
+const chankilloRest = [
+  { id: "chankillo-templo", site: "chankillo", name: { es: "Templo Fortificado", en: "Fortified Temple" }, sub: { es: "tres murallas · modelo del Ministerio de Cultura", en: "three walls · Ministry of Culture model" },
+    lat: -9.556834, lon: -78.236026, kind: "llaqta", height: 8, foot: 235, far: 3200, walkIn: true, solid: false, relief: true, aloof: true,
+    model: "chankillo", modelOnly: true, modelMats: ["sand", "sand"], absBase: CHANKILLO_BASE_M, labelAt: [-3, -2, 112], color: TAN, mat: "tower", ground: "sand" },
+  { ...CH_WALL, id: "chankillo-obs", name: { es: "Edificio de observación", en: "Observation building" }, sub: { es: "con su corredor de 40 m · alto estimado", en: "with its 40 m corridor · height estimated" },
+    lat: -9.560891, lon: -78.229756, foot: 47, height: 2.2, segs: [[5.1,19.2,34.1,0.6],[34.1,0.6,8.8,-44.1],[8.8,-44.1,-23.9,-22.5],[-23.9,-22.5,5.1,19.2],[36.3,-0.6,16.6,-35.4],[-32.9,13.6,-25.2,26.9],[-32.9,13.6,-12.8,-0.3],[-6.6,42.9,9.4,33.0]] },
+  { ...CH_WALL, id: "chankillo-plaza-o", name: { es: "Plaza oeste", en: "Western plaza" }, label: false,
+    lat: -9.560969, lon: -78.228699, foot: 143, height: 1.2, segs: [[40.9,135.2,73.3,115.8],[73.3,115.8,3.9,3.1],[3.9,3.1,-37.8,29.4],[8.5,-1.5,26.1,-9.8],[26.1,-9.8,-33.2,-104.9],[-121.8,-60.8,-98.0,-74.7],[-90.9,-80.8,-76.4,-89.5],[-70.2,-92.6,-52.3,-102.4],[31.6,21.0,43.4,38.6],[43.4,38.6,49.5,35.5],[49.5,35.5,37.8,17.0],[37.8,17.0,31.6,21.0]] },
+  { ...CH_WALL, id: "chankillo-este", name: { es: "Recintos del este", en: "Eastern buildings" }, sub: { es: "trazado simplificado · alto estimado", en: "simplified plan · height estimated" },
+    lat: -9.563008, lon: -78.226105, foot: 102, height: 1.6, segs: [[-54.0,54.5,92.3,-14.0],[-31.8,95.3,10.8,73.1],[-48.5,76.8,21.9,43.4],[-31.8,95.3,-54.0,54.5],[12.6,74.9,-46.6,-49.2],[34.9,63.8,-5.9,-17.7],[53.4,65.7,40.4,41.6],[68.2,47.1,53.4,17.5],[81.2,39.7,64.5,6.4],[16.3,47.1,75.6,19.4],[92.3,-15.8,68.2,-60.3],[-22.5,-17.7,70.0,-58.4],[36.7,8.3,18.2,-28.8],[-72.5,19.4,-13.3,-8.4],[-70.7,19.4,-89.2,-21.4],[-83.7,-4.7,-35.5,-26.9],[-89.2,-21.4,-54.0,-38.0],[-54.0,10.1,-70.7,-28.8],[-35.5,2.7,-54.0,-38.0],[-33.7,-36.2,51.5,-73.2],[-5.9,-49.2,-20.7,-75.1],[20.0,-58.4,7.1,-86.2],[51.5,-58.4,36.7,-89.9]] },
+  { ...CH_WALL, id: "chankillo-este-n", name: { es: "Recinto noreste", en: "North-eastern building" }, label: false,
+    lat: -9.560312, lon: -78.225257, foot: 42, height: 1.6, segs: [[-21.8,32.8,40.1,1.3],[40.1,1.3,20.8,-32.0],[20.8,-32.0,-39.2,-2.4],[-39.2,-2.4,-21.8,32.8],[9.0,16.9,-8.8,-16.4]] },
+];
 // Paranal: los cuatro telescopios de 8,2 m del VLT. Separación entre ellos: estaciones U1–U4 del VLTI (ESO,
 // «VLTI Station Position Technical Data»), en metros [este, norte] desde el centro de la red; ese centro se
 // ancló sobre la imagen satelital (24,627477° S, 70,404966° O). Cerramiento: cilindro de 29 m de diámetro y
@@ -263,6 +285,7 @@ export const MONUMENTS = [
   ...COCHASQUI_MOUNDS,
   ...machu,
   ...chankillo,
+  ...chankilloRest,
   // Quitsato: plataforma de 54 m de diámetro con mosaico de piedra y poste de 10 m de alto y 1,3 m de diámetro,
   // sobre la línea ecuatorial. Las líneas del mosaico (ejes, solsticios y diagonales) están simplificadas.
   { id: "quitsato", site: "quitsato", name: { es: "Reloj solar Quitsato", en: "Quitsato sundial" }, lat: 0.0, lon: -78.175,
@@ -501,6 +524,9 @@ export function llaqtaPlan(skip = [], clear = []) {
 // en los conjuntos de `fine` (Templo del Sol, Casa del Inca, Plaza Sagrada), rústica en el resto y en los andenes.
 function llaqtaModel(out, m) {
   const col = m.color, fine = m.fine || [], skipW = m.modelSkip || [];
+  // (otra maqueta —el Templo Fortificado de Chankillo—: sus propios materiales por clase, sin sillares finos)
+  // (el tono de cada cara es el de la fotografía del modelo: piedra y sombra más oscuras, arena más clara)
+  if (m.modelMats) { const mdl = siteModel(m.model); eachModelFace((a, b, c, cls, t) => { out.push({ v: [a, b, c], c: col, mat: m.modelMats[cls] || m.mat, smooth: true, uv: [a, b, c].map((q) => [q[0] + q[2] * 0.35, q[1] + q[2] * 0.6]), ...(mdl.tone ? { tone: 0.62 + (mdl.tone[t] / 63) * 0.62 } : {}) }); }, mdl); return; }
   const MAT = [null, "heath", "incarustic", "earth", "thatch", "thatch", "inca"];
   eachModelFace((a, b, c, cls) => {
     let mat = MAT[cls];
@@ -515,7 +541,8 @@ function llaqtaModel(out, m) {
 }
 
 function llaqta(out, m, ground) {
-  if (m.model && machuModel()) { llaqtaModel(out, m); return; }
+  if (m.model && siteModel(m.model)) { llaqtaModel(out, m); return; }
+  if (m.modelOnly) return;                                   // (sin su maqueta no hay nada que dibujar)
   const g = ground || (() => 0), col = m.color, plan = llaqtaPlan(m.skip, m.clear), K = LLAQTA;
   const grad = (p) => [(g(p[0] + 3, p[1]) - g(p[0] - 3, p[1])) / 6, (g(p[0], p[1] + 3) - g(p[0], p[1] - 3)) / 6];
   // recintos: muros de 0,85 m con la coronación a nivel (más altos por el lado bajo) y hastiales en los lados cortos
@@ -1080,6 +1107,12 @@ export function buildFaces(m, opt = {}) {
     tower(0, 0, m.height, 9);
     const c = s3 / 2 - 7;
     for (const [x, y] of [[c, c], [c, -c], [-c, c], [-c, -c]]) tower(x, y, m.corner, 6);
+  } else if (m.kind === "walls") {
+    // muros bajos en planta (ruinas): un prisma por trazo
+    for (const [e1, n1, e2, n2] of m.segs) {
+      const L = Math.hypot(e2 - e1, n2 - n1); if (L < 0.5) continue;
+      block(out, (e1 + e2) / 2, (n1 + n2) / 2, -0.6, m.height + 0.6, L + m.thick, m.thick, 90 - Math.atan2(n2 - n1, e2 - e1) / RAD, col, m.mat);
+    }
   } else if (m.kind === "arcwall") {
     arcWall(out, m);
   } else if (m.kind === "disc") {
@@ -1185,6 +1218,7 @@ function stonehenge(out, m) {
 
 /** Lo más alto del monumento (para el nombre): [e, n, u]. */
 export function apexOf(m) {
+  if (m.labelAt) return m.labelAt;                         // (una maqueta: su punto más alto, en sus propias coordenadas)
   if (m.kind === "stonehenge") return [0, 0, m.height];
   if (m.kind === "arcwall") { const a = ((m.az0 + m.az1) / 2) * RAD; return [m.radius * Math.sin(a), m.radius * Math.cos(a), m.height]; }
   if (m.kind === "kalasasaya") return [m.w / 2, -m.d / 4, m.pillar];
@@ -1216,7 +1250,7 @@ export function silhouette(items, step = 0.2) {
   const n = Math.round(360 / step), out = new Float32Array(n).fill(-90);
   for (const { m, o, dz, faces } of items) {
     // (la maqueta de un sitio —terreno, andenes y muros— también tapa el cielo)
-    if (!m.solid && !(m.model && machuModel())) continue;
+    if (!m.solid && !(m.model && siteModel(m.model))) continue;
     for (const f of faces || buildFaces(m)) {
       for (let i = 0; i < 3; i++) {
         const a = toLocal(f.v[i], o, dz), b = toLocal(f.v[(i + 1) % 3], o, dz);

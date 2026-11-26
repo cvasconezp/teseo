@@ -73,9 +73,9 @@ import { fetchNearTerrain, createNearTerrainLayer, SUMMIT_LIFT_M, reliefFromNear
 import { DEFAULT_LAYERS, presetState, presetOf } from "./sky/layerPresets.js";
 import { useKeepAwake } from "./sky/keepAwake.js";
 import { fetchHorizon, behindTerrain, cellKey, fetchPeaks, peaksToLabel, peakName, fetchElevations, fetchSummit, fetchLandColors } from "./sky/horizon.js";
-import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf } from "./sky/monuments.js";
+import { monumentsNear, groundRing, median, silhouette, withMonuments, offsetOf, footprintRadius } from "./sky/monuments.js";
 import { stopsAt, stopOf } from "./sky/stops.js";
-import { loadMachuModel, loadIntiScan, machuModel, modelGround } from "./sky/machuModel.js";
+import { loadSiteModel, loadIntiScan, siteModel, modelGround } from "./sky/machuModel.js";
 import { createMonumentLayer, placeMonuments, monumentLabels, groundReach, reliefPoints, groundSilhouette, RELIEF_R, RELIEF_NA } from "./sky/monumentLayer.js";
 const NEAR_RELIEF_R = [0.03, 0.06, 0.1, 0.15, 0.22, 0.3, 0.4, 0.52, 0.68, 0.9];
 import { createMilkyWayLayer, milkyWayVisibility } from "./sky/milkyWayLayer.js";
@@ -2211,6 +2211,8 @@ export default function Constellations({ lang = "es", onMenu = null }) {
             // una cumbre que queda detrás de un monumento (una pirámide la tapa) no se nombra
             // con suelo de verdad, una cumbre más baja que el observador queda tapada por él
             if (!p.cls && !p.monument && ref.monGround && p.alt < -0.45) continue;
+            // (una pieza lejana de un sitio extenso —el templo de Chankillo a 1 km— tapada por el relieve cercano tampoco)
+            if (p.monument && p.dist_km > 0.6 && ref.hzData && ref.hzData.alt) { const st = ref.hzData.step_deg || 0.2, ha = ref.hzData.alt[Math.round(p.az / st) % ref.hzData.alt.length]; if (ha > p.alt + 0.3) continue; }
             if (!p.cls && !p.monument && ref.hzData.monuments) { const st = ref.hzData.step_deg || 0.2, ha = ref.hzData.alt[Math.round(p.az / st) % ref.hzData.alt.length]; if (ha > p.alt + 0.4) continue; }
             const ca = Math.cos(p.alt * R);
             tmp.set(860 * ca * Math.sin(p.az * R), 860 * Math.sin(p.alt * R), -860 * ca * Math.cos(p.az * R)).project(ref.camera);
@@ -2941,8 +2943,14 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   const monKey = monNear.length ? `${lat},${lon}|${monNear.map((m) => m.id).join(",")}` : null;
   // la maqueta de un sitio (Machu Picchu: src/sky/machuModel.js) se descarga solo al estar allí
   const [modelRev, setModelRev] = useState(0);
-  const wantsModel = monNear.some((m) => m.model);
-  useEffect(() => { if (!wantsModel) return undefined; let alive = true; const b0 = import.meta.env.BASE_URL.replace(/\/$/, ""); loadMachuModel(b0).then((m) => { if (alive && m) setModelRev((v) => v + 1); }); loadIntiScan(b0).then((m) => { if (alive && m) setModelRev((v) => v + 1); }); return () => { alive = false; }; }, [wantsModel]);
+  const wantsModel = (monNear.find((m) => m.model) || {}).model || null;
+  useEffect(() => {
+    if (!wantsModel) return undefined;
+    let alive = true; const b0 = import.meta.env.BASE_URL.replace(/\/$/, "");
+    loadSiteModel(wantsModel, b0).then((m) => { if (alive && m) setModelRev((v) => v + 1); });
+    if (wantsModel === "machu") loadIntiScan(b0).then((m) => { if (alive && m) setModelRev((v) => v + 1); });
+    return () => { alive = false; };
+  }, [wantsModel]);
   useEffect(() => {
     if (!monOn || !hzData || !monKey) return;
     let alive = true;
@@ -2981,8 +2989,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
   // observador se apoyan en él
   const siteRelief = useMemo(() => {
     let rl = monBase.relief;
-    const mm = monNear.find((m) => m.model); if (!mm || !machuModel()) return rl || null;
-    const o = offsetOf(mm.lat, mm.lon, lat, lon), here = modelGround(o.e, o.n);
+    const mm = monNear.find((m) => m.model), mdl = mm ? siteModel(mm.model) : null; if (!mm || !mdl) return rl || null;
+    const o = offsetOf(mm.lat, mm.lon, lat, lon), here = modelGround(o.e, o.n, mdl);
+    // (una maqueta que es solo una parte del sitio —el Templo Fortificado de Chankillo, a 1 km de las torres—: lejos de
+    // ella el suelo es el relieve de siempre, sin empalmes con su borde)
+    if (mm.modelOnly && o.d > footprintRadius(mm) + 80) return rl || null;
     // (de pie sobre la maqueta no hace falta esperar al relieve del servicio: su suelo ya se conoce; el de fuera llega
     // después y solo retoca el borde. Así, al saltar a un punto, la vista sale bien desde el primer momento)
     if (!rl) {
@@ -2994,11 +3005,11 @@ export default function Constellations({ lang = "es", onMenu = null }) {
     const abs0 = here != null ? here : rl.abs0dem, sh = rl.abs0dem - abs0;
     // (`edge`: para un punto fuera de la maqueta, a qué distancia está su borde y a qué altura: el suelo de fuera empalma con él)
     const DIRS = Array.from({ length: 12 }, (_, i) => [Math.sin((i * Math.PI) / 6), Math.cos((i * Math.PI) / 6)]);
-    const edge = (e, n) => { for (const rr of [5, 10, 16, 24, 33, 44]) { let best = null; for (const [dx, dy] of DIRS) { const a = modelGround(o.e + e + rr * dx, o.n + n + rr * dy); if (a != null && (best == null || a > best)) best = a; } if (best != null) return { d: rr, h: best - abs0 - 1.7 }; } return null; };
-    return { ...rl, h: sh ? rl.h.map((v) => v + sh) : rl.h, abs0, edge, exact: (e, n) => { const a = modelGround(o.e + e, o.n + n); return a == null ? null : a - abs0 - 1.7; } };
+    const edge = (e, n) => { for (const rr of [5, 10, 16, 24, 33, 44]) { let best = null; for (const [dx, dy] of DIRS) { const a = modelGround(o.e + e + rr * dx, o.n + n + rr * dy, mdl); if (a != null && (best == null || a > best)) best = a; } if (best != null) return { d: rr, h: best - abs0 - 1.7 }; } return null; };
+    return { ...rl, h: sh ? rl.h.map((v) => v + sh) : rl.h, abs0, edge, exact: (e, n) => { const a = modelGround(o.e + e, o.n + n, mdl); return a == null ? null : a - abs0 - 1.7; } };
   }, [monBase.relief, monBase.status, monBase.key, monKey, monNear, lat, lon, modelRev]);   // eslint-disable-line react-hooks/exhaustive-deps
   // (con la maqueta cargada no se dibuja nada hasta tener con qué ponerla a su altura: sin eso salía un instante vista desde abajo)
-  const modelWaits = monNear.some((m) => m.model) && !!machuModel() && !siteRelief;
+  const modelWaits = monNear.some((m) => m.model && siteModel(m.model)) && !siteRelief;
   const monItems = useMemo(() => (monOn && hzData && monBase.status === "ok" && monBase.key === monKey && !modelWaits
     ? placeMonuments(monNear, { lat, lon, ground: monBase.ground }, monBase.bases, siteRelief) : []), [monOn, hzData, monBase, monKey, monNear, lat, lon, siteRelief, modelRev, modelWaits]);   // eslint-disable-line react-hooks/exhaustive-deps
   const summitLift = placeSummit && nearData && monItems.length === 0 ? SUMMIT_LIFT_M : 0;

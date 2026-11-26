@@ -86,7 +86,7 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
 {
   const R2 = Math.PI / 180;
   // Chankillo: desde el punto de observación oeste, las torres cubren el arco anual de la salida del Sol
-  const ch = site("chankillo"), tw = MONUMENTS.filter((m) => m.site === "chankillo");
+  const ch = site("chankillo"), tw = MONUMENTS.filter((m) => m.site === "chankillo" && m.kind === "tower");
   const azT = (m) => offsetOf(ch.lat, ch.lon, m.lat, m.lon);
   const sunAz = (dec) => Math.acos(Math.sin(dec * R2) / Math.cos(ch.lat * R2)) / R2;      // a 0° de altura
   ok(tw.length === 13 && tw.filter((m) => m.label !== false).length === 1 && tw.every((m) => m.height >= 2 && m.height <= 6 && m.w * m.d >= 75 && m.w * m.d <= 125),
@@ -94,7 +94,7 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
   ok(near(azT(tw[6]).d, 235, 8) && near(offsetOf(tw[0].lat, tw[0].lon, tw[12].lat, tw[12].lon).d, 193, 6), "Chankillo: a unos 235 m del punto de observación; la fila mide unos 200 m");
   ok(near(azT(tw[12]).az, sunAz(-23.44), 2) && azT(tw[0]).az - sunAz(23.44) < 1.5 && azT(tw[0]).az - sunAz(23.44) > -1.5,
     "Chankillo: el Sol de diciembre sale por la torre 13 y el de junio junto a la torre 1 (Ghezzi y Ruggles 2007)");
-  ok(monumentsNear(ch.lat, ch.lon, 25).length === 13 && tw.every((m) => m.relief && groundRing(m, 8).every(([la, lo]) => offsetOf(m.lat, m.lon, la, lo).d < 4)),
+  ok(monumentsNear(ch.lat, ch.lon, 25).filter((m) => m.kind === "tower").length === 13 && tw.every((m) => m.relief && groundRing(m, 8).every(([la, lo]) => offsetOf(m.lat, m.lon, la, lo).d < 4)),
     "Chankillo: cada torre se asienta en la cresta (el suelo se mide en su centro) y el suelo sigue el relieve");
   // Quitsato
   const q = byId("quitsato"), qs = site("quitsato"), qb = bbox(buildFaces(q));
@@ -215,8 +215,8 @@ console.log("Segunda tanda: Chankillo, Quitsato, Catequilla, Paranal, Tiwanaku, 
       { const A = allStops(), names = Object.keys(A).sort().join(",");
         ok(names === "catequilla,chankillo,cochasqui,giza,machupicchu,paranal,teotihuacan,tiwanaku" && Object.values(A).every((L) => L.length >= 2 && new Set(L.map((q) => q.id)).size === L.length), "puntos de visita en ocho sitios; cada uno, al menos la vista general y otro");
         const bad = [];
-        for (const [sid, L] of Object.entries(A)) { if (sid === "machupicchu") continue; const ps = MONUMENTS.filter((m) => m.site === sid);
-          for (const q of L.slice(1)) { if (!q.at.length) continue; const m0 = byId(q.id), o0 = offsetOf(q.lat, q.lon, m0.lat, m0.lon);
+        for (const [sid, L] of Object.entries(A)) { if (sid === "machupicchu") continue; const ps = MONUMENTS.filter((m) => m.site === sid && m.kind !== "walls" && !m.modelOnly);
+          for (const q of L.slice(1)) { if (!q.at.length || !byId(q.id)) continue; const m0 = byId(q.id), o0 = offsetOf(q.lat, q.lon, m0.lat, m0.lon);
             if (!(Math.abs(((o0.az - q.look + 540) % 360) - 180) < 1.5) || ps.some((m) => onPiece(m, q.lat, q.lon, m === m0 ? 2 : 3)) || offsetOf(L[0].lat, L[0].lon, q.lat, q.lon).d < 40) bad.push(sid + ":" + q.id); } }
         ok(bad.length === 0, "cada punto calculado mira a su pieza, queda fuera de su planta, no pisa ninguna otra y está a más de 40 m de la vista general" + (bad.length ? " — " + bad.join(" ") : ""));
         { const T = A.tiwanaku, d01 = offsetOf(T[0].lat, T[0].lon, T[1].lat, T[1].lon).d, ak = byId("akapana");
@@ -270,7 +270,7 @@ ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) s
   const b1 = offsetOf(este.lat, este.lon, MONUMENTS.find((m) => m.id === "chankillo-1").lat, MONUMENTS.find((m) => m.id === "chankillo-1").lon);
   const b13 = offsetOf(este.lat, este.lon, MONUMENTS.find((m) => m.id === "chankillo-13").lat, MONUMENTS.find((m) => m.id === "chankillo-13").lon);
   ok(!!este && este.look === 270 && b1.d > 190 && b1.d < 240 && Math.abs(b1.az - 293.8) < 2.5 && Math.abs(b13.az - 246.2) < 2.5, "Chankillo: el punto este queda a unos 200 m y ve los ocasos de los solsticios en los extremos de la fila");
-  ok(MONUMENTS.filter((m) => m.site === "chankillo").every((m) => m.crest && m.reliefGrid && m.reliefGrid.na * m.reliefGrid.radii.length <= 288), "Chankillo: las torres no allanan la ladera y piden una rejilla de relieve fina");
+  ok(MONUMENTS.filter((m) => m.site === "chankillo" && m.kind === "tower").every((m) => m.crest && m.reliefGrid && m.reliefGrid.na * m.reliefGrid.radii.length <= 400), "Chankillo: las torres no allanan la ladera y piden una rejilla de relieve fina");
   // el rótulo de un volcán va al filo que está a SU distancia, no a una ladera cercana más alta en la misma ventana
   const n = 1800, alt = new Array(n).fill(0), near = new Array(n).fill(0), far = new Array(n).fill(0), dn = new Array(n).fill(0.3), df = new Array(n).fill(35.5);
   for (let i = 0; i < n; i++) { const az = i * 0.2; near[i] = 4.3 + (95 - az) * 0.1; far[i] = 4.27 - Math.abs(az - 95.6) * 1.2; alt[i] = Math.max(near[i], far[i]); }
@@ -279,6 +279,37 @@ ok(/horizon: hzData/.test(sky), "la ficha (salida y puesta tras las montañas) s
   const v = [{ id: 1, name: "Cayambe", lat: 0.029, lon: -77.986, elev_m: 5790 }];
   const withB = volcanoesOnSkyline(v, hz, 0.055947, -78.307397, ang), noB = volcanoesOnSkyline(v, { ...hz, bands: undefined }, 0.055947, -78.307397, ang);
   ok(withB.length === 1 && Math.abs(withB[0].az - 95.6) < 0.25 && noB.length === 1 && noB[0].az < 93, "el rótulo del Cayambe desde Cochasquí va a su cumbre, no a la ladera cercana");
+}
+{
+  // Chankillo completo: templo (maqueta del Ministerio de Cultura), edificio de observación, plaza y recintos
+  const fs = await import("node:fs");
+  const { parseTonedModel, modelGround, CHANKILLO_BASE_M } = await import("../src/sky/machuModel.js");
+  const { isAloof, groundReach } = await import("../src/sky/monumentLayer.js");
+  const { stopsAt } = await import("../src/sky/stops.js");
+  const { MON_INFO, shapeCredit } = await import("../src/sky/monumentInfo.js");
+  const { offsetOf, buildFaces } = await import("../src/sky/monuments.js");
+  const by = (id) => MONUMENTS.find((m) => m.id === id);
+  const b = fs.readFileSync(new URL("../public/data/chankillo-templo.bin", import.meta.url)), mdl = parseTonedModel(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), CHANKILLO_BASE_M);
+  const gS = modelGround(-8.8, -5.2, mdl), gR = modelGround(-1.1, -55.8, mdl);
+  ok(mdl.nv < 65536 && mdl.nt > 80000 && b.length < 1.3e6 && mdl.tone.length === mdl.nt && mdl.cls.every((c) => c < 2), "templo de Chankillo: maqueta de menos de 1,3 MB, con clase y tono por cara");
+  ok(gS > 309 && gS < 313 && gR > 303 && gR < 308 && modelGround(400, 0, mdl) == null, "templo de Chankillo: el suelo de la maqueta está a su cota (unos 310 m en lo alto) y fuera no hay");
+  const T = by("chankillo-templo"), O = by("chankillo-obs"), E = by("chankillo-este");
+  const mouth = offsetOf(-9.561185, -78.229591, O.lat, O.lon);
+  ok(T && T.model === "chankillo" && T.modelOnly && T.absBase === CHANKILLO_BASE_M && offsetOf(by("chankillo-7").lat, by("chankillo-7").lon, T.lat, T.lon).d > 950, "el Templo Fortificado está a 1 km al noroeste de las torres, con su maqueta");
+  ok(O.kind === "walls" && O.segs.length === 8 && mouth.d < 60 && buildFaces(O).length === O.segs.length * 10 && E.segs.length === 23 && O.height <= 2.5 && E.height <= 2.5, "edificio de observación y recintos del este: muros bajos trazados; el punto oeste queda junto al edificio");
+  const st = stopsAt(-9.561185, -78.229591).stops;
+  ok(st.map((q) => q.id).join(",") === "vista,chankillo-7,este,recintos,templo" && st[0].name.es === "Punto de observación oeste" && st[0].at[0] === "chankillo-obs" && modelGround(...(() => { const o = offsetOf(T.lat, T.lon, st[4].lat, st[4].lon); return [o.e, o.n]; })(), mdl) != null, "Chankillo: cinco puntos de visita; el del templo cae sobre el suelo de su maqueta");
+  ok(["chankillo-templo", "chankillo-obs", "chankillo-este"].every((id) => MON_INFO[id] && MON_INFO[id].sources.length >= 3) && /Ministerio de Cultura/.test(shapeCredit("chankillo-templo", "chankillo").text) && /CC BY 4\.0/.test(shapeCredit("chankillo-templo", "chankillo").text) && /trazaron a mano/.test(shapeCredit("chankillo-obs", "chankillo").text) && /Ghezzi y Ruggles \(2007\)/.test(shapeCredit("chankillo-7", "chankillo").text), "Chankillo: fichas con fuentes y crédito de la forma de cada pieza");
+  // las piezas lejanas de un sitio extenso no estiran el suelo propio
+  const items = MONUMENTS.filter((m) => m.site === "chankillo").map((m) => ({ m, o: offsetOf(-9.561185, -78.229591, m.lat, m.lon) }));
+  ok(isAloof(items.find((it) => it.m.id === "chankillo-templo")) && !isAloof(items.find((it) => it.m.id === "chankillo-7")) && groundReach(items) < 520, "Chankillo: desde el punto oeste el templo no cuenta para el alcance del suelo (menos de 520 m)");
+  // las nubes se desplazan de forma continua: sin salto al pasar un múltiplo de 6 h
+  const { parseForecast, cloudsAt } = await import("../src/sky/weather.js");
+  const { layerParams } = await import("../src/sky/cloudsLayer.js");
+  const H = 3600, t0 = 1795651200, ts = Array.from({ length: 48 }, (_, i) => t0 + i * H), hourly = { time: ts, cloud_cover: ts.map(() => 50), cloud_cover_low: ts.map(() => 50), cloud_cover_mid: ts.map(() => 20), cloud_cover_high: ts.map(() => 80), precipitation_probability: ts.map(() => 0) };
+  for (const l of ["850hPa", "500hPa", "250hPa"]) { hourly["wind_speed_" + l] = ts.map((_, i) => 18 + i * 0.2); hourly["wind_direction_" + l] = ts.map(() => 270); }
+  const fc = parseForecast({ hourly }), off = (s) => layerParams(cloudsAt(fc, s), s)[0].off[0];
+  ok(t0 % (6 * H) === 0 && Math.abs(off(t0 + 12 * H) - off(t0 + 12 * H - 60) - 1.22) < 0.05 && Math.abs(off(t0 + 12 * H + 60) - off(t0 + 12 * H) - 1.22) < 0.05 && off(t0 + 12 * H) > 800, "las nubes avanzan con el viento sin saltos al cruzar las 6 h (1,2 km por minuto con viento de 73 km/h)");
 }
 console.log(`\n${pass} pruebas correctas, ${fail} fallidas`);
 process.exit(fail ? 1 : 0);

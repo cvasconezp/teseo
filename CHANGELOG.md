@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.89.0 — Chankillo completo y nubes sin saltos
+
+- **Templo Fortificado de Chankillo:** el cerro con sus murallas, los dos edificios circulares y el rectangular, a partir del modelo fotogramétrico «Sitio arqueológico Chankillo» del Ministerio de Cultura del Perú (Dirección de Catastro y Saneamiento Físico Legal, 2015; CC BY 4.0). Teseo lo simplifica (de 246.000 a 104.000 triángulos, 1 MB que solo se descarga en Chankillo), lo nivela contra el modelo de elevación (venía inclinado unos 7°) y lo sitúa con el mapa de Ghezzi y Ruggles. Se puede estar dentro, sobre su propio suelo.
+- **Edificio de observación y corredor (oeste):** muros bajos trazados sobre el mismo mapa. La «Vista general» pasa a llamarse «Punto de observación oeste»: es la boca del corredor de 40 m (la posición de Teseo y la del mapa coinciden con 3 m de diferencia).
+- **Plaza oeste y recintos del este:** los muros principales, en trazado simplificado y con alto estimado.
+- **Cinco puntos de visita** en Chankillo (oeste, Trece Torres, este, recintos del este y templo) y **tres fichas nuevas** con fuentes (Ministerio de Cultura del Perú, UNESCO, Ghezzi y Ruggles, NASA) y el crédito de la forma de cada pieza.
+- **Las torres, sobre su cresta:** la cresta se mide con una rejilla más fina y su filo se marca junto a las torres; se ven enteras desde el oeste, desde el este y desde 45 m.
+- **Nubes sin saltos:** el desplazamiento de las nubes con el viento volvía a cero cada 6 horas (a las 01:00, 07:00, 13:00 y 19:00 de Ecuador y Perú) y el cielo cambiaba de golpe de un minuto al siguiente. Ahora se suma el viento del pronóstico hora a hora y las nubes avanzan de forma continua.
+- El rótulo de una pieza lejana tapada por el relieve cercano ya no se dibuja encima de la ladera.
 ## 1.88.0 — Auditoría: fallos, coherencia y seguridad
 
 Revisión completa del código, la documentación, las fuentes y el sitio. Lista detallada en el proyecto (`Teseo-Auditoria-2026-11-25.md`).

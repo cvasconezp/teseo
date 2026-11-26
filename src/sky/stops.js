@@ -10,11 +10,16 @@ const AUTO = {
   teotihuacan: ["teotihuacan", ["sol", "luna"]],
   giza: ["giza", ["keops", "kefren", "micerino"]],
   cochasqui: ["cochasqui", ["cq-g", "cq-e", "cq-m", "cqm-a"]],
-  // (a 45 m: caben varias torres a la vista). El punto de observación este: a unos 200 m de las torres, donde un
-  // recinto abierto las deja ver de frente; desde él los ocasos de junio y de diciembre caen en los extremos de la
-  // fila (Ghezzi y Ruggles 2007). Posición aproximada: la que cumple esas dos direcciones (197 m al este del eje)
+  // Chankillo. La «vista general» es el punto de observación oeste: la boca del corredor del edificio de observación
+  // (a 3 m de donde la sitúa el mapa de Ghezzi). Las torres, a 45 m (caben varias a la vista). El punto de observación
+  // este: a unos 200 m de las torres; desde él los ocasos de junio y de diciembre caen en los extremos de la fila
+  // (Ghezzi y Ruggles 2007). Posición aproximada: la que cumple esas dos direcciones (197 m al este del eje).
+  // El Templo Fortificado: dentro, en lo más alto del edificio circular del sur, sobre el suelo de su maqueta.
   chankillo: ["chankillo", [{ id: "chankillo-7", dist: 45 }],
-    [{ id: "este", name: { es: "Punto de observación este", en: "Eastern observing point" }, lat: -9.561131, lon: -78.225674, look: 270, lookAlt: 4, at: [] }]],
+    [{ id: "este", name: { es: "Punto de observación este", en: "Eastern observing point" }, lat: -9.561131, lon: -78.225674, look: 270, lookAlt: 4, at: [] },
+      { id: "recintos", name: { es: "Recintos del este", en: "Eastern buildings" }, lat: -9.562556, lon: -78.225559, look: 230, lookAlt: 0, at: ["chankillo-este"] },
+      { id: "templo", name: { es: "Templo Fortificado", en: "Fortified Temple" }, lat: -9.556881, lon: -78.236106, look: 27, lookAlt: -6, at: ["chankillo-templo"] }],
+    { name: { es: "Punto de observación oeste", en: "Western observing point" }, look: 90, lookAlt: 3, at: ["chankillo-obs"] }],
   catequilla: ["catequilla", ["catequilla-muro", "catequilla-disco"]],
   paranal: ["paranal", ["vlt-ut1", "vlt-ut4"]],
   // (Tiwanaku: la vista general ya es el frente de Kalasasaya, con su escalinata y su portada; Akapana se mira
@@ -62,10 +67,10 @@ let cache = null;
 export function allStops() {
   if (cache) return cache;
   const out = { ...SITE_STOPS };
-  for (const [site, [viewId, ids, extra]] of Object.entries(AUTO)) {
-    const view = SITES.find((s) => s.id === viewId), all = MONUMENTS.filter((m) => m.site === site);
+  for (const [site, [viewId, ids, extra, vo]] of Object.entries(AUTO)) {
+    const view = SITES.find((s) => s.id === viewId), all = MONUMENTS.filter((m) => m.site === site && m.kind !== "walls" && !m.modelOnly);   // (los muros bajos y las maquetas se pisan: no estorban)
     if (!view) continue;
-    const stops = [{ id: "vista", name: { es: "Vista general", en: "Overview" }, lat: view.lat, lon: view.lon, elev: view.elev ?? null, at: [] }];
+    const stops = [{ id: "vista", name: { es: "Vista general", en: "Overview" }, lat: view.lat, lon: view.lon, elev: view.elev ?? null, at: [], ...(vo || {}) }];
     for (const it of ids) {
       const id = it.id || it, m = all.find((q) => q.id === id), f = m && frontStop(m, view.lat, view.lon, all, it.az != null ? it.az : null, it.dist != null ? it.dist : null);
       if (f) stops.push({ id, name: m.name, lat: +f.lat.toFixed(6), lon: +f.lon.toFixed(6), elev: null, look: Math.round(f.look), lookAlt: Math.round(f.lookAlt), at: [id] });

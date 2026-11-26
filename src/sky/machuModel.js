@@ -24,7 +24,7 @@ export function parseMachuModel(buf) {
     const x0 = Math.floor(Math.min(ax, bx, cx) / CELL), x1 = Math.floor(Math.max(ax, bx, cx) / CELL), y0 = Math.floor(Math.min(ay, by, cy) / CELL), y1 = Math.floor(Math.max(ay, by, cy) / CELL);
     for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) { const key = x * 4096 + y; let L = cells.get(key); if (!L) cells.set(key, (L = [])); L.push(k); }
   }
-  return { nv, nt, v, f, cls, walk: new Float64Array(walk), cells, CELL };
+  return { nv, nt, v, f, cls, walk: new Float64Array(walk), cells, CELL, base: MODEL_BASE_M };
 }
 export function setMachuModel(m) { model = m; }
 export const machuModel = () => model;
@@ -53,13 +53,13 @@ function groundAt(e, n, m) {
     const z = w[i + 2] + u * (w[i + 5] - w[i + 2]) + t * (w[i + 8] - w[i + 2]);
     if (best == null || z > best) best = z;
   }
-  return best == null ? null : best + MODEL_BASE_M;
+  return best == null ? null : best + (m.base != null ? m.base : MODEL_BASE_M);
 }
 /** Triángulos de la maqueta para dibujar: llama a cb(a, b, c, clase) con puntos [e, n, altura − base]. */
 export function eachModelFace(cb, m = model) {
   if (!m) return;
   const P = (i) => [m.v[3 * i] * U, m.v[3 * i + 1] * U, m.v[3 * i + 2] * U];
-  for (let t = 0; t < m.nt; t++) cb(P(m.f[3 * t]), P(m.f[3 * t + 1]), P(m.f[3 * t + 2]), m.cls[t]);
+  for (let t = 0; t < m.nt; t++) cb(P(m.f[3 * t]), P(m.f[3 * t + 1]), P(m.f[3 * t + 2]), m.cls[t], t);
 }
 
 // El escaneo láser de la cima del Intihuatana (public/data/inti-scan.bin; crédito y licencia en intiScan.js): mismo
@@ -75,4 +75,31 @@ export function loadIntiScan(base = "") {
   if (scan) return Promise.resolve(scan);
   if (!scanPending) scanPending = fetch(`${base}/data/inti-scan.bin`).then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => (b ? (scan = parseIntiScan(b)) : null)).catch(() => null).then((m) => { if (!m) scanPending = null; return m; });
   return scanPending;
+}
+
+// ── Maquetas de otros sitios, con el mismo formato ──────────────────────────────────────────────────────────────
+// Chankillo: el Templo Fortificado (public/data/chankillo-templo.bin, 0,46 MB; scripts/build_chankillo_templo.py).
+// Modelo fotogramétrico del Ministerio de Cultura del Perú (2015), CC BY 4.0. Clases: 0 = muro, 1 = suelo.
+export const CHANKILLO_CREDIT = "Ministerio de Cultura del Perú, Dirección de Catastro y Saneamiento Físico Legal · «Sitio arqueológico Chankillo» (Sketchfab, 2015) · CC BY 4.0";
+export const CHANKILLO_BASE_M = 200;
+// (`tone`: el byte de cada cara es clase + 4 · tono de la fotografía, 0–63)
+const SITE_FILES = { chankillo: { file: "chankillo-templo.bin", base: CHANKILLO_BASE_M, tone: true } };
+/** Lee una maqueta con tono por cara: separa el tono (m.tone, 0–63) y deja en el archivo solo la clase. */
+export function parseTonedModel(buf, base) {
+  const b = buf.slice(0), dv = new DataView(b), nv = dv.getUint32(0, true), nt = dv.getUint32(4, true), c = new Uint8Array(b, 8 + nv * 6 + nt * 6, nt), tone = new Uint8Array(nt);
+  for (let t = 0; t < nt; t++) { tone[t] = c[t] >> 2; c[t] &= 3; }
+  return { ...parseMachuModel(b), base, tone };
+}
+const others = {}, otherPending = {};
+/** La maqueta de un sitio por su nombre (`m.model` de la pieza): "machu" o "chankillo"; null si aún no está. */
+export const siteModel = (name) => (name === "machu" ? model : others[name] || null);
+export function setSiteModel(name, m) { if (name === "machu") model = m; else others[name] = m; }
+/** Descarga (una vez) la maqueta de un sitio; promesa de la maqueta o null. */
+export function loadSiteModel(name, base = "") {
+  if (name === "machu") return loadMachuModel(base);
+  const spec = SITE_FILES[name]; if (!spec) return Promise.resolve(null);
+  if (others[name]) return Promise.resolve(others[name]);
+  if (!otherPending[name]) otherPending[name] = fetch(`${base}/data/${spec.file}`).then((r) => (r.ok ? r.arrayBuffer() : null))
+    .then((b) => (b ? (others[name] = spec.tone ? parseTonedModel(b, spec.base) : { ...parseMachuModel(b), base: spec.base }) : null)).catch(() => null).then((m) => { if (!m) otherPending[name] = null; return m; });
+  return otherPending[name];
 }

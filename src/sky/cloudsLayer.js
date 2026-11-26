@@ -359,6 +359,8 @@ export function layerParams(clouds, tSec, lift = 0) {
   const dt = tSec - Math.floor(tSec / ANCHOR_S) * ANCHOR_S;
   return LAYERS.map((l) => {
     const c = clouds ? clouds[l] || 0 : 0, dr = drift((clouds && clouds.wind && clouds.wind[l]) || [0, 0], dt);
+    // (con el camino recorrido que da el pronóstico —clouds.adv—, el desplazamiento es continuo: sin saltos cada 6 h)
+    if (clouds && clouds.adv && clouds.adv[l]) dr.off = [clouds.adv[l][0], clouds.adv[l][1]];
     const over = clouds && clouds.over ? clouds.over[l] || 0 : 0;
     return { layer: l, on: c > 0.003, cover: c, th: threshold(l, c), off: dr.off, dir: dr.dir, h: layerHeight(l, lift, clouds ? clouds.baseKm : null), over };
   });
